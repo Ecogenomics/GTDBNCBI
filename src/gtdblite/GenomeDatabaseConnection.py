@@ -1,0 +1,60 @@
+import psycopg2 as pg
+
+from gtdblite import Credentials
+
+class GenomeDatabaseConnection(object):
+    def __init__(self):
+        self.conn = None
+    
+    # Opens a connection to the PostgreSQL database
+    #
+    # Parameters:
+    #     dev - Connect to the dev server
+    #
+    # Returns:
+    #   No return value.
+    def MakePostgresConnection(self, dev=False):
+        db_name = Credentials.GTDB_DB_NAME
+        if dev:
+            db_name = Credentials.GTDB_DEV_DB_NAME
+        conn_string = "dbname=%s user=%s host=%s password=%s" % (
+            db_name, Credentials.GTDB_USERNAME,
+            Credentials.GTDB_HOST, Credentials.GTDB_PASSWORD
+        )
+        self.conn = pg.connect(conn_string)
+    
+    # Function: ClosePostgresConnection
+    # Closes an open connection to the PostgreSQL database.
+    #
+    # Returns:
+    #   No return value.
+    def ClosePostgresConnection(self):
+        self.conn.close()
+        self.conn = None
+        
+    # Function: IsPostgresConnectionActive
+    # Check if the connection to the PostgreSQL database is active.
+    #
+    # Returns:
+    #   True if connection is active, False otherwise    
+    def IsPostgresConnectionActive(self):
+        if self.conn is not None:
+            cur = self.conn.cursor()
+            try:
+                cur.execute("SELECT count(*) from users")
+            except:
+                return False
+            cur.close()
+            return True
+        else:
+            return False
+        
+    # Convenience methods to the pg connection        
+    def commit(self):
+        return self.conn.commit()
+    
+    def rollback(self):
+        return self.conn.rollback()
+    
+    def cursor(self):
+        return self.conn.cursor()
