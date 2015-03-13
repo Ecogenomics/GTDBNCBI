@@ -417,17 +417,22 @@ class GenomeDatabase(object):
                             "RETURNING id" ,
                             (name, desc, self.currentUser.isRootUser(), owner_id, fasta_file_path, fasta_sha256_checksum, source_id, id_at_source, added, completeness, contamination))
 
+            
+            genome_id = cur.fetchone()[0]
+            
+            # TODO: Add to genome list if required
+            
+            return genome_id    
+
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return None
         except:            
             raise 
         
-        genome_id = cur.fetchone()[0]
-        return genome_id
-        
-    
-    def AddMarkers(self, batchfile, force_overwrite=False):
+
+    def AddMarkers(self, batchfile, modify_marker_set_id=None, new_marker_set_name=None,
+                   force_overwrite=False):
     
         # Add the markers
         cur = self.conn.cursor()
@@ -459,7 +464,7 @@ class GenomeDatabase(object):
         self.conn.commit()
         return True
 
-    def AddMarkersWorking(self, cur, marker_file_path, name, desc, force_overwrite=False,
+    def AddMarkersWorking(self, cur, marker_file_path, name, desc, marker_set_id=None, force_overwrite=False,
                           database=None, database_specific_id=None):
         try:
             marker_fh = open(marker_file_path, "rb")
@@ -494,6 +499,9 @@ class GenomeDatabase(object):
             self.ReportError("Model file specifies invalid marker length. Length: %i. Offending file %s." % (model_length, marker_file_path))
             return None
         
+        if marker_set_id is not None:
+            if self.GetMarkerIdListFromMarkerSetId(marker_set_id) is None:
+                raise GenomeDatabaseError("Unable to add marker to set %s." % marker_set_id)
         
         marker_sha256_checksum = m.hexdigest()
         marker_fh.close()
@@ -564,6 +572,8 @@ class GenomeDatabase(object):
         
         marker_id = cur.fetchone()[0]
         
+        # TODO: Add to marker set if needed
+        
         return marker_id
   
       
@@ -578,14 +588,29 @@ class GenomeDatabase(object):
     def GetMarkerIdListFromMarkerSetId(self, marker_set_id):
         
         cur = self.conn.cursor()
+           
+        cur.execute("SELECT id, owner_id, owned_by_root, private " +
+                    "FROM marker_sets " +
+                    "WHERE id = %s ", (marker_set_id,))
+        
+        result = cur.fetchone()
+        
+        if not result:
+            self.ReportError("No marker set with id: %s" % str(marker_set_id))
+            return None            
+        else:
+            (list_id, owner_id, owned_by_root, private) = result
+            if private and (not self.currentUser.isRootUser()) and (owned_by_root or owner_id != self.currentUser.getUserId()):
+                self.ReportError("Insufficient permission to view marker set: %s" % str(marker_set_id))
+                return None   
+        
                 
         cur.execute("SELECT marker_id " +
                     "FROM marker_set_contents " +
                     "WHERE set_id = %s ", (marker_set_id,))
         
-        marker_id_list = [x[0] for x in cur.fetchall()]
+        return [marker_id for (marker_id,) in cur.fetchall()]
         
-        return marker_id_list
   
         
     def MakeTreeData(self, marker_list, list_of_genome_ids, directory, prefix, profile=None, config_dict=None, build_tree=True):    
@@ -663,21 +688,26 @@ class GenomeDatabase(object):
         
         cur = self.conn.cursor()
         
-        cur.execute("SELECT id " +
+        cur.execute("SELECT id, owner_id, owned_by_root, private " +
                     "FROM genome_lists " +
-                    "WHERE id = %s", (genome_list_id,))
+                    "WHERE id = %s ", (genome_list_id,))
         
-        if not cur.fetchone():
-            self.ReportError("No genome list with id: " + str(genome_list_id))
-            return None
+        result = cur.fetchone()
+        
+        if not result:
+            self.ReportError("No genome list with id: %s" % str(genome_list_id))
+            return None            
+        else:
+            (list_id, owner_id, owned_by_root, private) = result
+            if private and (not self.currentUser.isRootUser()) and (owned_by_root or owner_id != self.currentUser.getUserId()):
+                self.ReportError("Insufficient permission to view genome list: %s" % str(genome_list_id))
+                return None   
         
         cur.execute("SELECT genome_id " +
                     "FROM genome_list_contents " +
                     "WHERE list_id = %s", (genome_list_id,))
         
-        result = cur.fetchall()
-        
-        return [genome_id for (genome_id,) in result]
+        return [genome_id for (genome_id,) in cur.fetchall()]
     
     
     # Function: ModifyGenomeList
@@ -787,7 +817,7 @@ class GenomeDatabase(object):
             params.append(self.currentUser.getUserId())
         
         cur.execute(
-            "SELECT list.id, list.name, list.description, users.username, count(contents.list_id) " +
+            "SELECT list.id, list.name, list.description, list.private, users.username, count(contents.list_id) " +
             "FROM genome_lists as list " +
             "LEFT OUTER JOIN users ON list.owner_id = users.id " + 
             "JOIN genome_list_contents as contents ON contents.list_id = list.id " +
@@ -797,8 +827,6 @@ class GenomeDatabase(object):
             "ORDER by list.id asc " ,
             params
         )
-        
-        print cur.query
         
         return cur.fetchall()
     
@@ -814,7 +842,7 @@ class GenomeDatabase(object):
             params.append(self.currentUser.getUserId())
         
         cur.execute(
-            "SELECT list.id, list.name, list.description, users.username, count(contents.list_id) " +
+            "SELECT list.id, list.name, list.description, list.private, users.username, count(contents.list_id) " +
             "FROM genome_lists as list " +
             "LEFT OUTER JOIN users ON list.owner_id = users.id " + 
             "JOIN genome_list_contents as contents ON contents.list_id = list.id " +
@@ -824,8 +852,6 @@ class GenomeDatabase(object):
             "ORDER by list.id asc " ,
             params
         )
-        
-        print cur.query
         
         return cur.fetchall()
     

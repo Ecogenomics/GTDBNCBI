@@ -77,6 +77,20 @@ def ShowAllGenomeLists(db, args):
     print db.GetAllVisibleGenomeLists()
     return True
     
+def ShowOwnedGenomeLists(db, args):
+    
+    if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
+        print db.GetVisibleGenomeListsByOwner()
+    elif args.self_owned:
+        print db.GetVisibleGenomeListsByOwner(db.currentUser.getUserId())
+    else:
+        # TODO: this
+        db.ReportError("Viewing other people's genome lists not yet implemented.")
+        return False
+        
+        
+    return True
+    
 if __name__ == '__main__':
     
     # create the top-level parser
@@ -117,6 +131,7 @@ if __name__ == '__main__':
                                     required=True, help='Batchfile describing the genomes - one genome per line, tab separated in 3-5 columns (filename, name, desc, [source], [id_at_source])')
     parser_genome_add.add_argument('--checkm_results', dest = 'checkm_file',
                                     required=True, help='Provide a checkM results file. MUST BE A TAB TABLE! e.g. "checkm taxonomy_wf -f CHECKM_FILE --tab_table domain Bacteria bins/ output"')
+    
     mutex_group = parser_genome_add.add_mutually_exclusive_group(required=True)
     mutex_group.add_argument('--modify_list', dest = 'genome_list_id',
                                     help='Modify a genome list with the \
@@ -130,10 +145,22 @@ if __name__ == '__main__':
 
     # Show all genome lists
     parser_genome_lists_show_all = genome_list_category_subparser.add_parser('show_all',
-                                        help='Create a genome list from a list of accessions')
-    parser_genome_lists_show_all.add_argument('--owned', dest = 'self_owned',  default=False,
-                                        action='store_true', help='Only show genome lists owned by you.')
+                                        help='Show all visible genome lists')
     parser_genome_lists_show_all.set_defaults(func=ShowAllGenomeLists)
+    
+    
+    # Show owned genome lists
+    parser_genome_lists_show_owned = genome_list_category_subparser.add_parser('show_owned',
+                                        help='Show visible owned genome lists.')
+    
+    mutex_group = parser_genome_lists_show_owned.add_mutually_exclusive_group(required=True)
+    mutex_group.add_argument('--root', dest = 'root_owned', default=False,
+                                        action='store_true', help='Only show genome lists owned by the root user.')
+    mutex_group.add_argument('--self', dest = 'self_owned', default=False,
+                                        action='store_true', help='Only show genome lists owned by you.')
+    mutex_group.add_argument('--owner', dest = 'owner_name', help='Only show genome lists owned by this user.')    
+    
+    parser_genome_lists_show_owned.set_defaults(func=ShowOwnedGenomeLists)
 
 #--------- Marker Management Subparsers
     
