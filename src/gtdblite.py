@@ -1,51 +1,82 @@
 #!/usr/bin/env python
 import argparse
 import sys
-from gtdblite import GenomeDatabase 
 import os
 import pwd
 
+from gtdblite import GenomeDatabase 
+from gtdblite import profiles 
+
 def GetLinuxUsername():
     return pwd.getpwuid(os.getuid())[0]
+
+def DumpDBErrors(db):
+    ErrorReport("\n".join(["\t" + x for x in db.GetErrors()]) + "\n")
+    db.ClearErrors()
 
 def ErrorReport(msg):
     sys.stderr.write(msg)
     sys.stderr.flush()
 
 def AddManyFastaGenomes(db, args):
-    return db.AddManyFastaGenomes(args.batchfile, args.checkm_file, args.force)
+    return db.AddManyFastaGenomes(
+        args.batchfile, args.checkm_file, args.genome_list_id,
+        args.genome_list_name, args.force
+    )
+
 
 def AddMarkers(db, args):
     return db.AddMarkers(args.batchfile, args.force)
 
 def CreateTreeData(db, args):    
         
-        list_ids = []
-        if args.list_ids:
-            list_ids = args.list_ids.split(",")
-            
-        genome_id_set = set()
-        if args.tree_ids:
-            extra_ids = [db.GetGenomeId(x) for x in args.tree_ids.split(",")]
-            genome_id_set = genome_id_set.union(set(extra_ids))
-        for list_id in list_ids:
+    genome_id_set = set()
+
+    if args.genome_list_ids:
+        genome_list_ids = args.genome_list_ids.split(",")
+        for list_id in genome_list_ids:
             temp_genome_list = db.GetGenomeIdListFromGenomeListId(list_id)
             if temp_genome_list:
                 genome_id_set = genome_id_set.union(set(temp_genome_list))
 
-        profile_config_dict = dict()
-        if args.profile_args:
-            profile_args = args.profile_args.split(',')
-            for profile_arg in profile_args:
-                key_value_pair = profile_arg.split('=')
-                try:
-                    profile_config_dict[key_value_pair[0]] = key_value_pair[1]
-                except IndexError:
-                    profile_config_dict[key_value_pair[0]] = None
-        
-        if (len(genome_id_set) > 0) or (len(core_lists) != 0):
-            db.MakeTreeData(args.marker_set_id,  list(genome_id_set), args.profile, args.out_dir, config_dict=profile_config_dict)
+    # TODO: Do the genome batchfile as well
 
+    marker_id_set = set()
+    
+    if args.marker_set_ids:
+        marker_set_ids = args.marker_set_ids.split(",")
+        for set_id in marker_set_ids:
+            temp_marker_list = db.GetMarkerIdListFromMarkerSetId(set_id)
+            if temp_marker_list:
+                marker_id_set = marker_id_set.union(set(temp_marker_list))
+
+    profile_config_dict = dict()
+    if args.profile_args:
+        profile_args = args.profile_args.split(',')
+        for profile_arg in profile_args:
+            key_value_pair = profile_arg.split('=')
+            try:
+                profile_config_dict[key_value_pair[0]] = key_value_pair[1]
+            except IndexError:
+                profile_config_dict[key_value_pair[0]] = None
+    
+    if (len(genome_id_set) == 0):
+        db.ReportError("No genomes found from the information provided.")
+        return False
+    
+    if (len(marker_id_set) == 0):
+        db.ReportError("No markers found from the information provided.")
+        return False
+    
+    if db.MakeTreeData(list(marker_id_set), list(genome_id_set), args.out_dir, args.profile, profile_config_dict, not(args.no_tree)) is None:
+        return False
+    
+    return True
+
+def ShowAllGenomeLists(db, args):
+    print db.GetAllVisibleGenomeLists()
+    return True
+    
 if __name__ == '__main__':
     
     # create the top-level parser
@@ -61,29 +92,32 @@ if __name__ == '__main__':
     
     category_parser = parser.add_subparsers(help='Category Command Help', dest='category_parser_name')
 
-    user_category_parser = category_parser.add_parser('user', help='View the user sub-commands')
+    user_category_parser = category_parser.add_parser('user', help='Access the user sub-commands')
     user_category_subparser = user_category_parser.add_subparsers(help='User command help', dest='user_subparser_name')
     
-    genome_category_parser = category_parser.add_parser('genome', help='View the genome sub-commands')
+    genome_category_parser = category_parser.add_parser('genome', help='Access the genome sub-commands')
     genome_category_subparser = genome_category_parser.add_subparsers(help='Genome command help', dest='genome_subparser_name')
     
-    marker_category_parser = category_parser.add_parser('marker', help='View the marker commands')
+    genome_list_category_parser = category_parser.add_parser('genome_lists', help='Access the genome list sub-commands')
+    genome_list_category_subparser = genome_list_category_parser.add_subparsers(help='Genome List command help', dest='genome_list_subparser_name')
+    
+    marker_category_parser = category_parser.add_parser('marker', help='Access the marker commands')
     marker_category_subparser = marker_category_parser.add_subparsers(help='Marker command help', dest='marker_subparser_name')
     
-    tree_category_parser = category_parser.add_parser('tree', help='View the tree commands')
+    tree_category_parser = category_parser.add_parser('tree', help='Access the tree commands')
     tree_category_subparser = tree_category_parser.add_subparsers(help='Tree command help', dest='tree_subparser_name')
     
-    profile_category_parser = category_parser.add_parser('profile', help='View the profile commands')
+    profile_category_parser = category_parser.add_parser('profile', help='Access the profile commands')
     profile_category_subparser = profile_category_parser.add_subparsers(help='Profile command help', dest='profile_subparser_name')
 # -------- Genome Management subparsers
 
-    parser_addmanyfastagenomes = genome_category_subparser.add_parser('add',
+    parser_genome_add = genome_category_subparser.add_parser('add',
                                     help='Add one or many genomes to the tree.')
-    parser_addmanyfastagenomes.add_argument('--batchfile', dest = 'batchfile',
+    parser_genome_add.add_argument('--batchfile', dest = 'batchfile',
                                     required=True, help='Batchfile describing the genomes - one genome per line, tab separated in 3-5 columns (filename, name, desc, [source], [id_at_source])')
-    parser_addmanyfastagenomes.add_argument('--checkm_result', dest = 'checkm_file',
+    parser_genome_add.add_argument('--checkm_results', dest = 'checkm_file',
                                     required=True, help='Provide a checkM results file. MUST BE A TAB TABLE! e.g. "checkm taxonomy_wf -f CHECKM_FILE --tab_table domain Bacteria bins/ output"')
-    mutex_group = parser_addmanyfastagenomes.add_mutually_exclusive_group(required=True)
+    mutex_group = parser_genome_add.add_mutually_exclusive_group(required=True)
     mutex_group.add_argument('--modify_list', dest = 'genome_list_id',
                                     help='Modify a genome list with the \
                                     specified id and add all batchfile genomes into it.')
@@ -92,15 +126,22 @@ if __name__ == '__main__':
     mutex_group.add_argument('--no_list', dest = 'no_genome_list', action="store_true",
                                     help="Don't add these genomes to a list.")
     
-    parser_addmanyfastagenomes.set_defaults(func=AddManyFastaGenomes)
+    parser_genome_add.set_defaults(func=AddManyFastaGenomes)
+
+    # Show all genome lists
+    parser_genome_lists_show_all = genome_list_category_subparser.add_parser('show_all',
+                                        help='Create a genome list from a list of accessions')
+    parser_genome_lists_show_all.add_argument('--owned', dest = 'self_owned',  default=False,
+                                        action='store_true', help='Only show genome lists owned by you.')
+    parser_genome_lists_show_all.set_defaults(func=ShowAllGenomeLists)
 
 #--------- Marker Management Subparsers
     
-    parser_addmarkers = marker_category_subparser.add_parser('add', 
+    parser_marker_add = marker_category_subparser.add_parser('add', 
                                  help='Add in one or many marker HMMs into the database')
-    parser_addmarkers.add_argument('--batchfile', dest='batchfile', required=True,
+    parser_marker_add.add_argument('--batchfile', dest='batchfile', required=True,
                                 help='Batchfile describing the markers - one HMM file per line (one model per file), tab separated in 3-5 columns (filename, name, desc, [database], [database_specific_id]')
-    mutex_group = parser_addmarkers.add_mutually_exclusive_group(required=True)
+    mutex_group = parser_marker_add.add_mutually_exclusive_group(required=True)
     mutex_group.add_argument('--modify_set', dest = 'marker_set_id',
                                     help='Modify a marker set with the \
                                     specified id and add all markers to it.')
@@ -108,25 +149,34 @@ if __name__ == '__main__':
                                     help='Create a marker set with the specified name and add these markers to it.')
     mutex_group.add_argument('--no_set', dest = 'no_marker_set', action="store_true",
                                     help="Don't add these markers to a marker set.")
-    parser_addmarkers.set_defaults(func=AddMarkers)
+    parser_marker_add.set_defaults(func=AddMarkers)
 
 # -------- Generate Tree Data
 
-    ## FROM HERE!!!
+    parser_tree_create = tree_category_subparser.add_parser('create',
+                                        help='Create a genome tree')
+    
+    parser_tree_create.add_argument('--genome_batchfile', dest = 'genome_batchfile', default=None,
+                                        help='Provide a file of genome IDs, one per line, to include in the tree')
+    parser_tree_create.add_argument('--genome_list_ids', dest = 'genome_list_ids', default=None,
+                                        help='Provide a list of genome list ids (comma separated), whose genomes should be included in the tree.')
+    
+    parser_tree_create.add_argument('--marker_batchfile', dest = 'marker_batchfile',
+                                        help='Provide a file of marker IDs, one per line, to build the tree')
+    parser_tree_create.add_argument('--marker_set_ids', dest = 'marker_set_ids',
+                                        help='Provide a list of marker set ids (comma separated), whose markers will be used to build the tree.')
+        
+    parser_tree_create.add_argument('--output', dest = 'out_dir', required=True,
+                                        help='Directory to output the files')
+    parser_tree_create.add_argument('--no_tree', dest = 'no_tree', action="store_true",
+                                        help="Only output tree data, don't build the tree.")
 
-    parser_createtreedata = tree_category_subparser.add_parser('create',
-                                        help='Generate data to create genome tree')
-    parser_createtreedata.add_argument('--list_id_file', dest = 'list_id_file',
-                                        help='Create genome tree data from these lists (comma separated).')
-    parser_createtreedata.add_argument('--set_id', dest = 'marker_set_id',
-                                        required=True, help='Use this marker set for the genome tree.')
-    parser_createtreedata.add_argument('--output', dest = 'out_dir',
-                                        required=True, help='Directory to output the files')
-    parser_createtreedata.add_argument('--profile', dest = 'profile',
+    parser_tree_create.add_argument('--profile', dest = 'profile',
                                         help='Tree creation profile to use (default: %s)' % (profiles.ReturnDefaultProfileName(),))
-    parser_createtreedata.add_argument('--profile_args', dest = 'profile_args',
+    parser_tree_create.add_argument('--profile_args', dest = 'profile_args',
                                         help='Arguments to provide to the profile')
-    parser_createtreedata.set_defaults(func=CreateTreeData)
+    
+    parser_tree_create.set_defaults(func=CreateTreeData)
 
     """
 # -------- Create users
@@ -413,6 +463,12 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     
+    if (args.category_parser_name == 'tree' and args.tree_subparser_name == 'create'):
+        if (args.genome_batchfile is None and args.genome_list_ids is None):
+            parser_tree_create.error('Need to specify at least one of --genome_batchfile or --genome_list_ids')
+        if (args.marker_batchfile is None and args.marker_set_ids is None):
+            parser_tree_create.error('Need to specify at least one of --marker_batchfile or --marker_set_ids')
+    
     # Initialise the backend
     db = GenomeDatabase.GenomeDatabase()
     db.conn.MakePostgresConnection(args.dev)
@@ -427,16 +483,16 @@ if __name__ == '__main__':
         user = db.UserLogin(GetLinuxUsername())
         
     if not user:
-        ErrorReport("Database login failed. The following error was reported:\n" +
-                    "\t" + db.lastErrorMessage)
+        ErrorReport("Database login failed. The following error(s) were reported:\n")
+        DumpDBErrors(db)
         sys.exit(-1)
 
     result = args.func(db, args)
     
     if not result:
-        ErrorReport("Database action failed. The following error was reported:\n" +
-            "\t" + db.lastErrorMessage)
-    
+        ErrorReport("Database action failed. The following error(s) were reported:\n")
+        DumpDBErrors(db)
+        sys.exit(-1)
     
     
     
