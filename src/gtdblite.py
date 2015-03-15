@@ -73,6 +73,15 @@ def CreateTreeData(db, args):
 
     return True
 
+def ViewGenomes(db, args):
+    
+    if args.view_all:
+        return db.ViewGenomes()
+    else:
+        external_ids = args.id_list.split(",")
+        return db.ViewGenomes(args.batchfile, external_ids)    
+
+
 def ShowGenomeLists(db, args):
 
     if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
@@ -151,6 +160,17 @@ if __name__ == '__main__':
 
     parser_genome_add.set_defaults(func=AddManyFastaGenomes)
 
+
+    parser_genome_view = genome_category_subparser.add_parser('view',
+                                    help='View the details of genomes in the database.')
+    parser_genome_view.add_argument('--batchfile', dest = 'batchfile', default=None,
+                                    help='Batchfile of genome ids (one per line) to view')
+    parser_genome_view.add_argument('--genome_ids', dest = 'id_list', default=None,
+                                    help='Provide a list of genome ids (comma separated) to view')
+    parser_genome_view.add_argument('--all', dest = 'view_all', action="store_true",
+                                    help='View ALL the genomes in the database. This might take a while...')
+
+    parser_genome_view.set_defaults(func=ViewGenomes)
 
     #------------ Show owned genome lists
     parser_genome_lists_show = genome_list_category_subparser.add_parser('show',
@@ -502,12 +522,21 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if (args.category_parser_name == 'tree' and args.tree_subparser_name == 'create'):
+    # Special parser checks
+    
+    if (args.category_parser_name == 'trees' and args.tree_subparser_name == 'create'):
         if (args.genome_batchfile is None and args.genome_list_ids is None):
             parser_tree_create.error('Need to specify at least one of --genome_batchfile or --genome_list_ids')
         if (args.marker_batchfile is None and args.marker_set_ids is None):
             parser_tree_create.error('Need to specify at least one of --marker_batchfile or --marker_set_ids')
 
+    if (args.category_parser_name == 'genomes' and args.genome_subparser_name == 'view'):
+        if (args.batchfile is not None or args.id_list is not None):
+            if args.view_all:
+                parser_genome_view.error('argument --all must be used by itself')
+        else:
+            parser_genome_view.error('need to specify at least one of --all, --batchfile or --genome_ids')
+            
     # Initialise the backend
     db = GenomeDatabase.GenomeDatabase()
     db.conn.MakePostgresConnection(args.dev)

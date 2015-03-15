@@ -3,6 +3,7 @@ import shutil
 import os
 import datetime
 import time
+import random
 
 from gtdblite.User import User
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
@@ -223,6 +224,14 @@ class GenomeDatabase(object):
                 return False
             return target_file_name
 
+    def GenerateTempTableName(self):
+        
+        rng = random.SystemRandom()
+        suffix = ''
+        for i in range(0,10):
+            suffix += rng.choice('abcefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
+        return "TEMP" + suffix + str(int(time.time()))
+    
 
     #def AddFastaGenome(self, fasta_file, copy_fasta, name, desc, force_overwrite=False, source=None, id_at_source=None, completeness=0, contamination=0):
     #    cur = self.conn.cursor()
@@ -430,6 +439,57 @@ class GenomeDatabase(object):
         except:
             raise
 
+    def ViewGenomes(self, batchfile, external_ids):
+        try:
+            try:
+                fh = open(batchfile, "rb")
+            except:
+                fh.close()
+                raise GenomeDatabaseError("Cannot open batchfile: " + batchfile)
+            
+            for line in fh:
+                line = line.rstrip()
+                external_ids.append(line)
+            
+            map_sources_to_ids = {}
+            
+            for external_id in external_ids:
+                (source_name, id_at_source) = external_id.split("_", 1)
+                if source_name not in map_sources_to_ids:
+                    map_sources_to_ids[source_name] = {}
+                map_sources_to_ids[source_name][id_at_source] = external_id
+                
+            temp_table_name = self.GenerateTempTableName()  
+
+            # TODO: Working from here
+
+            if genome_list_ids:
+                cur.execute("CREATE TEMP TABLE %s (id integer)" % (temp_table_name,) )
+                query = "INSERT INTO {0} (id) VALUES (%s)".format(temp_table_name)
+                cur.executemany(query, [(x,) for x in map_sources_to_ids.keys()])
+            else:
+                raise GenomeDatabaseError("No genome lists given. Can not retrieve IDs" )
+
+            # Find any ids that don't have genome lists
+            query = ("SELECT id FROM {0} " +
+                     "WHERE id NOT IN ( " +
+                        "SELECT id " +
+                        "FROM genome_lists)").format(temp_table_name)
+
+            cur.execute(query)
+
+            missing_list_ids = []
+            for (list_id,) in cur:
+                missing_list_ids.append(list_id)
+
+            if missing_list_ids:
+                raise GenomeDatabaseError("Unknown genome list id(s) given. %s" % str(missing_list_ids))
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+        except:
+            raise
+        
     def PrintGenomesDetails(self, genome_id_list):
         try:
 
@@ -758,7 +818,7 @@ class GenomeDatabase(object):
         try:
             cur = self.conn.cursor()
 
-            temp_table_name = "TEMP" + str(int(time.time()))
+            temp_table_name = self.GenerateTempTableName()
 
             if genome_list_ids:
                 cur.execute("CREATE TEMP TABLE %s (id integer)" % (temp_table_name,) )
@@ -858,7 +918,7 @@ class GenomeDatabase(object):
             query = "UPDATE genome_lists SET private = %s WHERE id = %s";
             cur.execute(query, (private, genome_list_id))
 
-        temp_table_name = "TEMP" + str(int(time.time()))
+        temp_table_name = self.GenerateTempTableName()
 
         if genome_ids:
             cur.execute("CREATE TEMP TABLE %s (id integer)" % (temp_table_name,) )
