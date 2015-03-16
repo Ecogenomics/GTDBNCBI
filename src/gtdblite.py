@@ -31,28 +31,57 @@ def CreateTreeData(db, args):
 
     genome_id_list = []
 
-    if args.genome_list_ids:
-        genome_list_ids = args.genome_list_ids.split(",")
-        genome_id_list = db.GetGenomeIdListFromGenomeListIds(list_ids)
+    if args.genome_ids:
+        temp_list = db.ExternalGenomeIdsToGenomeIds(args.genome_ids.split(","))
+        if temp_list is None:
+            return False
+        genome_id_list += temp_list
 
-    # TODO: Do the genome batchfile as well
+    if args.genome_list_ids:
+        temp_list = db.GetGenomeIdListFromGenomeListIds(args.genome_list_ids.split(","))
+        if temp_list is None:
+            return False
+        genome_id_list += temp_list
+    
+    batchfile_ids = []
+    if args.genome_batchfile:
+        fh = open(args.batchfile, "rb")
+        for line in fh:
+            line = line.rstrip()
+            batchfile_ids.append(line)
+
+    if batchfile_ids:
+        temp_list = db.GetGenomeIdListFromGenomeListIds(args.genome_list_ids.split(","))
+        genome_id_list += db.ExternalGenomeIdsToGenomeIds(batchfile_ids)
 
     if (len(genome_id_list) == 0):
         db.ReportError("No genomes found from the information provided.")
         return False
 
-    marker_id_set = set()
+    marker_id_list = []
+
+    if args.marker_ids:
+        marker_id_list += db.ExternalMarkerIdsToMarkerIds(args.marker_ids.split(","))
 
     # TODO: make GetMarkerIdListFromMarkerSetIds
-
     if args.marker_set_ids:
         marker_set_ids = args.marker_set_ids.split(",")
         for set_id in marker_set_ids:
             temp_marker_list = db.GetMarkerIdListFromMarkerSetId(set_id)
             if temp_marker_list:
-                marker_id_set = marker_id_set.union(set(temp_marker_list))
+                marker_id_list += temp_marker_list
 
-    if (len(marker_id_set) == 0):
+    batchfile_ids = []
+    if args.marker_batchfile:
+        fh = open(args.batchfile, "rb")
+        for line in fh:
+            line = line.rstrip()
+            batchfile_ids.append(line)
+
+    if batchfile_ids:
+        marker_id_list += db.ExternalMarkerIdsToMarkerIds(batchfile_ids)
+
+    if (len(marker_id_list) == 0):
         db.ReportError("No markers found from the information provided.")
         return False
 
@@ -68,7 +97,7 @@ def CreateTreeData(db, args):
                 profile_config_dict[key_value_pair[0]] = None
 
 
-    if db.MakeTreeData(list(marker_id_set), genome_id_list, args.out_dir, args.profile, profile_config_dict, not(args.no_tree)) is None:
+    if db.MakeTreeData(marker_id_list, genome_id_list, args.out_dir, args.profile, profile_config_dict, not(args.no_tree)) is None:
         return False
 
     return True
@@ -87,9 +116,9 @@ def ViewGenomes(db, args):
 def ViewGenomeLists(db, args):
 
     if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
-        print db.GetVisibleGenomeListsByOwner()
+        return db.PrintGenomeListsDetails(db.GetVisibleGenomeListsByOwner())
     elif args.self_owned:
-        print db.GetVisibleGenomeListsByOwner(db.currentUser.getUserId())
+        return db.PrintGenomeListsDetails(db.GetVisibleGenomeListsByOwner(db.currentUser.getUserId()))
     elif args.show_all:
         return db.PrintGenomeListsDetails(db.GetAllVisibleGenomeListIds())
     else:
@@ -219,12 +248,16 @@ if __name__ == '__main__':
 
     parser_tree_create.add_argument('--genome_batchfile', dest = 'genome_batchfile', default=None,
                                         help='Provide a file of genome IDs, one per line, to include in the tree')
+    parser_tree_create.add_argument('--genome_ids', dest = 'genome_ids', default=None,
+                                        help='Provide a list of genome ids (comma separated), whose genomes should be included in the tree.')
     parser_tree_create.add_argument('--genome_list_ids', dest = 'genome_list_ids', default=None,
                                         help='Provide a list of genome list ids (comma separated), whose genomes should be included in the tree.')
 
-    parser_tree_create.add_argument('--marker_batchfile', dest = 'marker_batchfile',
+    parser_tree_create.add_argument('--marker_batchfile', dest = 'marker_batchfile', default=None,
                                         help='Provide a file of marker IDs, one per line, to build the tree')
-    parser_tree_create.add_argument('--marker_set_ids', dest = 'marker_set_ids',
+    parser_tree_create.add_argument('--marker_ids', dest = 'marker_ids', default=None,
+                                        help='Provide a list of marker ids (comma separated), whose markers will be used to build the tree.')
+    parser_tree_create.add_argument('--marker_set_ids', dest = 'marker_set_ids', default=None,
                                         help='Provide a list of marker set ids (comma separated), whose markers will be used to build the tree.')
 
     parser_tree_create.add_argument('--output', dest = 'out_dir', required=True,
@@ -527,10 +560,10 @@ if __name__ == '__main__':
     # Special parser checks
 
     if (args.category_parser_name == 'trees' and args.tree_subparser_name == 'create'):
-        if (args.genome_batchfile is None and args.genome_list_ids is None):
-            parser_tree_create.error('Need to specify at least one of --genome_batchfile or --genome_list_ids')
-        if (args.marker_batchfile is None and args.marker_set_ids is None):
-            parser_tree_create.error('Need to specify at least one of --marker_batchfile or --marker_set_ids')
+        if (args.genome_batchfile is None and args.genome_ids is None and args.genome_list_ids is None):
+            parser_tree_create.error('Need to specify at least one of --genome_batchfile, --genome_ids or --genome_list_ids')
+        if (args.marker_batchfile is None and args.marker_ids is None and args.marker_set_ids is None ):
+            parser_tree_create.error('Need to specify at least one of --marker_batchfile, --marker_ids or --marker_set_ids')
 
     if (args.category_parser_name == 'genomes' and args.genome_subparser_name == 'view'):
         if (args.batchfile is not None or args.id_list is not None):

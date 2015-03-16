@@ -205,7 +205,7 @@ class GenomeDatabase(object):
             self.ReportError("Genome storage directory is not a directory.")
             return False
 
-        cur.execute("SELECT genome_source_id, id_at_source, tree_id_prefix " +
+        cur.execute("SELECT genome_source_id, id_at_source, external_id_prefix " +
                     "FROM genomes, genome_sources " +
                     "WHERE id = %s "+
                     "AND genome_source_id = genome_sources.id", (genome_id,))
@@ -215,8 +215,8 @@ class GenomeDatabase(object):
             self.ReportError("Genome id not found: %s." % genome_id)
             return False
 
-        for (genome_source_id, id_at_source, tree_id_prefix) in result:
-            target_file_name = tree_id_prefix + "_" + str(id_at_source)
+        for (genome_source_id, id_at_source, external_id_prefix) in result:
+            target_file_name = external_id_prefix + "_" + str(id_at_source)
             try:
                 shutil.copy(fasta_file, os.path.join(self.genomeCopyDir, target_file_name))
             except:
@@ -366,18 +366,18 @@ class GenomeDatabase(object):
                 if self.GetGenomeIdListFromGenomeListId(genome_list_id) is None:
                     raise GenomeDatabaseError("Unable to add genome to list %s." % genome_list_id)
 
-            cur.execute("SELECT id, tree_id_prefix, user_accessible FROM genome_sources WHERE name = %s" , (source,))
+            cur.execute("SELECT id, external_id_prefix, user_accessible FROM genome_sources WHERE name = %s" , (source,))
             source_id = None
             prefix = None
 
-            for (id, tree_id_prefix, user_accessible) in cur:
+            for (id, external_id_prefix, user_accessible) in cur:
                 if (not user_accessible):
                     if id_at_source == None:
                         raise GenomeDatabaseError("Cannot auto generate ids at source for the %s genome source." % source)
                     if (not self.currentUser.isRootUser()):
                         raise GenomeDatabaseError("Only the root user can add genomes to the %s genome source." % source)
                 source_id = id
-                prefix = tree_id_prefix
+                prefix = external_id_prefix
                 break
 
             if source_id is None:
@@ -466,7 +466,7 @@ class GenomeDatabase(object):
             # Find any given tree prefixes that arent in the genome sources
             query = ("SELECT prefix FROM {0} " +
                      "WHERE prefix NOT IN ( " +
-                        "SELECT tree_id_prefix " +
+                        "SELECT external_id_prefix " +
                         "FROM genome_sources)").format(temp_table_name)
 
             cur.execute(query)
@@ -498,7 +498,7 @@ class GenomeDatabase(object):
                             "SELECT id_at_source " +
                             "FROM genomes, genome_sources " +
                             "WHERE genome_source_id = genome_sources.id "+
-                            "AND tree_id_prefix = %s)").format(temp_table_name)
+                            "AND external_id_prefix = %s)").format(temp_table_name)
 
                 cur.execute(query, (source_prefix,))
 
@@ -515,7 +515,7 @@ class GenomeDatabase(object):
                          "AND id_at_source IN ( " +
                             "SELECT id_at_source " +
                             "FROM {0} )"+
-                         "AND tree_id_prefix = %s").format(temp_table_name)
+                         "AND external_id_prefix = %s").format(temp_table_name)
 
                 cur.execute(query, (source_prefix,))
 
@@ -581,10 +581,13 @@ class GenomeDatabase(object):
 
     def PrintGenomesDetails(self, genome_id_list):
         try:
+            if not genome_id_list:
+                raise GenomeDatabaseError("Unable to print genomes. No genomes found.")
+            
             cur = self.conn.cursor()
 
             columns = "genomes.id, genomes.name, description, owned_by_root, username, fasta_file_location, " + \
-                       "tree_id_prefix || '_' || id_at_source as external_id, date_added, checkm_completeness, checkm_contamination"
+                       "external_id_prefix || '_' || id_at_source as external_id, date_added, checkm_completeness, checkm_contamination"
 
             cur.execute("SELECT " + columns + " FROM genomes " +
                         "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
@@ -788,7 +791,21 @@ class GenomeDatabase(object):
 
         return [marker_id for (marker_id,) in cur.fetchall()]
 
-    def MakeTreeData(self, marker_list, list_of_genome_ids, directory, prefix, profile=None, config_dict=None, build_tree=True):
+
+    def FindUncalculatedMarkersForGenomeId(self, genome_id, marker_ids):
+        
+        cur = self.conn.cursor()
+        
+        cur.execute("SELECT marker_id, sequence " +
+                    "FROM aligned_markers " +
+                    "WHERE genome_id = %s ", (genome_id,))
+        
+        marker_id_dict = dict(cur.fetchall())
+        
+        return [x for x in marker_ids if x not in marker_id_dict]
+                
+
+    def MakeTreeData(self, marker_ids, genome_ids, directory, prefix, profile=None, config_dict=None, build_tree=True):
 
         cur = self.conn.cursor()
 
@@ -803,8 +820,8 @@ class GenomeDatabase(object):
         uncalculated_marker_dict = {}
         uncalculated_marker_count = 0
 
-        for genome_id in list_of_genome_ids:
-            uncalculated = self.FindUncalculatedMarkersForGenomeId(genome_id, marker_list)
+        for genome_id in genome_ids:
+            uncalculated = self.FindUncalculatedMarkersForGenomeId(genome_id, marker_ids)
             if len(uncalculated) != 0:
                 uncalculated_marker_dict[genome_id] = uncalculated
                 uncalculated_marker_count += len(uncalculated)
@@ -815,7 +832,7 @@ class GenomeDatabase(object):
         for (genome_id, uncalculated) in incalculated_marker_dict:
             self.RecalculateMarkersForGenome(genome_id, uncalculated)
 
-        return profiles.profiles[profile].MakeTreeData(self, marker_set_id, list_of_genome_ids,
+        return profiles.profiles[profile].MakeTreeData(self, marker_ids, genome_ids,
                                                        directory, prefix, config_dict)
 
     # Function: CreateGenomeListWorking
@@ -1054,24 +1071,15 @@ class GenomeDatabase(object):
             params.append(owner_id)
 
         if not self.currentUser.isRootUser():
-            conditional_query += "AND (list.private = False OR owner_id = %s)"
+            conditional_query += "AND (private = False OR owner_id = %s)"
             params.append(self.currentUser.getUserId())
 
-        cur.execute(
-            "SELECT list.id, list.name, list.description, list.private, users.username, count(contents.list_id) " +
-            "FROM genome_lists as list " +
-            "LEFT OUTER JOIN users ON list.owner_id = users.id " +
-            "JOIN genome_list_contents as contents ON contents.list_id = list.id " +
-            "WHERE 1 = 1 " +
-            conditional_query +
-            "GROUP by list.id, users.username " +
-            "ORDER by list.id asc " ,
-            params
-        )
+        cur.execute("SELECT id " +
+                    "FROM genome_lists " +
+                    "WHERE 1 = 1 " +
+                    conditional_query, params)
 
-        return cur.fetchall()
-
-
+        return [list_id for (list_id,) in cur]
 
 
     def GetAllVisibleGenomeListIds(self):
@@ -1084,13 +1092,10 @@ class GenomeDatabase(object):
             conditional_query += "AND (private = False OR owner_id = %s)"
             params.append(self.currentUser.getUserId())
 
-        cur.execute(
-            "SELECT id " +
-            "FROM genome_lists " +
-            "WHERE 1 = 1 " +
-            conditional_query,
-            params
-        )
+        cur.execute("SELECT id " +
+                    "FROM genome_lists " +
+                    "WHERE 1 = 1 " +
+                    conditional_query, params)
 
         return [list_id for (list_id,) in cur]
 
