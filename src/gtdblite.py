@@ -74,37 +74,39 @@ def CreateTreeData(db, args):
     return True
 
 def ViewGenomes(db, args):
-    
+
     if args.view_all:
         return db.ViewGenomes()
     else:
-        external_ids = args.id_list.split(",")
-        return db.ViewGenomes(args.batchfile, external_ids)    
+        external_ids = None
+        if args.id_list:
+            external_ids = args.id_list.split(",")
+        return db.ViewGenomes(args.batchfile, external_ids)
 
 
-def ShowGenomeLists(db, args):
+def ViewGenomeLists(db, args):
 
     if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
         print db.GetVisibleGenomeListsByOwner()
     elif args.self_owned:
         print db.GetVisibleGenomeListsByOwner(db.currentUser.getUserId())
     elif args.show_all:
-        print db.GetAllVisibleGenomeLists()
+        return db.PrintGenomeListsDetails(db.GetAllVisibleGenomeListIds())
     else:
         # TODO: this
-        db.ReportError("Viewing other people's genome lists not yet implemented.")
+        db.ReportError("Viewing other peoples' genome lists not yet implemented.")
         return False
 
     return True
 
-def ViewGenomeLists(db, args):
+def ContentsGenomeLists(db, args):
 
     list_ids = []
 
     if args.list_ids:
         list_ids = args.list_ids.split(",")
 
-    return db.ViewGenomeLists(list_ids)
+    return db.ViewGenomeListsContents(list_ids)
 
 
 if __name__ == '__main__':
@@ -173,10 +175,10 @@ if __name__ == '__main__':
     parser_genome_view.set_defaults(func=ViewGenomes)
 
     #------------ Show owned genome lists
-    parser_genome_lists_show = genome_list_category_subparser.add_parser('show',
-                                        help='Show visible genome lists.')
+    parser_genome_lists_view = genome_list_category_subparser.add_parser('view',
+                                        help='View visible genome lists.')
 
-    mutex_group = parser_genome_lists_show.add_mutually_exclusive_group(required=True)
+    mutex_group = parser_genome_lists_view.add_mutually_exclusive_group(required=True)
     mutex_group.add_argument('--root', dest = 'root_owned', default=False,
                                         action='store_true', help='Only show genome lists owned by the root user.')
     mutex_group.add_argument('--self', dest = 'self_owned', default=False,
@@ -185,14 +187,14 @@ if __name__ == '__main__':
     mutex_group.add_argument('--all', dest = 'show_all', default=False,
                              action='store_true', help='Show all visible genome lists')
 
-    parser_genome_lists_show.set_defaults(func=ShowGenomeLists)
+    parser_genome_lists_view.set_defaults(func=ViewGenomeLists)
 
     #------------ Show owned genome lists
-    parser_genome_lists_view = genome_list_category_subparser.add_parser('view',
+    parser_genome_lists_contents = genome_list_category_subparser.add_parser('contents',
                                         help='View the contents of genome list(s)')
-    parser_genome_lists_view.add_argument('--list_ids', dest = 'list_ids', required=True,
+    parser_genome_lists_contents.add_argument('--list_ids', dest = 'list_ids', required=True,
                                         help='Provide a list of genome list ids (comma separated) whose contents you wish to view.')
-    parser_genome_lists_view.set_defaults(func=ViewGenomeLists)
+    parser_genome_lists_contents.set_defaults(func=ContentsGenomeLists)
 
 #--------- Marker Management Subparsers
 
@@ -523,7 +525,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Special parser checks
-    
+
     if (args.category_parser_name == 'trees' and args.tree_subparser_name == 'create'):
         if (args.genome_batchfile is None and args.genome_list_ids is None):
             parser_tree_create.error('Need to specify at least one of --genome_batchfile or --genome_list_ids')
@@ -534,9 +536,9 @@ if __name__ == '__main__':
         if (args.batchfile is not None or args.id_list is not None):
             if args.view_all:
                 parser_genome_view.error('argument --all must be used by itself')
-        else:
+        elif not args.view_all:
             parser_genome_view.error('need to specify at least one of --all, --batchfile or --genome_ids')
-            
+
     # Initialise the backend
     db = GenomeDatabase.GenomeDatabase()
     db.conn.MakePostgresConnection(args.dev)

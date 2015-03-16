@@ -225,13 +225,13 @@ class GenomeDatabase(object):
             return target_file_name
 
     def GenerateTempTableName(self):
-        
+
         rng = random.SystemRandom()
         suffix = ''
         for i in range(0,10):
             suffix += rng.choice('abcefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
         return "TEMP" + suffix + str(int(time.time()))
-    
+
 
     #def AddFastaGenome(self, fasta_file, copy_fasta, name, desc, force_overwrite=False, source=None, id_at_source=None, completeness=0, contamination=0):
     #    cur = self.conn.cursor()
@@ -350,7 +350,6 @@ class GenomeDatabase(object):
             try:
                 fasta_fh = open(fasta_file_path, "rb")
             except:
-                fasta_fh.close()
                 raise GenomeDatabaseError("Cannot open Fasta file: " + fasta_file_path)
 
             m = hashlib.sha256()
@@ -439,60 +438,149 @@ class GenomeDatabase(object):
         except:
             raise
 
-    def ViewGenomes(self, batchfile, external_ids):
+    def ExternalGenomeIdsToGenomeIds(self, external_ids):
         try:
-            try:
-                fh = open(batchfile, "rb")
-            except:
-                fh.close()
-                raise GenomeDatabaseError("Cannot open batchfile: " + batchfile)
-            
-            for line in fh:
-                line = line.rstrip()
-                external_ids.append(line)
-            
+            cur = self.conn.cursor()
+
             map_sources_to_ids = {}
-            
+
             for external_id in external_ids:
-                (source_name, id_at_source) = external_id.split("_", 1)
-                if source_name not in map_sources_to_ids:
-                    map_sources_to_ids[source_name] = {}
-                map_sources_to_ids[source_name][id_at_source] = external_id
-                
-            temp_table_name = self.GenerateTempTableName()  
+                try:
+                    (source_prefix, id_at_source) = external_id.split("_", 1)
+                except ValueError:
+                    raise GenomeDatabaseError("All genome ids must have the form <prefix>_<id>. Offending id: %s" % str(external_id))
 
-            # TODO: Working from here
+                if source_prefix not in map_sources_to_ids:
+                    map_sources_to_ids[source_prefix] = {}
+                map_sources_to_ids[source_prefix][id_at_source] = external_id
 
-            if genome_list_ids:
-                cur.execute("CREATE TEMP TABLE %s (id integer)" % (temp_table_name,) )
-                query = "INSERT INTO {0} (id) VALUES (%s)".format(temp_table_name)
+            temp_table_name = self.GenerateTempTableName()
+
+            if len(map_sources_to_ids.keys()):
+                cur.execute("CREATE TEMP TABLE %s (prefix text)" % (temp_table_name,) )
+                query = "INSERT INTO {0} (prefix) VALUES (%s)".format(temp_table_name)
                 cur.executemany(query, [(x,) for x in map_sources_to_ids.keys()])
             else:
-                raise GenomeDatabaseError("No genome lists given. Can not retrieve IDs" )
+                raise GenomeDatabaseError("No genome sources found for these ids. %s" % str(external_ids))
 
-            # Find any ids that don't have genome lists
-            query = ("SELECT id FROM {0} " +
-                     "WHERE id NOT IN ( " +
-                        "SELECT id " +
-                        "FROM genome_lists)").format(temp_table_name)
+            # Find any given tree prefixes that arent in the genome sources
+            query = ("SELECT prefix FROM {0} " +
+                     "WHERE prefix NOT IN ( " +
+                        "SELECT tree_id_prefix " +
+                        "FROM genome_sources)").format(temp_table_name)
 
             cur.execute(query)
 
-            missing_list_ids = []
-            for (list_id,) in cur:
-                missing_list_ids.append(list_id)
+            missing_genome_sources = {}
+            for (query_prefix,) in cur:
+                missing_genome_sources[query_prefix] = map_sources_to_ids[query_prefix].values()
 
-            if missing_list_ids:
-                raise GenomeDatabaseError("Unknown genome list id(s) given. %s" % str(missing_list_ids))
+            if len(missing_genome_sources.keys()):
+                errors = []
+                for (source_prefix, offending_ids) in missing_genome_sources.items():
+                    errors.append("(%s) %s" % (source_prefix, str(offending_ids)))
+                raise GenomeDatabaseError("Cannot find the relevant genome source id for the following ids, check the IDs are correct: " +
+                                          ", ".join(errors))
+
+            # All genome sources should be good, find ids
+            result_ids = []
+            for source_prefix in map_sources_to_ids.keys():
+
+                # Create a table of requested external ids from this genome source
+                temp_table_name = self.GenerateTempTableName()
+                cur.execute("CREATE TEMP TABLE %s (id_at_source text)" % (temp_table_name,) )
+                query = "INSERT INTO {0} (id_at_source) VALUES (%s)".format(temp_table_name)
+                cur.executemany(query, [(x,) for x in map_sources_to_ids[source_prefix].keys()])
+
+                # Check to see if there are any that don't exist
+                query = ("SELECT id_at_source FROM {0} " +
+                         "WHERE id_at_source NOT IN ( " +
+                            "SELECT id_at_source " +
+                            "FROM genomes, genome_sources " +
+                            "WHERE genome_source_id = genome_sources.id "+
+                            "AND tree_id_prefix = %s)").format(temp_table_name)
+
+                cur.execute(query, (source_prefix,))
+
+                missing_ids = []
+                for (id_at_source, ) in cur:
+                    missing_ids.append(source_prefix + "_" + id_at_source)
+
+                if missing_ids:
+                    raise GenomeDatabaseError("Cannot find the the following genome ids, check the IDs are correct: %s" % str(missing_ids))
+
+                # All exist, so get their ids.
+                query = ("SELECT genomes.id FROM genomes, genome_sources " +
+                         "WHERE genome_source_id = genome_sources.id "+
+                         "AND id_at_source IN ( " +
+                            "SELECT id_at_source " +
+                            "FROM {0} )"+
+                         "AND tree_id_prefix = %s").format(temp_table_name)
+
+                cur.execute(query, (source_prefix,))
+
+                for (genome_id, ) in cur:
+                    result_ids.append(genome_id)
+
+            return result_ids
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return None
+        except:
+            raise
+
+    def GetAllGenomeIds(self):
+        try:
+            cur = self.conn.cursor()
+
+            query = "SELECT id FROM genomes";
+            cur.execute(query)
+
+            result_ids = []
+            for (genome_id, ) in cur:
+                result_ids.append(genome_id)
+
+            return result_ids
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return None
+        except:
+            raise
+
+    def ViewGenomes(self, batchfile=None, external_ids=None):
+        try:
+            genome_ids = []
+            if external_ids is None and batchfile is None:
+                genome_ids = self.GetAllGenomeIds()
+            else:
+                if external_ids is None:
+                    external_ids = []
+                if batchfile:
+                    try:
+                        fh = open(batchfile, "rb")
+                    except:
+                        raise GenomeDatabaseError("Cannot open batchfile: " + batchfile)
+
+                    for line in fh:
+                        line = line.rstrip()
+                        external_ids.append(line)
+
+                genome_ids = self.ExternalGenomeIdsToGenomeIds(external_ids)
+                if genome_ids is None:
+                    raise GenomeDatabaseError("Can not retrieve genome ids.")
+
+            return self.PrintGenomesDetails(genome_ids)
+
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
         except:
             raise
-        
+
     def PrintGenomesDetails(self, genome_id_list):
         try:
-
             cur = self.conn.cursor()
 
             columns = "genomes.id, genomes.name, description, owned_by_root, username, fasta_file_location, " + \
@@ -503,8 +591,6 @@ class GenomeDatabase(object):
                         "JOIN genome_sources AS sources ON genome_source_id = sources.id " +
                         "AND genomes.id in %s "+
                         "ORDER BY genomes.id ASC", (tuple(genome_id_list),))
-
-            print cur.query
 
             print "\t".join(("genome_id", "name", "description", "owner", "fasta", "data_added", "completeness", "contamination"))
 
@@ -521,7 +607,6 @@ class GenomeDatabase(object):
             return False
         except:
             raise
-
 
     def AddMarkers(self, batchfile, modify_marker_set_id=None, new_marker_set_name=None,
                    force_overwrite=False):
@@ -702,8 +787,6 @@ class GenomeDatabase(object):
                     "WHERE set_id = %s ", (marker_set_id,))
 
         return [marker_id for (marker_id,) in cur.fetchall()]
-
-
 
     def MakeTreeData(self, marker_list, list_of_genome_ids, directory, prefix, profile=None, config_dict=None, build_tree=True):
 
@@ -989,31 +1072,29 @@ class GenomeDatabase(object):
         return cur.fetchall()
 
 
-    def GetAllVisibleGenomeLists(self):
+
+
+    def GetAllVisibleGenomeListIds(self):
         cur = self.conn.cursor()
 
         conditional_query = ""
         params = []
 
         if not self.currentUser.isRootUser():
-            conditional_query += "AND (list.private = False OR owner_id = %s)"
+            conditional_query += "AND (private = False OR owner_id = %s)"
             params.append(self.currentUser.getUserId())
 
         cur.execute(
-            "SELECT list.id, list.name, list.description, list.private, users.username, count(contents.list_id) " +
-            "FROM genome_lists as list " +
-            "LEFT OUTER JOIN users ON list.owner_id = users.id " +
-            "JOIN genome_list_contents as contents ON contents.list_id = list.id " +
+            "SELECT id " +
+            "FROM genome_lists " +
             "WHERE 1 = 1 " +
-            conditional_query +
-            "GROUP by list.id, users.username " +
-            "ORDER by list.id asc " ,
+            conditional_query,
             params
         )
 
-        return cur.fetchall()
+        return [list_id for (list_id,) in cur]
 
-    def ViewGenomeLists(self, list_ids):
+    def ViewGenomeListsContents(self, list_ids):
         try:
             genome_id_list = self.GetGenomeIdListFromGenomeListIds(list_ids)
 
@@ -1030,3 +1111,44 @@ class GenomeDatabase(object):
             return False
         except:
             raise
+
+    def PrintGenomeListsDetails(self, genome_list_ids):
+        try:
+            cur = self.conn.cursor()
+
+            if not self.currentUser.isRootUser():
+                cur.execute("SELECT id " +
+                            "FROM genome_lists as lists " +
+                            "WHERE lists.private = True " +
+                            "AND lists.id in %s " +
+                            "AND (owned_by_root = True OR owner_id != %s)", (tuple(genome_list_ids), self.currentUser.getUserId()))
+
+                unviewable_list_ids = [list_id for (list_id, ) in cur]
+                if unviewable_list_ids:
+                    raise GenomeDatabaseError("Insufficient privileges to view genome lists: %s." % str(unviewable_list_ids))
+
+
+            cur.execute(
+                "SELECT lists.id, lists.name, lists.description, lists.private, lists.owned_by_root, users.username, count(contents.list_id) " +
+                "FROM genome_lists as lists " +
+                "LEFT OUTER JOIN users ON lists.owner_id = users.id " +
+                "JOIN genome_list_contents as contents ON contents.list_id = lists.id " +
+                "WHERE lists.id in %s " +
+                "GROUP by lists.id, users.username " +
+                "ORDER by lists.id asc " , (tuple(genome_list_ids),)
+            )
+
+            print "\t".join(("list_id", "name", "description", "owner", "visibility", "genome_count"))
+
+            for (list_id, name, description, private, owned_by_root, username, genome_count) in cur:
+                print "\t".join(
+                    (str(list_id), name, description, ("(root)" if owned_by_root else username), ("private" if private else "public"), str(genome_count))
+                )
+            return True
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+        except:
+            raise
+
