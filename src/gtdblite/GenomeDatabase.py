@@ -88,7 +88,7 @@ class GenomeDatabase(object):
             self.currentUser = User.createUser(result[0], username, result[1])
             return self.currentUser
         else:
-            self.ReportError("User not found")
+            self.ReportError("User not found: %s" % username)
         return None
 
     # Function: RootLogin

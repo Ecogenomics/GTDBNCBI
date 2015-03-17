@@ -198,6 +198,7 @@ if __name__ == '__main__':
 
 # -------- Genome Management subparsers
 
+    # genome add parser
     parser_genome_add = genome_category_subparser.add_parser('add',
                                     help='Add one or many genomes to the tree.')
     parser_genome_add.add_argument('--batchfile', dest = 'batchfile',
@@ -213,10 +214,9 @@ if __name__ == '__main__':
                                     help='Create a genome list with the specified name and add all batchfile genomes into it.')
     mutex_group.add_argument('--no_list', dest = 'no_genome_list', action="store_true",
                                     help="Don't add these genomes to a list.")
-
     parser_genome_add.set_defaults(func=AddManyFastaGenomes)
 
-
+    # genome view parser
     parser_genome_view = genome_category_subparser.add_parser('view',
                                     help='View the details of genomes in the database.')
     parser_genome_view.add_argument('--batchfile', dest = 'batchfile', default=None,
@@ -225,8 +225,18 @@ if __name__ == '__main__':
                                     help='Provide a list of genome ids (comma separated) to view')
     parser_genome_view.add_argument('--all', dest = 'view_all', action="store_true",
                                     help='View ALL the genomes in the database. This might take a while...')
-
     parser_genome_view.set_defaults(func=ViewGenomes)
+
+    # genome delete parser
+    """
+    parser_genome_view = genome_category_subparser.add_parser('delete',
+                                    help='Delete genomes in the database.')
+    parser_genome_view.add_argument('--batchfile', dest = 'batchfile', default=None,
+                                    help='Batchfile of genome ids (one per line) to view')
+    parser_genome_view.add_argument('--genome_ids', dest = 'id_list', default=None,
+                                    help='Provide a list of genome ids (comma separated) to view')
+    parser_genome_view.set_defaults(func=DeleteGenomes)
+    """
 
     #------------ View genome lists
     parser_genome_lists_view = genome_list_category_subparser.add_parser('view',
@@ -237,7 +247,7 @@ if __name__ == '__main__':
                                         action='store_true', help='Only show genome lists owned by the root user.')
     mutex_group.add_argument('--self', dest = 'self_owned', default=False,
                                         action='store_true', help='Only show genome lists owned by you.')
-    mutex_group.add_argument('--owner', dest = 'owner_name', help='Only show genome lists owned by this user.')
+    mutex_group.add_argument('--owner', dest = 'owner_name', help='Only show genome lists owned by a specific user.')
     mutex_group.add_argument('--all', dest = 'show_all', default=False,
                              action='store_true', help='Show all visible genome lists')
 
