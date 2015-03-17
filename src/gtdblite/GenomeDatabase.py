@@ -64,6 +64,13 @@ class GenomeDatabase(object):
     def SetDebugMode(self, debug_mode):
         self.debugMode = debug_mode
 
+    # TODO: This should not be here, techincally the backend is agnostic so shouldn't assume command line.
+    def Confirm(self, msg):
+        raw = raw_input(msg + " (y/N): ")
+        if raw.upper() == "Y":
+            return True
+        return False
+    
     # Function: UserLogin
     # Log a user into the database (make the user the current user of the database).
     #
@@ -267,6 +274,7 @@ class GenomeDatabase(object):
 
         expected_headers = ["Bin Id", "Marker lineage", "# genomes", "# markers", "# marker sets", "0", "1", "2",
                             "3", "4", "5+", "Completeness", "Contamination",  "Strain heterogeneity"]
+        
         try:
         # Check the CheckM headers are consistent
             if checkm_fh.readline().rstrip() != "\t".join(expected_headers):
@@ -447,6 +455,19 @@ class GenomeDatabase(object):
             return None
         except:
             raise
+
+    def DeleteGenomes(self, genome_ids):
+        try:
+            if not self.Confirm("Are you sure you want to delete %i genomes (this action cannot be undone)"):
+                raise GenomeDatabaseError("User aborted database action.")
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+        except:
+            raise
+        
+        return True
+    
 
     def ExternalGenomeIdsToGenomeIds(self, external_ids):
         try:

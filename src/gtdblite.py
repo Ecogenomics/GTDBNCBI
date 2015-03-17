@@ -116,6 +116,10 @@ def ViewGenomes(db, args):
             external_ids = args.id_list.split(",")
         return db.ViewGenomes(args.batchfile, external_ids)
 
+def DeleteGenomes(db, args):
+
+    return db.DeleteGenomes([])
+
 
 def ViewGenomeLists(db, args):
 
@@ -228,7 +232,6 @@ if __name__ == '__main__':
     parser_genome_view.set_defaults(func=ViewGenomes)
 
     # genome delete parser
-    """
     parser_genome_view = genome_category_subparser.add_parser('delete',
                                     help='Delete genomes in the database.')
     parser_genome_view.add_argument('--batchfile', dest = 'batchfile', default=None,
@@ -236,7 +239,6 @@ if __name__ == '__main__':
     parser_genome_view.add_argument('--genome_ids', dest = 'id_list', default=None,
                                     help='Provide a list of genome ids (comma separated) to view')
     parser_genome_view.set_defaults(func=DeleteGenomes)
-    """
 
     #------------ View genome lists
     parser_genome_lists_view = genome_list_category_subparser.add_parser('view',
