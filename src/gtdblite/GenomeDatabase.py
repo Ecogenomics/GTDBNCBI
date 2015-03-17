@@ -19,6 +19,7 @@ class GenomeDatabase(object):
         self.conn = GenomeDatabaseConnection()
         self.currentUser = None
         self.errorMessages = []
+        self.warningMessages = []
         self.debugMode = False
         self.genomeCopyDir = None
         self.defaultGenomeSourceName = 'user'
@@ -42,6 +43,15 @@ class GenomeDatabase(object):
 
     def ClearErrors(self):
         self.errorMessages = []
+
+    def ReportWarning(self, msg):
+        self.warningMessages.append(str(msg))
+
+    def GetWarnings(self):
+        return self.warningMessages
+
+    def ClearWarnings(self):
+        self.warningMessages = []
 
     # Function: SetDebugMode
     # Sets the debug mode of the database (at the moment its either on (non-zero) or off (zero))
@@ -322,7 +332,7 @@ class GenomeDatabase(object):
 
                 fasta_paths_to_copy.append(abs_path)
 
-            if not self.ModifyGenomeListWorking(cur, modify_genome_list_id, genome_ids=added_genome_ids, operation='add'):
+            if not self.EditGenomeListWorking(cur, modify_genome_list_id, genome_ids=added_genome_ids, operation='add'):
                 raise GenomeDatabaseError("Unable to add genomes to genome list.")
 
         except GenomeDatabaseError as e:
@@ -968,82 +978,6 @@ class GenomeDatabase(object):
             raise
 
 
-    # Function: ModifyGenomeList
-    # Modify the details or contents of an existing genome list.
-    #
-    # Parameters:
-    #     genome_list_id - The genome list id of the genome list to modify.
-    #     name - If not None, update the genome list's name to this.
-    #     description - If not None, update the genome list's description to this.
-    #     genome_ids - List of genome id that will modify the contents of the genome list (see operation parameter)
-    #     operation - Perform this operation on the genome ids given in the genome_ids parameter with respect to the genome list (options: add, remove)
-    #     private - If not True, change if this list is private.
-    #
-    # Returns:
-    #   True on success, False otherwise.
-    def ModifyGenomeListWorking(self, cur, genome_list_id, name=None, description=None, genome_ids=None,
-                                operation=None, private=None):
-
-        query = "SELECT owned_by_root, owner_id FROM genome_lists WHERE id = %s";
-        cur.execute(query, (genome_list_id,))
-        result = cur.fetchone()
-        if not result:
-            self.ReportError("Can't find specified genome list Id: " + str(genome_list_id))
-            return False
-
-        (owned_by_root, owner_id) = result
-
-        # Need to check permissions to edit this list.
-        if self.currentUser.isRootUser():
-            if not owned_by_root:
-                self.ReportError("Root user editing of other users lists not yet implmented.")
-                return False
-        else:
-            if owned_by_root:
-                self.ReportError("Only the root user can edit root owned lists.")
-                return False
-            if owner_id != self.currentUser.getUserId():
-                self.ReportError("Insufficient privileges to edit this genome list.")
-                return False
-
-        if name is not None:
-            query = "UPDATE genome_lists SET name = %s WHERE id = %s";
-            cur.execute(query, (name, genome_list_id))
-
-        if description is not None:
-            query = "UPDATE genome_lists SET description = %s WHERE id = %s";
-            cur.execute(query, (description, genome_list_id))
-
-        if private is not None:
-            query = "UPDATE genome_lists SET private = %s WHERE id = %s";
-            cur.execute(query, (private, genome_list_id))
-
-        temp_table_name = self.GenerateTempTableName()
-
-        if genome_ids:
-            cur.execute("CREATE TEMP TABLE %s (id integer)" % (temp_table_name,) )
-            query = "INSERT INTO {0} (id) VALUES (%s)".format(temp_table_name)
-            cur.executemany(query, [(x,) for x in genome_ids])
-
-            if operation == 'add':
-                query = ("INSERT INTO genome_list_contents (list_id, genome_id) " +
-                         "SELECT %s, id FROM {0} " +
-                         "WHERE id NOT IN ( " +
-                            "SELECT genome_id " +
-                            "FROM genome_list_contents " +
-                            "WHERE list_id = %s)").format(temp_table_name)
-                cur.execute(query, (genome_list_id, genome_list_id))
-            elif operation == 'remove':
-                query = ("DELETE FROM genome_list_contents " +
-                        "WHERE list_id = %s " +
-                        "AND genome_id IN ( " +
-                            "SELECT id " +
-                            "FROM {0})").format(temp_table_name)
-                cur.execute(query, [genome_list_id])
-
-        return True
-
-
     # Function: GetVisibleGenomeLists
     # Get all the genome lists that the current user can see.
     #
@@ -1080,7 +1014,6 @@ class GenomeDatabase(object):
                     conditional_query, params)
 
         return [list_id for (list_id,) in cur]
-
 
     def GetAllVisibleGenomeListIds(self):
         cur = self.conn.cursor()
@@ -1121,6 +1054,9 @@ class GenomeDatabase(object):
         try:
             cur = self.conn.cursor()
 
+            if not genome_list_ids:
+                raise GenomeDatabaseError("Unable to print genome details: No genomes given." )
+            
             if not self.currentUser.isRootUser():
                 cur.execute("SELECT id " +
                             "FROM genome_lists as lists " +
@@ -1157,3 +1093,171 @@ class GenomeDatabase(object):
         except:
             raise
 
+    def HasPermissionToViewGenomeList(self, genome_list_id):
+        try:
+            cur = self.conn.cursor()
+        
+            cur.execute("SELECT owner_id, owned_by_root, private " +
+                        "FROM genome_lists " +
+                        "WHERE id = %s ", (genome_list_id,))
+        
+            result = cur.fetchone()
+            
+            if not result:
+                raise GenomeDatabaseError("No genome list with id: %s" % str(genome_list_id))
+            
+            (owner_id, owned_by_root) = result
+            
+            if not self.currentUser.isRootUser():
+                if private and (owned_by_root or owner_id != self.currentUser.getUserId()):
+                    return False
+            else:
+                if not owned_by_root:
+                    self.ReportError("Root user editing of other users lists not yet implmented.")
+                    return False
+            
+            return True
+            
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            self.conn.rollback()
+            return None
+        except:
+            raise
+        
+        if not self.currentUser.isRootUser():
+            conditional_query += "AND (private = False OR owner_id = %s)"
+            params.append(self.currentUser.getUserId())
+
+        cur.execute("SELECT id " +
+                    "FROM genome_lists " +
+                    "WHERE 1 = 1 " +
+                    conditional_query, params)
+
+    def HasPermissionToEditGenomeList(self, genome_list_id):
+        try:
+            cur = self.conn.cursor()
+        
+            cur.execute("SELECT owner_id, owned_by_root " +
+                        "FROM genome_lists " +
+                        "WHERE id = %s ", (genome_list_id,))
+        
+            result = cur.fetchone()
+            
+            if not result:
+                raise GenomeDatabaseError("No genome list with id: %s" % str(genome_list_id))
+            
+            (owner_id, owned_by_root) = result
+            
+            if not self.currentUser.isRootUser():
+                if owned_by_root or owner_id != self.currentUser.getUserId():
+                    return False
+            else:
+                if not owned_by_root:
+                    self.ReportError("Root user editing of other users lists not yet implmented.")
+                    return False
+            
+            return True
+            
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            self.conn.rollback()
+            return None
+        except:
+            raise
+        
+        if not self.currentUser.isRootUser():
+            conditional_query += "AND (private = False OR owner_id = %s)"
+            params.append(self.currentUser.getUserId())
+
+        cur.execute("SELECT id " +
+                    "FROM genome_lists " +
+                    "WHERE 1 = 1 " +
+                    conditional_query, params)
+    
+    def EditGenomeList(self, genome_list_id, batchfile=None, genomes_external_ids=None, operation=None, name=None, description=None, private=None):        
+        
+        cur = self.conn.cursor()
+    
+        if batchfile:
+            if genomes_external_ids is None:
+                genomes_external_ids = []
+            for line in fh:
+                line = line.rstrip()
+                genomes_external_ids.append(line)
+                
+        if genomes_external_ids is not None:
+            genomes_external_ids = self.ExternalGenomeIdsToGenomeIds(genomes_external_ids)
+
+        if not self.EditGenomeListWorking(cur, genome_list_id, genomes_external_ids, operation, name, description, private):
+            self.conn.rollback()
+            return False
+        
+        self.conn.commit()
+        return True
+        
+    
+    def EditGenomeListWorking(self, cur, genome_list_id, genome_ids=None, operation=None, name=None, description=None, private=None):
+        try:
+            edit_permission = self.HasPermissionToEditGenomeList(genome_list_id)
+            if edit_permission is None:
+                raise GenomeDatabaseError("Unable to retrieve genome list id for editing. Offending list id: %s" % genome_list_id)
+            elif edit_permission == False:
+                raise GenomeDatabaseError("Insufficent permissions to edit this genome list. Offending list id: %s" % genome_list_id)
+            
+            update_query = ""
+            params = []
+            
+            if name is not None:
+                update_query += "name = %s"
+                params.append(name)
+            
+            if description is not None:
+                update_query += "description = %s"
+                params.append(description)
+            
+            if private is not None:
+                update_query += "private = %s"
+                params.append(private)
+                
+            if params:
+                cur.execute("UPDATE genome_lists SET " + update_query + " WHERE id = %s", params + [genome_list_id])
+            
+            temp_table_name = self.GenerateTempTableName()
+
+
+            if operation is not None:
+                
+                if len(genome_ids) == 0:
+                    raise GenomeDatabaseError("No genome ids given to perform '%s' operation." % operation)
+                
+                cur.execute("CREATE TEMP TABLE %s (id integer)" % (temp_table_name,) )
+                query = "INSERT INTO {0} (id) VALUES (%s)".format(temp_table_name)
+                cur.executemany(query, [(x,) for x in genome_ids])
+        
+                if operation == 'add':
+                    query = ("INSERT INTO genome_list_contents (list_id, genome_id) " +
+                             "SELECT %s, id FROM {0} " +
+                             "WHERE id NOT IN ( " +
+                                "SELECT genome_id " +
+                                "FROM genome_list_contents " +
+                                "WHERE list_id = %s)").format(temp_table_name)
+                    cur.execute(query, (genome_list_id, genome_list_id))
+                elif operation == 'remove':
+                    query = ("DELETE FROM genome_list_contents " +
+                            "WHERE list_id = %s " +
+                            "AND genome_id IN ( " +
+                                "SELECT id " +
+                                "FROM {0})").format(temp_table_name)
+                    cur.execute(query, [genome_list_id])
+                else:
+                    raise GenomeDatabaseError("Unknown genome list edit operation: %s" % operation)
+            
+            return True
+            
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return None
+        except:
+            raise
+    

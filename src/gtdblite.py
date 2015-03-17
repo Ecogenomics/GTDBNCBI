@@ -13,6 +13,10 @@ def GetLinuxUsername():
 def DumpDBErrors(db):
     ErrorReport("\n".join(["\t" + x for x in db.GetErrors()]) + "\n")
     db.ClearErrors()
+    
+def DumpDBWarnings(db):
+    ErrorReport("\n".join(["\t" + x for x in db.GetWarnings()]) + "\n")
+    db.ClearErrors()
 
 def ErrorReport(msg):
     sys.stderr.write(msg)
@@ -115,16 +119,23 @@ def ViewGenomes(db, args):
 
 def ViewGenomeLists(db, args):
 
+    genome_lists = []
+
     if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
-        return db.PrintGenomeListsDetails(db.GetVisibleGenomeListsByOwner())
+        genome_lists = db.GetVisibleGenomeListsByOwner()
     elif args.self_owned:
-        return db.PrintGenomeListsDetails(db.GetVisibleGenomeListsByOwner(db.currentUser.getUserId()))
+        genome_lists = db.GetVisibleGenomeListsByOwner(db.currentUser.getUserId())
     elif args.show_all:
-        return db.PrintGenomeListsDetails(db.GetAllVisibleGenomeListIds())
+        genome_lists = db.GetAllVisibleGenomeListIds()
     else:
         # TODO: this
         db.ReportError("Viewing other peoples' genome lists not yet implemented.")
         return False
+
+    if len(genome_lists) == 0:
+        print "No genomes lists found."
+        return True
+    return db.PrintGenomeListsDetails(genome_lists)
 
     return True
 
@@ -137,6 +148,20 @@ def ContentsGenomeLists(db, args):
 
     return db.ViewGenomeListsContents(list_ids)
 
+def EditGenomeLists(db, args):
+    
+    genome_ids = None
+    if args.genome_ids:
+        genome_ids = args.genome_ids.split(",")
+        
+    private = None
+    if args.public:
+        private = False
+    if args.private:
+        private = True
+        
+    return db.EditGenomeList(args.list_id, args.batchfile, genome_ids, args.operation, args.name, args.description, private)
+    
 
 if __name__ == '__main__':
 
@@ -203,7 +228,7 @@ if __name__ == '__main__':
 
     parser_genome_view.set_defaults(func=ViewGenomes)
 
-    #------------ Show owned genome lists
+    #------------ View genome lists
     parser_genome_lists_view = genome_list_category_subparser.add_parser('view',
                                         help='View visible genome lists.')
 
@@ -218,12 +243,35 @@ if __name__ == '__main__':
 
     parser_genome_lists_view.set_defaults(func=ViewGenomeLists)
 
-    #------------ Show owned genome lists
+    #------------ Show genome list
     parser_genome_lists_contents = genome_list_category_subparser.add_parser('contents',
                                         help='View the contents of genome list(s)')
     parser_genome_lists_contents.add_argument('--list_ids', dest = 'list_ids', required=True,
                                         help='Provide a list of genome list ids (comma separated) whose contents you wish to view.')
     parser_genome_lists_contents.set_defaults(func=ContentsGenomeLists)
+
+    #------------ Show genome list
+    parser_genome_lists_edit = genome_list_category_subparser.add_parser('edit',
+                                        help='Edit a genome list') 
+    parser_genome_lists_edit.add_argument('--list_id', dest = 'list_id',
+                                        required=True, help='The id of the genome list to edit')
+    parser_genome_lists_edit.add_argument('--batchfile', dest = 'batchfile',
+                                        help='A file of genome IDs, one per line, to add remove from the list')
+    parser_genome_lists_edit.add_argument('--genome_ids', dest = 'genome_ids',
+                                        help='List of tree_ids to add/remove from list')
+    parser_genome_lists_edit.add_argument('--operation', dest = 'operation', choices=('add','remove'),
+                                        help='What to do with the tree_ids with regards to the genome list.')
+    parser_genome_lists_edit.add_argument('--name', dest = 'name',
+                                        help='Modify the name of the list to this.')
+    parser_genome_lists_edit.add_argument('--description', dest = 'description',
+                                        help='Change the brief description of the genome list to this.')
+    
+    mutex_group = parser_genome_lists_edit.add_mutually_exclusive_group(required=False)
+    mutex_group.add_argument('--set_private', dest = 'private', action="store_true", default=False,
+                             help='Make this genome list private (only you can see).')
+    mutex_group.add_argument('--set_public', dest = 'public', action="store_true", default=False,
+                             help='Make this genome list public (all users can see).')
+    parser_genome_lists_edit.set_defaults(func=EditGenomeLists)
 
 #--------- Marker Management Subparsers
 
@@ -592,6 +640,10 @@ if __name__ == '__main__':
 
     result = args.func(db, args)
 
+    if db.GetWarnings():
+        ErrorReport("Database reported the following warning(s):\n")
+        DumpDBWarnings(db)
+    
     if not result:
         ErrorReport("Database action failed. The following error(s) were reported:\n")
         DumpDBErrors(db)
