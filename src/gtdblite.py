@@ -179,8 +179,6 @@ if __name__ == '__main__':
                         help='Login as the root user'),
     parser.add_argument('-f', dest='force', action='store_true',
                         help='Force the action (required to override warnings for certain actions)'),
-    parser.add_argument('--dev', dest='dev', action='store_true',
-                        help='Connect to the developer database')
     parser.add_argument('--debug', dest='debug', action='store_true',
                         help='Run in debug mode')
 
@@ -642,7 +640,7 @@ if __name__ == '__main__':
 
     # Initialise the backend
     db = GenomeDatabase.GenomeDatabase()
-    db.conn.MakePostgresConnection(args.dev)
+    db.conn.MakePostgresConnection()
 
     if args.debug:
         db.SetDebugMode(True)

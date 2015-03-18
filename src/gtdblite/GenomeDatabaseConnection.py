@@ -13,10 +13,8 @@ class GenomeDatabaseConnection(object):
     #
     # Returns:
     #   No return value.
-    def MakePostgresConnection(self, dev=False):
+    def MakePostgresConnection(self):
         db_name = Config.GTDB_DB_NAME
-        if dev:
-            db_name = Config.GTDB_DEV_DB_NAME
         conn_string = "dbname=%s user=%s host=%s password=%s" % (
             db_name, Config.GTDB_USERNAME,
             Config.GTDB_HOST, Config.GTDB_PASSWORD
