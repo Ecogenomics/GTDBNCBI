@@ -248,8 +248,7 @@ class GenomeDatabase(object):
         for i in range(0,10):
             suffix += rng.choice('abcefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
         return "TEMP" + suffix + str(int(time.time()))
-
-
+        
     #def AddFastaGenome(self, fasta_file, copy_fasta, name, desc, force_overwrite=False, source=None, id_at_source=None, completeness=0, contamination=0):
     #    cur = self.conn.cursor()
     #
@@ -456,19 +455,114 @@ class GenomeDatabase(object):
         except:
             raise
 
-    def DeleteGenomes(self, genome_ids):
+    def HasPermissionToEditGenome(self, genome_id):
         try:
-            if not self.Confirm("Are you sure you want to delete %i genomes (this action cannot be undone)"):
-                raise GenomeDatabaseError("User aborted database action.")
+            cur = self.conn.cursor()
+        
+            cur.execute("SELECT owner_id, owned_by_root "
+                        "FROM genomes " +
+                        "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
+                        "AND genomes.id = %s", (genome_id,))
+            
+            result = cur.fetchone()
+            
+            if not result:
+                raise GenomeDatabaseError("No genome list with id: %s" % genome_id)
+            
+            (owner_id, owned_by_root) = result
+            
+            if not self.currentUser.isRootUser():
+                if (owned_by_root or owner_id != self.currentUser.getUserId()):
+                    return False
+            else:
+                if not owned_by_root:
+                    self.ReportError("Root user editing of other users genomes not yet implemented.")
+                    return False
+            
+            return True
+            
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return False
+            return None
+        except:
+            raise
+           
+    def HasPermissionToEditGenomes(self, genome_ids):
+        try:
+            cur = self.conn.cursor()
+        
+            if not genome_ids:
+                raise GenomeDatabaseError("Unable to retrieve genome permissions, no genomes given: %s" % str(genome_ids))
+        
+            cur.execute("SELECT genomes.id, owner_id, owned_by_root "
+                        "FROM genomes " +
+                        "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
+                        "WHERE genomes.id in %s", (tuple(genome_ids),))
+            
+            for (genome_id, owner_id, owned_by_root) in cur:
+                if not self.currentUser.isRootUser():
+                    if (owned_by_root or owner_id != self.currentUser.getUserId()):
+                        self.ReportWarning("Insufficient permissions to edit genome %s." % str(genome_id))
+                        return False
+                else:
+                    if not owned_by_root:
+                        self.ReportWarning("Root user editing of other users genomes not yet implemented.")
+                        return False
+            
+            return True
+            
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return None
         except:
             raise
         
         return True
+        
+    def DeleteGenomes(self, batchfile=None, external_ids=None):
+        try:
+            cur = self.conn.cursor()
+            
+            if external_ids is None:
+                external_ids = []
+            
+            if batchfile:
+                fh = open(batchfile, "rb")
+                for line in fh:
+                    line = line.rstrip()
+                    external_ids.append(line)
+                
+            genome_ids = self.ExternalGenomeIdsToGenomeIds(external_ids)
+            
+            has_permission = self.HasPermissionToEditGenomes(genome_ids)
+            
+            if has_permission is None:
+                raise GenomeDatabaseError("Unable to delete genomes. Unable to retrieve permissions for genomes.")
+            
+            if has_permission is False:
+                raise GenomeDatabaseError("Unable to delete genomes. Insufficient permissions.")
+            
+            if not self.Confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(genome_ids)):
+                raise GenomeDatabaseError("User aborted database action.")
+            
+            cur.execute("DELETE FROM genome_list_contents " +
+                        "WHERE genome_id in %s", (tuple(genome_ids),))
+            
+            cur.execute("DELETE FROM genomes " +
+                        "WHERE id in %s", (tuple(genome_ids),))
+            
+            self.conn.commit()
+            return True
+            
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            self.conn.rollback()
+            return False
+        except:
+            raise
+        
+        
     
-
     def ExternalGenomeIdsToGenomeIds(self, external_ids):
         try:
             cur = self.conn.cursor()
@@ -822,7 +916,6 @@ class GenomeDatabase(object):
 
         return [marker_id for (marker_id,) in cur.fetchall()]
 
-
     def FindUncalculatedMarkersForGenomeId(self, genome_id, marker_ids):
         
         cur = self.conn.cursor()
@@ -835,7 +928,6 @@ class GenomeDatabase(object):
         
         return [x for x in marker_ids if x not in marker_id_dict]
                 
-
     def MakeTreeData(self, marker_ids, genome_ids, directory, prefix, profile=None, config_dict=None, build_tree=True):
 
         cur = self.conn.cursor()
@@ -898,7 +990,6 @@ class GenomeDatabase(object):
         cur.executemany(query, [(genome_list_id, x) for x in genome_id_list])
 
         return genome_list_id
-
 
     # Function: GetGenomeIdListFromGenomeListId
     # Given a genome list id, return all the ids of the genomes contained within that genome list.
@@ -997,7 +1088,6 @@ class GenomeDatabase(object):
             return None
         except:
             raise
-
 
     # Function: GetVisibleGenomeLists
     # Get all the genome lists that the current user can see.

@@ -16,7 +16,7 @@ def DumpDBErrors(db):
     
 def DumpDBWarnings(db):
     ErrorReport("\n".join(["\t" + x for x in db.GetWarnings()]) + "\n")
-    db.ClearErrors()
+    db.ClearWarnings()
 
 def ErrorReport(msg):
     sys.stderr.write(msg)
@@ -118,7 +118,11 @@ def ViewGenomes(db, args):
 
 def DeleteGenomes(db, args):
 
-    return db.DeleteGenomes([])
+    external_ids = None
+    if args.id_list:
+        external_ids = args.id_list.split(",")
+        
+    return db.DeleteGenomes(args.batchfile, external_ids)
 
 
 def ViewGenomeLists(db, args):
@@ -232,13 +236,13 @@ if __name__ == '__main__':
     parser_genome_view.set_defaults(func=ViewGenomes)
 
     # genome delete parser
-    parser_genome_view = genome_category_subparser.add_parser('delete',
+    parser_genome_delete = genome_category_subparser.add_parser('delete',
                                     help='Delete genomes in the database.')
-    parser_genome_view.add_argument('--batchfile', dest = 'batchfile', default=None,
+    parser_genome_delete.add_argument('--batchfile', dest = 'batchfile', default=None,
                                     help='Batchfile of genome ids (one per line) to view')
-    parser_genome_view.add_argument('--genome_ids', dest = 'id_list', default=None,
+    parser_genome_delete.add_argument('--genome_ids', dest = 'id_list', default=None,
                                     help='Provide a list of genome ids (comma separated) to view')
-    parser_genome_view.set_defaults(func=DeleteGenomes)
+    parser_genome_delete.set_defaults(func=DeleteGenomes)
 
     #------------ View genome lists
     parser_genome_lists_view = genome_list_category_subparser.add_parser('view',
@@ -631,6 +635,10 @@ if __name__ == '__main__':
                 parser_genome_view.error('argument --all must be used by itself')
         elif not args.view_all:
             parser_genome_view.error('need to specify at least one of --all, --batchfile or --genome_ids')
+            
+    if (args.category_parser_name == 'genomes' and args.genome_subparser_name == 'delete'):
+        if (args.batchfile is None and args.id_list is None):
+                parser_genome_delete.error('need to specify at least one of --batchfile or --genome_ids')
 
     # Initialise the backend
     db = GenomeDatabase.GenomeDatabase()
