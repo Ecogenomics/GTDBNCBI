@@ -1,6 +1,6 @@
 import psycopg2 as pg
 
-from gtdblite import Credentials
+from gtdblite import Config
 
 class GenomeDatabaseConnection(object):
     def __init__(self):
@@ -14,12 +14,12 @@ class GenomeDatabaseConnection(object):
     # Returns:
     #   No return value.
     def MakePostgresConnection(self, dev=False):
-        db_name = Credentials.GTDB_DB_NAME
+        db_name = Config.GTDB_DB_NAME
         if dev:
-            db_name = Credentials.GTDB_DEV_DB_NAME
+            db_name = Config.GTDB_DEV_DB_NAME
         conn_string = "dbname=%s user=%s host=%s password=%s" % (
-            db_name, Credentials.GTDB_USERNAME,
-            Credentials.GTDB_HOST, Credentials.GTDB_PASSWORD
+            db_name, Config.GTDB_USERNAME,
+            Config.GTDB_HOST, Config.GTDB_PASSWORD
         )
         self.conn = pg.connect(conn_string)
     
