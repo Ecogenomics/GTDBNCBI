@@ -19,13 +19,13 @@ INSERT INTO users (username, role_id, has_root_login) VALUES ('uqaskars', 0, tru
 CREATE TABLE genome_sources (
     id serial PRIMARY KEY,
     name text UNIQUE NOT NULL,
-    tree_id_prefix text UNIQUE NOT NULL,
+    external_id_prefix text UNIQUE NOT NULL,
     user_accessible boolean NOT NULL DEFAULT false
 );
 
-INSERT INTO genome_sources (name, tree_id_prefix, user_accessible) VALUES ('user', 'U', true);
-INSERT INTO genome_sources (name, tree_id_prefix) VALUES ('IMG', 'IMG');
-INSERT INTO genome_sources (name, tree_id_prefix) VALUES ('NCBI', 'NCBI');
+INSERT INTO genome_sources (name, external_id_prefix, user_accessible) VALUES ('user', 'U', true);
+INSERT INTO genome_sources (name, external_id_prefix) VALUES ('IMG', 'IMG');
+INSERT INTO genome_sources (name, external_id_prefix) VALUES ('NCBI', 'NCBI');
 
 CREATE TABLE genomes (
     id serial PRIMARY KEY,
@@ -66,13 +66,14 @@ CREATE TABLE genome_list_contents (
 CREATE TABLE marker_databases (
     id serial PRIMARY KEY,
     name text UNIQUE NOT NULL,
+    external_id_prefix text UNIQUE NOT NULL,
     user_accessible boolean NOT NULL DEFAULT false
 );
 
 
-INSERT INTO marker_databases (name, user_accessible) VALUES ('user', true);
-INSERT INTO marker_databases (name) VALUES ('PFAM');
-INSERT INTO marker_databases (name) VALUES ('TIGRFAM');
+INSERT INTO marker_databases (name, external_id_prefix, user_accessible) VALUES ('user', 'M', true);
+INSERT INTO marker_databases (name, external_id_prefix) VALUES ('PFAM', 'PFAM');
+INSERT INTO marker_databases (name, external_id_prefix) VALUES ('TIGRFAM', 'TIGR');
 
 CREATE TABLE markers (
     id serial PRIMARY KEY,
