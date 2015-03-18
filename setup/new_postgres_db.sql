@@ -20,6 +20,7 @@ CREATE TABLE genome_sources (
     id serial PRIMARY KEY,
     name text UNIQUE NOT NULL,
     external_id_prefix text UNIQUE NOT NULL,
+    last_auto_id integer NOT NULL DEFAULT 0,
     user_accessible boolean NOT NULL DEFAULT false
 );
 

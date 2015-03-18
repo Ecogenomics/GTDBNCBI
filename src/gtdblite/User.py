@@ -8,18 +8,19 @@ class User(object):
         pass
     
     @classmethod
-    def createUser(cls, userId, userName, roleId):
+    def createUser(cls, userId, username, roleId):
         C = cls()
         C.userId = userId
-        C.userName = userName
+        C.username = username
         C.roleId = roleId
         C.rootUser = False
         return C
     
     @classmethod
-    def createRootUser(cls):
+    def createRootUser(cls, elevatedFromUsername):
         C = cls()
         C.rootUser = True
+        C.elevatedFromUsername = elevatedFromUsername
         return C
     
     # Function: getUserName
@@ -27,8 +28,8 @@ class User(object):
     #
     # Returns:
     #   The username of the User as a string
-    def getUserName(self):
-        return self.userName
+    def getUsername(self):
+        return self.username
     
     # Function: getUserId
     # Returns the id of the user (as stored in PostgreSQL database)
@@ -44,4 +45,8 @@ class User(object):
     # Check if this is the rootUser
     def isRootUser(self):
         return self.rootUser        
-        
+    
+    # Function: elevatedFromUsername
+    # Get the username of the user before becoming root
+    def getElevatedFromUsername(self):
+        return self.elevatedFromUsername

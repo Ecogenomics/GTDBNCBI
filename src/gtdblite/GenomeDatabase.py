@@ -5,6 +5,7 @@ import datetime
 import time
 import random
 
+from gtdblite import Config
 from gtdblite.User import User
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
 
@@ -21,7 +22,15 @@ class GenomeDatabase(object):
         self.errorMessages = []
         self.warningMessages = []
         self.debugMode = False
+        
         self.genomeCopyDir = None
+        if Config.GTDB_GENOME_COPY_DIR:
+            self.genomeCopyDir = Config.GTDB_GENOME_COPY_DIR    
+        
+        self.markerCopyDir = None
+        if Config.GTDB_MARKER_COPY_DIR:
+            self.markerCopyDir = Config.GTDB_MARKER_COPY_DIR    
+        
         self.defaultGenomeSourceName = 'user'
         self.defaultMarkerDatabaseName = 'user'
     #
@@ -121,7 +130,7 @@ class GenomeDatabase(object):
         if result:
             (userid, has_root_login) = result
             if has_root_login:
-                self.currentUser = User.createRootUser()
+                self.currentUser = User.createRootUser(username)
                 return self.currentUser
             else:
                 self.ReportError("You do not have sufficient permissions to logon as the root user.")
@@ -309,7 +318,6 @@ class GenomeDatabase(object):
                     raise GenomeDatabaseError("Unable to create the new genome list.")
 
             # Add the genomes
-            fasta_paths_to_copy = []
             added_genome_ids = []
 
             fh = open(batchfile, "rb")
@@ -337,10 +345,57 @@ class GenomeDatabase(object):
 
                 added_genome_ids.append(genome_id)
 
-                fasta_paths_to_copy.append(abs_path)
-
             if not self.EditGenomeListWorking(cur, modify_genome_list_id, genome_ids=added_genome_ids, operation='add'):
                 raise GenomeDatabaseError("Unable to add genomes to genome list.")
+   
+            copied_fasta_paths = []
+            fasta_paths_to_copy = {}
+            
+            cur.execute("SELECT genomes.id, fasta_file_location, user_accessible, external_id_prefix || '_' || id_at_source as external_id "
+                        "FROM genomes, genome_sources " +
+                        "WHERE genome_source_id = genome_sources.id " +
+                        "AND genomes.id in %s", (tuple(added_genome_ids),))
+            
+            for (genome_id, abs_path, user_accessible, external_id) in cur:
+                if user_accessible:
+                    fasta_paths_to_copy[genome_id] = {'src_path': abs_path,
+                                                      'external_id': external_id}
+            
+            if len(fasta_paths_to_copy.keys()) > 0:
+                username = None
+                if self.currentUser.isRootUser():
+                    username = self.currentUser.getElevatedFromUsername()
+                else:
+                    username = self.currentUser.getUsername()
+                
+                if username is None:
+                    raise GenomeDatabaseError("Unable to determine user to add genomes under.")
+                
+                target_dir = os.path.join(self.genomeCopyDir, username)
+                if os.path.exists(target_dir):
+                    if not os.path.isdir(target_dir):
+                        raise GenomeDatabaseError("Genome copy directory exists, but isn't a directory: %s" % (target_dir,))        
+                else:
+                    os.mkdir(target_dir)
+                    
+                try:
+                    for (genome_id, details) in fasta_paths_to_copy.items():                    
+                        target_file = os.path.join(target_dir, details['external_id'] + ".fasta")
+                        shutil.copy(details['src_path'], target_file)
+                        copied_fasta_paths.append(target_file)
+                        
+                        cur.execute("UPDATE genomes SET fasta_file_location = %s WHERE id = %s", (target_file, genome_id))
+                        
+                except Exception as e:
+                    try:
+                        for copied_path in copied_fasta_paths:
+                            os.unlink(copied_path)
+                    except:
+                        self.ReportWarning("Cleaning temporary copied files failed. May have orphan fastas in the genome copy directory.")
+                    raise 
+                
+            self.conn.commit()
+            return True
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
@@ -350,8 +405,6 @@ class GenomeDatabase(object):
             self.conn.rollback()
             raise
 
-        self.conn.commit()
-        return True
 
     # Function: AddFastaGenomeWorking
     # Checks if the current user is a higher user type than the specified user.
@@ -377,7 +430,6 @@ class GenomeDatabase(object):
 
             if source is None:
                 source = self.defaultGenomeSourceName
-
 
             if genome_list_id is not None:
                 if self.GetGenomeIdListFromGenomeListId(genome_list_id) is None:
@@ -406,7 +458,15 @@ class GenomeDatabase(object):
                 for (last_id_at_source, ) in cur:
                     last_id = last_id_at_source
                     break
-
+                
+                cur.execute("SELECT last_auto_id FROM genome_sources WHERE id = %s ", (source_id,))
+                for (last_auto_id, ) in cur:
+                    if last_id is None:
+                        last_id = last_auto_id
+                    else:
+                        last_id = max(last_id, last_auto_id)
+                    break
+                
                 # Generate a new id (for user-accessible lists only)
                 if (last_id is None):
                     new_id = 1
@@ -415,7 +475,9 @@ class GenomeDatabase(object):
 
                 if id_at_source is None:
                     id_at_source = str(new_id)
-
+                
+                cur.execute("UPDATE genome_sources set last_auto_id = %s where id = %s", (new_id, source_id))
+                
             added = datetime.datetime.now()
 
             owner_id = None
@@ -429,7 +491,6 @@ class GenomeDatabase(object):
             columns = "(name, description, owned_by_root, owner_id, fasta_file_location, " + \
                       "fasta_file_sha256, genome_source_id, id_at_source, date_added, checkm_completeness, checkm_contamination)"
 
-
             if len(result):
                 genome_id = result[0]
                 if force_overwrite:
@@ -441,12 +502,10 @@ class GenomeDatabase(object):
                             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) " +
                             "RETURNING id" ,
                             (name, desc, self.currentUser.isRootUser(), owner_id, fasta_file_path, fasta_sha256_checksum, source_id, id_at_source, added, completeness, contamination))
-
-
-            genome_id = cur.fetchone()[0]
-
+                
+                genome_id = cur.fetchone()[0]
+                
             # TODO: Add to genome list if required
-
             return genome_id
 
         except GenomeDatabaseError as e:
@@ -544,12 +603,33 @@ class GenomeDatabase(object):
             
             if not self.Confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(genome_ids)):
                 raise GenomeDatabaseError("User aborted database action.")
+
+            paths_to_delete = []
             
+            if self.genomeCopyDir is not None:
+                cur.execute("SELECT fasta_file_location " +
+                            "FROM genomes " +
+                            "WHERE id in %s", (tuple(genome_ids),))
+                
+                for (fasta_path, ) in cur:
+                    # Check if path is a subdir of the copy dir
+                    abs_dir = os.path.abspath(self.genomeCopyDir)
+                    abs_file = os.path.abspath(fasta_path)
+                    
+                    if abs_file.startswith(abs_dir):
+                        paths_to_delete.append(fasta_path)
+
             cur.execute("DELETE FROM genome_list_contents " +
                         "WHERE genome_id in %s", (tuple(genome_ids),))
             
             cur.execute("DELETE FROM genomes " +
                         "WHERE id in %s", (tuple(genome_ids),))
+            
+            try:
+                for path_to_delete in paths_to_delete:
+                    os.unlink(path_to_delete)
+            except Exception as e:
+                self.ReportWarning("Exception was raised when deleting genomes. Some orphans may remain. Exception message: %s" % e.message)
             
             self.conn.commit()
             return True

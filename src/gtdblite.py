@@ -655,8 +655,20 @@ if __name__ == '__main__':
         ErrorReport("Database login failed. The following error(s) were reported:\n")
         DumpDBErrors(db)
         sys.exit(-1)
-
-    result = args.func(db, args)
+    try:
+        result = args.func(db, args)
+    except:
+        ErrorReport("Exception caught. Dumping info.\n")
+        
+        if db.GetWarnings():
+            ErrorReport("Database reported the following warning(s):\n")
+            DumpDBWarnings(db)
+        
+        if db.GetErrors():
+            ErrorReport("Database reported the following errors(s):\n")
+            DumpDBErrors(db)
+        
+        raise
 
     if db.GetWarnings():
         ErrorReport("Database reported the following warning(s):\n")
