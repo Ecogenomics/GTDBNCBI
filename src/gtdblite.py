@@ -22,6 +22,13 @@ def ErrorReport(msg):
     sys.stderr.write(msg)
     sys.stderr.flush()
 
+def AddUser(db, args):
+    pass
+
+def EditUser(db, args):
+    pass
+
+
 def AddManyFastaGenomes(db, args):
     return db.AddManyFastaGenomes(
         args.batchfile, args.checkm_file, args.genome_list_id,
@@ -202,6 +209,38 @@ if __name__ == '__main__':
     profile_category_parser = category_parser.add_parser('profiles', help='Access the profile management commands')
     profile_category_subparser = profile_category_parser.add_subparsers(help='Profile command help', dest='profile_subparser_name')
 
+# -------- User Management subparsers
+
+    # user add parser
+    parser_user_add = user_category_subparser.add_parser('add',
+                                    help='Add a user')
+    parser_user_add.add_argument('--username', dest = 'username',
+                                    required=True, help='Username of the new user.')
+    parser_user_add.add_argument('--role', dest = 'role', choices = ('user', 'admin'), 
+                                    required=False, help='Role of the new user')
+    parser_user_add.add_argument('--has_root', dest = 'has_root', action="store_true",
+                                    required=False, help='User has permission to become the root user.')
+    parser_user_add.set_defaults(func=AddUser)
+    
+    
+    # user edit parser
+    parser_user_edit = user_category_subparser.add_parser('edit',
+                                    help='Add a user')
+    parser_user_edit.add_argument('--username', dest = 'username',
+                                    required=True, help='Username of the new user.')
+    parser_user_edit.add_argument('--role', dest = 'role', choices = ('user', 'admin'), 
+                                    required=False, help='Role of the new user')
+    
+    mutex_group = parser_user_edit.add_mutually_exclusive_group(required=True)
+    mutex_group.add_argument('--has_root', dest = 'has_root', action="store_true",
+                                    help='User has permission to become the root user.')
+    mutex_group.add_argument('--no_root', dest = 'has_root', action="store_true",
+                                    help='User has permission to become the root user.')
+    parser_user_edit.set_defaults(func=EditUser)
+    
+    
+    # user delete parser
+    
 # -------- Genome Management subparsers
 
     # genome add parser
@@ -264,7 +303,7 @@ if __name__ == '__main__':
                                         help='Provide a list of genome list ids (comma separated) whose contents you wish to view.')
     parser_genome_lists_contents.set_defaults(func=ContentsGenomeLists)
 
-    #------------ Show genome list
+    #------------ Edit genome list
     parser_genome_lists_edit = genome_list_category_subparser.add_parser('edit',
                                         help='Edit a genome list') 
     parser_genome_lists_edit.add_argument('--list_id', dest = 'list_id',
