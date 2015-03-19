@@ -191,6 +191,35 @@ def ViewMarkers(db, args):
             external_ids = args.id_list.split(",")
         return db.ViewMarkers(args.batchfile, external_ids)
 
+    
+def ViewMarkerSets(db, args):
+
+    marker_sets = []
+
+    if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
+        marker_sets = db.GetVisibleMarkerSetsByOwner()
+    elif args.self_owned:
+        marker_sets = db.GetVisibleMarkerSetsByOwner(db.currentUser.getUserId())
+    elif args.show_all:
+        marker_sets = db.GetAllVisibleMarkerSetIds()
+    else:
+        # TODO: this
+        db.ReportError("Viewing other peoples' marker sets not yet implemented.")
+        return False
+
+    if len(marker_sets) == 0:
+        print "No marker sets found."
+        return True
+    return db.PrintMarkerSetsDetails(marker_sets)
+
+def MarkerSetsContents(db, args):
+    set_ids = []
+
+    if args.set_ids:
+        set_ids = args.set_ids.split(",")
+
+    return db.ViewMarkerSetsContents(set_ids)
+
 if __name__ == '__main__':
 
     # create the top-level parser
@@ -215,6 +244,9 @@ if __name__ == '__main__':
 
     marker_category_parser = category_parser.add_parser('markers', help='Access the marker management commands')
     marker_category_subparser = marker_category_parser.add_subparsers(help='Marker command help', dest='marker_subparser_name')
+
+    marker_set_category_parser = category_parser.add_parser('marker_sets', help='Access the marker set management sub-commands')
+    marker_set_category_subparser = marker_set_category_parser.add_subparsers(help='Marker Set command help', dest='marker_sets_subparser_name')
 
     tree_category_parser = category_parser.add_parser('trees', help='Access the tree management commands')
     tree_category_subparser = tree_category_parser.add_subparsers(help='Tree command help', dest='tree_subparser_name')
@@ -294,6 +326,8 @@ if __name__ == '__main__':
                                     help='Provide a list of genome ids (comma separated) to view')
     parser_genome_delete.set_defaults(func=DeleteGenomes)
 
+# -------- Genome Lists Management subparsers
+
     #------------ View genome lists
     parser_genome_lists_view = genome_list_category_subparser.add_parser('view',
                                         help='View visible genome lists.')
@@ -365,6 +399,30 @@ if __name__ == '__main__':
     parser_marker_view.add_argument('--all', dest = 'view_all', action="store_true",
                                     help='View ALL the markers in the database.')
     parser_marker_view.set_defaults(func=ViewMarkers)
+
+# -------- Marker Set Management subparsers
+
+    parser_marker_sets_view = marker_set_category_subparser.add_parser('view',
+                                        help='View visible marker sets.')
+
+    mutex_group = parser_marker_sets_view.add_mutually_exclusive_group(required=True)
+    mutex_group.add_argument('--root', dest = 'root_owned', default=False,
+                                        action='store_true', help='Only show marker sets owned by the root user.')
+    mutex_group.add_argument('--self', dest = 'self_owned', default=False,
+                                        action='store_true', help='Only show marker sets owned by you.')
+    mutex_group.add_argument('--owner', dest = 'owner_name', help='Only show marker sets owned by a specific user.')
+    mutex_group.add_argument('--all', dest = 'show_all', default=False,
+                             action='store_true', help='Show all marker sets.')
+
+    parser_marker_sets_view.set_defaults(func=ViewMarkerSets)
+
+
+    #------------ Show marker set(s) contents
+    parser_marker_sets_contents = marker_set_category_subparser.add_parser('contents',
+                                        help='View the contents of marker set(s)')
+    parser_marker_sets_contents.add_argument('--set_ids', dest = 'set_ids', required=True,
+                                        help='Provide a list of marker set ids (comma separated) whose contents you wish to view.')
+    parser_marker_sets_contents.set_defaults(func=MarkerSetsContents)
 
 # -------- Generate Tree Data
 

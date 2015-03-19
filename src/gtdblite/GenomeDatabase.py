@@ -1899,3 +1899,82 @@ class GenomeDatabase(object):
             return None
         except:
             raise
+        
+    def PrintMarkerSetsDetails(self, marker_set_ids):
+        try:
+            cur = self.conn.cursor()
+
+            if not marker_set_ids:
+                raise GenomeDatabaseError("Unable to print marker set details: No marker sets given." )
+            
+            if not self.currentUser.isRootUser():
+                cur.execute("SELECT id " +
+                            "FROM marker_sets as sets " +
+                            "WHERE sets.private = True " +
+                            "AND sets.id in %s " +
+                            "AND (owned_by_root = True OR owner_id != %s)", (tuple(marker_set_ids), self.currentUser.getUserId()))
+
+                unviewable_set_ids = [set_id for (set_id, ) in cur]
+                if unviewable_set_ids:
+                    raise GenomeDatabaseError("Insufficient privileges to view marker sets: %s." % str(unviewable_set_ids))
+
+
+            cur.execute(
+                "SELECT sets.id, sets.name, sets.description, sets.private, sets.owned_by_root, users.username, count(contents.set_id) " +
+                "FROM marker_sets as sets " +
+                "LEFT OUTER JOIN users ON sets.owner_id = users.id " +
+                "JOIN marker_set_contents as contents ON contents.set_id = sets.id " +
+                "WHERE sets.id in %s " +
+                "GROUP by sets.id, users.username " +
+                "ORDER by sets.id asc " , (tuple(marker_set_ids),)
+            )
+
+            print "\t".join(("set_id", "name", "description", "owner", "visibility", "marker_count"))
+
+            for (set_id, name, description, private, owned_by_root, username, marker_count) in cur:
+                print "\t".join(
+                    (str(set_id), name, description, ("(root)" if owned_by_root else username), ("private" if private else "public"), str(marker_count))
+                )
+            return True
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+        except:
+            raise
+        
+    def GetAllVisibleMarkerSetIds(self):
+        cur = self.conn.cursor()
+
+        conditional_query = ""
+        params = []
+
+        if not self.currentUser.isRootUser():
+            conditional_query += "AND (private = False OR owner_id = %s)"
+            params.append(self.currentUser.getUserId())
+
+        cur.execute("SELECT id " +
+                    "FROM marker_sets " +
+                    "WHERE 1 = 1 " +
+                    conditional_query, params)
+
+        return [set_id for (set_id,) in cur]
+    
+    def ViewMarkerSetsContents(self, marker_set_ids):
+        try:
+            marker_ids = self.GetMarkerIdListFromMarkerListIds(marker_set_ids)
+
+            if marker_ids is None:
+                raise GenomeDatabaseError("Unable to view marker set. Can not retrieve marker IDs for sets: %s" % str(marker_set_ids))
+
+            if not self.PrintMarkersDetails(marker_ids):
+                raise GenomeDatabaseError("Unable to view marker set. Printing to screen failed of marker ids. %s" % str(marker_ids))
+
+            return True
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+        except:
+            raise
+    
