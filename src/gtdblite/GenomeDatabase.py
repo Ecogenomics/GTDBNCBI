@@ -90,22 +90,32 @@ class GenomeDatabase(object):
     # Returns:
     #   Returns a User calls object on success (and sets the GenomeDatabase current user), None otherwise.
     def UserLogin(self, username):
-        if not self.conn.IsPostgresConnectionActive():
-            self.ReportError("Unable to establish database connection")
-            return None
-
-        cur = self.conn.cursor()
-        query = "SELECT id, role_id FROM users WHERE username = %s"
-        cur.execute(query, [username])
-        result = cur.fetchone()
-        cur.close()
-        if result:
-            (userid, role_id) = result
-            self.currentUser = User.createUser(result[0], username, result[1])
+        try:
+            if not self.conn.IsPostgresConnectionActive():
+                raise GenomeDatabaseError("Unable to establish database connection")
+    
+            cur = self.conn.cursor()
+            
+            cur.execute("SELECT users.id, user_roles.id, user_roles.name "
+                "FROM users, user_roles " +
+                "WHERE users.role_id = user_roles.id " +
+                "AND users.username = %s", (username, ))
+            
+            result = cur.fetchone()
+            
+            if not result:
+                raise GenomeDatabaseError("User not found: %s" % username)
+            
+            (user_id, role_id, rolename) = result
+            self.currentUser = User.createUser(user_id, username, rolename, role_id)
+            
             return self.currentUser
-        else:
-            self.ReportError("User not found: %s" % username)
-        return None
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return None
+        except:
+            raise
 
     # Function: RootLogin
     # Log a user into the database as a root user (make the root user the current user of the database). Check
@@ -138,39 +148,106 @@ class GenomeDatabase(object):
             self.ReportError("User %s not found." % username)
         return None
 
-    # Function: CreateUser
+    # Function: AddUser
 
-    # Create a new user for the database.
+    # Add a new user to the database.
     #
     # Parameters:
     #     username - The username of the user to login
-    #     userTypeId - The id of the type of user to create
+    #     usertype - The role of the new user
     #
     # Returns:
     #   True on success, False otherwise.
-    def CreateUser(self, username, userTypeId):
+    def AddUser(self, username, rolename=None, has_root=False):
+        try:
+            if rolename is None:
+                rolename = 'user'
 
-        currentUser = self.currentUser
-
-        if not self.conn.IsPostgresConnectionActive():
-            self.ReportError("Unable to establish database connection")
+            if (not self.currentUser.isRootUser()):
+                if has_root:
+                    raise GenomeDatabaseError("Only the root user may grant root access to new users.")
+                
+                if rolename == 'admin':
+                    raise GenomeDatabaseError("Only the root user may create admin accounts.")
+                    
+                if not(self.currentUser.getRolename() == 'admin' and rolename == 'user'):
+                    raise GenomeDatabaseError("Only non-root admins can create accounts.")
+            
+            cur = self.conn.cursor()
+            cur.execute("INSERT into users (username, role_id, has_root_login) (" +
+                            "SELECT %s, id, %s " +
+                            "FROM user_roles " +
+                            "WHERE name = %s)", (username, has_root, rolename))
+            
+            self.conn.commit()
+            return True
+        
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            self.conn.rollback()
             return False
+        except:
+            self.conn.rollback()
+            raise
 
-        if not currentUser:
-            self.ReportError("You need to be logged in to create a user")
+
+    def EditUser(self, username, rolename=None, has_root=None):
+        try:
+            cur = self.conn.cursor()
+            
+            if (not self.currentUser.isRootUser()):
+                raise GenomeDatabaseError("Only the root user may edit existing accounts.")
+                
+                # The following may be useful in the future if roles change, but at the moment,
+                # only the root user can make any meaningful user edits
+                """
+                if has_root is not None:
+                    raise GenomeDatabaseError("Only the root user may edit the root access of users.")
+                
+                if rolename == 'admin':
+                    raise GenomeDatabaseError("Only the root user may create admin accounts.")
+                    
+                cur.execute("SELECT users.id, user_roles.id, user_roles.name "
+                    "FROM users, user_roles " +
+                    "WHERE users.role_id = user_roles.id " +
+                    "AND users.username = %s", (username, ))
+                
+                result = cur.fetchone()
+                
+                if not result:
+                    raise GenomeDatabaseError("User not found: %s" % username)
+               
+                (user_id, current_role_id, current_rolename) = result
+                if current_rolename == 'admin':
+                    raise GenomeDatabaseError("Only the root user may edit current admin accounts.")
+                """
+            
+            conditional_queries = []
+            params = []
+            
+            if rolename is not None:
+                conditional_queries.append(" role_id = (SELECT id from user_roles where name = %s) ")
+                params.append(rolename)
+            
+            if has_root is not None:
+                conditional_queries.append(" has_root_login = %s ")
+                params.append(has_root)
+            
+            if params:
+                cur.execute("UPDATE users " +
+                            "SET " + ','.join(conditional_queries)  + " "
+                            "WHERE username = %s", params + [username])
+                
+            self.conn.commit()
+            return True
+        
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            self.conn.rollback()
             return False
-
-
-        if (not currentUser.isRootUser()) or userTypeId <= self.currentUser.getTypeId():
-            self.ReportError("Cannot create a user with same or higher level privileges")
-            return False
-
-        cur = self.conn.cursor()
-        cur.execute("INSERT into users (username, type_id) " +
-                    "VALUES (%s, %s) ", (username, userTypeId))
-        self.conn.commit()
-
-        return True
+        except:
+            self.conn.rollback()
+            raise
 
     # Function: GetUserIdFromUsername
     # Get a user id from a given username.

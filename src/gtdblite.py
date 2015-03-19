@@ -23,10 +23,15 @@ def ErrorReport(msg):
     sys.stderr.flush()
 
 def AddUser(db, args):
-    pass
+    
+    has_root = False
+    if args.has_root:
+        has_root = True
+    
+    return db.AddUser(args.username, args.role, has_root)
 
 def EditUser(db, args):
-    pass
+    return db.EditUser(args.username, args.role, args.has_root)
 
 
 def AddManyFastaGenomes(db, args):
@@ -96,7 +101,6 @@ def CreateTreeData(db, args):
         db.ReportError("No markers found from the information provided.")
         return False
 
-
     profile_config_dict = dict()
     if args.profile_args:
         profile_args = args.profile_args.split(',')
@@ -106,7 +110,6 @@ def CreateTreeData(db, args):
                 profile_config_dict[key_value_pair[0]] = key_value_pair[1]
             except IndexError:
                 profile_config_dict[key_value_pair[0]] = None
-
 
     if db.MakeTreeData(marker_id_list, genome_id_list, args.out_dir, args.profile, profile_config_dict, not(args.no_tree)) is None:
         return False
@@ -151,8 +154,6 @@ def ViewGenomeLists(db, args):
         print "No genomes lists found."
         return True
     return db.PrintGenomeListsDetails(genome_lists)
-
-    return True
 
 def ContentsGenomeLists(db, args):
 
@@ -218,24 +219,24 @@ if __name__ == '__main__':
                                     required=True, help='Username of the new user.')
     parser_user_add.add_argument('--role', dest = 'role', choices = ('user', 'admin'), 
                                     required=False, help='Role of the new user')
-    parser_user_add.add_argument('--has_root', dest = 'has_root', action="store_true",
+    parser_user_add.add_argument('--has_root', dest = 'has_root', action="store_true", 
                                     required=False, help='User has permission to become the root user.')
     parser_user_add.set_defaults(func=AddUser)
     
     
     # user edit parser
     parser_user_edit = user_category_subparser.add_parser('edit',
-                                    help='Add a user')
+                                    help='Edit a user')
     parser_user_edit.add_argument('--username', dest = 'username',
-                                    required=True, help='Username of the new user.')
+                                    required=True, help='Username of the user to edit.')
     parser_user_edit.add_argument('--role', dest = 'role', choices = ('user', 'admin'), 
-                                    required=False, help='Role of the new user')
+                                    required=False, help='Change the user to this role')
     
-    mutex_group = parser_user_edit.add_mutually_exclusive_group(required=True)
-    mutex_group.add_argument('--has_root', dest = 'has_root', action="store_true",
-                                    help='User has permission to become the root user.')
-    mutex_group.add_argument('--no_root', dest = 'has_root', action="store_true",
-                                    help='User has permission to become the root user.')
+    mutex_group = parser_user_edit.add_mutually_exclusive_group(required=False)
+    mutex_group.add_argument('--has_root', dest = 'has_root', action="store_true", default=None,
+                                    help='Grant user the permission to become the root user.')
+    mutex_group.add_argument('--no_root', dest = 'has_root', action="store_false", default=None,
+                                    help="Revoke user's permission to become the root user.")
     parser_user_edit.set_defaults(func=EditUser)
     
     

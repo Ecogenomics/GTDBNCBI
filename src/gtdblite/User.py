@@ -8,11 +8,12 @@ class User(object):
         pass
     
     @classmethod
-    def createUser(cls, userId, username, roleId):
+    def createUser(cls, userId, username, rolename, role_id):
         C = cls()
         C.userId = userId
         C.username = username
-        C.roleId = roleId
+        C.rolename = rolename
+        C.role_id = role_id
         C.rootUser = False
         return C
     
@@ -35,6 +36,12 @@ class User(object):
     # Returns the id of the user (as stored in PostgreSQL database)
     def getUserId(self):
         return self.userId
+    
+    # Function: getRolename
+    # Returns the role id of this user
+    def getRolename(self):
+        return self.rolename
+    
     
     # Function: getRoleId
     # Returns the role id of this user
