@@ -41,7 +41,10 @@ def AddManyFastaGenomes(db, args):
     )
 
 def AddMarkers(db, args):
-    return db.AddMarkers(args.batchfile, args.force)
+    return db.AddMarkers(
+        args.batchfile, args.marker_set_id,
+        args.marker_set_name, args.force
+    )
 
 def CreateTreeData(db, args):
 
@@ -178,6 +181,15 @@ def EditGenomeLists(db, args):
         
     return db.EditGenomeList(args.list_id, args.batchfile, genome_ids, args.operation, args.name, args.description, private)
     
+def ViewMarkers(db, args):
+
+    if args.view_all:
+        return db.ViewMarkers()
+    else:
+        external_ids = None
+        if args.id_list:
+            external_ids = args.id_list.split(",")
+        return db.ViewMarkers(args.batchfile, external_ids)
 
 if __name__ == '__main__':
 
@@ -342,6 +354,17 @@ if __name__ == '__main__':
     mutex_group.add_argument('--no_set', dest = 'no_marker_set', action="store_true",
                                     help="Don't add these markers to a marker set.")
     parser_marker_add.set_defaults(func=AddMarkers)
+
+    # View markers
+    parser_marker_view = marker_category_subparser.add_parser('view',
+                                 help='View HMM markers in the database')
+    parser_marker_view.add_argument('--batchfile', dest = 'batchfile', default=None,
+                                    help='Batchfile of marker ids (one per line) to view')
+    parser_marker_view.add_argument('--marker_ids', dest = 'id_list', default=None,
+                                    help='Provide a list of genome ids (comma separated) to view')
+    parser_marker_view.add_argument('--all', dest = 'view_all', action="store_true",
+                                    help='View ALL the markers in the database.')
+    parser_marker_view.set_defaults(func=ViewMarkers)
 
 # -------- Generate Tree Data
 
@@ -677,6 +700,13 @@ if __name__ == '__main__':
     if (args.category_parser_name == 'genomes' and args.genome_subparser_name == 'delete'):
         if (args.batchfile is None and args.id_list is None):
                 parser_genome_delete.error('need to specify at least one of --batchfile or --genome_ids')
+                
+    if (args.category_parser_name == 'markers' and args.marker_subparser_name == 'view'):
+        if (args.batchfile is not None or args.id_list is not None):
+            if args.view_all:
+                parser_marker_view.error('argument --all must be used by itself')
+        elif not args.view_all:
+            parser_marker_view.error('need to specify at least one of --all, --batchfile or --marker_ids')
 
     # Initialise the backend
     db = GenomeDatabase.GenomeDatabase()
