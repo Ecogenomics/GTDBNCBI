@@ -5,6 +5,7 @@ import datetime
 import time
 import random
 
+
 from gtdblite import Config
 from gtdblite.User import User
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
@@ -586,8 +587,15 @@ class GenomeDatabase(object):
                         (name, desc, self.currentUser.isRootUser(), owner_id, fasta_file_path, fasta_sha256_checksum, source_id, id_at_source, added, completeness, contamination))
             
             (genome_id, ) = cur.fetchone()
-                
-            # TODO: Add to genome list if required
+
+            if genome_list_id:                
+                has_permission = self.HasPermissionToEditGenomeList(genome_list_id)
+                if has_permission is None:
+                    raise GenomeDatabaseError("Error evaluating permission of genome list: %s", (genome_list_id,))
+                elif not has_permission:
+                    raise GenomeDatabaseError("Insufficient permission to edit genome list: %s", (genome_list_id,))
+                cur.execute("INSERT INTO genomes_lists (list_id, genome_id) VALUES (%s, %s)", (genome_list_id, genome_id))
+            
             return genome_id
 
         except GenomeDatabaseError as e:
@@ -1126,6 +1134,69 @@ class GenomeDatabase(object):
         except:
             raise
 
+    def DeleteMarkers(self, batchfile=None, external_ids=None):
+        try:
+            cur = self.conn.cursor()
+            
+            if external_ids is None:
+                external_ids = []
+            
+            if batchfile:
+                fh = open(batchfile, "rb")
+                for line in fh:
+                    line = line.rstrip()
+                    external_ids.append(line)
+                
+            marker_ids = self.ExternalMarkerIdsToMarkerIds(external_ids)
+            
+            has_permission = self.HasPermissionToEditMarkers(marker_ids)
+            
+            if has_permission is None:
+                raise GenomeDatabaseError("Unable to delete markers. Unable to retrieve permissions for markers.")
+            
+            if has_permission is False:
+                raise GenomeDatabaseError("Unable to delete markers. Insufficient permissions.")
+            
+            if not self.Confirm("Are you sure you want to delete %i markers (this action cannot be undone)" % len(marker_ids)):
+                raise GenomeDatabaseError("User aborted database action.")
+
+            paths_to_delete = []
+            
+            if self.genomeCopyDir is not None:
+                cur.execute("SELECT marker_file_location " +
+                            "FROM markers " +
+                            "WHERE id in %s", (tuple(marker_ids),))
+                
+                for (hmm_path, ) in cur:
+                    # Check if path is a subdir of the copy dir
+                    abs_dir = os.path.abspath(self.markerCopyDir)
+                    abs_file = os.path.abspath(hmm_path)
+                    
+                    if abs_file.startswith(abs_dir):
+                        paths_to_delete.append(hmm_path)
+
+            cur.execute("DELETE FROM marker_set_contents " +
+                        "WHERE marker_id in %s", (tuple(marker_ids),))
+            
+            cur.execute("DELETE FROM markers " +
+                        "WHERE id in %s", (tuple(marker_ids),))
+            
+            try:
+                for path_to_delete in paths_to_delete:
+                    os.unlink(path_to_delete)
+            except Exception as e:
+                self.ReportWarning("Exception was raised when deleting markers. Some orphans may remain. Exception message: %s" % e.message)
+            
+            self.conn.commit()
+            return True
+            
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            self.conn.rollback()
+            return False
+        except:
+            raise
+
     def GetAllMarkerIds(self):
         try:
             cur = self.conn.cursor()
@@ -1204,7 +1275,7 @@ class GenomeDatabase(object):
                          "WHERE id_in_database NOT IN ( " +
                             "SELECT id_in_database " +
                             "FROM markers, marker_databases " +
-                            "WHERE database_id = marker_databases.id "+
+                            "WHERE marker_database_id = marker_databases.id "+
                             "AND external_id_prefix = %s)").format(temp_table_name)
 
                 cur.execute(query, (database_prefix,))
@@ -1218,7 +1289,7 @@ class GenomeDatabase(object):
 
                 # All exist, so get their ids.
                 query = ("SELECT markers.id FROM markers, marker_databases " +
-                         "WHERE database_id = marker_databases.id "+
+                         "WHERE marker_database_id = marker_databases.id "+
                          "AND id_in_database IN ( " +
                             "SELECT id_in_database " +
                             "FROM {0} )"+
@@ -1804,8 +1875,28 @@ class GenomeDatabase(object):
         except:
             raise
 
+    def EditMarkerSet(self, marker_set_id, batchfile=None, marker_external_ids=None, operation=None, name=None, description=None, private=None):        
+        
+        cur = self.conn.cursor()
+    
+        if batchfile:
+            if marker_external_ids is None:
+                marker_external_ids = []
+            for line in fh:
+                line = line.rstrip()
+                marker_external_ids.append(line)
+                
+        if marker_external_ids is not None:
+            marker_external_ids = self.ExternalMarkerIdsToMarkerIds(marker_external_ids)
+
+        if not self.EditMarkerSetWorking(cur, marker_set_id, marker_external_ids, operation, name, description, private):
+            self.conn.rollback()
+            return False
+        
+        self.conn.commit()
+        return True
+
     def EditMarkerSetWorking(self, cur, marker_set_id, marker_ids=None, operation=None, name=None, description=None, private=None):
-        print (cur, marker_set_id, marker_ids, operation, name, description, private)
         try:
             edit_permission = self.HasPermissionToEditMarkerSet(marker_set_id)
             if edit_permission is None:
@@ -1977,4 +2068,5 @@ class GenomeDatabase(object):
             return False
         except:
             raise
+    
     

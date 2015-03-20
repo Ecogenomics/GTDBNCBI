@@ -212,6 +212,20 @@ def ViewMarkerSets(db, args):
         return True
     return db.PrintMarkerSetsDetails(marker_sets)
 
+def EditMarkerSet(db, args):
+    
+    marker_ids = None
+    if args.marker_ids:
+        marker_ids = args.marker_ids.split(",")
+        
+    private = None
+    if args.public:
+        private = False
+    if args.private:
+        private = True
+        
+    return db.EditMarkerSet(args.set_id, args.batchfile, marker_ids, args.operation, args.name, args.description, private)
+
 def MarkerSetsContents(db, args):
     set_ids = []
 
@@ -423,6 +437,30 @@ if __name__ == '__main__':
     parser_marker_sets_contents.add_argument('--set_ids', dest = 'set_ids', required=True,
                                         help='Provide a list of marker set ids (comma separated) whose contents you wish to view.')
     parser_marker_sets_contents.set_defaults(func=MarkerSetsContents)
+
+    #------------ Edit marker set 
+    parser_marker_sets_edit = marker_set_category_subparser.add_parser('edit',
+                                        help='Edit a marker set') 
+    parser_marker_sets_edit.add_argument('--set_id', dest = 'set_id',
+                                        required=True, help='The id of the marker set to edit')
+    parser_marker_sets_edit.add_argument('--batchfile', dest = 'batchfile',
+                                        help='A file of marker ids, one per line, to add remove from the set')
+    parser_marker_sets_edit.add_argument('--marker_ids', dest = 'marker_ids',
+                                        help='List (comma separated) of marker ids to add/remove from set')
+    parser_marker_sets_edit.add_argument('--operation', dest = 'operation', choices=('add','remove'),
+                                        help='What to do with the provided marker ids with regards to the marker set.')
+    parser_marker_sets_edit.add_argument('--name', dest = 'name',
+                                        help='Modify the name of the set to this.')
+    parser_marker_sets_edit.add_argument('--description', dest = 'description',
+                                        help='Change the brief description of the marker set to this.')
+    
+    mutex_group = parser_marker_sets_edit.add_mutually_exclusive_group(required=False)
+    mutex_group.add_argument('--set_private', dest = 'private', action="store_true", default=False,
+                             help='Make this marker set private (only you can see).')
+    mutex_group.add_argument('--set_public', dest = 'public', action="store_true", default=False,
+                             help='Make this marker set public (all users can see).')
+    
+    parser_marker_sets_edit.set_defaults(func=EditMarkerSet)
 
 # -------- Generate Tree Data
 
