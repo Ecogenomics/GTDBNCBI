@@ -4,12 +4,13 @@ import os
 import datetime
 import time
 import random
-
+import tempfile
 
 from gtdblite import Config
 from gtdblite.User import User
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
-
+from gtdblite import profiles
+from checkm_static import prodigal
 
 class GenomeDatabaseError(Exception):
     def __init__(self, msg):
@@ -426,8 +427,9 @@ class GenomeDatabase(object):
 
                 added_genome_ids.append(genome_id)
 
-            if not self.EditGenomeListWorking(cur, modify_genome_list_id, genome_ids=added_genome_ids, operation='add'):
-                raise GenomeDatabaseError("Unable to add genomes to genome list.")
+            if modify_genome_list_id is not None:
+                if not self.EditGenomeListWorking(cur, modify_genome_list_id, genome_ids=added_genome_ids, operation='add'):
+                    raise GenomeDatabaseError("Unable to add genomes to genome list.")
    
             copied_fasta_paths = []
             fasta_paths_to_copy = {}
@@ -1418,34 +1420,98 @@ class GenomeDatabase(object):
         return [x for x in marker_ids if x not in marker_id_dict]
                 
     def MakeTreeData(self, marker_ids, genome_ids, directory, prefix, profile=None, config_dict=None, build_tree=True):
-
-        cur = self.conn.cursor()
-
-        if profile is None:
-            profile = profiles.ReturnDefaultProfileName()
-        if profile not in profiles.profiles:
-            self.ReportError("Unknown Profile: " + profile)
+        try:
+            cur = self.conn.cursor()
+            
+            prodigal_dir = None    
+                
+            if profile is None:
+                profile = profiles.ReturnDefaultProfileName()
+            if profile not in profiles.profiles:
+                self.ReportError("Unknown Profile: " + profile)
+                return None
+            if not(os.path.exists(directory)):
+                os.makedirs(directory)
+    
+            uncalculated_marker_dict = {}
+            uncalculated_marker_count = 0
+    
+            for genome_id in genome_ids:
+                uncalculated = self.FindUncalculatedMarkersForGenomeId(genome_id, marker_ids)
+                if len(uncalculated) != 0:
+                    uncalculated_marker_dict[genome_id] = uncalculated
+                    uncalculated_marker_count += len(uncalculated)
+    
+            if uncalculated_marker_count > 0:
+                print "%i genomes contain %i uncalculated markers." % (len(uncalculated_marker_dict.keys()), uncalculated_marker_count)
+                if not self.Confirm("These markers need to be calculated in order to build the tree. More markers means more waiting. Continue?"):
+                    raise GenomeDatabaseError("User aborted database action.")
+            
+            for (genome_id, uncalculated) in uncalculated_marker_dict.items():
+                prodigal_dir = tempfile.mkdtemp()
+                
+                runner = prodigal.ProdigalRunner(prodigal_dir)
+                
+                cur.execute("SELECT fasta_file_location " +
+                            "FROM genomes " +
+                            "WHERE id = %s", (genome_id,))
+                
+                (fasta_path, ) = cur.fetchone()
+                
+                if runner.run(fasta_path) is None:
+                    raise GenomeDatabaseError("Failed to run prodigal.")
+                
+                print prodigal_dir
+                
+                for marker_id in uncalculated:
+                    
+                    cur.execute("SELECT marker_file_location " +
+                            "FROM markers " +
+                            "WHERE id = %s", (marker_id,))
+                
+                    (marker_path, ) = cur.fetchone()
+                    
+                    os.system("hmmalign --outformat Pfam -o %s %s %s" % (
+                        os.path.join(prodigal_dir, "%i.aligned" % (marker_id,)),
+                        marker_path,
+                        os.path.join(prodigal_dir, 'genes.faa')
+                    ))
+                    
+                    fh = open(os.path.join(prodigal_dir, "%i.aligned" % (marker_id,)))
+                    fh.readline()
+                    fh.readline()
+                    seqline = fh.readline()
+                    seq_start_pos = seqline.rfind(' ')
+                    fh.readline()
+                    fh.readline()
+                    mask = fh.readline()
+                    seqline = seqline[seq_start_pos:]
+                    mask = mask[seq_start_pos:]
+                    seqline = ''.join([seqline[x] for x in range(0, len(seqline)) if mask[x] == 'x'])
+                    if (seqline.count('-') / float(len(seqline))) > 0.5: # Limit to less than half gaps
+                        continue
+                    result_dict[marker_id] = seqline
+                
+                # From here
+                
+                #shutil.rmtree(prodigal_dir)
+                
+                #self.RecalculateMarkersForGenome(genome_id, uncalculated)
+    
+            if profiles.profiles[profile].MakeTreeData(self, marker_ids, genome_ids, directory, prefix, config_dict):
+                return True
+            
+            return False
+    
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
             return None
-        if not(os.path.exists(directory)):
-            os.makedirs(directory)
-
-        uncalculated_marker_dict = {}
-        uncalculated_marker_count = 0
-
-        for genome_id in genome_ids:
-            uncalculated = self.FindUncalculatedMarkersForGenomeId(genome_id, marker_ids)
-            if len(uncalculated) != 0:
-                uncalculated_marker_dict[genome_id] = uncalculated
-                uncalculated_marker_count += len(uncalculated)
-
-        print "%i genomes contain %i uncalculated markers." % (len(uncalculated_marker_dict.keys()), uncalculated_marker_count)
-        # TODO: Add Confirm step
-
-        for (genome_id, uncalculated) in incalculated_marker_dict:
-            self.RecalculateMarkersForGenome(genome_id, uncalculated)
-
-        return profiles.profiles[profile].MakeTreeData(self, marker_ids, genome_ids,
-                                                       directory, prefix, config_dict)
+        except:
+            raise
+        finally:
+            if os.path.exists(prodigal_dir):
+                print prodigal_dir
+                #shutil.rmtree(prodigal_dir)
 
     # Function: CreateGenomeListWorking
     # Creates a new genome list in the database

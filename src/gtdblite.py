@@ -114,10 +114,8 @@ def CreateTreeData(db, args):
             except IndexError:
                 profile_config_dict[key_value_pair[0]] = None
 
-    if db.MakeTreeData(marker_id_list, genome_id_list, args.out_dir, args.profile, profile_config_dict, not(args.no_tree)) is None:
-        return False
-
-    return True
+    
+    return db.MakeTreeData(marker_id_list, genome_id_list, args.out_dir, "prefix", args.profile, profile_config_dict, not(args.no_tree))
 
 def ViewGenomes(db, args):
 
@@ -242,6 +240,8 @@ if __name__ == '__main__':
                         help='Login as the root user'),
     parser.add_argument('-f', dest='force', action='store_true',
                         help='Force the action (required to override warnings for certain actions)'),
+    parser.add_argument('-y', dest='assume_yes', action='store_true',
+                        help='Assume yes to all confirm prompts (useful for batch processing)'),
     parser.add_argument('--debug', dest='debug', action='store_true',
                         help='Run in debug mode')
 
