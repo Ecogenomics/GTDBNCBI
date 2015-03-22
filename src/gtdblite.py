@@ -238,6 +238,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='gtdblite.py')
     parser.add_argument('-r', dest='login_as_root', action='store_true',
                         help='Login as the root user'),
+    parser.add_argument('-t', dest='threads', type=int,
+                        help='Threads to use'),
     parser.add_argument('-f', dest='force', action='store_true',
                         help='Force the action (required to override warnings for certain actions)'),
     parser.add_argument('-y', dest='assume_yes', action='store_true',
@@ -805,7 +807,11 @@ if __name__ == '__main__':
             parser_marker_view.error('need to specify at least one of --all, --batchfile or --marker_ids')
 
     # Initialise the backend
-    db = GenomeDatabase.GenomeDatabase()
+    if args.threads:
+        db = GenomeDatabase.GenomeDatabase(args.threads)
+    else:
+        db = GenomeDatabase.GenomeDatabase()
+    
     db.conn.MakePostgresConnection()
 
     if args.debug:
