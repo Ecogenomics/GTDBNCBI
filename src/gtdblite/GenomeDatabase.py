@@ -5,25 +5,23 @@ import datetime
 import time
 import random
 import tempfile
+from multiprocessing import Pool
 
 from gtdblite import Config
 from gtdblite.User import User
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
+from gtdblite import MarkerCalculation  
 from gtdblite import profiles
-from checkm_static import prodigal
-
-class GenomeDatabaseError(Exception):
-    def __init__(self, msg):
-        Exception.__init__(self, msg)
-
+from gtdblite.Exceptions import GenomeDatabaseError
 
 class GenomeDatabase(object):
-    def __init__(self):
+    def __init__(self, threads = 1):
         self.conn = GenomeDatabaseConnection()
         self.currentUser = None
         self.errorMessages = []
         self.warningMessages = []
         self.debugMode = False
+        self.pool = Pool(threads)
         
         self.genomeCopyDir = None
         if Config.GTDB_GENOME_COPY_DIR:
@@ -418,7 +416,7 @@ class GenomeDatabase(object):
                     raise GenomeDatabaseError("Couldn't find checkM result for %s (%s)" % (name,abs_path))
 
                 genome_id = self.AddFastaGenomeWorking(
-                    cur, abs_path, name, desc, modify_genome_list_id, force_overwrite, source_name, id_at_source,
+                    cur, abs_path, name, desc, None, force_overwrite, source_name, id_at_source,
                     checkM_results_dict[basename]["completeness"], checkM_results_dict[basename]["contamination"]
                 )
 
@@ -596,7 +594,7 @@ class GenomeDatabase(object):
                     raise GenomeDatabaseError("Error evaluating permission of genome list: %s", (genome_list_id,))
                 elif not has_permission:
                     raise GenomeDatabaseError("Insufficient permission to edit genome list: %s", (genome_list_id,))
-                cur.execute("INSERT INTO genomes_lists (list_id, genome_id) VALUES (%s, %s)", (genome_list_id, genome_id))
+                cur.execute("INSERT INTO genome_list_contents (list_id, genome_id) VALUES (%s, %s)", (genome_list_id, genome_id))
             
             return genome_id
 
@@ -941,7 +939,7 @@ class GenomeDatabase(object):
     
                 abs_path = os.path.abspath(marker_path)
                 
-                marker_id = self.AddMarkerWorking(cur, abs_path, name, desc, modify_marker_set_id,
+                marker_id = self.AddMarkerWorking(cur, abs_path, name, desc, None,
                                                   force_overwrite, database_name, id_in_database)
     
                 # Rollback everything if addition fails
@@ -1421,8 +1419,6 @@ class GenomeDatabase(object):
                 
     def MakeTreeData(self, marker_ids, genome_ids, directory, prefix, profile=None, config_dict=None, build_tree=True):
         try:
-            cur = self.conn.cursor()
-            
             prodigal_dir = None    
                 
             if profile is None:
@@ -1444,60 +1440,46 @@ class GenomeDatabase(object):
     
             if uncalculated_marker_count > 0:
                 print "%i genomes contain %i uncalculated markers." % (len(uncalculated_marker_dict.keys()), uncalculated_marker_count)
-                if not self.Confirm("These markers need to be calculated in order to build the tree. More markers means more waiting. Continue?"):
+                
+                confirm_msg = ("These markers need to be calculated in order to build the tree. " +
+                              "More markers means more waiting. Continue using %i threads?" % self.pool._processes)
+                
+                if not self.Confirm(confirm_msg):
                     raise GenomeDatabaseError("User aborted database action.")
             
+            all_async_results = []
+            
             for (genome_id, uncalculated) in uncalculated_marker_dict.items():
-                prodigal_dir = tempfile.mkdtemp()
                 
-                runner = prodigal.ProdigalRunner(prodigal_dir)
-                
-                cur.execute("SELECT fasta_file_location " +
-                            "FROM genomes " +
-                            "WHERE id = %s", (genome_id,))
-                
-                (fasta_path, ) = cur.fetchone()
-                
-                if runner.run(fasta_path) is None:
-                    raise GenomeDatabaseError("Failed to run prodigal.")
+                prodigal_dir = self.RunProdigalOnGenomeId(genome_id)
                 
                 print prodigal_dir
                 
-                for marker_id in uncalculated:
-                    
-                    cur.execute("SELECT marker_file_location " +
-                            "FROM markers " +
-                            "WHERE id = %s", (marker_id,))
+                if prodigal_dir is None:
+                    raise GenomeDatabaseError("Error running prodigal.")
                 
-                    (marker_path, ) = cur.fetchone()
-                    
-                    os.system("hmmalign --outformat Pfam -o %s %s %s" % (
-                        os.path.join(prodigal_dir, "%i.aligned" % (marker_id,)),
-                        marker_path,
-                        os.path.join(prodigal_dir, 'genes.faa')
-                    ))
-                    
-                    fh = open(os.path.join(prodigal_dir, "%i.aligned" % (marker_id,)))
-                    fh.readline()
-                    fh.readline()
-                    seqline = fh.readline()
-                    seq_start_pos = seqline.rfind(' ')
-                    fh.readline()
-                    fh.readline()
-                    mask = fh.readline()
-                    seqline = seqline[seq_start_pos:]
-                    mask = mask[seq_start_pos:]
-                    seqline = ''.join([seqline[x] for x in range(0, len(seqline)) if mask[x] == 'x'])
-                    if (seqline.count('-') / float(len(seqline))) > 0.5: # Limit to less than half gaps
-                        continue
-                    result_dict[marker_id] = seqline
+                # OK we are gonna do some pretty questionable things, accessing private variables of the pool class,
+                # but like wtf python? give me some getter functions, how hard can that be.....
+                #
+                # If the pool queue is 5x the number of processes, wait for a second and recheck, otherwise
+                # calculate the markers
+                while self.pool._taskqueue.qsize() > 5 * self.pool._processes:
+                    time.sleep(1)
                 
-                # From here
+                markers_async_results = self.CalculateMarkersOnProdigalDirAsync(uncalculated, prodigal_dir)
                 
-                #shutil.rmtree(prodigal_dir)
+                all_async_results.append({
+                    'genome_id': genome_id,
+                    'results' : markers_async_results,
+                    'marker_ids' : uncalculated
+                })
                 
-                #self.RecalculateMarkersForGenome(genome_id, uncalculated)
-    
+                self.CommitCalculatedMarkersAsyncChunk(all_async_results, 5)
+                
+            # Wait until all markers are complete and commited
+            while not self.CommitCalculatedMarkersAsyncChunk(all_async_results, 5):
+                time.sleep(1)
+                
             if profiles.profiles[profile].MakeTreeData(self, marker_ids, genome_ids, directory, prefix, config_dict):
                 return True
             
@@ -1509,10 +1491,103 @@ class GenomeDatabase(object):
         except:
             raise
         finally:
-            if os.path.exists(prodigal_dir):
+            if prodigal_dir is not None and os.path.exists(prodigal_dir):
                 print prodigal_dir
                 #shutil.rmtree(prodigal_dir)
 
+    def CommitCalculatedMarkersAsyncChunk(self, all_async_results, chunk_size):
+        
+        unprocessed_indexes = []
+        total_complete = 0
+        
+        # Check how many genomes have all their marker calculations complete (but unprocessed)
+        for i in xrange(0, len(all_async_results)):
+            
+            genome_async_results = all_async_results[i]
+            
+            # Check if it has already been processed
+            if genome_async_results is None:
+                total_complete += 1
+                continue
+            
+            all_markers_complete = True
+            for (marker_id, async_result) in genome_async_results['results'].items():
+                if not async_result.ready():
+                    all_markers_complete = False
+                    break
+            
+            if all_markers_complete:
+                unprocessed_indexes.append(i)
+                total_complete += 1
+        
+        all_results_complete = (total_complete == len(all_async_results))
+        
+        if (len(unprocessed_indexes) >= chunk_size) or all_results_complete:
+            
+            cur = self.conn.cursor()
+            
+            for index in unprocessed_indexes:
+                genome_async_results = all_async_results[index]
+                
+                marker_ids = genome_async_results['results'].keys()
+                results = [genome_async_results['results'][marker_id].get() for marker_id in marker_ids]
+                
+                # Perform an upsert (defined in the psql database)
+                cur.executemany("SELECT upsert_aligned_markers(%s, %s, %s, %s)", zip(
+                    [genome_async_results['genome_id'] for x in results],
+                    marker_ids,
+                    [False for x in results],
+                    results
+                ))
+            
+            self.conn.commit()
+    
+        return all_results_complete
+
+    def CalculateMarkersOnProdigalDirAsync(self, marker_ids, prodigal_dir):
+        try:
+            
+            cur = self.conn.cursor()
+            
+            cur.execute("SELECT id, marker_file_location " +
+                        "FROM markers " +
+                        "WHERE id in %s", (tuple(marker_ids),))
+            
+            async_results = {}
+           
+            for (marker_id, marker_path) in cur:
+                async_results[marker_id] = self.pool.apply_async(
+                    MarkerCalculation.CalculateBestMarkerOnProdigalDir,
+                    [marker_path, prodigal_dir]
+                )
+            
+            return async_results
+        
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return None
+        except:
+            raise 
+
+    def RunProdigalOnGenomeId(self, genome_id):
+        try:
+            cur = self.conn.cursor()
+            
+            cur.execute("SELECT fasta_file_location " +
+                        "FROM genomes " +
+                        "WHERE id = %s", (genome_id,))
+            
+            (fasta_path, ) = cur.fetchone()
+            
+            return MarkerCalculation.RunProdigalOnGenomeFasta(fasta_path)
+        
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return None
+        except:
+            raise
+
+    
     # Function: CreateGenomeListWorking
     # Creates a new genome list in the database
     #
