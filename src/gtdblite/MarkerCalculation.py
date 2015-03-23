@@ -1,10 +1,15 @@
 import tempfile
 import os
 import shutil
+import re
 
 from gtdblite.Exceptions import GenomeDatabaseError
 
-from checkm_static import prodigal
+from checkm_static import prodigal, hmmer, resultsParser
+
+from simplehmmer import hmmmodelparser
+
+
 
 def RunProdigalOnGenomeFasta(fasta_path):
     try:
@@ -21,28 +26,70 @@ def RunProdigalOnGenomeFasta(fasta_path):
             shutil.rmtree(prodigal_dir)
         raise
 
+
+def CalculateBestMarkerOnProdigalDir(output_prefix, marker_hmm_file, prodigal_dir):
     
-def CalculateBestMarkerOnProdigalDir(marker_hmm_file, prodigal_dir):
+    hmmsearch_result_filepath = os.path.join(prodigal_dir, "%s.search" % output_prefix)
     
-    os.system("hmmalign --outformat Pfam -o %s %s %s" % (
-        os.path.join(prodigal_dir, "%i.aligned" % (marker_id,)),
-        marker_path,
+    # Do a hmmsearch to find the best hit
+    os.system("hmmsearch --tblout %s %s %s > /dev/null" % (
+        hmmsearch_result_filepath,
+        marker_hmm_file,
         os.path.join(prodigal_dir, 'genes.faa')
     ))
     
-    fh = open(os.path.join(prodigal_dir, "%i.aligned" % (marker_id,)))
-    fh.readline()
-    fh.readline()
-    seqline = fh.readline()
-    seq_start_pos = seqline.rfind(' ')
-    fh.readline()
-    fh.readline()
-    mask = fh.readline()
-    seqline = seqline[seq_start_pos:]
-    mask = mask[seq_start_pos:]
-    seqline = ''.join([seqline[x] for x in range(0, len(seqline)) if mask[x] == 'x'])
+    model = hmmmodelparser.HmmModelParser(marker_hmm_file).parse().next()
     
-    if (seqline.count('-') / float(len(seqline))) > 0.5: # Limit to less than half gaps
-        return None
+    blank_result = model.leng * '-'
     
-    return seqline
+    best_hit = FindBestMarkerInHMMSearchResult(hmmsearch_result_filepath)
+    if best_hit is None:
+        return blank_result
+
+    if not resultsParser.vetHit(model, best_hit):
+        return blank_result
+    
+    hmmalign_result_filepath = os.path.join(prodigal_dir, "%s.aligned" % (output_prefix,))
+    
+    # Do a hmmalign and retrieve the aligned best hit given by hmmsearch
+    os.system("hmmalign --outformat Pfam -o %s %s %s" % (
+        hmmalign_result_filepath,
+        marker_hmm_file,
+        os.path.join(prodigal_dir, 'genes.faa')
+    ))
+    
+    result = GetAlignedMarker(best_hit.target_name, hmmalign_result_filepath)
+    if result is None:
+        return blank_result
+    
+    if len(result) != model.leng:
+        raise Exception("Result length doesn't equal the model length")
+    
+    return result
+    
+    
+def FindBestMarkerInHMMSearchResult(hmmsearch_result_file):
+    
+    fh = open(hmmsearch_result_file)
+    parser = hmmer.HMMERParser(fh)
+    best_score = 0
+    best_hit = None
+    while True:
+        hit = parser.next()
+        if not hit:
+            break
+        if hit.full_score > best_score:
+            best_score = hit.full_score
+            best_hit = hit    
+
+    return best_hit
+
+def GetAlignedMarker(hit_name, hmmalign_result_filepath):
+
+    fh = open(hmmalign_result_filepath)
+    for line in fh:
+        if line[0:len(hit_name)] == hit_name:
+            splitline = line.rsplit(" ", 1)
+            return re.sub('[^A-Z\-]','', splitline[-1])
+
+    return None
