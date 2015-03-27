@@ -22,6 +22,18 @@ def ErrorReport(msg):
     sys.stderr.write(msg)
     sys.stderr.flush()
 
+def AddUser(db, args):
+    
+    has_root = False
+    if args.has_root:
+        has_root = True
+    
+    return db.AddUser(args.username, args.role, has_root)
+
+def EditUser(db, args):
+    return db.EditUser(args.username, args.role, args.has_root)
+
+
 def AddManyFastaGenomes(db, args):
     return db.AddManyFastaGenomes(
         args.batchfile, args.checkm_file, args.genome_list_id,
@@ -29,7 +41,10 @@ def AddManyFastaGenomes(db, args):
     )
 
 def AddMarkers(db, args):
-    return db.AddMarkers(args.batchfile, args.force)
+    return db.AddMarkers(
+        args.batchfile, args.marker_set_id,
+        args.marker_set_name, args.force
+    )
 
 def CreateTreeData(db, args):
 
@@ -89,7 +104,6 @@ def CreateTreeData(db, args):
         db.ReportError("No markers found from the information provided.")
         return False
 
-
     profile_config_dict = dict()
     if args.profile_args:
         profile_args = args.profile_args.split(',')
@@ -100,11 +114,8 @@ def CreateTreeData(db, args):
             except IndexError:
                 profile_config_dict[key_value_pair[0]] = None
 
-
-    if db.MakeTreeData(marker_id_list, genome_id_list, args.out_dir, args.profile, profile_config_dict, not(args.no_tree)) is None:
-        return False
-
-    return True
+    
+    return db.MakeTreeData(marker_id_list, genome_id_list, args.out_dir, "prefix", args.profile, profile_config_dict, not(args.no_tree))
 
 def ViewGenomes(db, args):
 
@@ -145,8 +156,6 @@ def ViewGenomeLists(db, args):
         return True
     return db.PrintGenomeListsDetails(genome_lists)
 
-    return True
-
 def ContentsGenomeLists(db, args):
 
     list_ids = []
@@ -170,6 +179,58 @@ def EditGenomeLists(db, args):
         
     return db.EditGenomeList(args.list_id, args.batchfile, genome_ids, args.operation, args.name, args.description, private)
     
+def ViewMarkers(db, args):
+
+    if args.view_all:
+        return db.ViewMarkers()
+    else:
+        external_ids = None
+        if args.id_list:
+            external_ids = args.id_list.split(",")
+        return db.ViewMarkers(args.batchfile, external_ids)
+
+    
+def ViewMarkerSets(db, args):
+
+    marker_sets = []
+
+    if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
+        marker_sets = db.GetVisibleMarkerSetsByOwner()
+    elif args.self_owned:
+        marker_sets = db.GetVisibleMarkerSetsByOwner(db.currentUser.getUserId())
+    elif args.show_all:
+        marker_sets = db.GetAllVisibleMarkerSetIds()
+    else:
+        # TODO: this
+        db.ReportError("Viewing other peoples' marker sets not yet implemented.")
+        return False
+
+    if len(marker_sets) == 0:
+        print "No marker sets found."
+        return True
+    return db.PrintMarkerSetsDetails(marker_sets)
+
+def EditMarkerSet(db, args):
+    
+    marker_ids = None
+    if args.marker_ids:
+        marker_ids = args.marker_ids.split(",")
+        
+    private = None
+    if args.public:
+        private = False
+    if args.private:
+        private = True
+        
+    return db.EditMarkerSet(args.set_id, args.batchfile, marker_ids, args.operation, args.name, args.description, private)
+
+def MarkerSetsContents(db, args):
+    set_ids = []
+
+    if args.set_ids:
+        set_ids = args.set_ids.split(",")
+
+    return db.ViewMarkerSetsContents(set_ids)
 
 if __name__ == '__main__':
 
@@ -177,10 +238,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='gtdblite.py')
     parser.add_argument('-r', dest='login_as_root', action='store_true',
                         help='Login as the root user'),
+    parser.add_argument('-t', dest='threads', type=int,
+                        help='Threads to use'),
     parser.add_argument('-f', dest='force', action='store_true',
                         help='Force the action (required to override warnings for certain actions)'),
-    parser.add_argument('--dev', dest='dev', action='store_true',
-                        help='Connect to the developer database')
+    parser.add_argument('-y', dest='assume_yes', action='store_true',
+                        help='Assume yes to all confirm prompts (useful for batch processing)'),
     parser.add_argument('--debug', dest='debug', action='store_true',
                         help='Run in debug mode')
 
@@ -198,12 +261,47 @@ if __name__ == '__main__':
     marker_category_parser = category_parser.add_parser('markers', help='Access the marker management commands')
     marker_category_subparser = marker_category_parser.add_subparsers(help='Marker command help', dest='marker_subparser_name')
 
+    marker_set_category_parser = category_parser.add_parser('marker_sets', help='Access the marker set management sub-commands')
+    marker_set_category_subparser = marker_set_category_parser.add_subparsers(help='Marker Set command help', dest='marker_sets_subparser_name')
+
     tree_category_parser = category_parser.add_parser('trees', help='Access the tree management commands')
     tree_category_subparser = tree_category_parser.add_subparsers(help='Tree command help', dest='tree_subparser_name')
 
     profile_category_parser = category_parser.add_parser('profiles', help='Access the profile management commands')
     profile_category_subparser = profile_category_parser.add_subparsers(help='Profile command help', dest='profile_subparser_name')
 
+# -------- User Management subparsers
+
+    # user add parser
+    parser_user_add = user_category_subparser.add_parser('add',
+                                    help='Add a user')
+    parser_user_add.add_argument('--username', dest = 'username',
+                                    required=True, help='Username of the new user.')
+    parser_user_add.add_argument('--role', dest = 'role', choices = ('user', 'admin'), 
+                                    required=False, help='Role of the new user')
+    parser_user_add.add_argument('--has_root', dest = 'has_root', action="store_true", 
+                                    required=False, help='User has permission to become the root user.')
+    parser_user_add.set_defaults(func=AddUser)
+    
+    
+    # user edit parser
+    parser_user_edit = user_category_subparser.add_parser('edit',
+                                    help='Edit a user')
+    parser_user_edit.add_argument('--username', dest = 'username',
+                                    required=True, help='Username of the user to edit.')
+    parser_user_edit.add_argument('--role', dest = 'role', choices = ('user', 'admin'), 
+                                    required=False, help='Change the user to this role')
+    
+    mutex_group = parser_user_edit.add_mutually_exclusive_group(required=False)
+    mutex_group.add_argument('--has_root', dest = 'has_root', action="store_true", default=None,
+                                    help='Grant user the permission to become the root user.')
+    mutex_group.add_argument('--no_root', dest = 'has_root', action="store_false", default=None,
+                                    help="Revoke user's permission to become the root user.")
+    parser_user_edit.set_defaults(func=EditUser)
+    
+    
+    # user delete parser
+    
 # -------- Genome Management subparsers
 
     # genome add parser
@@ -244,6 +342,8 @@ if __name__ == '__main__':
                                     help='Provide a list of genome ids (comma separated) to view')
     parser_genome_delete.set_defaults(func=DeleteGenomes)
 
+# -------- Genome Lists Management subparsers
+
     #------------ View genome lists
     parser_genome_lists_view = genome_list_category_subparser.add_parser('view',
                                         help='View visible genome lists.')
@@ -266,7 +366,7 @@ if __name__ == '__main__':
                                         help='Provide a list of genome list ids (comma separated) whose contents you wish to view.')
     parser_genome_lists_contents.set_defaults(func=ContentsGenomeLists)
 
-    #------------ Show genome list
+    #------------ Edit genome list
     parser_genome_lists_edit = genome_list_category_subparser.add_parser('edit',
                                         help='Edit a genome list') 
     parser_genome_lists_edit.add_argument('--list_id', dest = 'list_id',
@@ -304,6 +404,65 @@ if __name__ == '__main__':
     mutex_group.add_argument('--no_set', dest = 'no_marker_set', action="store_true",
                                     help="Don't add these markers to a marker set.")
     parser_marker_add.set_defaults(func=AddMarkers)
+
+    # View markers
+    parser_marker_view = marker_category_subparser.add_parser('view',
+                                 help='View HMM markers in the database')
+    parser_marker_view.add_argument('--batchfile', dest = 'batchfile', default=None,
+                                    help='Batchfile of marker ids (one per line) to view')
+    parser_marker_view.add_argument('--marker_ids', dest = 'id_list', default=None,
+                                    help='Provide a list of genome ids (comma separated) to view')
+    parser_marker_view.add_argument('--all', dest = 'view_all', action="store_true",
+                                    help='View ALL the markers in the database.')
+    parser_marker_view.set_defaults(func=ViewMarkers)
+
+# -------- Marker Set Management subparsers
+
+    parser_marker_sets_view = marker_set_category_subparser.add_parser('view',
+                                        help='View visible marker sets.')
+
+    mutex_group = parser_marker_sets_view.add_mutually_exclusive_group(required=True)
+    mutex_group.add_argument('--root', dest = 'root_owned', default=False,
+                                        action='store_true', help='Only show marker sets owned by the root user.')
+    mutex_group.add_argument('--self', dest = 'self_owned', default=False,
+                                        action='store_true', help='Only show marker sets owned by you.')
+    mutex_group.add_argument('--owner', dest = 'owner_name', help='Only show marker sets owned by a specific user.')
+    mutex_group.add_argument('--all', dest = 'show_all', default=False,
+                             action='store_true', help='Show all marker sets.')
+
+    parser_marker_sets_view.set_defaults(func=ViewMarkerSets)
+
+
+    #------------ Show marker set(s) contents
+    parser_marker_sets_contents = marker_set_category_subparser.add_parser('contents',
+                                        help='View the contents of marker set(s)')
+    parser_marker_sets_contents.add_argument('--set_ids', dest = 'set_ids', required=True,
+                                        help='Provide a list of marker set ids (comma separated) whose contents you wish to view.')
+    parser_marker_sets_contents.set_defaults(func=MarkerSetsContents)
+
+    #------------ Edit marker set 
+    parser_marker_sets_edit = marker_set_category_subparser.add_parser('edit',
+                                        help='Edit a marker set') 
+    parser_marker_sets_edit.add_argument('--set_id', dest = 'set_id',
+                                        required=True, help='The id of the marker set to edit')
+    parser_marker_sets_edit.add_argument('--batchfile', dest = 'batchfile',
+                                        help='A file of marker ids, one per line, to add remove from the set')
+    parser_marker_sets_edit.add_argument('--marker_ids', dest = 'marker_ids',
+                                        help='List (comma separated) of marker ids to add/remove from set')
+    parser_marker_sets_edit.add_argument('--operation', dest = 'operation', choices=('add','remove'),
+                                        help='What to do with the provided marker ids with regards to the marker set.')
+    parser_marker_sets_edit.add_argument('--name', dest = 'name',
+                                        help='Modify the name of the set to this.')
+    parser_marker_sets_edit.add_argument('--description', dest = 'description',
+                                        help='Change the brief description of the marker set to this.')
+    
+    mutex_group = parser_marker_sets_edit.add_mutually_exclusive_group(required=False)
+    mutex_group.add_argument('--set_private', dest = 'private', action="store_true", default=False,
+                             help='Make this marker set private (only you can see).')
+    mutex_group.add_argument('--set_public', dest = 'public', action="store_true", default=False,
+                             help='Make this marker set public (all users can see).')
+    
+    parser_marker_sets_edit.set_defaults(func=EditMarkerSet)
 
 # -------- Generate Tree Data
 
@@ -639,10 +798,21 @@ if __name__ == '__main__':
     if (args.category_parser_name == 'genomes' and args.genome_subparser_name == 'delete'):
         if (args.batchfile is None and args.id_list is None):
                 parser_genome_delete.error('need to specify at least one of --batchfile or --genome_ids')
+                
+    if (args.category_parser_name == 'markers' and args.marker_subparser_name == 'view'):
+        if (args.batchfile is not None or args.id_list is not None):
+            if args.view_all:
+                parser_marker_view.error('argument --all must be used by itself')
+        elif not args.view_all:
+            parser_marker_view.error('need to specify at least one of --all, --batchfile or --marker_ids')
 
     # Initialise the backend
-    db = GenomeDatabase.GenomeDatabase()
-    db.conn.MakePostgresConnection(args.dev)
+    if args.threads:
+        db = GenomeDatabase.GenomeDatabase(args.threads)
+    else:
+        db = GenomeDatabase.GenomeDatabase()
+    
+    db.conn.MakePostgresConnection()
 
     if args.debug:
         db.SetDebugMode(True)
@@ -657,8 +827,20 @@ if __name__ == '__main__':
         ErrorReport("Database login failed. The following error(s) were reported:\n")
         DumpDBErrors(db)
         sys.exit(-1)
-
-    result = args.func(db, args)
+    try:
+        result = args.func(db, args)
+    except:
+        ErrorReport("Exception caught. Dumping info.\n")
+        
+        if db.GetWarnings():
+            ErrorReport("Database reported the following warning(s):\n")
+            DumpDBWarnings(db)
+        
+        if db.GetErrors():
+            ErrorReport("Database reported the following errors(s):\n")
+            DumpDBErrors(db)
+        
+        raise
 
     if db.GetWarnings():
         ErrorReport("Database reported the following warning(s):\n")

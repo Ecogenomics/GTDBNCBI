@@ -20,6 +20,7 @@ CREATE TABLE genome_sources (
     id serial PRIMARY KEY,
     name text UNIQUE NOT NULL,
     external_id_prefix text UNIQUE NOT NULL,
+    last_auto_id integer NOT NULL DEFAULT 0,
     user_accessible boolean NOT NULL DEFAULT false
 );
 
@@ -67,6 +68,7 @@ CREATE TABLE marker_databases (
     id serial PRIMARY KEY,
     name text UNIQUE NOT NULL,
     external_id_prefix text UNIQUE NOT NULL,
+    last_auto_id integer NOT NULL DEFAULT 0,
     user_accessible boolean NOT NULL DEFAULT false
 );
 
@@ -78,15 +80,16 @@ INSERT INTO marker_databases (name, external_id_prefix) VALUES ('TIGRFAM', 'TIGR
 CREATE TABLE markers (
     id serial PRIMARY KEY,
     name text NOT NULL,
+    description text,
     owned_by_root boolean NOT NULL DEFAULT false,
     owner_id integer,
     marker_file_location text NOT NULL,
     marker_file_sha256 text NOT NULL,
-    database_id integer NOT NULL,
-    database_specific_id text NOT NULL,
+    marker_database_id integer NOT NULL,
+    id_in_database text NOT NULL,
     size integer NOT NULL,
-    UNIQUE (database_specific_id, database_id),
-    FOREIGN KEY (database_id) REFERENCES marker_databases(id) ON UPDATE CASCADE
+    UNIQUE (id_in_database, marker_database_id),
+    FOREIGN KEY (marker_database_id) REFERENCES marker_databases(id) ON UPDATE CASCADE
 );
 
 CREATE TABLE aligned_markers (
@@ -117,5 +120,31 @@ CREATE TABLE marker_set_contents (
     FOREIGN KEY (set_id) REFERENCES marker_sets(id) ON UPDATE CASCADE
 );
 
-
-
+-- This is the update/insert (upsert) function for the aligned_markers table
+CREATE FUNCTION upsert_aligned_markers(g_id integer, m_id integer, is_dna boolean, seq text) RETURNS VOID AS
+$$
+BEGIN
+    LOOP
+        -- first try to update the key
+        UPDATE aligned_markers 
+            SET sequence = seq 
+            WHERE genome_id = g_id
+            AND marker_id = m_id
+            AND dna = is_dna;
+        IF found THEN
+            RETURN;
+        END IF;
+        -- not there, so try to insert the key
+        -- if someone else inserts the same key concurrently,
+        -- we could get a unique-key failure
+        BEGIN
+            INSERT INTO aligned_markers(genome_id, marker_id, dna, sequence) 
+                VALUES (g_id, m_id, is_dna, seq);
+            RETURN;
+        EXCEPTION WHEN unique_violation THEN
+            -- Do nothing, and loop to try the UPDATE again.
+        END;
+    END LOOP;
+END;
+$$
+LANGUAGE plpgsql;
