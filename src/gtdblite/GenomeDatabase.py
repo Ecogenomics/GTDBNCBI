@@ -358,22 +358,41 @@ class GenomeDatabase(object):
         
         checkm_fh = open(checkM_file, "rb")
 
-        expected_headers = ["Bin Id", "Marker lineage", "# genomes", "# markers", "# marker sets", "0", "1", "2",
-                            "3", "4", "5+", "Completeness", "Contamination",  "Strain heterogeneity"]
+        required_headers = {
+            "Bin Id" : None,
+            "Completeness" : None,
+            "Contamination" : None
+        }
         
         try:
         # Check the CheckM headers are consistent
-            if checkm_fh.readline().rstrip() != "\t".join(expected_headers):
-                raise GenomeDatabaseError("CheckM file header inconsistent. Expected: \n\t%s\nGot:\n\t%s\n" %
-                                          ("\t".join(expected_headers), checkm_fh.readline().rstrip()))
+            split_headers = checkm_fh.readline().rstrip().split("\t")
+            
+            for pos in range(0, len(split_headers)):
+                
+                header = split_headers[pos]
+                
+                if header not in required_headers:
+                    continue
 
+                if required_headers[header] is not None:
+                    raise GenomeDatabaseError("Seen %s header twice in the checkM file. Check the checkM file is correct: %s." % (header, checkM_file))
+            
+                required_headers[header] = pos
+            
+            for header, col in required_headers.items():
+                if col is None:
+                    raise GenomeDatabaseError("Unable to find %s header in the checkM file. Check the checkM file is correct: %s." % (header, checkM_file))
+        
             # Populate CheckM results dict
             checkM_results_dict = {}
 
             for line in checkm_fh:
                 line = line.rstrip()
                 splitline = line.split("\t")
-                file_name, completeness, contamination = splitline[0], splitline[11], splitline[12]
+                file_name, completeness, contamination = (splitline[required_headers["Bin Id"]],
+                                                          splitline[required_headers["Completeness"]],
+                                                          splitline[required_headers["Contamination"]])
 
                 checkM_results_dict[file_name] = {"completeness" : completeness, "contamination" : contamination}
 
@@ -1643,9 +1662,7 @@ class GenomeDatabase(object):
             return None
         except:
             raise
-
-    
-    
+  
     def GetAlignedMarkersCountForGenomes(self, genome_ids, marker_ids):
     
         cur = self.conn.cursor()
