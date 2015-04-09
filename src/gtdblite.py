@@ -62,16 +62,16 @@ def CreateTreeData(db, args):
             return False
         genome_id_list += temp_list
     
-    batchfile_ids = []
+    genome_batchfile_ids = []
     if args.genome_batchfile:
-        fh = open(args.batchfile, "rb")
+        fh = open(args.genome_batchfile, "rb")
         for line in fh:
             line = line.rstrip()
-            batchfile_ids.append(line)
+            genome_batchfile_ids.append(line)
 
-    if batchfile_ids:
+    if genome_batchfile_ids:
         temp_list = db.GetGenomeIdListFromGenomeListIds(args.genome_list_ids.split(","))
-        genome_id_list += db.ExternalGenomeIdsToGenomeIds(batchfile_ids)
+        genome_id_list += db.ExternalGenomeIdsToGenomeIds(genome_batchfile_ids)
 
     if (len(genome_id_list) == 0):
         db.ReportError("No genomes found from the information provided.")
@@ -80,7 +80,10 @@ def CreateTreeData(db, args):
     marker_id_list = []
 
     if args.marker_ids:
-        marker_id_list += db.ExternalMarkerIdsToMarkerIds(args.marker_ids.split(","))
+        temp_list = db.ExternalMarkerIdsToMarkerIds(args.marker_ids.split(","))
+        if temp_list is None:
+            return False
+        marker_id_list += temp_list
 
     # TODO: make GetMarkerIdListFromMarkerSetIds
     if args.marker_set_ids:
@@ -90,15 +93,18 @@ def CreateTreeData(db, args):
             if temp_marker_list:
                 marker_id_list += temp_marker_list
 
-    batchfile_ids = []
+    marker_batchfile_ids = []
     if args.marker_batchfile:
-        fh = open(args.batchfile, "rb")
+        fh = open(args.marker_batchfile, "rb")
         for line in fh:
             line = line.rstrip()
-            batchfile_ids.append(line)
+            marker_batchfile_ids.append(line)
 
-    if batchfile_ids:
-        marker_id_list += db.ExternalMarkerIdsToMarkerIds(batchfile_ids)
+    if marker_batchfile_ids:
+        temp_list = db.ExternalMarkerIdsToMarkerIds(marker_batchfile_ids)
+        if temp_list is None:
+            return False
+        marker_id_list += temp_list
 
     if (len(marker_id_list) == 0):
         db.ReportError("No markers found from the information provided.")
@@ -135,6 +141,27 @@ def DeleteGenomes(db, args):
         
     return db.DeleteGenomes(args.batchfile, external_ids)
 
+
+def CreateGenomeList(db, args):
+    
+    external_ids = []
+    
+    if args.genome_ids:
+        external_ids = args.id_list.split(",")
+    genome_list_id = db.CreateGenomeList(args.batchfile, external_ids, args.name, args.description, (not args.public))
+    
+    if genome_list_id is False:
+        return False
+     
+    try:
+        print_success = db.PrintGenomeListsDetails([genome_list_id])
+    except:
+        print_success = False
+    
+    if not print_success:
+        db.ReportWarning("New genome list was created, but failed to print details to screen.")
+        
+    return genome_list_id
 
 def ViewGenomeLists(db, args):
 
@@ -189,6 +216,26 @@ def ViewMarkers(db, args):
             external_ids = args.id_list.split(",")
         return db.ViewMarkers(args.batchfile, external_ids)
 
+def CreateMarkerSet(db, args):
+    
+    external_ids = []
+    
+    if args.genome_ids:
+        external_ids = args.id_list.split(",")
+    marker_set_id = db.CreateMarkerSet(args.batchfile, external_ids, args.name, args.description, (not args.public))
+    
+    if marker_set_id is False:
+        return False
+     
+    try:
+        print_success = db.PrintMarkerSetsDetails([marker_set_id])
+    except:
+        print_success = False
+    
+    if not print_success:
+        db.ReportWarning("New marker set was created, but failed to print details to screen.")
+        
+    return marker_set_id
     
 def ViewMarkerSets(db, args):
 
@@ -344,6 +391,22 @@ if __name__ == '__main__':
 
 # -------- Genome Lists Management subparsers
 
+    #------------ Create genome list
+    parser_genome_lists_create = genome_list_category_subparser.add_parser('create',
+                                        help='Create a genome list') 
+    parser_genome_lists_create.add_argument('--batchfile', dest = 'batchfile',
+                                        help='A file of genome IDs, one per line, to add to the create list')
+    parser_genome_lists_create.add_argument('--genome_ids', dest = 'genome_ids',
+                                        help='List of genome IDs (comma separated) to add to the create list')
+    parser_genome_lists_create.add_argument('--name', dest = 'name', required=True,
+                                        help='The name of the genome list.')
+    parser_genome_lists_create.add_argument('--description', dest = 'description',
+                                        help='A brief description of the genome list.')
+    parser_genome_lists_create.add_argument('--set_public', dest = 'public', action='store_true', default = False,
+                                        help='Make the new list publically visible.')
+    
+    parser_genome_lists_create.set_defaults(func=CreateGenomeList)
+    
     #------------ View genome lists
     parser_genome_lists_view = genome_list_category_subparser.add_parser('view',
                                         help='View visible genome lists.')
@@ -374,7 +437,7 @@ if __name__ == '__main__':
     parser_genome_lists_edit.add_argument('--batchfile', dest = 'batchfile',
                                         help='A file of genome IDs, one per line, to add remove from the list')
     parser_genome_lists_edit.add_argument('--genome_ids', dest = 'genome_ids',
-                                        help='List of tree_ids to add/remove from list')
+                                        help='List of genome IDs to add/remove from list')
     parser_genome_lists_edit.add_argument('--operation', dest = 'operation', choices=('add','remove'),
                                         help='What to do with the tree_ids with regards to the genome list.')
     parser_genome_lists_edit.add_argument('--name', dest = 'name',
@@ -417,6 +480,23 @@ if __name__ == '__main__':
     parser_marker_view.set_defaults(func=ViewMarkers)
 
 # -------- Marker Set Management subparsers
+
+    #------------ Create genome list
+    parser_marker_sets_create = marker_set_category_subparser.add_parser('create',
+                                        help='Create a marker set') 
+    parser_marker_sets_create.add_argument('--batchfile', dest = 'batchfile',
+                                        help='A file of marker IDs, one per line, to add to the created set')
+    parser_marker_sets_create.add_argument('--marker_ids', dest = 'genome_ids',
+                                        help='List of marker IDs (comma separated) to add to the created set')
+    parser_marker_sets_create.add_argument('--name', dest = 'name', required=True,
+                                        help='The name of the marker set.')
+    parser_marker_sets_create.add_argument('--description', dest = 'description',
+                                        help='A brief description of the marker set.')
+    parser_marker_sets_create.add_argument('--set_public', dest = 'public', action='store_true', default = False,
+                                        help='Make the new set publically visible.')
+    
+    parser_marker_sets_create.set_defaults(func=CreateMarkerSet)
+    
 
     parser_marker_sets_view = marker_set_category_subparser.add_parser('view',
                                         help='View visible marker sets.')

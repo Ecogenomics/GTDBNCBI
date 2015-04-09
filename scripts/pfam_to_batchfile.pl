@@ -11,41 +11,25 @@ my $options = checkParams();
 
 print STDERR Dumper($options);
 
-my %info_dict;
-opendir(my $info_dh, $options->{'info_dir'}) or croak("Can't open info dir");
-while (my $entry = readdir($info_dh)) {
-    my $full_path = File::Spec->join($options->{'info_dir'}, $entry);
-    if (-f $full_path && $full_path =~ /(TIGR([0-9]*))\./) {
-        my ($name, $accession, $description) = getInfoFromInfoFile($full_path);
-        if ($accession ne $1) {
-            croak "Accession in info file doesn't match name of info file: ($accession) $full_path";
-        }
-        $info_dict{$accession} = {'name' => $name, 'description' => $description};
-    }
-}
-
 opendir(my $hmm_dh, $options->{'hmm_dir'}) or die;
 while (my $entry = readdir($hmm_dh)) {
     my $full_path = File::Spec->join($options->{'hmm_dir'}, $entry);
-    if (-f $full_path && $full_path =~ /(TIGR([0-9]*))\./) {
-        my $accession = $1;
+    if (-f $full_path && $full_path =~ /(PF(.*))(\.hmm)/) {
         
-        if (! defined($info_dict{$accession})) {
-            croak "No info for HMM file under accession: ($accession) $full_path";
-        }
+        my ($name, $accession, $description) = getInfoFromHMMFile($full_path);
         
         print join("\t", (
             $full_path,
-            $info_dict{$accession}->{"name"},
-            $info_dict{$accession}->{"description"},
-            "TIGRFAM",
+            $name,
+            $description,
+            "PFAM",
             $accession
         )), "\n";
     }
 }
 
 
-sub getInfoFromInfoFile {
+sub getInfoFromHMMFile {
     my $filepath = shift;
     
     my ($name, $accession, $description);
@@ -58,16 +42,17 @@ sub getInfoFromInfoFile {
         if (! $line) {
             next;
         }
-        if ($line !~ /^([A-Z]{2})(\ {2})(.*)$/) {
+        if ($line !~ /^([A-Z]+)(\ +)([^\ ].*)$/) {
+            next;
             #carp "Unexpected line format in the info file. $line";
         }
         
         my $prefix = $1;
-        if ($prefix eq "ID") {
+        if ($prefix eq "NAME") {
             $name = $3;
-        } elsif ($prefix eq "AC") {
+        } elsif ($prefix eq "ACC") {
             $accession = $3;
-        } elsif ($prefix eq "DE") {
+        } elsif ($prefix eq "DESC") {
             $description = $3;
         }
     }
@@ -79,7 +64,7 @@ sub checkParams {
     #-----
     # Do any and all options checking here...
     #
-    my @standard_options = ("help+", "hmm_dir|d:s", "info_dir|i:s");
+    my @standard_options = ("help+", "hmm_dir|d:s");
     my %options;
 
     # Add any other command line options, and the code to handle them
@@ -91,7 +76,6 @@ sub checkParams {
     exec("pod2usage $0") if $options{'help'};
 
     if(!exists $options{'hmm_dir'} ) { printParamError ("We need a tigrfam hmm directory!"); }
-    if(!exists $options{'info_dir'} ) { printParamError ("We need a column number!"); }
     
     return \%options;
 }

@@ -88,7 +88,7 @@ class GenomeDatabase(object):
     #     password - The password of the user
     #
     # Returns:
-    #   Returns a User calls object on success (and sets the GenomeDatabase current user), None otherwise.
+    #   Returns a User calls object on success (and sets the GenomeDatabase current user), False otherwise.
     def UserLogin(self, username):
         try:
             if not self.conn.IsPostgresConnectionActive():
@@ -113,7 +113,7 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
 
@@ -126,11 +126,11 @@ class GenomeDatabase(object):
     #     password - The password of the user
     #
     # Returns:
-    #   Returns a User calls object on success (and sets the GenomeDatabase current user), None otherwise.
+    #   Returns a User calls object on success (and sets the GenomeDatabase current user), False otherwise.
     def RootLogin(self, username):
         if not self.conn.IsPostgresConnectionActive():
             self.ReportError("Unable to establish database connection")
-            return None
+            return False
 
         cur = self.conn.cursor()
         query = "SELECT id, has_root_login FROM users WHERE username = %s"
@@ -146,7 +146,7 @@ class GenomeDatabase(object):
                 self.ReportError("You do not have sufficient permissions to logon as the root user.")
         else:
             self.ReportError("User %s not found." % username)
-        return None
+        return False
 
     # Function: AddUser
 
@@ -256,7 +256,7 @@ class GenomeDatabase(object):
     #     username - The username of the user to get an id for.
     #
     # Returns:
-    #     The id of the user if successful, None on failure.
+    #     The id of the user if successful, False on failure.
     def GetUserIdFromUsername(self, username):
         cur = self.conn.cursor()
         cur.execute("SELECT id FROM users WHERE username = %s", (username,))
@@ -264,7 +264,7 @@ class GenomeDatabase(object):
 
         if not result:
             self.ReportError("Username not found.")
-            return None
+            return False
 
         (user_id,) = result
         return user_id
@@ -280,7 +280,7 @@ class GenomeDatabase(object):
     #     user_id - The id of the user to compare user types to.
     #
     # Returns:
-    #     True if the current user is a high user type than the user specified. False otherwise.
+    #     True if the current user is a high user type than the user specified. False otherwise. None on error.
     def isCurrentUserRoleHigherThanUser(self, user_id):
         """
         Checks if the current user has higher privileges that the specified user_id.
@@ -352,6 +352,7 @@ class GenomeDatabase(object):
     #    self.conn.rollback()
     #    return False
 
+    # True on success, False otherwise (and on error)
     def AddManyFastaGenomes(self, batchfile, checkM_file, modify_genome_list_id=None,
                             new_genome_list_name=None, force_overwrite=False):
 
@@ -451,13 +452,13 @@ class GenomeDatabase(object):
             copied_fasta_paths = []
             fasta_paths_to_copy = {}
             
-            cur.execute("SELECT genomes.id, fasta_file_location, user_accessible, external_id_prefix || '_' || id_at_source as external_id "
+            cur.execute("SELECT genomes.id, fasta_file_location, user_editable, external_id_prefix || '_' || id_at_source as external_id "
                         "FROM genomes, genome_sources " +
                         "WHERE genome_source_id = genome_sources.id " +
                         "AND genomes.id in %s", (tuple(added_genome_ids),))
             
-            for (genome_id, abs_path, user_accessible, external_id) in cur:
-                if user_accessible:
+            for (genome_id, abs_path, user_editable, external_id) in cur:
+                if user_editable:
                     fasta_paths_to_copy[genome_id] = {'src_path': abs_path,
                                                       'external_id': external_id}
             
@@ -513,7 +514,7 @@ class GenomeDatabase(object):
     #     genome_list_id - None: don't add to genome list. Number: add to existing genome list id
     #
     # Returns:
-    #     Genome id if it was added. None if it fails.
+    #     Genome id if it was added. False if it fails.
     def AddFastaGenomeWorking(self, cur, fasta_file_path, name, desc, genome_list_id=None, force_overwrite=False,
                               source=None, id_at_source=None, completeness=0, contamination=0):
         try:
@@ -538,12 +539,12 @@ class GenomeDatabase(object):
                 elif not has_permission:
                     raise GenomeDatabaseError("Insufficient permission to add genome to genome list %s." % genome_list_id)
                 
-            cur.execute("SELECT id, external_id_prefix, user_accessible FROM genome_sources WHERE name = %s" , (source,))
+            cur.execute("SELECT id, external_id_prefix, user_editable FROM genome_sources WHERE name = %s" , (source,))
             source_id = None
             prefix = None
 
-            for (id, external_id_prefix, user_accessible) in cur:
-                if (not user_accessible):
+            for (id, external_id_prefix, user_editable) in cur:
+                if (not user_editable):
                     if id_at_source == None:
                         raise GenomeDatabaseError("Cannot auto generate ids at source for the %s genome source." % source)
                     if (not self.currentUser.isRootUser()):
@@ -570,7 +571,7 @@ class GenomeDatabase(object):
                         last_id = max(last_id, last_auto_id)
                     break
                 
-                # Generate a new id (for user-accessible lists only)
+                # Generate a new id (for user editable lists only)
                 if (last_id is None):
                     new_id = 1
                 else:
@@ -619,10 +620,11 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
 
+    # True if has permission. False if doesn't. None on error.
     def HasPermissionToEditGenome(self, genome_id):
         try:
             cur = self.conn.cursor()
@@ -655,6 +657,7 @@ class GenomeDatabase(object):
         except:
             raise
            
+    # True if has permission. False if doesn't. None on error.
     def HasPermissionToEditGenomes(self, genome_ids):
         try:
             cur = self.conn.cursor()
@@ -687,6 +690,7 @@ class GenomeDatabase(object):
         
         return True
         
+    # True on success. False on error/failure.
     def DeleteGenomes(self, batchfile=None, external_ids=None):
         try:
             cur = self.conn.cursor()
@@ -749,7 +753,8 @@ class GenomeDatabase(object):
             return False
         except:
             raise
-          
+
+    # List of genome ids on success. False on error.
     def ExternalGenomeIdsToGenomeIds(self, external_ids):
         try:
             cur = self.conn.cursor()
@@ -838,10 +843,11 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
 
+    # List of genome ids on success. False on error.
     def GetAllGenomeIds(self):
         try:
             cur = self.conn.cursor()
@@ -857,10 +863,11 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
 
+    # True on success. False on failure/error.
     def ViewGenomes(self, batchfile=None, external_ids=None):
         try:
             genome_ids = []
@@ -891,6 +898,7 @@ class GenomeDatabase(object):
         except:
             raise
 
+    # True if success. False on failure/error.
     def PrintGenomesDetails(self, genome_id_list):
         try:
             if not genome_id_list:
@@ -923,9 +931,9 @@ class GenomeDatabase(object):
         except:
             raise
 
+    # True if success. False on failure/error.
     def AddMarkers(self, batchfile, modify_marker_set_id=None, new_marker_set_name=None,
                    force_overwrite=False):
-
         try:
             cur = self.conn.cursor()
             
@@ -943,7 +951,7 @@ class GenomeDatabase(object):
                 if not self.currentUser.isRootUser():
                     owner_id = self.currentUser.getUserId()
                 modify_marker_set_id = self.CreateMarkerSetWorking(cur, [], new_marker_set_name, "", owner_id)
-                if modify_marker_set_id is None:
+                if modify_marker_set_id is False:
                     raise GenomeDatabaseError("Unable to create the new marker set.")
             
             added_marker_ids = []
@@ -960,8 +968,7 @@ class GenomeDatabase(object):
                 
                 marker_id = self.AddMarkerWorking(cur, abs_path, name, desc, None,
                                                   force_overwrite, database_name, id_in_database)
-    
-                # Rollback everything if addition fails
+                
                 if not (marker_id):
                     raise GenomeDatabaseError("Failed to add marker: %s" % abs_path)
     
@@ -973,13 +980,13 @@ class GenomeDatabase(object):
             copied_hmm_paths = []
             hmm_paths_to_copy = {}
             
-            cur.execute("SELECT markers.id, marker_file_location, user_accessible, external_id_prefix || '_' || id_in_database as external_id "
+            cur.execute("SELECT markers.id, marker_file_location, user_editable, external_id_prefix || '_' || id_in_database as external_id "
                         "FROM markers, marker_databases " +
                         "WHERE marker_database_id = marker_databases.id " +
                         "AND markers.id in %s", (tuple(added_marker_ids),))
             
-            for (marker_id, abs_path, user_accessible, external_id) in cur:
-                if user_accessible:
+            for (marker_id, abs_path, user_editable, external_id) in cur:
+                if user_editable:
                     hmm_paths_to_copy[marker_id] = {'src_path': abs_path,
                                                     'external_id': external_id}
             
@@ -990,7 +997,7 @@ class GenomeDatabase(object):
                 else:
                     username = self.currentUser.getUsername()
                 
-                if username is None:
+                if not username:
                     raise GenomeDatabaseError("Unable to determine user to add markers under.")
                 
                 target_dir = os.path.join(self.markerCopyDir, username)
@@ -1064,7 +1071,7 @@ class GenomeDatabase(object):
                 database = self.defaultMarkerDatabaseName
     
             if marker_set_id is not None:
-                if self.GetMarkerIdListFromMarkerSetId(marker_set_id) is None:
+                if self.GetMarkerIdListFromMarkerSetId(marker_set_id) is False:
                     raise GenomeDatabaseError("Unable to add marker to set %s." % marker_set_id)
     
             if marker_set_id is not None:
@@ -1074,12 +1081,12 @@ class GenomeDatabase(object):
                 elif not has_permission:
                     raise GenomeDatabaseError("Insufficient permission to add marker to marker set %s." % marker_set_id)
            
-            cur.execute("SELECT id, external_id_prefix, user_accessible FROM marker_databases WHERE name = %s" , (database,))
+            cur.execute("SELECT id, external_id_prefix, user_editable FROM marker_databases WHERE name = %s" , (database,))
             database_id = None
             prefix = None
     
-            for (this_database_id, external_id_prefix, user_accessible) in cur:
-                if (not user_accessible):
+            for (this_database_id, external_id_prefix, user_editable) in cur:
+                if (not user_editable):
                     if id_in_database == None:
                         raise GenomeDatabaseError("Cannot auto generate ids in databases for the %s marker database." % database)
                     if (not self.currentUser.isRootUser()):
@@ -1106,7 +1113,7 @@ class GenomeDatabase(object):
                         last_id = max(last_id, last_auto_id)
                     break
     
-                # Generate a new id (for user-accessible lists only)
+                # Generate a new id (for user editable lists only)
                 if (last_id is None):
                     new_id = 1
                 else:
@@ -1131,11 +1138,9 @@ class GenomeDatabase(object):
     
             if len(result):
                 if force_overwrite:
-                    self.ReportError("Force overwrite not implemented yet")
-                    return None
+                    raise GenomeDatabaseError("Force overwrite not implemented yet")
                 else:
-                    self.ReportError("Marker database '%s' already contains id '%s'. Use -f to force an overwrite." % (database, id_in_database))
-                    return None
+                    raise GenomeDatabaseError("Marker database '%s' already contains id '%s'. Use -f to force an overwrite." % (database, id_in_database))
             
             cur.execute("INSERT INTO markers " + columns + " "
                         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) " +
@@ -1149,7 +1154,7 @@ class GenomeDatabase(object):
         
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
 
@@ -1167,6 +1172,8 @@ class GenomeDatabase(object):
                     external_ids.append(line)
                 
             marker_ids = self.ExternalMarkerIdsToMarkerIds(external_ids)
+            if marker_ids is False:
+                raise GenomeDatabaseError("Unable to delete markers. Unable to find markers.")
             
             has_permission = self.HasPermissionToEditMarkers(marker_ids)
             
@@ -1231,7 +1238,7 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
 
@@ -1346,7 +1353,7 @@ class GenomeDatabase(object):
                         external_ids.append(line)
 
                 marker_ids = self.ExternalMarkerIdsToMarkerIds(external_ids)
-                if marker_ids is None:
+                if marker_ids is False:
                     raise GenomeDatabaseError("Can not retrieve marker ids.")
 
             return self.PrintMarkerDetails(marker_ids)
@@ -1381,7 +1388,6 @@ class GenomeDatabase(object):
                     (external_id, name, description, ("(root)" if owned_by_root else username),
                      marker_file_location, str(size))
                 )
-            return True
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
@@ -1397,7 +1403,7 @@ class GenomeDatabase(object):
     #     marker_set_id - The marker set id of the marker set whose contents needs to be retrieved.
     #
     # Returns:
-    #   A list of all the marker ids contained within the specified marker set, None on failure.
+    #   A list of all the marker ids contained within the specified marker set, False on failure.
     def GetMarkerIdListFromMarkerSetId(self, marker_set_id):
 
         cur = self.conn.cursor()
@@ -1483,7 +1489,7 @@ class GenomeDatabase(object):
                 
                 async_result = self.RunProdigalOnGenomeIdAsync(genome_id)
                 
-                if async_result is None:
+                if async_result is False:
                     raise GenomeDatabaseError("Error calling async prodigal.")
                 
                 genome_id_to_async_result[genome_id] = async_result
@@ -1503,6 +1509,8 @@ class GenomeDatabase(object):
                             'results' : markers_async_results,
                             'marker_ids' : uncalculated
                         })
+                        
+                        print "Completed prodigal on %i genomes" % (len(finished_prodigal_genomes))
                     
                     # If the pool queue is 5x the number of processes, wait for a second and recheck, otherwise continue the loop
                     while self.pool._taskqueue.qsize() > 5 * self.pool._processes:
@@ -1512,6 +1520,9 @@ class GenomeDatabase(object):
                 processed_genome_ids = []
                 
                 self.CommitCalculatedMarkersAsyncChunk(all_marker_async_results, 5, processed_genome_ids)
+                
+                if processed_genome_ids:
+                    print "\n".join(processed_genome_ids)
                 
                 for processed_genome_id in processed_genome_ids:
                     prodigal_dir = genome_id_to_async_result[processed_genome_id].get()
@@ -1562,10 +1573,11 @@ class GenomeDatabase(object):
     
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
 
+    # Returns True if all markers are calculated and commited, false otherwise.
     def CommitCalculatedMarkersAsyncChunk(self, all_async_results, chunk_size, return_array):
         
         unprocessed_indexes = []
@@ -1638,7 +1650,7 @@ class GenomeDatabase(object):
         
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise 
 
@@ -1659,7 +1671,7 @@ class GenomeDatabase(object):
         
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
   
@@ -1675,6 +1687,47 @@ class GenomeDatabase(object):
                     "GROUP BY genome_id", (tuple(genome_ids), tuple(marker_ids)))
         
         return dict(cur.fetchall())
+    
+    def CreateGenomeList(self, batchfile, external_ids, name, description, private=True):
+        try:
+            cur = self.conn.cursor()
+            
+            genome_id_list = []
+            
+            if not external_ids:
+                external_ids = []
+            
+            if batchfile:
+                fh = open(batchfile, "rb")
+                for line in fh:
+                    line = line.rstrip()
+                    external_ids.append(line)
+            
+            if not external_ids:
+                raise GenomeDatabaseError("No genomes provided to create a genome list.")
+            
+            genome_id_list = self.ExternalGenomeIdsToGenomeIds(external_ids)
+            if genome_id_list is False:
+                raise GenomeDatabaseError("Unable to retreive genome ids for provided genomes.")
+            
+            owner_id = None
+            if not self.currentUser.isRootUser():
+                owner_id = self.currentUser.getUserId()
+            
+            genome_list_id = self.CreateGenomeListWorking(cur, genome_id_list, name, description, owner_id, private)
+            if genome_list_id is False:
+                raise GenomeDatabaseError("Unable to create new genome list.")
+            
+            self.conn.commit()
+            
+            return genome_list_id
+            
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+        except:
+            raise
+        
     # Function: CreateGenomeListWorking
     # Creates a new genome list in the database
     #
@@ -1693,11 +1746,11 @@ class GenomeDatabase(object):
         if (owner_id is None):
             if not self.currentUser.isRootUser():
                 self.ReportError("Only the root user can create root owned lists.")
-                return None
+                return False
         else:
             if (not self.currentUser.isRootUser()) and (self.currentUser.getUserId() != owner_id):
                 self.ReportError("Only the root user may create lists on behalf of other people.")
-                return None
+                return False
 
         query = "INSERT INTO genome_lists (name, description, owned_by_root, owner_id, private) VALUES (%s, %s, %s, %s, %s) RETURNING id"
         cur.execute(query, (name, description, owner_id is None, owner_id, private))
@@ -1715,7 +1768,7 @@ class GenomeDatabase(object):
     # genome_list_id - The genome list id of the genome list whose contents needs to be retrieved.
     #
     # Returns:
-    # A list of all the genome ids contained within the specified genome list, None on failure.
+    # A list of all the genome ids contained within the specified genome list, False on failure.
     def GetGenomeIdListFromGenomeListId(self, genome_list_id):
         try:
             cur = self.conn.cursor()
@@ -1740,7 +1793,7 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
 
@@ -1752,7 +1805,7 @@ class GenomeDatabase(object):
     #     genome_list_ids - A list of genome list ids whose contents needs to be retrieved.
     #
     # Returns:
-    #   A list of all the genome ids contained within the specified genome list(s), None on failure.
+    #   A list of all the genome ids contained within the specified genome list(s), False on failure.
     def GetGenomeIdListFromGenomeListIds(self, genome_list_ids):
         try:
             cur = self.conn.cursor()
@@ -1802,7 +1855,7 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
 
@@ -1864,7 +1917,7 @@ class GenomeDatabase(object):
         try:
             genome_id_list = self.GetGenomeIdListFromGenomeListIds(list_ids)
 
-            if genome_id_list is None:
+            if genome_id_list is False:
                 raise GenomeDatabaseError("Unable to view genome list. Can not retrieve genomes IDs for lists: %s" % str(list_ids))
 
             if not self.PrintGenomesDetails(genome_id_list):
@@ -1911,7 +1964,7 @@ class GenomeDatabase(object):
 
             for (list_id, name, description, private, owned_by_root, username, genome_count) in cur:
                 print "\t".join(
-                    (str(list_id), name, description, ("(root)" if owned_by_root else username), ("private" if private else "public"), str(genome_count))
+                    (str(list_id), name, (description if description else ""), ("(root)" if owned_by_root else username), ("private" if private else "public"), str(genome_count))
                 )
             return True
 
@@ -1921,6 +1974,7 @@ class GenomeDatabase(object):
         except:
             raise
 
+    # True if has permission, False if not. None on error.
     def HasPermissionToViewGenomeList(self, genome_list_id):
         try:
             cur = self.conn.cursor()
@@ -1962,6 +2016,7 @@ class GenomeDatabase(object):
                     "WHERE 1 = 1 " +
                     conditional_query, params)
 
+    # True if has permission, False if not. None on error.
     def HasPermissionToEditGenomeList(self, genome_list_id):
         try:
             cur = self.conn.cursor()
@@ -1994,6 +2049,7 @@ class GenomeDatabase(object):
         except:
             raise
     
+    # True on success, false on failure.
     def EditGenomeList(self, genome_list_id, batchfile=None, genomes_external_ids=None, operation=None, name=None, description=None, private=None):        
         
         cur = self.conn.cursor()
@@ -2015,13 +2071,14 @@ class GenomeDatabase(object):
         self.conn.commit()
         return True
         
+    # True on success, false on failure/error.
     def EditGenomeListWorking(self, cur, genome_list_id, genome_ids=None, operation=None, name=None, description=None, private=None):
         try:
             edit_permission = self.HasPermissionToEditGenomeList(genome_list_id)
             if edit_permission is None:
                 raise GenomeDatabaseError("Unable to retrieve genome list id for editing. Offending list id: %s" % genome_list_id)
-            elif edit_permission == False:
-                raise GenomeDatabaseError("Insufficent permissions to edit this genome list. Offending list id: %s" % genome_list_id)
+            if edit_permission is False:
+                raise GenomeDatabaseError("Insufficient permissions to edit this genome list. Offending list id: %s" % genome_list_id)
             
             update_query = ""
             params = []
@@ -2075,10 +2132,51 @@ class GenomeDatabase(object):
             
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
     
+    def CreateMarkerSet(self, batchfile, external_ids, name, description, private=True):
+        try:
+            cur = self.conn.cursor()
+            
+            marker_id_list = []
+            
+            if not external_ids:
+                external_ids = []
+            
+            if batchfile:
+                fh = open(batchfile, "rb")
+                for line in fh:
+                    line = line.rstrip()
+                    external_ids.append(line)
+            
+            if not external_ids:
+                raise GenomeDatabaseError("No markers provided to create a marker set.")
+            
+            marker_id_list = self.ExternalMarkerIdsToMarkerIds(external_ids)
+            if marker_id_list is False:
+                raise GenomeDatabaseError("Unable to retreive marker ids for provided markers.")
+            
+            owner_id = None
+            if not self.currentUser.isRootUser():
+                owner_id = self.currentUser.getUserId()
+            
+            marker_list_id = self.CreateMarkerSetWorking(cur, marker_id_list, name, description, owner_id, private)
+            if marker_list_id is False:
+                raise GenomeDatabaseError("Unable to create new marker set.")
+            
+            self.conn.commit()
+            
+            return marker_list_id
+            
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+        except:
+            raise
+    
+    # True on success, false on failure/error.
     def CreateMarkerSetWorking(self, cur, marker_id_list, name, description, owner_id=None, private=True):
         try:
             if (owner_id is None):
@@ -2092,17 +2190,18 @@ class GenomeDatabase(object):
             cur.execute(query, (name, description, owner_id is None, owner_id, private))
             (marker_set_id, ) = cur.fetchone()
     
-            query = "INSERT INTO marker_set_contents (list_id, marker_id) VALUES (%s, %s)"
+            query = "INSERT INTO marker_set_contents (set_id, marker_id) VALUES (%s, %s)"
             cur.executemany(query, [(marker_set_id, x) for x in marker_id_list])
     
             return marker_set_id
     
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
 
+    # True on success, false on failure/error.
     def EditMarkerSet(self, marker_set_id, batchfile=None, marker_external_ids=None, operation=None, name=None, description=None, private=None):        
         
         cur = self.conn.cursor()
@@ -2124,6 +2223,7 @@ class GenomeDatabase(object):
         self.conn.commit()
         return True
 
+    # True on success, false on failure/error.
     def EditMarkerSetWorking(self, cur, marker_set_id, marker_ids=None, operation=None, name=None, description=None, private=None):
         try:
             edit_permission = self.HasPermissionToEditMarkerSet(marker_set_id)
@@ -2183,10 +2283,11 @@ class GenomeDatabase(object):
             
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return None
+            return False
         except:
             raise
 
+    # True if has permission, False if not. None on error.
     def HasPermissionToEditMarkerSet(self, marker_set_id):
         try:
             cur = self.conn.cursor()
@@ -2218,7 +2319,8 @@ class GenomeDatabase(object):
             return None
         except:
             raise
-        
+    
+    # True on success, false on failure/error.
     def PrintMarkerSetsDetails(self, marker_set_ids):
         try:
             cur = self.conn.cursor()
@@ -2261,7 +2363,8 @@ class GenomeDatabase(object):
             return False
         except:
             raise
-        
+    
+    # Returns list of marker set id. False on failure/error.
     def GetAllVisibleMarkerSetIds(self):
         cur = self.conn.cursor()
 
@@ -2279,6 +2382,7 @@ class GenomeDatabase(object):
 
         return [set_id for (set_id,) in cur]
     
+    # Returns list of marker set id. False on failure/error.
     def ViewMarkerSetsContents(self, marker_set_ids):
         try:
             marker_ids = self.GetMarkerIdListFromMarkerListIds(marker_set_ids)

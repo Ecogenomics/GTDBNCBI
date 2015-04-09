@@ -21,10 +21,10 @@ CREATE TABLE genome_sources (
     name text UNIQUE NOT NULL,
     external_id_prefix text UNIQUE NOT NULL,
     last_auto_id integer NOT NULL DEFAULT 0,
-    user_accessible boolean NOT NULL DEFAULT false
+    user_editable boolean NOT NULL DEFAULT false
 );
 
-INSERT INTO genome_sources (name, external_id_prefix, user_accessible) VALUES ('user', 'U', true);
+INSERT INTO genome_sources (name, external_id_prefix, user_editable) VALUES ('user', 'U', true);
 INSERT INTO genome_sources (name, external_id_prefix) VALUES ('IMG', 'IMG');
 INSERT INTO genome_sources (name, external_id_prefix) VALUES ('NCBI', 'NCBI');
 
@@ -69,11 +69,11 @@ CREATE TABLE marker_databases (
     name text UNIQUE NOT NULL,
     external_id_prefix text UNIQUE NOT NULL,
     last_auto_id integer NOT NULL DEFAULT 0,
-    user_accessible boolean NOT NULL DEFAULT false
+    user_editable boolean NOT NULL DEFAULT false
 );
 
 
-INSERT INTO marker_databases (name, external_id_prefix, user_accessible) VALUES ('user', 'M', true);
+INSERT INTO marker_databases (name, external_id_prefix, user_editable) VALUES ('user', 'M', true);
 INSERT INTO marker_databases (name, external_id_prefix) VALUES ('PFAM', 'PFAM');
 INSERT INTO marker_databases (name, external_id_prefix) VALUES ('TIGRFAM', 'TIGR');
 
