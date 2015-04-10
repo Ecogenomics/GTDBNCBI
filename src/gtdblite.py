@@ -70,7 +70,6 @@ def CreateTreeData(db, args):
             genome_batchfile_ids.append(line)
 
     if genome_batchfile_ids:
-        temp_list = db.GetGenomeIdListFromGenomeListIds(args.genome_list_ids.split(","))
         genome_id_list += db.ExternalGenomeIdsToGenomeIds(genome_batchfile_ids)
 
     if (len(genome_id_list) == 0):
