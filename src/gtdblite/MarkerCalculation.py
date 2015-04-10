@@ -6,10 +6,7 @@ import re
 from gtdblite.Exceptions import GenomeDatabaseError
 
 from checkm_static import prodigal, hmmer, resultsParser
-
 from simplehmmer import hmmmodelparser
-
-
 
 def RunProdigalOnGenomeFasta(fasta_path):
     try:
