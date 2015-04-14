@@ -22,12 +22,29 @@
 def vetHit(model, hit):
     """Check if hit meets required thresholds."""
 
+
+    try:
+        model.nc
+    except AttributeError:
+        model.nc = None
+    
+    try:
+        model.ga
+    except AttributeError:
+        model.ga = None
+    
+    try:
+        model.tc
+    except AttributeError:
+        model.tc = None
+        
+    
     # preferentially use model specific bit score thresholds, before
     # using the user specified e-value and length criteria
 
     # Give preference to the gathering threshold unless the model
     # is marked as TIGR (i.e., TIGRFAM model)
-
+    
     if model.nc != None and 'TIGR' in model.acc:
         if model.nc[0] <= hit.full_score:
             return True
@@ -41,10 +58,8 @@ def vetHit(model, hit):
         if model.nc[0] <= hit.full_score:
             return True
     else:
-        alignment_length = float(hit.ali_to - hit.ali_from)
-        length_perc = alignment_length / float(hit.query_length)
-        if length_perc >= 0.75:
-            return True
+        # No cutoffs in model, let it go through
+        return True
 
     return False
 

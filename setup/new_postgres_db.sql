@@ -76,6 +76,7 @@ CREATE TABLE marker_databases (
 INSERT INTO marker_databases (name, external_id_prefix, user_editable) VALUES ('user', 'M', true);
 INSERT INTO marker_databases (name, external_id_prefix) VALUES ('PFAM', 'PFAM');
 INSERT INTO marker_databases (name, external_id_prefix) VALUES ('TIGRFAM', 'TIGR');
+INSERT INTO marker_databases (name, external_id_prefix) VALUES ('PhyloSift', 'PS');
 
 CREATE TABLE markers (
     id serial PRIMARY KEY,

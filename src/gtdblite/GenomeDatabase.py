@@ -2355,6 +2355,34 @@ class GenomeDatabase(object):
         except:
             raise
     
+    def GetVisibleMarkerSetsByOwner(self, owner_id=None):
+        """
+        Get all marker sets owned by owner_id which the current user is allowed
+        to see. If owner_id is None, return all visible marker sets for the
+        current user.
+        """
+        cur = self.conn.cursor()
+
+        conditional_query = ""
+        params = []
+
+        if owner_id is None:
+            conditional_query += "AND owned_by_root is True "
+        else:
+            conditional_query += "AND owner_id = %s "
+            params.append(owner_id)
+
+        if not self.currentUser.isRootUser():
+            conditional_query += "AND (private = False OR owner_id = %s)"
+            params.append(self.currentUser.getUserId())
+
+        cur.execute("SELECT id " +
+                    "FROM marker_sets " +
+                    "WHERE 1 = 1 " +
+                    conditional_query, params)
+
+        return [set_id for (set_id,) in cur]
+    
     # Returns list of marker set id. False on failure/error.
     def GetAllVisibleMarkerSetIds(self):
         cur = self.conn.cursor()
