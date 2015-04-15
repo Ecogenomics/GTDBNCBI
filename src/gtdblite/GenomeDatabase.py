@@ -1609,10 +1609,10 @@ class GenomeDatabase(object):
                 prodigal_dir = async_result.get()
                 shutil.rmtree(prodigal_dir) 
 
-            if profiles.profiles[profile].MakeTreeData(self, marker_ids, genome_ids, directory, prefix, config_dict):
-                return True
+            if not profiles.profiles[profile].MakeTreeData(self, marker_ids, genome_ids, directory, prefix, config_dict):
+                raise GenomeDatabaseError("Tree building failed for profile: %s" % profile)
             
-            return False
+            return True
     
         except GenomeDatabaseError as e:
             self.ReportError(e.message)

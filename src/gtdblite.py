@@ -120,7 +120,7 @@ def CreateTreeData(db, args):
                 profile_config_dict[key_value_pair[0]] = None
 
     
-    return db.MakeTreeData(marker_id_list, genome_id_list, args.out_dir, "prefix", args.profile, profile_config_dict, not(args.no_tree))
+    return db.MakeTreeData(marker_id_list, genome_id_list, args.out_dir, "gtdblite", args.profile, profile_config_dict, not(args.no_tree))
 
 def ViewGenomes(db, args):
 
@@ -554,6 +554,8 @@ if __name__ == '__main__':
                                         help='Provide a list of genome ids (comma separated), whose genomes should be included in the tree.')
     parser_tree_create.add_argument('--genome_list_ids', dest = 'genome_list_ids', default=None,
                                         help='Provide a list of genome list ids (comma separated), whose genomes should be included in the tree.')
+    parser_tree_create.add_argument('--all_genomes', dest = 'all_genomes', default=False, action='store_true',
+                                        help='Included ALL genomes in the database in the created tree.')
 
     parser_tree_create.add_argument('--marker_batchfile', dest = 'marker_batchfile', default=None,
                                         help='Provide a file of marker IDs, one per line, to build the tree')

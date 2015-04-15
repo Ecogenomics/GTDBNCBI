@@ -4,8 +4,13 @@ import psycopg2 as pg
 import common
 
 valid_configs = [('individual', type(None), "Create individual FASTA files for each marker instead of a concatenated alignment."),
-                 ('taxonomy', type(''), "Filter for organisms with this taxonomy (internal genome tree taxonomy)"),
-                 ('reject_missing_taxonomy', type(None), "Reject any genomes that have not got an assigned taxonomy.")]
+                 ('checkm_contamination_threshold', float, "Only include genomes with CheckM contamination below this"),
+                 ('checkm_completeness_threshold', float, "Only include genomes with CheckM completeness above this"),
+                 ('guaranteed_genome_ids', str, "Comma separated list of genome IDs that will not be filtered and a guaranteed to be placed in the tree."),
+                 ('guaranteed_genome_list_ids', str, "Comma separated list of genome list IDs whose genomes will not be filtered and a guaranteed to be placed in the tree."),] 
+
+default_checkm_contamination = 10
+default_checkm_completeness = 50
 
 def GetValidConfigOptions():
     return valid_configs
@@ -18,15 +23,21 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
     if not common.CheckPassedConfigsAgainstKnownConfigs(config_dict, GetValidConfigOptions()):
         return None
     
+    if 'checkm_contamination_threshold' not in config_dict:
+        GenomeDatabase.ReportWarning("'checkm_contamination_threshold' flag not supplied to tree building profile 'generic'. Using default cutoff of %f." % default_checkm_contamination)
+        config_dict['checkm_contamination_threshold'] = default_checkm_contamination
+    
+    if 'checkm_completeness_threshold' not in config_dict:
+        GenomeDatabase.ReportWarning("'checkm_completeness_threshold' flag not supplied to tree building profile 'generic'. Using default cutoff of %f." % default_checkm_completeness)
+        config_dict['checkm_completeness_threshold'] = default_checkm_completeness
+    
     cur = GenomeDatabase.conn.cursor()
-      
-    # Get the total number of markers in this marker set
-    total_marker_count = len(marker_ids)
-    
-    # For each genome, get the number of markers in this marker set that genome contains    
-    genome_gene_counts = GenomeDatabase.GetAlignedMarkersCountForGenomes(genome_ids, marker_ids)
-    
+
     # For all of the markers, get the expected marker size.
+    if GenomeDatabase.debugMode:
+        sys.stderr.write("Getting expected marker sizes...\n")
+        sys.stderr.flush()    
+    
     cur.execute("SELECT id, id_in_database, size " +
                 "FROM markers " +
                 "WHERE id in %s " 
@@ -45,21 +56,64 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
     gg_fh = open(os.path.join(directory, prefix + "_concatenated.greengenes"), 'wb')
     fasta_concat_fh = open(os.path.join(directory, prefix + "_concatenated.faa"), 'wb')
     
+    # Find genomes that are in the guaranteed list
+    guaranteed_genomes = set()
+    if 'guaranteed_genome_ids' in config_dict:
+        guaranteed_genomes.update(GenomeDatabase.ExternalGenomeIdsToGenomeIds(config_dict['guaranteed_genome_ids'].split(",")))
+        
+    if 'guaranteed_genome_list_ids' in config_dict:
+        guaranteed_genomes.update(GenomeDatabase.GetGenomeIdListFromGenomeListIds(config_dict['guaranteed_genome_list_ids'].split(",")))
+    
+    if GenomeDatabase.debugMode:
+        sys.stderr.write("Running checkM filters...\n")
+        sys.stderr.flush()      
+    
+    # Find genomes that fail checkm cutoffs
+    cur.execute("SELECT external_id_prefix || '_' || id_at_source as external_id, genomes.id, checkm_completeness, checkm_contamination "+
+                 "FROM genomes "+
+                 "LEFT OUTER JOIN genome_sources ON genomes.genome_source_id = genome_sources.id " +
+                 "WHERE genomes.id in %s "+
+                 "AND (checkm_completeness < %s "+
+                      "OR checkm_contamination > %s)",
+                (tuple(genome_ids), config_dict['checkm_completeness_threshold'], config_dict['checkm_contamination_threshold']))
+    
+    filtered_genomes = set()
+    for (external_id, genome_id, checkm_completeness, checkm_contamination) in cur:
+        filtered_genomes.add(genome_id)
+    
+    
+    if GenomeDatabase.debugMode:
+        sys.stderr.write("Outputting aligned markers...\n")
+        sys.stderr.flush()  
+    
+    # Select all the genomes - could be lots of genome id, create a temp table
+    temp_table_name = GenomeDatabase.GenerateTempTableName()
+
+    cur.execute("CREATE TEMP TABLE %s (id integer)" % (temp_table_name,) )
+    query = "INSERT INTO {0} (id) VALUES (%s)".format(temp_table_name)
+    cur.executemany(query, [(x,) for x in genome_ids])
+    
+    query = ("SELECT external_id_prefix || '_' || id_at_source as external_id, genomes.id, genomes.name, checkm_completeness, checkm_contamination, owned_by_root, users.username " +
+             "FROM genomes "+
+             "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
+             "LEFT OUTER JOIN genome_sources ON genomes.genome_source_id = genome_sources.id " +
+             "WHERE genomes.id in (SELECT id from {0})".format(temp_table_name))
+    
+    cur.execute(query) 
+
+    genome_details = cur.fetchall()
+    
     # Run through each of the genomes and make the magic happen.
-    for genome_id in genome_ids:
+    for (external_id, genome_id, name, checkm_completeness, checkm_contamination, owned_by_root, owner) in genome_details:
         
-        cur.execute("SELECT external_id_prefix || '_' || id_at_source as external_id, genomes.name, owned_by_root, users.username "+
-                    "FROM genomes "+
-                    "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
-                    "LEFT OUTER JOIN genome_sources ON genomes.genome_source_id = genome_sources.id " +
-                    "WHERE genomes.id = %s", (genome_id,))
-        
-        result = cur.fetchone()
-        if not result:
-            continue
-        (external_id, name, owned_by_root, owner) = result
-        
-        
+        if genome_id in filtered_genomes:
+            
+            if genome_id not in guaranteed_genomes:
+                sys.stderr.write("Genome id: %s excluded. Failed checkM completeness/contamination cutoffs. This genome's values: (%f, %f)\n" %
+                                 (external_id, checkm_completeness, checkm_contamination))
+                sys.stderr.flush()
+                continue
+
         # Populate genome info
         genome_info['markers']  = dict()
         genome_info['name']  = name
@@ -71,13 +125,15 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
                     "WHERE genome_id = %s " +
                     "AND sequence is NOT NULL "+
                     "AND marker_id in %s ", (genome_id, tuple(marker_ids,)))
+        
         if (cur.rowcount == 0):
             sys.stderr.write("WARNING: Genome %s has no markers for this marker set in the database and will be missing from the output files.\n" % external_id)
             sys.stderr.flush()
             continue
+        
         for marker_id, sequence in cur:
             genome_info['markers'][marker_id] = sequence
-            
+        
         aligned_seq = '';
         for marker_id in chosen_markers.keys():
             if marker_id in genome_info['markers']:
@@ -94,13 +150,14 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
         
         fasta_outstr = ">%s\n%s\n" % (genome_info['external_id'],
                                       aligned_seq)
-    
+
         gg_list = ["BEGIN",
                     "db_name=%s" % genome_info['external_id'],
                     "organism=%s" % genome_info['name'],
                     "prokMSA_id=%s" % genome_info['external_id'],
                     "owner=%s" % genome_info['owner'],
-                    "remark=%iof%i" % (genome_gene_counts[genome_id], total_marker_count),
+                    "checkm_completeness=%f" % checkm_completeness,
+                    "checkm_contamination=%f" % checkm_contamination,
                     "warning=",
                     "aligned_seq=%s" % (aligned_seq),
                     "END"]
