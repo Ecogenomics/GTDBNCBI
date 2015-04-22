@@ -34,6 +34,7 @@ class GenomeDatabase(object):
         
         self.defaultGenomeSourceName = 'user'
         self.defaultMarkerDatabaseName = 'user'
+   
     #
     # Group: General Functions
     #
@@ -81,12 +82,12 @@ class GenomeDatabase(object):
             return True
         return False
     
+    
     # Function: UserLogin
     # Log a user into the database (make the user the current user of the database).
     #
     # Parameters:
     #     username - The username of the user to login
-    #     password - The password of the user
     #
     # Returns:
     #   Returns a User calls object on success (and sets the GenomeDatabase current user), False otherwise.
@@ -115,8 +116,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     # Function: RootLogin
     # Log a user into the database as a root user (make the root user the current user of the database). Check
@@ -124,31 +123,33 @@ class GenomeDatabase(object):
     #
     # Parameters:
     #     username - The username of the user to login
-    #     password - The password of the user
     #
     # Returns:
     #   Returns a User calls object on success (and sets the GenomeDatabase current user), False otherwise.
     def RootLogin(self, username):
-        if not self.conn.IsPostgresConnectionActive():
-            self.ReportError("Unable to establish database connection")
-            return False
-
-        cur = self.conn.cursor()
-        query = "SELECT id, has_root_login FROM users WHERE username = %s"
-        cur.execute(query, [username])
-        result = cur.fetchone()
-        cur.close()
-        if result:
-            (userid, has_root_login) = result
-            if has_root_login:
+        try:
+            if not self.conn.IsPostgresConnectionActive():
+                raise GenomeDatabaseError("Unable to establish database connection")
+    
+            cur = self.conn.cursor()
+            query = "SELECT id, has_root_login FROM users WHERE username = %s"
+            cur.execute(query, [username])
+            result = cur.fetchone()
+            cur.close()
+            if result:
+                (userid, has_root_login) = result
+                if not has_root_login:
+                    raise GenomeDatabaseError("You do not have sufficient permissions to logon as the root user.")
+                
                 self.currentUser = User.createRootUser(username)
                 return self.currentUser
-            else:
-                self.ReportError("You do not have sufficient permissions to logon as the root user.")
-        else:
-            self.ReportError("User %s not found." % username)
-        return False
 
+            raise GenomeDatabaseError("User %s not found." % username)
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+        
     # Function: AddUser
 
     # Add a new user to the database.
@@ -259,17 +260,19 @@ class GenomeDatabase(object):
     # Returns:
     #     The id of the user if successful, False on failure.
     def GetUserIdFromUsername(self, username):
-        cur = self.conn.cursor()
-        cur.execute("SELECT id FROM users WHERE username = %s", (username,))
-        result = cur.fetchone()
-
-        if not result:
-            self.ReportError("Username not found.")
+        try:
+            cur = self.conn.cursor()
+            cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+            result = cur.fetchone()
+    
+            if not result:
+                raise GenomeDatabaseError("Username not found.")                
+    
+            (user_id,) = result
+            return user_id
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
             return False
-
-        (user_id,) = result
-        return user_id
-
     #
     # Group: User Permission Functions
     #
@@ -283,50 +286,55 @@ class GenomeDatabase(object):
     # Returns:
     #     True if the current user is a high user type than the user specified. False otherwise. None on error.
     def isCurrentUserRoleHigherThanUser(self, user_id):
-        """
-        Checks if the current user has higher privileges that the specified user_id.
-        """
-        cur = self.conn.cursor()
-        cur.execute("SELECT type_id FROM users WHERE id = %s", (user_id,))
-        result = cur.fetchone()
-
-        if not result:
-            self.ReportError("User not found.")
+        try:
+            cur = self.conn.cursor()
+            cur.execute("SELECT type_id FROM users WHERE id = %s", (user_id,))
+            result = cur.fetchone()
+    
+            if not result:
+                raise GenomeDatabaseError("User not found.")
+                return None
+    
+            (type_id,) = result
+            if self.isRootUser() or (self.currentUser.getTypeId() < type_id):
+                return True
+            else:
+                return False
+            
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
             return None
 
-        (type_id,) = result
-        if self.isRootUser() or (self.currentUser.getTypeId() < type_id):
-            return True
-        else:
-            return False
-
     def CopyFastaToCopyDir(fasta_file, genome_id):
+        try:
+            if self.genomeCopyDir is None:
+                raise GenomeDatabaseError("Need to set the genome storage directory.")
+            
+            if not os.path.isdir(self.genomeCopyDir):
+                raise GenomeDatabaseError("Genome storage directory is not a directory.")
+    
+            cur.execute("SELECT genome_source_id, id_at_source, external_id_prefix " +
+                        "FROM genomes, genome_sources " +
+                        "WHERE id = %s "+
+                        "AND genome_source_id = genome_sources.id", (genome_id,))
+    
+            result = cur.fetchall()
+            if len(result) == 0:
+                raise GenomeDatabaseError("Genome id not found: %s." % genome_id)
+    
+            (genome_source_id, id_at_source, external_id_prefix) = result[0]
 
-        if self.genomeCopyDir is None:
-            self.ReportError("Need to set the genome storage directory.")
-            return False
-        if not os.path.isdir(self.genomeCopyDir):
-            self.ReportError("Genome storage directory is not a directory.")
-            return False
-
-        cur.execute("SELECT genome_source_id, id_at_source, external_id_prefix " +
-                    "FROM genomes, genome_sources " +
-                    "WHERE id = %s "+
-                    "AND genome_source_id = genome_sources.id", (genome_id,))
-
-        result = cur.fetchall()
-        if len(result) == 0:
-            self.ReportError("Genome id not found: %s." % genome_id)
-            return False
-
-        for (genome_source_id, id_at_source, external_id_prefix) in result:
             target_file_name = external_id_prefix + "_" + str(id_at_source)
             try:
                 shutil.copy(fasta_file, os.path.join(self.genomeCopyDir, target_file_name))
             except:
-                self.ReportError("Copy to genome storage dir failed.")
-                return False
+                raise GenomeDatabaseError("Copy to genome storage dir failed.")
+            
             return target_file_name
+        
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
 
     def GenerateTempTableName(self):
 
@@ -336,38 +344,22 @@ class GenomeDatabase(object):
             suffix += rng.choice('abcefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
         return "TEMP" + suffix + str(int(time.time()))
         
-    #def AddFastaGenome(self, fasta_file, copy_fasta, name, desc, force_overwrite=False, source=None, id_at_source=None, completeness=0, contamination=0):
-    #    cur = self.conn.cursor()
-    #
-    #    genome_id = self.AddFastaGenomeWorking(cur, fasta_file, name, desc, force_overwrite, source, id_at_source, completeness, contamination)
-    #    if (genome_id):
-    #        if copy_fasta:
-    #            target_file_name = self.CopyFastaToCopyDir(fasta_file, genome_id)
-    #            if target_file_name:
-    #                self.conn.commit()
-    #                return True
-    #        else:
-    #            self.conn.commit()
-    #            return True
-    #
-    #    self.conn.rollback()
-    #    return False
-
     # True on success, False otherwise (and on error)
     def AddManyFastaGenomes(self, batchfile, checkM_file, modify_genome_list_id=None,
                             new_genome_list_name=None, force_overwrite=False):
-
-        
-        checkm_fh = open(checkM_file, "rb")
-
-        required_headers = {
-            "Bin Id" : None,
-            "Completeness" : None,
-            "Contamination" : None
-        }
-        
         try:
-        # Check the CheckM headers are consistent
+            try:
+                checkm_fh = open(checkM_file, "rb")
+            except:
+                raise GenomeDatabaseError("Cannot open checkM file: " + checkM_file)
+        
+            required_headers = {
+                "Bin Id" : None,
+                "Completeness" : None,
+                "Contamination" : None
+            }
+        
+            # Check the CheckM headers are consistent
             split_headers = checkm_fh.readline().rstrip().split("\t")
             
             for pos in range(0, len(split_headers)):
@@ -622,8 +614,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     # True if has permission. False if doesn't. None on error.
     def HasPermissionToEditGenome(self, genome_id):
@@ -647,16 +637,13 @@ class GenomeDatabase(object):
                     return False
             else:
                 if not owned_by_root:
-                    self.ReportError("Root user editing of other users genomes not yet implemented.")
-                    return False
+                    raise GenomeDatabaseError("Root user editing of other users genomes not yet implemented.")
             
             return True
             
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return None
-        except:
-            raise
            
     # True if has permission. False if doesn't. None on error.
     def HasPermissionToEditGenomes(self, genome_ids):
@@ -686,10 +673,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return None
-        except:
-            raise
-        
-        return True
         
     # True on success. False on error/failure.
     def DeleteGenomes(self, batchfile=None, external_ids=None):
@@ -706,6 +689,9 @@ class GenomeDatabase(object):
                     external_ids.append(line)
                 
             genome_ids = self.ExternalGenomeIdsToGenomeIds(external_ids)
+            
+            if genome_ids is False:
+                raise GenomeDatabaseError("Unable to delete genomes. Unable to retrieve genome ids.")
             
             has_permission = self.HasPermissionToEditGenomes(genome_ids)
             
@@ -752,8 +738,6 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             self.conn.rollback()
             return False
-        except:
-            raise
 
     # List of genome ids on success. False on error.
     def ExternalGenomeIdsToGenomeIds(self, external_ids):
@@ -845,8 +829,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     # List of genome ids on success. False on error.
     def GetAllGenomeIds(self):
@@ -865,8 +847,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     # True on success. False on failure/error.
     def ViewGenomes(self, batchfile=None, external_ids=None):
@@ -896,8 +876,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     # True if success. False on failure/error.
     def PrintGenomesDetails(self, genome_id_list):
@@ -929,8 +907,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     # True if success. False on failure/error.
     def AddMarkers(self, batchfile, modify_marker_set_id=None, new_marker_set_name=None,
@@ -1156,8 +1132,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     def DeleteMarkers(self, batchfile=None, external_ids=None):
         try:
@@ -1222,6 +1196,7 @@ class GenomeDatabase(object):
             self.conn.rollback()
             return False
         except:
+            self.conn.rollback()
             raise
 
     def GetAllMarkerIds(self):
@@ -1240,8 +1215,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     def ExternalMarkerIdsToMarkerIds(self, external_ids):
         try:
@@ -1332,8 +1305,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
     
     def ViewMarkers(self, batchfile=None, external_ids=None):
         try:
@@ -1362,8 +1333,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     def PrintMarkerDetails(self, marker_id_list):
         try:
@@ -1389,12 +1358,12 @@ class GenomeDatabase(object):
                     (external_id, name, description, ("(root)" if owned_by_root else username),
                      marker_file_location, str(size))
                 )
+            
+            return True
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
         
         
     # Function: GetMarkerIdListFromMarkerSetId
@@ -1452,8 +1421,8 @@ class GenomeDatabase(object):
             if profile is None:
                 profile = profiles.ReturnDefaultProfileName()
             if profile not in profiles.profiles:
-                self.ReportError("Unknown Profile: " + profile)
-                return None
+                raise GenomeDatabaseError("Unknown Profile: %s" % profile)
+
             if not(os.path.exists(directory)):
                 os.makedirs(directory)
     
@@ -1617,8 +1586,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     def CalculateMarkersOnProdigalDirAsync(self, marker_ids, prodigal_dir):
         try:
@@ -1642,8 +1609,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise 
 
     def RunProdigalOnGenomeIdAsync(self, genome_id):
         try:
@@ -1663,8 +1628,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
   
     def GetAlignedMarkersCountForGenomes(self, genome_ids, marker_ids):
     
@@ -1716,8 +1679,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
         
     # Function: CreateGenomeListWorking
     # Creates a new genome list in the database
@@ -1785,8 +1746,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     # Function: GetGenomeIdListFromGenomeListIds
     # Given a list of ids, return all the ids of the genomes contained
@@ -1847,8 +1806,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     # Function: GetVisibleGenomeLists
     # Get all the genome lists that the current user can see.
@@ -1919,8 +1876,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     def PrintGenomeListsDetails(self, genome_list_ids):
         try:
@@ -1962,8 +1917,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     # True if has permission, False if not. None on error.
     def HasPermissionToViewGenomeList(self, genome_list_id):
@@ -1984,10 +1937,6 @@ class GenomeDatabase(object):
             if not self.currentUser.isRootUser():
                 if private and (owned_by_root or owner_id != self.currentUser.getUserId()):
                     return False
-            else:
-                if not owned_by_root:
-                    self.ReportError("Root user editing of other users lists not yet implmented.")
-                    return False
             
             return True
             
@@ -1995,17 +1944,6 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             self.conn.rollback()
             return None
-        except:
-            raise
-        
-        if not self.currentUser.isRootUser():
-            conditional_query += "AND (private = False OR owner_id = %s)"
-            params.append(self.currentUser.getUserId())
-
-        cur.execute("SELECT id " +
-                    "FROM genome_lists " +
-                    "WHERE 1 = 1 " +
-                    conditional_query, params)
 
     # True if has permission, False if not. None on error.
     def HasPermissionToEditGenomeList(self, genome_list_id):
@@ -2028,8 +1966,7 @@ class GenomeDatabase(object):
                     return False
             else:
                 if not owned_by_root:
-                    self.ReportError("Root user editing of other users lists not yet implmented.")
-                    return False
+                    raise GenomeDatabaseError("Root user editing of other users lists not yet implmented.")
             
             return True
             
@@ -2037,8 +1974,6 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             self.conn.rollback()
             return None
-        except:
-            raise
     
     # True on success, false on failure.
     def EditGenomeList(self, genome_list_id, batchfile=None, genomes_external_ids=None, operation=None, name=None, description=None, private=None):        
@@ -2124,8 +2059,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
     
     def CreateMarkerSet(self, batchfile, external_ids, name, description, private=True):
         try:
@@ -2164,8 +2097,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
     
     # True on success, false on failure/error.
     def CreateMarkerSetWorking(self, cur, marker_id_list, name, description, owner_id=None, private=True):
@@ -2189,8 +2120,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     # True on success, false on failure/error.
     def EditMarkerSet(self, marker_set_id, batchfile=None, marker_external_ids=None, operation=None, name=None, description=None, private=None):        
@@ -2275,8 +2204,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
 
     # True if has permission, False if not. None on error.
     def HasPermissionToEditMarkerSet(self, marker_set_id):
@@ -2299,17 +2226,14 @@ class GenomeDatabase(object):
                     return False
             else:
                 if not owned_by_root:
-                    self.ReportError("Root user editing of other users marker sets not yet implmented.")
-                    return False
-            
+                    raise GenomeDatabaseError("Root user editing of other users marker sets not yet implmented.")
+
             return True
             
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             self.conn.rollback()
             return None
-        except:
-            raise
     
     # True on success, false on failure/error.
     def PrintMarkerSetsDetails(self, marker_set_ids):
@@ -2329,7 +2253,6 @@ class GenomeDatabase(object):
                 unviewable_set_ids = [set_id for (set_id, ) in cur]
                 if unviewable_set_ids:
                     raise GenomeDatabaseError("Insufficient privileges to view marker sets: %s." % str(unviewable_set_ids))
-
 
             cur.execute(
                 "SELECT sets.id, sets.name, sets.description, sets.private, sets.owned_by_root, users.username, count(contents.set_id) " +
@@ -2352,8 +2275,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
     
     def GetVisibleMarkerSetsByOwner(self, owner_id=None):
         """
@@ -2417,7 +2338,5 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-        except:
-            raise
     
     

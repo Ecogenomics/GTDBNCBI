@@ -111,7 +111,6 @@ def CreateTreeData(db, args):
 
     profile_config_dict = dict()
     if args.profile_args:
-        profile_args = args.profile_args.split(',')
         for profile_arg in profile_args:
             key_value_pair = profile_arg.split('=')
             try:
@@ -571,7 +570,7 @@ if __name__ == '__main__':
 
     parser_tree_create.add_argument('--profile', dest = 'profile',
                                         help='Tree creation profile to use (default: %s)' % (profiles.ReturnDefaultProfileName(),))
-    parser_tree_create.add_argument('--profile_args', dest = 'profile_args',
+    parser_tree_create.add_argument('--profile_args', dest = 'profile_args', nargs='+',
                                         help='Arguments to provide to the profile')
 
     parser_tree_create.set_defaults(func=CreateTreeData)
@@ -628,6 +627,7 @@ if __name__ == '__main__':
         ErrorReport("Database login failed. The following error(s) were reported:\n")
         DumpDBErrors(db)
         sys.exit(-1)
+    
     try:
         result = args.func(db, args)
     except:
