@@ -53,7 +53,7 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
     if prefix is None:
         prefix = "genome_tree_data"
 
-    gg_fh = open(os.path.join(directory, prefix + "_concatenated.greengenes"), 'wb')
+    gg_fh = open(os.path.join(directory, prefix + "_concatenated.arbtxt"), 'wb')
     fasta_concat_fh = open(os.path.join(directory, prefix + "_concatenated.faa"), 'wb')
     
     # Find genomes that are in the guaranteed list

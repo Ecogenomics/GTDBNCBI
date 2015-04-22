@@ -8,9 +8,6 @@ class GenomeDatabaseConnection(object):
     
     # Opens a connection to the PostgreSQL database
     #
-    # Parameters:
-    #     dev - Connect to the dev server
-    #
     # Returns:
     #   No return value.
     def MakePostgresConnection(self):

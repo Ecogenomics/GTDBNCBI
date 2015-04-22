@@ -27,5 +27,8 @@ if __name__ == '__main__':
     parser.add_argument('-o', dest='output_prefix', required=True, 
                         help='Output prefix for tax to tree')
     args = parser.parse_args()
+
+    sys.stderr.write("\nThis script uses ETE. If you use it, consider citing the following:\nJaime Huerta-Cepas, Joaquin Dopazo and Toni Gabaldon.\nETE: a python Environment for Tree Exploration. BMC Bioinformatics 2010, 11:24.\n\n")
+    sys.stderr.flush()
     
     reroot(args.tree, args.output_prefix) 
