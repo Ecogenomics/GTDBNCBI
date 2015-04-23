@@ -175,6 +175,12 @@ class GenomeDatabase(object):
                     raise GenomeDatabaseError("Only admins (and root) can create user accounts.")
             
             cur = self.conn.cursor()
+            
+            cur.execute("SELECT username from users where username = %s", (username,))
+            
+            if len(cur.fetchall()) > 0:
+                raise GenomeDatabaseError("User %s already exists in the database." % username)
+            
             cur.execute("INSERT into users (username, role_id, has_root_login) (" +
                             "SELECT %s, id, %s " +
                             "FROM user_roles " +
@@ -292,13 +298,12 @@ class GenomeDatabase(object):
     
             if not result:
                 raise GenomeDatabaseError("User not found.")
-                return None
     
             (type_id,) = result
             if self.isRootUser() or (self.currentUser.getTypeId() < type_id):
                 return True
-            else:
-                return False
+            
+            return False
             
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
