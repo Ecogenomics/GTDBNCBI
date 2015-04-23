@@ -109,7 +109,7 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
         if genome_id in filtered_genomes:
             
             if genome_id not in guaranteed_genomes:
-                sys.stderr.write("Genome id: %s excluded. Failed checkM completeness/contamination cutoffs. This genome's values: (%f, %f)\n" %
+                sys.stderr.write("WARNING: Genome id %s excluded. Failed checkM completeness/contamination cutoffs. This genome's values: (%f, %f)\n" %
                                  (external_id, checkm_completeness, checkm_contamination))
                 sys.stderr.flush()
                 continue

@@ -82,7 +82,6 @@ class GenomeDatabase(object):
             return True
         return False
     
-    
     # Function: UserLogin
     # Log a user into the database (make the user the current user of the database).
     #
@@ -173,7 +172,7 @@ class GenomeDatabase(object):
                     raise GenomeDatabaseError("Only the root user may create admin accounts.")
                     
                 if not(self.currentUser.getRolename() == 'admin' and rolename == 'user'):
-                    raise GenomeDatabaseError("Only non-root admins can create accounts.")
+                    raise GenomeDatabaseError("Only admins (and root) can create user accounts.")
             
             cur = self.conn.cursor()
             cur.execute("INSERT into users (username, role_id, has_root_login) (" +
@@ -1694,24 +1693,25 @@ class GenomeDatabase(object):
     # Returns:
     #    The genome list id of the newly created list.
     def CreateGenomeListWorking(self, cur, genome_id_list, name, description, owner_id=None, private=True):
-
-        if (owner_id is None):
-            if not self.currentUser.isRootUser():
-                self.ReportError("Only the root user can create root owned lists.")
-                return False
-        else:
-            if (not self.currentUser.isRootUser()) and (self.currentUser.getUserId() != owner_id):
-                self.ReportError("Only the root user may create lists on behalf of other people.")
-                return False
-
-        query = "INSERT INTO genome_lists (name, description, owned_by_root, owner_id, private) VALUES (%s, %s, %s, %s, %s) RETURNING id"
-        cur.execute(query, (name, description, owner_id is None, owner_id, private))
-        (genome_list_id, ) = cur.fetchone()
-
-        query = "INSERT INTO genome_list_contents (list_id, genome_id) VALUES (%s, %s)"
-        cur.executemany(query, [(genome_list_id, x) for x in genome_id_list])
-
-        return genome_list_id
+        try:
+            if (owner_id is None):
+                if not self.currentUser.isRootUser():
+                    raise GenomeDatabaseError("Only the root user can create root owned lists.")
+            else:
+                if (not self.currentUser.isRootUser()) and (self.currentUser.getUserId() != owner_id):
+                    raise GenomeDatabaseError("Only the root user may create lists on behalf of other people.")
+    
+            query = "INSERT INTO genome_lists (name, description, owned_by_root, owner_id, private) VALUES (%s, %s, %s, %s, %s) RETURNING id"
+            cur.execute(query, (name, description, owner_id is None, owner_id, private))
+            (genome_list_id, ) = cur.fetchone()
+    
+            query = "INSERT INTO genome_list_contents (list_id, genome_id) VALUES (%s, %s)"
+            cur.executemany(query, [(genome_list_id, x) for x in genome_id_list])
+    
+            return genome_list_id
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
 
     # Function: GetGenomeIdListFromGenomeListId
     # Given a genome list id, return all the ids of the genomes contained within that genome list.

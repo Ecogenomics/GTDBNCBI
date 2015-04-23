@@ -6,6 +6,7 @@ import pwd
 
 from gtdblite import GenomeDatabase
 from gtdblite import profiles
+from gtdblite.Exceptions import GenomeDatabaseError
 
 def GetLinuxUsername():
     return pwd.getpwuid(os.getuid())[0]
@@ -283,6 +284,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='gtdblite.py')
     parser.add_argument('-r', dest='login_as_root', action='store_true',
                         help='Login as the root user'),
+    parser.add_argument('-u', dest='logon_as_user', 
+                        help='Logon as this user (implies -r)'),
     parser.add_argument('-t', dest='threads', type=int,
                         help='Threads to use'),
     parser.add_argument('-f', dest='force', action='store_true',
@@ -618,13 +621,23 @@ if __name__ == '__main__':
         db.SetDebugMode(True)
 
     # Login
-    if args.login_as_root:
-        user = db.RootLogin(GetLinuxUsername())
-    else:
-        user = db.UserLogin(GetLinuxUsername())
-
-    if not user:
-        ErrorReport("Database login failed. The following error(s) were reported:\n")
+    try:
+        if args.logon_as_user:
+            if not db.RootLogin(GetLinuxUsername()):
+                raise GenomeDatabaseError("Unable to impersonate user %s." % args.logon_as_user)
+            
+            if not db.UserLogin(args.logon_as_user):
+                raise GenomeDatabaseError("Unable to impersonate user %s." % args.logon_as_user)
+        
+        elif args.login_as_root:
+            if not db.RootLogin(GetLinuxUsername()):
+                raise GenomeDatabaseError("Unable to become root user.")
+        else:
+            if not db.UserLogin(GetLinuxUsername()):
+                raise GenomeDatabaseError("Database login failed.")
+            
+    except GenomeDatabaseError as e:
+        ErrorReport(e.message + " The following error(s) were reported:\n")
         DumpDBErrors(db)
         sys.exit(-1)
     
