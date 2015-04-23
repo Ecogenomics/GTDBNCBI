@@ -51,27 +51,34 @@ def CreateTreeData(db, args):
 
     genome_id_list = []
 
-    if args.genome_ids:
-        temp_list = db.ExternalGenomeIdsToGenomeIds(args.genome_ids.split(","))
-        if temp_list is None:
+    if args.all_genomes:
+        genome_id_list = db.GetAllGenomeIds()
+        if genome_id_list is False:
             return False
-        genome_id_list += temp_list
-
-    if args.genome_list_ids:
-        temp_list = db.GetGenomeIdListFromGenomeListIds(args.genome_list_ids.split(","))
-        if temp_list is None:
-            return False
-        genome_id_list += temp_list
+    else:
+        if args.genome_ids:
+            temp_list = db.ExternalGenomeIdsToGenomeIds(args.genome_ids.split(","))
+            if temp_list is None:
+                return False
+            genome_id_list += temp_list
     
-    genome_batchfile_ids = []
-    if args.genome_batchfile:
-        fh = open(args.genome_batchfile, "rb")
-        for line in fh:
-            line = line.rstrip()
-            genome_batchfile_ids.append(line)
+        if args.genome_list_ids:
+            temp_list = db.GetGenomeIdListFromGenomeListIds(args.genome_list_ids.split(","))
+            if temp_list is None:
+                return False
+            genome_id_list += temp_list
+        
+        genome_batchfile_ids = []
+        if args.genome_batchfile:
+            fh = open(args.genome_batchfile, "rb")
+            for line in fh:
+                line = line.rstrip()
+                genome_batchfile_ids.append(line)
+    
+        if genome_batchfile_ids:
+            genome_id_list += db.ExternalGenomeIdsToGenomeIds(genome_batchfile_ids)
 
-    if genome_batchfile_ids:
-        genome_id_list += db.ExternalGenomeIdsToGenomeIds(genome_batchfile_ids)
+    
 
     if (len(genome_id_list) == 0):
         db.ReportError("No genomes found from the information provided.")
@@ -586,8 +593,8 @@ if __name__ == '__main__':
     # Special parser checks
 
     if (args.category_parser_name == 'trees' and args.tree_subparser_name == 'create'):
-        if (args.genome_batchfile is None and args.genome_ids is None and args.genome_list_ids is None):
-            parser_tree_create.error('Need to specify at least one of --genome_batchfile, --genome_ids or --genome_list_ids')
+        if (args.genome_batchfile is None and args.genome_ids is None and args.genome_list_ids is None and not args.all_genomes):
+            parser_tree_create.error('Need to specify at least one of --genome_batchfile, --genome_ids, --genome_list_ids or --all_genomes')
         if (args.marker_batchfile is None and args.marker_ids is None and args.marker_set_ids is None ):
             parser_tree_create.error('Need to specify at least one of --marker_batchfile, --marker_ids or --marker_set_ids')
 
