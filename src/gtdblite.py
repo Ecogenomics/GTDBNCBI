@@ -78,8 +78,6 @@ def CreateTreeData(db, args):
         if genome_batchfile_ids:
             genome_id_list += db.ExternalGenomeIdsToGenomeIds(genome_batchfile_ids)
 
-    
-
     if (len(genome_id_list) == 0):
         db.ReportError("No genomes found from the information provided.")
         return False
@@ -119,7 +117,7 @@ def CreateTreeData(db, args):
 
     profile_config_dict = dict()
     if args.profile_args:
-        for profile_arg in profile_args:
+        for profile_arg in args.profile_args:
             key_value_pair = profile_arg.split('=')
             try:
                 profile_config_dict[key_value_pair[0]] = key_value_pair[1]
