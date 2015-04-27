@@ -17,6 +17,7 @@ def reroot(tree_filepath, output_prefix=None):
        t.write(format=0, outfile=output_prefix)
     else:
        print t.write(format=0)
+       sys.stderr.write("Reroot completed successfully. You can ignore previous errors.")
  
 if __name__ == '__main__':
 
