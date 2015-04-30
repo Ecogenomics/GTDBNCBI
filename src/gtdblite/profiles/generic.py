@@ -38,14 +38,18 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
         sys.stderr.write("Getting expected marker sizes...\n")
         sys.stderr.flush()    
     
-    cur.execute("SELECT id, id_in_database, size " +
-                "FROM markers " +
-                "WHERE id in %s " 
-                "ORDER by markers.id", (tuple(marker_ids),))
+    cur.execute("SELECT markers.id, markers.name, description, id_in_database, size, external_id_prefix " +
+                "FROM markers, marker_databases " +
+                "WHERE markers.id in %s "
+                "AND markers.marker_database_id = marker_databases.id "
+                "ORDER by external_id_prefix ASC, id_in_database ASC", (tuple(marker_ids),))
     
     chosen_markers = dict()
-    for marker_id, id_in_database, size in cur:
-        chosen_markers[marker_id] = {'id_in_database': id_in_database, 'size': size}
+    chosen_markers_order = []
+    
+    for marker_id, marker_name, marker_description, id_in_database, size, external_id_prefix in cur:
+        chosen_markers[marker_id] = {'external_id_prefix': external_id_prefix, 'name': marker_name, 'description': marker_description, 'id_in_database': id_in_database, 'size': size}
+        chosen_markers_order.append(marker_id)
     
     individual_marker_fasta = dict()
     genome_info = dict()
@@ -55,6 +59,7 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
 
     gg_fh = open(os.path.join(directory, prefix + "_concatenated.arbtxt"), 'wb')
     fasta_concat_fh = open(os.path.join(directory, prefix + "_concatenated.faa"), 'wb')
+    marker_info_fh = open(os.path.join(directory, prefix + "_concatenated_markers.info"), 'wb')
     
     # Find genomes that are in the guaranteed list
     guaranteed_genomes = set()
@@ -135,7 +140,7 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
             genome_info['markers'][marker_id] = sequence
         
         aligned_seq = '';
-        for marker_id in chosen_markers.keys():
+        for marker_id in chosen_markers_order:
             if marker_id in genome_info['markers']:
                 sequence = genome_info['markers'][marker_id]
                 fasta_outstr = ">%s\n%s\n" % (genome_info['external_id'],
@@ -169,8 +174,18 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
     
     gg_fh.close()
     fasta_concat_fh.close()
-
-
+    
+    # Output the marker info
+    for marker_id in chosen_markers_order:
+        out_str = "\t".join([
+            chosen_markers[marker_id]['external_id_prefix'] + "_" + chosen_markers[marker_id]['id_in_database'],
+            chosen_markers[marker_id]['name'],
+            chosen_markers[marker_id]['description'],
+            str(chosen_markers[marker_id]['size'])
+        ]) + "\n"
+        marker_info_fh.write(out_str)    
+    marker_info_fh.close()
+    
     if "individual" in config_dict:
         for marker_id in chosen_markers.keys():
             fasta_individual_fh = open(os.path.join(directory, prefix + "_" + str(marker_id) + "_" + 
