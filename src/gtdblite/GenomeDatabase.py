@@ -421,10 +421,22 @@ class GenomeDatabase(object):
             fh = open(batchfile, "rb")
             for line in fh:
                 line = line.rstrip()
+                
+                if line == '':
+                    self.ReportWarning("Encountered blank line in batchfile. It has been ignored.")
+                    continue
+  
                 splitline = line.split("\t")
+
                 if len(splitline) < 5:
                     splitline += [None] * (5 - len(splitline))
                 (fasta_path, name, desc, source_name, id_at_source) = splitline
+
+                if fasta_path is None or fasta_path == '':
+                    raise GenomeDatabaseError("Each line in the batchfile must specify a path to the genome's fasta file.")
+
+                if name is None or name == '':
+                    raise GenomeDatabaseError("Each line in the batchfile must specify a name for the genome.")    
 
                 abs_path = os.path.abspath(fasta_path)
                 basename = os.path.splitext(os.path.basename(abs_path))[0]
