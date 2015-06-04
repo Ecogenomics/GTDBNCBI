@@ -839,7 +839,7 @@ class GenomeDatabase(object):
 
                 for (genome_id, ) in cur:
                     result_ids.append(genome_id)
-
+                
             return result_ids
 
         except GenomeDatabaseError as e:
@@ -1995,24 +1995,35 @@ class GenomeDatabase(object):
     # True on success, false on failure.
     def EditGenomeList(self, genome_list_id, batchfile=None, genomes_external_ids=None, operation=None, name=None, description=None, private=None):        
         
-        cur = self.conn.cursor()
+        try:
+            cur = self.conn.cursor()
     
-        if batchfile:
-            if genomes_external_ids is None:
-                genomes_external_ids = []
-            for line in fh:
-                line = line.rstrip()
-                genomes_external_ids.append(line)
-                
-        if genomes_external_ids is not None:
-            genomes_external_ids = self.ExternalGenomeIdsToGenomeIds(genomes_external_ids)
-
-        if not self.EditGenomeListWorking(cur, genome_list_id, genomes_external_ids, operation, name, description, private):
-            self.conn.rollback()
-            return False
+            if batchfile:
+                if genomes_external_ids is None:
+                    genomes_external_ids = []
+                fh = open(batchfile, 'rb')
+                for line in fh:
+                    line = line.rstrip()
+                    genomes_external_ids.append(line)
+                fh.close()
+                    
+            genome_ids = []
+            if genomes_external_ids is not None:
+                genome_ids = self.ExternalGenomeIdsToGenomeIds(genomes_external_ids)
+            
+            if genome_ids is False:
+                raise GenomeDatabaseError("Unable to retrive information for all genome ids.")  
+    
+            if not self.EditGenomeListWorking(cur, genome_list_id, genome_ids, operation, name, description, private):
+                raise GenomeDatabaseError("Unable to edit genome list: %s" % genome_list_id)
+            
+            self.conn.commit()
+            return True
         
-        self.conn.commit()
-        return True
+        except GenomeDatabaseError as e:
+            self.conn.rollback()
+            self.ReportError(e.message)
+            return False
         
     # True on success, false on failure/error.
     def EditGenomeListWorking(self, cur, genome_list_id, genome_ids=None, operation=None, name=None, description=None, private=None):
@@ -2355,5 +2366,3 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-    
-    
