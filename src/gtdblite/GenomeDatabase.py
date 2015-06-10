@@ -915,8 +915,10 @@ class GenomeDatabase(object):
             for (genome_id, name, description, owned_by_root, username, fasta_file_location,
                  external_id, date_added, completeness, contamination) in cur:
                 print "\t".join(
-                    (external_id, name, description, ("(root)" if owned_by_root else username),
-                     fasta_file_location, str(date_added), str(completeness), str(contamination))
+                    [str(x) if x is not None else "" for x in 
+                        (external_id, name, description, ("(root)" if owned_by_root else username),
+                         fasta_file_location, date_added, completeness, contamination)
+                    ]
                 )
             return True
 
