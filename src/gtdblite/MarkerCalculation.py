@@ -60,13 +60,14 @@ def CalculateBestMarkerOnProdigalDir(output_prefix, marker_hmm_file, prodigal_di
     
     model = hmmmodelparser.HmmModelParser(marker_hmm_file).parse().next()
     
-    blank_result = model.leng * '-'
+    blank_result = (model.leng * '-', False)
     
-    best_hit = FindBestMarkerInHMMSearchResult(hmmsearch_result_filepath)
-    if best_hit is None:
+    all_hits = GetOrderedVettedHitsInHMMSearchResult(model, hmmsearch_result_filepath)
+    if not len(all_hits):
         return blank_result
-
-    if not resultsParser.vetHit(model, best_hit):
+    
+    best_hit = all_hits[0]
+    if best_hit is None:
         return blank_result
     
     # Create a file containing only the best hit
@@ -110,9 +111,23 @@ def CalculateBestMarkerOnProdigalDir(output_prefix, marker_hmm_file, prodigal_di
             (prodigal_dir, output_prefix, result, model.leng)
         )
     
-    return result
+    return (result, len(all_hits) > 1)
     
+def GetOrderedVettedHitsInHMMSearchResult(model, hmmsearch_result_file):
+    fh = open(hmmsearch_result_file)
+    parser = hmmer.HMMERParser(fh)
+    hits = []
+    while True:
+        hit = parser.next()
+        if not hit:
+            break
+        if not resultsParser.vetHit(model, hit):
+            continue
+        hits.append(hit)   
+    return sorted(hits, (lambda x,y: cmp(x.full_score, y.full_score)))
     
+
+
 def FindBestMarkerInHMMSearchResult(hmmsearch_result_file):
     
     fh = open(hmmsearch_result_file)

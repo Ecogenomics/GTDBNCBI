@@ -98,6 +98,7 @@ CREATE TABLE aligned_markers (
     marker_id integer NOT NULL,
     dna boolean NOT NULL,
     sequence text,
+    multiple_hits boolean NOT NULL,
     PRIMARY KEY (genome_id, marker_id, dna),
     FOREIGN KEY (marker_id) REFERENCES markers(id) ON UPDATE CASCADE,
     FOREIGN KEY (genome_id) REFERENCES genomes(id) ON UPDATE CASCADE
@@ -122,13 +123,14 @@ CREATE TABLE marker_set_contents (
 );
 
 -- This is the update/insert (upsert) function for the aligned_markers table
-CREATE FUNCTION upsert_aligned_markers(g_id integer, m_id integer, is_dna boolean, seq text) RETURNS VOID AS
+CREATE FUNCTION upsert_aligned_markers(g_id integer, m_id integer, is_dna boolean, seq text, multi_hit boolean) RETURNS VOID AS
 $$
 BEGIN
     LOOP
         -- first try to update the key
         UPDATE aligned_markers 
-            SET sequence = seq 
+            SET sequence = seq,
+            multiple_hits = multi_hit
             WHERE genome_id = g_id
             AND marker_id = m_id
             AND dna = is_dna;
@@ -139,8 +141,8 @@ BEGIN
         -- if someone else inserts the same key concurrently,
         -- we could get a unique-key failure
         BEGIN
-            INSERT INTO aligned_markers(genome_id, marker_id, dna, sequence) 
-                VALUES (g_id, m_id, is_dna, seq);
+            INSERT INTO aligned_markers(genome_id, marker_id, dna, sequence, multiple_hits) 
+                VALUES (g_id, m_id, is_dna, seq, multi_hit);
             RETURN;
         EXCEPTION WHEN unique_violation THEN
             -- Do nothing, and loop to try the UPDATE again.

@@ -915,8 +915,10 @@ class GenomeDatabase(object):
             for (genome_id, name, description, owned_by_root, username, fasta_file_location,
                  external_id, date_added, completeness, contamination) in cur:
                 print "\t".join(
-                    (external_id, name, description, ("(root)" if owned_by_root else username),
-                     fasta_file_location, str(date_added), str(completeness), str(contamination))
+                    [str(x) if x is not None else "" for x in 
+                        (external_id, name, description, ("(root)" if owned_by_root else username),
+                         fasta_file_location, date_added, completeness, contamination)
+                    ]
                 )
             return True
 
@@ -1427,8 +1429,7 @@ class GenomeDatabase(object):
         marker_id_dict = dict(cur.fetchall())
         
         return [x for x in marker_ids if x not in marker_id_dict]
-    
-    
+      
     # Need to fix up the multithreading of this function, could be better written         
     def MakeTreeData(self, marker_ids, genome_ids, directory, prefix, profile=None, config_dict=None, build_tree=True):
         try:
@@ -1564,13 +1565,14 @@ class GenomeDatabase(object):
             
                         marker_ids = genome_marker_async_results['results'].keys()
                         results = [genome_marker_async_results['results'][marker_id].get() for marker_id in marker_ids]
-                        
+
                         # Perform an upsert (defined in the psql database)
-                        cur.executemany("SELECT upsert_aligned_markers(%s, %s, %s, %s)", zip(
+                        cur.executemany("SELECT upsert_aligned_markers(%s, %s, %s, %s, %s)", zip(
                             [genome_marker_async_results['genome_id'] for x in results],
                             marker_ids,
                             [False for x in results],
-                            results
+                            [seq for (seq, multi_hit) in results],
+                            [multi_hit for (seq, multi_hit) in results]
                         ))
                            
                         self.conn.commit()
