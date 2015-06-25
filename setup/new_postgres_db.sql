@@ -52,7 +52,7 @@ CREATE TABLE genome_lists (
     description text,
     owned_by_root boolean NOT NULL DEFAULT false,
     owner_id integer,
-    private bool NOT NULL DEFAULT TRUE,
+    private bool DEFAULT TRUE,
     FOREIGN KEY (owner_id) REFERENCES users(id) ON UPDATE CASCADE
 );
 
@@ -110,7 +110,7 @@ CREATE TABLE marker_sets (
     description text,
     owned_by_root boolean NOT NULL DEFAULT false,
     owner_id integer,
-    private bool NOT NULL DEFAULT TRUE,
+    private bool DEFAULT TRUE,
     FOREIGN KEY (owner_id) REFERENCES users(id) ON UPDATE CASCADE
 );
 
