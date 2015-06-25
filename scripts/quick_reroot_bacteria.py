@@ -10,8 +10,7 @@ import ete2
 def reroot(tree_filepath, output_prefix=None):
     t = ete2.Tree(tree_filepath)
 
-    ancestor = t.get_common_ancestor("IMG_2264867067", "IMG_638154511")
-    t.set_outgroup(ancestor)
+    t.set_outgroup("IMG_2540341180")
 
     if output_prefix is not None:
        t.write(format=0, outfile=output_prefix)

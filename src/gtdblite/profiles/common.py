@@ -21,36 +21,34 @@ def GetInternalMetadataDictFromXMLString(xmlstr):
         
     return metadata
 
-def ReportIncorrectParameter(param, expected_type, got_type, got_value):
-    sys.stderr.write("Error: Incorrect parameter for config option: %s. Expected: %s. Got: %s (%s)\n" % (param, expected_type, got_type, got_value))
+def ReportIncorrectParameter(db, param, expected_type, got_type, got_value):
+    db.ReportError("Error: Incorrect parameter for config option: %s. Expected: %s. Got: %s (%s)" % (param, expected_type, got_type, got_value))
     sys.stderr.flush()
     
-def CheckPassedConfigsAgainstKnownConfigs(passed_config_dict, valid_configs):
+def CheckPassedConfigsAgainstKnownConfigs(db, passed_config_dict, valid_configs):
     valid_configs_type_dict = dict([(name, config_type) for (name, config_type, description) in valid_configs])
     for (config_key, value) in passed_config_dict.items():
         if config_key in valid_configs_type_dict:
             if valid_configs_type_dict[config_key] != type(value):
                 if valid_configs_type_dict[config_key] == type(None):
-                    sys.stderr.write("Error: Unexpected value for valueless config option: %s. Got: %s" % (config_key, value))
-                    sys.stderr.flush()
+                    db.ReportError("Unexpected value for valueless config option: %s. Got: %s" % (config_key, value))
                     return False
                 elif valid_configs_type_dict[config_key] == type(1):
                     try:
                         int(value)
                     except ValueError:
-                        ReportIncorrectParameter(config_key, valid_configs_type_dict[config_key], type(value), value)
+                        ReportIncorrectParameter(db, config_key, valid_configs_type_dict[config_key], type(value), value)
                         return False
                 elif valid_configs_type_dict[config_key] == type(0.1):
                     try:
                         float(value)
                     except ValueError:
-                        ReportIncorrectParameter(config_key, valid_configs_type_dict[config_key], type(value), value)
+                        ReportIncorrectParameter(db, config_key, valid_configs_type_dict[config_key], type(value), value)
                         return False
                 else:
-                    ReportIncorrectParameter(config_key, valid_configs_type_dict[config_key], type(value), value)
+                    ReportIncorrectParameter(db, config_key, valid_configs_type_dict[config_key], type(value), value)
                     return False
         else:
-            sys.stderr.write("WARNING: Ignoring unknown config option (%s) for current profile. \n" % (config_key))
-            sys.stderr.flush()
+            db.ReportWarning("Ignoring unknown config option (%s) for current profile." % (config_key))
             del passed_config_dict[config_key]
     return True

@@ -6,6 +6,8 @@ import common
 valid_configs = [('individual', type(None), "Create individual FASTA files for each marker instead of a concatenated alignment."),
                  ('checkm_contamination_threshold', float, "Only include genomes with CheckM contamination below this"),
                  ('checkm_completeness_threshold', float, "Only include genomes with CheckM completeness above this"),
+                 ('include_multihits', type(None), "By default, aligned genes that have multiple vetted alignment are excluded from the alignment. \
+                  This flag tells the profile to use the best hit of the multiple hits (may create chimeric sequences)"),
                  ('guaranteed_genome_ids', str, "Comma separated list of genome IDs that will not be filtered and a guaranteed to be placed in the tree."),
                  ('guaranteed_genome_list_ids', str, "Comma separated list of genome list IDs whose genomes will not be filtered and a guaranteed to be placed in the tree."),] 
 
@@ -20,7 +22,7 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
         GenomeDatabase.ReportError("Directory doesn't exist: " + directory)
         return None
     
-    if not common.CheckPassedConfigsAgainstKnownConfigs(config_dict, GetValidConfigOptions()):
+    if not common.CheckPassedConfigsAgainstKnownConfigs(GenomeDatabase, config_dict, GetValidConfigOptions()):
         return None
     
     if 'checkm_contamination_threshold' not in config_dict:
@@ -60,6 +62,24 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
     gg_fh = open(os.path.join(directory, prefix + "_concatenated.arbtxt"), 'wb')
     fasta_concat_fh = open(os.path.join(directory, prefix + "_concatenated.faa"), 'wb')
     marker_info_fh = open(os.path.join(directory, prefix + "_concatenated_markers.info"), 'wb')
+    multi_hits_fh = open(os.path.join(directory, prefix + "_multi_hits.info"), 'wb')
+    
+    
+    # Output the marker info and multi_hit info
+    multi_hits_header = ["Genome_ID"]
+    for marker_id in chosen_markers_order:
+        external_id = chosen_markers[marker_id]['external_id_prefix'] + "_" + chosen_markers[marker_id]['id_in_database']
+        out_str = "\t".join([
+            external_id,
+            chosen_markers[marker_id]['name'],
+            chosen_markers[marker_id]['description'],
+            str(chosen_markers[marker_id]['size'])
+        ]) + "\n"
+        marker_info_fh.write(out_str)
+        multi_hits_header.append(external_id)
+    marker_info_fh.close()
+    multi_hits_fh.write("\t".join(multi_hits_header) + "\n")
+    
     
     # Find genomes that are in the guaranteed list
     guaranteed_genomes = set()
@@ -121,11 +141,12 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
 
         # Populate genome info
         genome_info['markers']  = dict()
+        genome_info['multiple_hits']  = dict()
         genome_info['name']  = name
         genome_info['external_id']  = external_id
         genome_info['owner']  = ('root' if owned_by_root else owner)
             
-        cur.execute("SELECT aligned_markers.marker_id, sequence " +
+        cur.execute("SELECT aligned_markers.marker_id, sequence, multiple_hits " +
                     "FROM aligned_markers "+
                     "WHERE genome_id = %s " +
                     "AND sequence is NOT NULL "+
@@ -136,12 +157,18 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
             sys.stderr.flush()
             continue
         
-        for marker_id, sequence in cur:
+        for marker_id, sequence, multiple_hits in cur:
             genome_info['markers'][marker_id] = sequence
+            genome_info['multiple_hits'][marker_id] = multiple_hits
         
         aligned_seq = '';
+        multi_hits_details = [genome_info['external_id']]
         for marker_id in chosen_markers_order:
-            if marker_id in genome_info['markers']:
+            multiple_hits = genome_info['multiple_hits'][marker_id]
+            multi_hits_details.append(
+                'Multiple' if multiple_hits else 'Single'
+            )
+            if (marker_id in genome_info['markers']) and (not multiple_hits or 'include_multihits' in config_dict):
                 sequence = genome_info['markers'][marker_id]
                 fasta_outstr = ">%s\n%s\n" % (genome_info['external_id'],
                                               sequence)
@@ -152,9 +179,11 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
             else:
                 sequence = chosen_markers[marker_id]['size'] * '-'
             aligned_seq += sequence
+            
         
         fasta_outstr = ">%s\n%s\n" % (genome_info['external_id'],
                                       aligned_seq)
+        multi_hits_outstr = "\t".join(multi_hits_details) + "\n"
 
         gg_list = ["BEGIN",
                     "db_name=%s" % genome_info['external_id'],
@@ -163,6 +192,7 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
                     "owner=%s" % genome_info['owner'],
                     "checkm_completeness=%f" % checkm_completeness,
                     "checkm_contamination=%f" % checkm_contamination,
+                    "multiple_homologs=%i/%i" % (sum([1 if x == "Multiple" else 0 for x in multi_hits_details]), len(chosen_markers_order)),# Lazy, lazy. Fix this.
                     "warning=",
                     "aligned_seq=%s" % (aligned_seq),
                     "END"]
@@ -171,20 +201,11 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
         
         fasta_concat_fh.write(fasta_outstr)
         gg_fh.write(gg_outstr)
+        multi_hits_fh.write(multi_hits_outstr)
     
     gg_fh.close()
     fasta_concat_fh.close()
-    
-    # Output the marker info
-    for marker_id in chosen_markers_order:
-        out_str = "\t".join([
-            chosen_markers[marker_id]['external_id_prefix'] + "_" + chosen_markers[marker_id]['id_in_database'],
-            chosen_markers[marker_id]['name'],
-            chosen_markers[marker_id]['description'],
-            str(chosen_markers[marker_id]['size'])
-        ]) + "\n"
-        marker_info_fh.write(out_str)    
-    marker_info_fh.close()
+    multi_hits_fh.close()
     
     if "individual" in config_dict:
         for marker_id in chosen_markers.keys():

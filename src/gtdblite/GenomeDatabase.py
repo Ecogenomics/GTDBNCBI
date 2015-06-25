@@ -1429,8 +1429,7 @@ class GenomeDatabase(object):
         marker_id_dict = dict(cur.fetchall())
         
         return [x for x in marker_ids if x not in marker_id_dict]
-    
-    
+      
     # Need to fix up the multithreading of this function, could be better written         
     def MakeTreeData(self, marker_ids, genome_ids, directory, prefix, profile=None, config_dict=None, build_tree=True):
         try:
@@ -1566,13 +1565,14 @@ class GenomeDatabase(object):
             
                         marker_ids = genome_marker_async_results['results'].keys()
                         results = [genome_marker_async_results['results'][marker_id].get() for marker_id in marker_ids]
-                        
+
                         # Perform an upsert (defined in the psql database)
-                        cur.executemany("SELECT upsert_aligned_markers(%s, %s, %s, %s)", zip(
+                        cur.executemany("SELECT upsert_aligned_markers(%s, %s, %s, %s, %s)", zip(
                             [genome_marker_async_results['genome_id'] for x in results],
                             marker_ids,
                             [False for x in results],
-                            results
+                            [seq for (seq, multi_hit) in results],
+                            [multi_hit for (seq, multi_hit) in results]
                         ))
                            
                         self.conn.commit()
@@ -1660,7 +1660,7 @@ class GenomeDatabase(object):
         
         return dict(cur.fetchall())
     
-    def CreateGenomeList(self, batchfile, external_ids, name, description, private=True):
+    def CreateGenomeList(self, batchfile, external_ids, name, description, private=None):
         try:
             cur = self.conn.cursor()
             
@@ -1707,11 +1707,11 @@ class GenomeDatabase(object):
     #     name - The name of the newly created list.
     #     description - A description of the newly created list.
     #     owner_id - The id of the user who will own this list.
-    #     private - Bool that denotes whether this list is public or private.
+    #     private - Bool that denotes whether this list is public or private (or none for not assigned).
     #
     # Returns:
     #    The genome list id of the newly created list.
-    def CreateGenomeListWorking(self, cur, genome_id_list, name, description, owner_id=None, private=True):
+    def CreateGenomeListWorking(self, cur, genome_id_list, name, description, owner_id=None, private=None):
         try:
             if (owner_id is None):
                 if not self.currentUser.isRootUser():
@@ -1831,11 +1831,12 @@ class GenomeDatabase(object):
     #
     # Parameters:
     #     owner_id - Get visible genome lists owned by this user with this id. If not specified, get all root owned lists.
+    #     all_non_private - If true, get all genome lists that aren't private (public and unassigned). If false, only get public genomes.
     #
     # Returns:
     #   A list containing a tuple for each visible genome list. The tuple contains the genome list id, genome list name, genome list description,
     # and username of the owner of the list (id, name, description, username).
-    def GetVisibleGenomeListsByOwner(self, owner_id=None):
+    def GetVisibleGenomeListsByOwner(self, owner_id=None, all_non_private=False):
         """
         Get all genome list owned by owner_id which the current user is allowed
         to see. If owner_id is None, return all visible genome lists for the
@@ -1853,7 +1854,11 @@ class GenomeDatabase(object):
             params.append(owner_id)
 
         if not self.currentUser.isRootUser():
-            conditional_query += "AND (private = False OR owner_id = %s)"
+            privacy_condition = "private = False"
+            if all_non_private:
+                privacy_condition = "(private = False OR private is NULL)"
+                
+            conditional_query += "AND (" + privacy_condition + " OR owner_id = %s)"
             params.append(self.currentUser.getUserId())
 
         cur.execute("SELECT id " +
@@ -1863,14 +1868,18 @@ class GenomeDatabase(object):
 
         return [list_id for (list_id,) in cur]
 
-    def GetAllVisibleGenomeListIds(self):
+    def GetAllVisibleGenomeListIds(self, all_non_private=False):
         cur = self.conn.cursor()
 
         conditional_query = ""
         params = []
 
         if not self.currentUser.isRootUser():
-            conditional_query += "AND (private = False OR owner_id = %s)"
+            privacy_condition = "private = False"
+            if all_non_private:
+                privacy_condition = "(private = False OR private is NULL)"
+                
+            conditional_query += "AND (" + privacy_condition + " OR owner_id = %s)"
             params.append(self.currentUser.getUserId())
 
         cur.execute("SELECT id " +
@@ -1928,8 +1937,9 @@ class GenomeDatabase(object):
             print "\t".join(("list_id", "name", "description", "owner", "visibility", "genome_count"))
 
             for (list_id, name, description, private, owned_by_root, username, genome_count) in cur:
+                privacy_string = ("private" if private else ("unset" if (private is None) else "public"))
                 print "\t".join(
-                    (str(list_id), name, (description if description else ""), ("(root)" if owned_by_root else username), ("private" if private else "public"), str(genome_count))
+                    (str(list_id), name, (description if description else ""), ("(root)" if owned_by_root else username), privacy_string , str(genome_count))
                 )
             return True
 
@@ -2090,7 +2100,7 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
     
-    def CreateMarkerSet(self, batchfile, external_ids, name, description, private=True):
+    def CreateMarkerSet(self, batchfile, external_ids, name, description, private=None):
         try:
             cur = self.conn.cursor()
             
@@ -2129,7 +2139,7 @@ class GenomeDatabase(object):
             return False
     
     # True on success, false on failure/error.
-    def CreateMarkerSetWorking(self, cur, marker_id_list, name, description, owner_id=None, private=True):
+    def CreateMarkerSetWorking(self, cur, marker_id_list, name, description, owner_id=None, private=None):
         try:
             if (owner_id is None):
                 if not self.currentUser.isRootUser():
@@ -2297,8 +2307,9 @@ class GenomeDatabase(object):
             print "\t".join(("set_id", "name", "description", "owner", "visibility", "marker_count"))
 
             for (set_id, name, description, private, owned_by_root, username, marker_count) in cur:
+                privacy_string = ("private" if private else ("unset" if (private is None) else "public"))
                 print "\t".join(
-                    (str(set_id), name, description, ("(root)" if owned_by_root else username), ("private" if private else "public"), str(marker_count))
+                    (str(set_id), name, description, ("(root)" if owned_by_root else username), privacy_string, str(marker_count))
                 )
             return True
 
@@ -2306,7 +2317,7 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
     
-    def GetVisibleMarkerSetsByOwner(self, owner_id=None):
+    def GetVisibleMarkerSetsByOwner(self, owner_id=None, all_non_private=False):
         """
         Get all marker sets owned by owner_id which the current user is allowed
         to see. If owner_id is None, return all visible marker sets for the
@@ -2324,7 +2335,11 @@ class GenomeDatabase(object):
             params.append(owner_id)
 
         if not self.currentUser.isRootUser():
-            conditional_query += "AND (private = False OR owner_id = %s)"
+            privacy_condition = "private = False"
+            if all_non_private:
+                privacy_condition = "(private = False OR private is NULL)"
+                
+            conditional_query += "AND (" + privacy_condition + " OR owner_id = %s)"
             params.append(self.currentUser.getUserId())
 
         cur.execute("SELECT id " +
@@ -2335,14 +2350,18 @@ class GenomeDatabase(object):
         return [set_id for (set_id,) in cur]
     
     # Returns list of marker set id. False on failure/error.
-    def GetAllVisibleMarkerSetIds(self):
+    def GetAllVisibleMarkerSetIds(self, all_non_private=False):
         cur = self.conn.cursor()
 
         conditional_query = ""
         params = []
 
         if not self.currentUser.isRootUser():
-            conditional_query += "AND (private = False OR owner_id = %s)"
+            privacy_condition = "private = False"
+            if all_non_private:
+                privacy_condition = "(private = False OR private is NULL)"
+                
+            conditional_query += "AND (" + privacy_condition + " OR owner_id = %s)"
             params.append(self.currentUser.getUserId())
 
         cur.execute("SELECT id " +
