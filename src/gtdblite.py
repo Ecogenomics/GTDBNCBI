@@ -58,13 +58,13 @@ def CreateTreeData(db, args):
     else:
         if args.genome_ids:
             temp_list = db.ExternalGenomeIdsToGenomeIds(args.genome_ids.split(","))
-            if temp_list is None:
+            if temp_list is False:
                 return False
             genome_id_list += temp_list
     
         if args.genome_list_ids:
             temp_list = db.GetGenomeIdListFromGenomeListIds(args.genome_list_ids.split(","))
-            if temp_list is None:
+            if temp_list is False:
                 return False
             genome_id_list += temp_list
         
@@ -170,13 +170,17 @@ def CreateGenomeList(db, args):
 def ViewGenomeLists(db, args):
 
     genome_lists = []
+    
+    view_all = False
+    if args.view_all:
+        view_all = True
 
     if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
-        genome_lists = db.GetVisibleGenomeListsByOwner()
+        genome_lists = db.GetVisibleGenomeListsByOwner(all_non_private=view_all)
     elif args.self_owned:
-        genome_lists = db.GetVisibleGenomeListsByOwner(db.currentUser.getUserId())
-    elif args.show_all:
-        genome_lists = db.GetAllVisibleGenomeListIds()
+        genome_lists = db.GetVisibleGenomeListsByOwner(db.currentUser.getUserId(), all_non_private=view_all)
+    elif args.all_owners:
+        genome_lists = db.GetAllVisibleGenomeListIds(all_non_private=view_all)
     else:
         # TODO: this
         db.ReportError("Viewing other peoples' genome lists not yet implemented.")
@@ -245,12 +249,16 @@ def ViewMarkerSets(db, args):
 
     marker_sets = []
 
+    view_all = False
+    if args.view_all:
+        view_all = True
+
     if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
-        marker_sets = db.GetVisibleMarkerSetsByOwner()
+        marker_sets = db.GetVisibleMarkerSetsByOwner(all_non_private=view_all)
     elif args.self_owned:
-        marker_sets = db.GetVisibleMarkerSetsByOwner(db.currentUser.getUserId())
-    elif args.show_all:
-        marker_sets = db.GetAllVisibleMarkerSetIds()
+        marker_sets = db.GetVisibleMarkerSetsByOwner(db.currentUser.getUserId(), all_non_private=view_all)
+    elif args.all_owners:
+        marker_sets = db.GetAllVisibleMarkerSetIds(all_non_private=view_all)
     else:
         # TODO: this
         db.ReportError("Viewing other peoples' marker sets not yet implemented.")
@@ -423,8 +431,11 @@ if __name__ == '__main__':
     mutex_group.add_argument('--self', dest = 'self_owned', default=False,
                                         action='store_true', help='Only show genome lists owned by you.')
     mutex_group.add_argument('--owner', dest = 'owner_name', help='Only show genome lists owned by a specific user.')
-    mutex_group.add_argument('--all', dest = 'show_all', default=False,
-                             action='store_true', help='Show all visible genome lists')
+    mutex_group.add_argument('--everyone', dest = 'all_owners', default=False,
+                             action='store_true', help='Show genome lists of all users.')
+
+    parser_genome_lists_view.add_argument('--all_accessible', dest = 'view_all', default=False, action='store_true',
+                                        help='View EVERY genome list that you can access (the default is to show only public and your own lists).')
 
     parser_genome_lists_view.set_defaults(func=ViewGenomeLists)
 
@@ -487,7 +498,7 @@ if __name__ == '__main__':
 
 # -------- Marker Set Management subparsers
 
-    #------------ Create genome list
+    #------------ Create marker set
     parser_marker_sets_create = marker_set_category_subparser.add_parser('create',
                                         help='Create a marker set') 
     parser_marker_sets_create.add_argument('--batchfile', dest = 'batchfile',
@@ -513,8 +524,11 @@ if __name__ == '__main__':
     mutex_group.add_argument('--self', dest = 'self_owned', default=False,
                                         action='store_true', help='Only show marker sets owned by you.')
     mutex_group.add_argument('--owner', dest = 'owner_name', help='Only show marker sets owned by a specific user.')
-    mutex_group.add_argument('--all', dest = 'show_all', default=False,
-                             action='store_true', help='Show all marker sets.')
+    mutex_group.add_argument('--everyone', dest = 'all_owners', default=False,
+                             action='store_true', help='Show marker sets of all users.')
+
+    parser_marker_sets_view.add_argument('--all_accessible', dest = 'view_all', default=False, action='store_true',
+                                        help='View EVERY marker set that you can access (the default is to show only public and your own sets).')
 
     parser_marker_sets_view.set_defaults(func=ViewMarkerSets)
 
