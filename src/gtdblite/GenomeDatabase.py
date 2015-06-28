@@ -2,6 +2,7 @@ import hashlib
 import shutil
 import os
 import sys
+import stat
 import datetime
 import time
 import random
@@ -329,8 +330,10 @@ class GenomeDatabase(object):
             (genome_source_id, id_at_source, external_id_prefix) = result[0]
 
             target_file_name = external_id_prefix + "_" + str(id_at_source)
+            target_file_path = os.path.join(self.genomeCopyDir, target_file_name)
             try:
-                shutil.copy(fasta_file, os.path.join(self.genomeCopyDir, target_file_name))
+                shutil.copy(fasta_file, target_file_path)
+                os.chmod(target_file_path, stat.S_IROTH | stat.S_IRGRP | stat.S_IRUSR)
             except:
                 raise GenomeDatabaseError("Copy to genome storage dir failed.")
             
@@ -492,6 +495,7 @@ class GenomeDatabase(object):
                     for (genome_id, details) in fasta_paths_to_copy.items():                    
                         target_file = os.path.join(target_dir, details['external_id'] + ".fasta")
                         shutil.copy(details['src_path'], target_file)
+                        os.chmod(target_file, stat.S_IROTH | stat.S_IRGRP | stat.S_IRUSR)
                         copied_fasta_paths.append(target_file)
                         
                         cur.execute("UPDATE genomes SET fasta_file_location = %s WHERE id = %s", (target_file, genome_id))
