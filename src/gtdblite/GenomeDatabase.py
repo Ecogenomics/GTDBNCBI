@@ -1465,140 +1465,157 @@ class GenomeDatabase(object):
                 if not self.Confirm(confirm_msg):
                     raise GenomeDatabaseError("User aborted database action.")
             
-            all_marker_async_results = []
-            genome_id_to_async_result = {}
             
+            # Break into chunks of 500 - ext3 can only handle 32000 dirs in tmp 
+            uncalculated_marker_list = uncalculated_marker_dict.items()
+            chunk_size = 500
             
-            # Start prodigal for all genomes
-            for (genome_id, uncalculated) in uncalculated_marker_dict.items():
+            uncalculated_marker_dict_chunks = [
+                uncalculated_marker_list[i:(i + chunk_size)] for i in range(0, len(uncalculated_marker_list), chunk_size)
+            ]
+            
+            if uncalculated_marker_dict_chunks:
+                sys.stderr.write("Breaking calculation into %i chunks of up to %i genomes.\n" % (len(uncalculated_marker_dict_chunks), chunk_size))
+                sys.stderr.flush()
+            
+            for (index, this_chunk) in enumerate(uncalculated_marker_dict_chunks):
+            
+                chunk_text = "chunk %i of %i" % (index + 1, len(uncalculated_marker_dict_chunks))
+                sys.stderr.write("Calculating %s....\n" % chunk_text)
+                sys.stderr.flush()
                 
-                # OK we are gonna do some pretty questionable things, accessing private variables of the pool class,
-                # but like wtf python? give me some getter functions, how hard can that be.....
-
-                # If the pool queue is 5x the number of processes, wait for a second and recheck, otherwise continue the loop
-                while self.pool._taskqueue.qsize() > 5 * self.pool._processes:
-                    time.sleep(1)
+                all_marker_async_results = []
+                genome_id_to_async_result = {}
+            
+                # Start prodigal for all genomes in this chunk
+                for (genome_id, uncalculated) in this_chunk:
                     
-                if self.debugMode:
-                    sys.stderr.write("Beginning prodigal for (internal) genome id: %s\n" % (str(genome_id)))
-                    sys.stderr.flush()
-                
-                async_result = self.RunProdigalOnGenomeIdAsync(genome_id)
-                
-                if async_result is False:
-                    raise GenomeDatabaseError("Error calling async prodigal.")
-                
-                genome_id_to_async_result[genome_id] = async_result
-
-            
-            finished_prodigal_genomes = set()
-            last_count = 0
-            
-            # Wait for prodigal to finish
-            while True:
-                for (genome_id, async_result) in genome_id_to_async_result.items():
-                    
-                    if genome_id in finished_prodigal_genomes:
-                        continue
-                    
-                    if async_result.ready():
-
-                        if self.debugMode:
-                            sys.stderr.write("Prodigal complete for genome id: %s. Dir: %s\n" % (str(genome_id), async_result.get()))
-                            sys.stderr.flush()
-
-                        finished_prodigal_genomes.add(genome_id)
-                
-                if last_count != len(finished_prodigal_genomes):
-                    last_count = len(finished_prodigal_genomes)
-                    sys.stderr.write("Prodigal complete for %i of %i genomes.\n" % (len(finished_prodigal_genomes), len(genome_id_to_async_result)))            
-                    sys.stderr.flush()
-                
-                if len(finished_prodigal_genomes) == len(genome_id_to_async_result):
-                    break
-                
-                time.sleep(1)
-                
-            
-            # Run the marker calculations
-            for (genome_id, async_result) in genome_id_to_async_result.items():
-
-                # If the pool queue is 5x the number of processes, wait for a second and recheck, otherwise continue the loop
-                while self.pool._taskqueue.qsize() > 5 * self.pool._processes:
-                    time.sleep(1)
-
-                prodigal_dir = async_result.get()
-                markers_async_results = self.CalculateMarkersOnProdigalDirAsync(uncalculated, prodigal_dir)  
-            
-                all_marker_async_results.append({
-                    'genome_id': genome_id,
-                    'results' : markers_async_results,
-                    'marker_ids' : uncalculated
-                })
-                
-                if self.debugMode:
-                    sys.stderr.write("Processing %i uncalculated marker(s) for (internal) genome id: %s\n" % (len(uncalculated), str(genome_id)))
-                    sys.stderr.flush()
-            
-            # Commit the markers
-            
-            last_completed_count = 0
-            
-            while True:
-                completed_count = 0
-                
-                for i in xrange(0, len(all_marker_async_results)):
-                    
-                    genome_marker_async_results = all_marker_async_results[i]
-                    
-                    if genome_marker_async_results is None:
-                        completed_count += 1
-                        continue
-                    
-                    # Check to see if all the markers for this genome are complete
-                    all_genome_markers_complete = True
-                    for (marker_id, async_result) in genome_marker_async_results['results'].items():
-                        if not async_result.ready():
-                            all_genome_markers_complete = False
-                            break
-                    
-                    if all_genome_markers_complete:
-                        completed_count += 1
-                   
-                        cur = self.conn.cursor()
-            
-                        marker_ids = genome_marker_async_results['results'].keys()
-                        results = [genome_marker_async_results['results'][marker_id].get() for marker_id in marker_ids]
-
-                        # Perform an upsert (defined in the psql database)
-                        cur.executemany("SELECT upsert_aligned_markers(%s, %s, %s, %s, %s)", zip(
-                            [genome_marker_async_results['genome_id'] for x in results],
-                            marker_ids,
-                            [False for x in results],
-                            [seq for (seq, multi_hit) in results],
-                            [multi_hit for (seq, multi_hit) in results]
-                        ))
-                           
-                        self.conn.commit()
+                    # OK we are gonna do some pretty questionable things, accessing private variables of the pool class,
+                    # but like wtf python? give me some getter functions, how hard can that be.....
+    
+                    # If the pool queue is 5x the number of processes, wait for a second and recheck, otherwise continue the loop
+                    while self.pool._taskqueue.qsize() > 5 * self.pool._processes:
+                        time.sleep(1)
                         
-                        # Mark this result as complete
-                        all_marker_async_results[i] = None
+                    if self.debugMode:
+                        sys.stderr.write("Beginning prodigal for (internal) genome id: %s\n" % (str(genome_id)))
+                        sys.stderr.flush()
+                    
+                    async_result = self.RunProdigalOnGenomeIdAsync(genome_id)
+                    
+                    if async_result is False:
+                        raise GenomeDatabaseError("Error calling async prodigal.")
+                    
+                    genome_id_to_async_result[genome_id] = async_result
                 
-                if last_completed_count != completed_count:
-                    last_completed_count = completed_count
-                    sys.stderr.write("Markers calculated for %i of %i genomes.\n" % (completed_count, len(all_marker_async_results)))
-                    sys.stderr.flush()
+                finished_prodigal_genomes = set()
+                last_count = 0
                 
-                # Break the loop if everything is done
-                if completed_count == len(all_marker_async_results):
-                    break
+                # Wait for prodigal to finish
+                while True:
+                    for (genome_id, async_result) in genome_id_to_async_result.items():
+                        
+                        if genome_id in finished_prodigal_genomes:
+                            continue
+                        
+                        if async_result.ready():
+    
+                            if self.debugMode:
+                                sys.stderr.write("Prodigal complete for genome id: %s. Dir: %s\n" % (str(genome_id), async_result.get()))
+                                sys.stderr.flush()
+    
+                            finished_prodigal_genomes.add(genome_id)
+                    
+                    if last_count != len(finished_prodigal_genomes):
+                        last_count = len(finished_prodigal_genomes)
+                        sys.stderr.write("Prodigal complete for %i of %i genomes (%s),\n" % (len(finished_prodigal_genomes), len(genome_id_to_async_result), chunk_text))            
+                        sys.stderr.flush()
+                    
+                    if len(finished_prodigal_genomes) == len(genome_id_to_async_result):
+                        break
+                    
+                    time.sleep(1)
+                    
                 
-                time.sleep(1) 
+                # Run the marker calculations
+                for (genome_id, async_result) in genome_id_to_async_result.items():
+    
+                    # If the pool queue is 5x the number of processes, wait for a second and recheck, otherwise continue the loop
+                    while self.pool._taskqueue.qsize() > 5 * self.pool._processes:
+                        time.sleep(1)
+    
+                    prodigal_dir = async_result.get()
+                    markers_async_results = self.CalculateMarkersOnProdigalDirAsync(uncalculated, prodigal_dir)  
+                
+                    all_marker_async_results.append({
+                        'genome_id': genome_id,
+                        'results' : markers_async_results,
+                        'marker_ids' : uncalculated
+                    })
+                    
+                    if self.debugMode:
+                        sys.stderr.write("Processing %i uncalculated marker(s) for (internal) genome id: %s\n" % (len(uncalculated), str(genome_id)))
+                        sys.stderr.flush()
+                
+                # Commit the markers
+                
+                last_completed_count = 0
+                
+                while True:
+                    completed_count = 0
+                    
+                    for i in xrange(0, len(all_marker_async_results)):
+                        
+                        genome_marker_async_results = all_marker_async_results[i]
+                        
+                        if genome_marker_async_results is None:
+                            completed_count += 1
+                            continue
+                        
+                        # Check to see if all the markers for this genome are complete
+                        all_genome_markers_complete = True
+                        for (marker_id, async_result) in genome_marker_async_results['results'].items():
+                            if not async_result.ready():
+                                all_genome_markers_complete = False
+                                break
+                        
+                        if all_genome_markers_complete:
+                            completed_count += 1
+                       
+                            cur = self.conn.cursor()
+                
+                            marker_ids = genome_marker_async_results['results'].keys()
+                            results = [genome_marker_async_results['results'][marker_id].get() for marker_id in marker_ids]
+    
+                            # Perform an upsert (defined in the psql database)
+                            cur.executemany("SELECT upsert_aligned_markers(%s, %s, %s, %s, %s)", zip(
+                                [genome_marker_async_results['genome_id'] for x in results],
+                                marker_ids,
+                                [False for x in results],
+                                [seq for (seq, multi_hit) in results],
+                                [multi_hit for (seq, multi_hit) in results]
+                            ))
+                               
+                            self.conn.commit()
+                            
+                            # Mark this result as complete
+                            all_marker_async_results[i] = None
+                    
+                    if last_completed_count != completed_count:
+                        last_completed_count = completed_count
+                        sys.stderr.write("Markers calculated for %i of %i genomes (%s).\n" % (completed_count, len(all_marker_async_results), chunk_text))
+                        sys.stderr.flush()
+                    
+                    # Break the loop if everything is done
+                    if completed_count == len(all_marker_async_results):
+                        break
+                    
+                    time.sleep(1) 
        
-	    # Delete the prodigal dirs
-            for (genome_id, async_result) in genome_id_to_async_result.items():           
-                prodigal_dir = async_result.get()
-                shutil.rmtree(prodigal_dir) 
+                # Delete the prodigal dirs
+                for (genome_id, async_result) in genome_id_to_async_result.items():           
+                    prodigal_dir = async_result.get()
+                    shutil.rmtree(prodigal_dir) 
 
             if not profiles.profiles[profile].MakeTreeData(self, marker_ids, genome_ids, directory, prefix, config_dict):
                 raise GenomeDatabaseError("Tree building failed for profile: %s" % profile)
