@@ -739,6 +739,9 @@ class GenomeDatabase(object):
                     if abs_file.startswith(abs_dir):
                         paths_to_delete.append(fasta_path)
 
+            cur.execute("DELETE FROM aligned_markers " +
+                        "WHERE genome_id in %s", (tuple(genome_ids),))
+
             cur.execute("DELETE FROM genome_list_contents " +
                         "WHERE genome_id in %s", (tuple(genome_ids),))
             
