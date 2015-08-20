@@ -1458,7 +1458,7 @@ class GenomeDatabase(object):
                 if len(uncalculated) != 0:
                     uncalculated_marker_dict[genome_id] = uncalculated
                     uncalculated_marker_count += len(uncalculated)
-    
+
             if uncalculated_marker_count > 0:
                 print "%i genomes contain %i uncalculated markers." % (len(uncalculated_marker_dict.keys()), uncalculated_marker_count)
                 
@@ -1492,7 +1492,7 @@ class GenomeDatabase(object):
             
                 # Start prodigal for all genomes in this chunk
                 for (genome_id, uncalculated) in this_chunk:
-                    
+
                     # OK we are gonna do some pretty questionable things, accessing private variables of the pool class,
                     # but like wtf python? give me some getter functions, how hard can that be.....
     
@@ -1548,6 +1548,8 @@ class GenomeDatabase(object):
                         time.sleep(1)
     
                     prodigal_dir = async_result.get()
+                    uncalculated = uncalculated_marker_dict[genome_id]
+
                     markers_async_results = self.CalculateMarkersOnProdigalDirAsync(uncalculated, prodigal_dir)  
                 
                     all_marker_async_results.append({
@@ -1587,13 +1589,13 @@ class GenomeDatabase(object):
                        
                             cur = self.conn.cursor()
                 
-                            marker_ids = genome_marker_async_results['results'].keys()
-                            results = [genome_marker_async_results['results'][marker_id].get() for marker_id in marker_ids]
+                            updated_marker_ids = genome_marker_async_results['results'].keys()
+                            results = [genome_marker_async_results['results'][marker_id].get() for marker_id in updated_marker_ids]
     
                             # Perform an upsert (defined in the psql database)
                             cur.executemany("SELECT upsert_aligned_markers(%s, %s, %s, %s, %s)", zip(
                                 [genome_marker_async_results['genome_id'] for x in results],
-                                marker_ids,
+                                updated_marker_ids,
                                 [False for x in results],
                                 [seq for (seq, multi_hit) in results],
                                 [multi_hit for (seq, multi_hit) in results]
