@@ -1,4 +1,3 @@
-import hashlib
 import shutil
 import os
 import sys
@@ -390,7 +389,7 @@ class GenomeDatabase(object):
                     raise GenomeDatabaseError("Unable to create the new genome list.")
 
             # Add the genomes
-            added_genome_ids = self.add_genome_list(cur,checkM_results_dict,batchfile)
+            added_genome_ids = self.add_genome_list(cur,checkM_results_dict,batchfile,force_overwrite)
 
 
             if modify_genome_list_id is not None:
@@ -440,7 +439,7 @@ class GenomeDatabase(object):
                             os.mkdir(sub_target_dir)
 
                     
-                        target_file = os.path.join(target_dir, details['external_id'] + ".fasta")
+                        target_file = os.path.join(sub_target_dir, details['external_id'] + ".fasta")
                         shutil.copy(details['src_path'], target_file)
                         os.chmod(target_file, stat.S_IROTH | stat.S_IRGRP | stat.S_IRUSR)
                         copied_fasta_paths.append(target_file)
@@ -451,8 +450,7 @@ class GenomeDatabase(object):
                             copied_genes_fasta_paths.append(genes_target_file)
 
 
-                        
-                        cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (target_file, genome_id))
+                        cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (target_file, genes_target_file,genome_id))
                         
                 except Exception as e:
                     try:
@@ -485,7 +483,7 @@ class GenomeDatabase(object):
     def AddFastaGenomeWorking(self, cur, fasta_file_path, name, desc, genome_list_id=None, force_overwrite=False,
                               source=None, id_at_source=None, gene_path=None, completeness=0, contamination=0):
         try:
-	    fasta_sha256_checksum = Tools.sha256Calculator(fasta_file_path
+	    fasta_sha256_checksum = Tools.sha256Calculator(fasta_file_path)
 	    gene_sha256_checksum=None
             if gene_path is None:
                prodigal_tmp_dir = MarkerCalculation.RunProdigalOnGenomeFasta(fasta_file_path)
@@ -593,7 +591,7 @@ class GenomeDatabase(object):
       return listmarkers
 
 
-    def add_genome_list(self,cur=None,checkM_results_dict=None,batchfile=None):
+    def add_genome_list(self,cur=None,checkM_results_dict=None,batchfile=None,force_overwrite=False):
       # Add the genomes
       added_genome_ids = []
       fh = open(batchfile, "rb")
@@ -624,9 +622,8 @@ class GenomeDatabase(object):
 
            if basename not in checkM_results_dict:
                raise GenomeDatabaseError("Couldn't find checkM result for %s (%s).basename is %s" % (name,abs_path,basename))
-
            genome_id = self.AddFastaGenomeWorking(
-               cur, abs_path, name, desc, None, source_name, id_at_source, abs_gene_path,
+               cur, abs_path, name, desc, None, force_overwrite, source_name, id_at_source, abs_gene_path,
                checkM_results_dict[basename]["completeness"], checkM_results_dict[basename]["contamination"]
                 )
 

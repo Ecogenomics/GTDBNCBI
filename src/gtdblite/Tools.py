@@ -1,4 +1,5 @@
-import prodigal
+#import prodigal
+import hashlib
 import tempfile
 import os
 import shutil
@@ -8,8 +9,6 @@ import multiprocessing
 import math
 import time
 
-from gtdblite import GenomeDatabase
-from gtdblite import profiles
 from gtdblite.Exceptions import GenomeDatabaseError
 
 ##################################################
@@ -57,6 +56,7 @@ def generateTempTableName(self):
     return "TEMP" + suffix + str(int(time.time()))
 
 def sha256Calculator(file_path):
+    
     try:
       filereader = open(file_path, "rb")
     except:
