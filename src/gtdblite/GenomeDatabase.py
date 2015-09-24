@@ -12,7 +12,8 @@ from multiprocessing import Pool
 from gtdblite import Config
 from gtdblite.User import User
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
-from gtdblite import MarkerCalculation  
+from gtdblite import MarkerCalculation
+from gtdblite import Tools  
 from gtdblite import profiles
 from gtdblite.Exceptions import GenomeDatabaseError
 
@@ -343,13 +344,6 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
-    def GenerateTempTableName(self):
-
-        rng = random.SystemRandom()
-        suffix = ''
-        for i in range(0,10):
-            suffix += rng.choice('abcefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
-        return "TEMP" + suffix + str(int(time.time()))
         
     # True on success, False otherwise (and on error)
     def AddManyFastaGenomes(self, batchfile, checkM_file, modify_genome_list_id=None,
@@ -359,31 +353,8 @@ class GenomeDatabase(object):
                 checkm_fh = open(checkM_file, "rb")
             except:
                 raise GenomeDatabaseError("Cannot open checkM file: " + checkM_file)
-        
-            required_headers = {
-                "Bin Id" : None,
-                "Completeness" : None,
-                "Contamination" : None
-            }
-        
-            # Check the CheckM headers are consistent
-            split_headers = checkm_fh.readline().rstrip().split("\t")
             
-            for pos in range(0, len(split_headers)):
-                
-                header = split_headers[pos]
-                
-                if header not in required_headers:
-                    continue
-
-                if required_headers[header] is not None:
-                    raise GenomeDatabaseError("Seen %s header twice in the checkM file. Check the checkM file is correct: %s." % (header, checkM_file))
-            
-                required_headers[header] = pos
-            
-            for header, col in required_headers.items():
-                if col is None:
-                    raise GenomeDatabaseError("Unable to find %s header in the checkM file. Check the checkM file is correct: %s." % (header, checkM_file))
+	    required_headers = Tools.populate_required_headers(checkm_fh)
         
             # Populate CheckM results dict
             checkM_results_dict = {}
@@ -419,60 +390,28 @@ class GenomeDatabase(object):
                     raise GenomeDatabaseError("Unable to create the new genome list.")
 
             # Add the genomes
-            added_genome_ids = []
+            added_genome_ids = self.add_genome_list(cur,checkM_results_dict,batchfile)
 
-            fh = open(batchfile, "rb")
-            for line in fh:
-                line = line.rstrip()
-                
-                if line == '':
-                    self.ReportWarning("Encountered blank line in batchfile. It has been ignored.")
-                    continue
-  
-                splitline = line.split("\t")
-
-                if len(splitline) < 5:
-                    splitline += [None] * (5 - len(splitline))
-                (fasta_path, name, desc, source_name, id_at_source) = splitline
-
-                if fasta_path is None or fasta_path == '':
-                    raise GenomeDatabaseError("Each line in the batchfile must specify a path to the genome's fasta file.")
-
-                if name is None or name == '':
-                    raise GenomeDatabaseError("Each line in the batchfile must specify a name for the genome.")    
-
-                abs_path = os.path.abspath(fasta_path)
-                basename = os.path.splitext(os.path.basename(abs_path))[0]
-
-                if basename not in checkM_results_dict:
-                    raise GenomeDatabaseError("Couldn't find checkM result for %s (%s)" % (name,abs_path))
-
-                genome_id = self.AddFastaGenomeWorking(
-                    cur, abs_path, name, desc, None, force_overwrite, source_name, id_at_source,
-                    checkM_results_dict[basename]["completeness"], checkM_results_dict[basename]["contamination"]
-                )
-
-                if not (genome_id):
-                    raise GenomeDatabaseError("Failed to add genome: %s" % abs_path)
-
-                added_genome_ids.append(genome_id)
 
             if modify_genome_list_id is not None:
                 if not self.EditGenomeListWorking(cur, modify_genome_list_id, genome_ids=added_genome_ids, operation='add'):
                     raise GenomeDatabaseError("Unable to add genomes to genome list.")
    
             copied_fasta_paths = []
+	    copied_genes_fasta_paths = []
             fasta_paths_to_copy = {}
             
-            cur.execute("SELECT genomes.id, fasta_file_location, user_editable, external_id_prefix || '_' || id_at_source as external_id "
+            cur.execute("SELECT genomes.id, fasta_file_location, genes_file_location,user_editable, external_id_prefix || '_' || id_at_source as external_id "
                         "FROM genomes, genome_sources " +
                         "WHERE genome_source_id = genome_sources.id " +
                         "AND genomes.id in %s", (tuple(added_genome_ids),))
             
-            for (genome_id, abs_path, user_editable, external_id) in cur:
+            for (genome_id, abs_path, abs_gene_path,user_editable, external_id) in cur:
                 if user_editable:
                     fasta_paths_to_copy[genome_id] = {'src_path': abs_path,
-                                                      'external_id': external_id}
+                                                      'external_id': external_id,
+                                                      'gene_path':abs_gene_path}
+
             
             if len(fasta_paths_to_copy.keys()) > 0:
                 username = None
@@ -492,13 +431,28 @@ class GenomeDatabase(object):
                     os.mkdir(target_dir)
                     
                 try:
-                    for (genome_id, details) in fasta_paths_to_copy.items():                    
+                    for (genome_id, details) in fasta_paths_to_copy.items():
+                        sub_target_dir=os.path.join(target_dir,details['external_id'])
+                        if os.path.exists(sub_target_dir):
+                            if not os.path.isdir(target_dir):
+                                raise GenomeDatabaseError("Genome copy directory exists, but isn't a directory: %s" % (target_dir,))
+                        else:
+                            os.mkdir(sub_target_dir)
+
+                    
                         target_file = os.path.join(target_dir, details['external_id'] + ".fasta")
                         shutil.copy(details['src_path'], target_file)
                         os.chmod(target_file, stat.S_IROTH | stat.S_IRGRP | stat.S_IRUSR)
                         copied_fasta_paths.append(target_file)
+                        genes_target_file=None
+                        if details['gene_path'] is not None:
+                            genes_target_file = os.path.join(sub_target_dir, details['external_id'] + "_proteins.faa")
+                            shutil.copy(details['gene_path'], genes_target_file)
+                            copied_genes_fasta_paths.append(genes_target_file)
+
+
                         
-                        cur.execute("UPDATE genomes SET fasta_file_location = %s WHERE id = %s", (target_file, genome_id))
+                        cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (target_file, genome_id))
                         
                 except Exception as e:
                     try:
@@ -529,19 +483,15 @@ class GenomeDatabase(object):
     # Returns:
     #     Genome id if it was added. False if it fails.
     def AddFastaGenomeWorking(self, cur, fasta_file_path, name, desc, genome_list_id=None, force_overwrite=False,
-                              source=None, id_at_source=None, completeness=0, contamination=0):
+                              source=None, id_at_source=None, gene_path=None, completeness=0, contamination=0):
         try:
-            try:
-                fasta_fh = open(fasta_file_path, "rb")
-            except:
-                raise GenomeDatabaseError("Cannot open Fasta file: " + fasta_file_path)
+	    fasta_sha256_checksum = Tools.sha256Calculator(fasta_file_path
+	    gene_sha256_checksum=None
+            if gene_path is None:
+               prodigal_tmp_dir = MarkerCalculation.RunProdigalOnGenomeFasta(fasta_file_path)
+               gene_path =os.path.join(prodigal_tmp_dir,"genes.faa")
 
-            m = hashlib.sha256()
-            for line in fasta_fh:
-                m.update(line)
-            fasta_sha256_checksum = m.hexdigest()
-            fasta_fh.close()
-
+            gene_sha256_checksum = Tools.sha256Calculator(gene_path)
             if source is None:
                 source = self.defaultGenomeSourceName
             
@@ -606,7 +556,7 @@ class GenomeDatabase(object):
             result = cur.fetchall()
 
             columns = "(name, description, owned_by_root, owner_id, fasta_file_location, " + \
-                      "fasta_file_sha256, genome_source_id, id_at_source, date_added, checkm_completeness, checkm_contamination)"
+                      "fasta_file_sha256, genes_file_location, genes_file_sha256,genome_source_id, id_at_source, date_added, checkm_completeness, checkm_contamination)"
 
             if len(result):
                 if force_overwrite:
@@ -615,9 +565,9 @@ class GenomeDatabase(object):
                     raise GenomeDatabaseError("Genome source '%s' already contains id '%s'. Use -f to force an overwrite." % (source, id_at_source))
 
             cur.execute("INSERT INTO genomes " + columns + " "
-                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) " +
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) " +
                         "RETURNING id" ,
-                        (name, desc, self.currentUser.isRootUser(), owner_id, fasta_file_path, fasta_sha256_checksum, source_id, id_at_source, added, completeness, contamination))
+                        (name, desc, self.currentUser.isRootUser(), owner_id, fasta_file_path, fasta_sha256_checksum, gene_path, gene_sha256_checksum, source_id, id_at_source, added, completeness, contamination))
             
             (genome_id, ) = cur.fetchone()
 
@@ -634,6 +584,57 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+    def list_markers(self,cur=None,library=None):
+      cur.execute("SELECT id_in_database FROM markers m "+
+                "LEFT OUTER JOIN marker_databases md ON m.marker_database_id = md.id "+
+                "WHERE md.name like '{0}'".format(library))
+      listmarkers = [hmm_id for (hmm_id,) in cur.fetchall()]
+      return listmarkers
+
+
+    def add_genome_list(self,cur=None,checkM_results_dict=None,batchfile=None):
+      # Add the genomes
+      added_genome_ids = []
+      fh = open(batchfile, "rb")
+      for line in fh:
+           line = line.rstrip()
+           if line == '':
+               self.ReportWarning("Encountered blank line in batchfile. It has been ignored.")
+               continue
+           splitline = line.split("\t")
+           if len(splitline) < 6:
+                splitline += [None] * (6 - len(splitline))
+           (fasta_path, gene_path ,name, desc, source_name, id_at_source) = splitline
+
+           if fasta_path is None or fasta_path == '':
+                raise GenomeDatabaseError("Each line in the batchfile must specify a path to the genome's fasta file.")
+
+           if name is None or name == '':
+                raise GenomeDatabaseError("Each line in the batchfile must specify a name for the genome.")
+
+           abs_path = os.path.abspath(fasta_path)
+           basename = os.path.splitext(os.path.basename(abs_path))[0]
+
+           abs_gene_path=None
+           if gene_path is not None and gene_path != '':
+               abs_gene_path = os.path.abspath(gene_path)
+               gene_basename = os.path.splitext(os.path.basename(abs_gene_path))[0]
+
+
+           if basename not in checkM_results_dict:
+               raise GenomeDatabaseError("Couldn't find checkM result for %s (%s).basename is %s" % (name,abs_path,basename))
+
+           genome_id = self.AddFastaGenomeWorking(
+               cur, abs_path, name, desc, None, source_name, id_at_source, abs_gene_path,
+               checkM_results_dict[basename]["completeness"], checkM_results_dict[basename]["contamination"]
+                )
+
+           if not (genome_id):
+               raise GenomeDatabaseError("Failed to add genome: %s" % abs_path)
+
+           added_genome_ids.append(genome_id)
+      return added_genome_ids
 
     # True if has permission. False if doesn't. None on error.
     def HasPermissionToEditGenome(self, genome_id):
@@ -779,7 +780,7 @@ class GenomeDatabase(object):
                     map_sources_to_ids[source_prefix] = {}
                 map_sources_to_ids[source_prefix][id_at_source] = external_id
 
-            temp_table_name = self.GenerateTempTableName()
+            temp_table_name = Tools.generateTempTableName()
 
             if len(map_sources_to_ids.keys()):
                 cur.execute("CREATE TEMP TABLE %s (prefix text)" % (temp_table_name,) )
@@ -812,7 +813,7 @@ class GenomeDatabase(object):
             for source_prefix in map_sources_to_ids.keys():
 
                 # Create a table of requested external ids from this genome source
-                temp_table_name = self.GenerateTempTableName()
+                temp_table_name = Tools.generateTempTableName()
                 cur.execute("CREATE TEMP TABLE %s (id_at_source text)" % (temp_table_name,) )
                 query = "INSERT INTO {0} (id_at_source) VALUES (%s)".format(temp_table_name)
                 cur.executemany(query, [(x,) for x in map_sources_to_ids[source_prefix].keys()])
@@ -1257,7 +1258,7 @@ class GenomeDatabase(object):
                     map_databases_to_ids[database_prefix] = {}
                 map_databases_to_ids[database_prefix][database_specific_id] = external_id
 
-            temp_table_name = self.GenerateTempTableName()
+            temp_table_name = Tools.generateTempTableName()
 
             if len(map_databases_to_ids.keys()):
                 cur.execute("CREATE TEMP TABLE %s (prefix text)" % (temp_table_name,) )
@@ -1290,7 +1291,7 @@ class GenomeDatabase(object):
             for database_prefix in map_databases_to_ids.keys():
 
                 # Create a table of requested external ids from this genome source
-                temp_table_name = self.GenerateTempTableName()
+                temp_table_name = Tools.generateTempTableName()
                 cur.execute("CREATE TEMP TABLE %s (id_in_database text)" % (temp_table_name,) )
                 query = "INSERT INTO {0} (id_in_database) VALUES (%s)".format(temp_table_name)
                 cur.executemany(query, [(x,) for x in map_databases_to_ids[database_prefix].keys()])
@@ -1805,7 +1806,7 @@ class GenomeDatabase(object):
         try:
             cur = self.conn.cursor()
 
-            temp_table_name = self.GenerateTempTableName()
+            temp_table_name = Tools.generateTempTableName()
 
             if genome_list_ids:
                 cur.execute("CREATE TEMP TABLE %s (id integer)" % (temp_table_name,) )
@@ -2090,7 +2091,7 @@ class GenomeDatabase(object):
             if params:
                 cur.execute("UPDATE genome_lists SET " + update_query + " WHERE id = %s", params + [genome_list_id])
             
-            temp_table_name = self.GenerateTempTableName()
+            temp_table_name = Tools.generateTempTableName()
 
 
             if operation is not None:
@@ -2236,7 +2237,7 @@ class GenomeDatabase(object):
             if params:
                 cur.execute("UPDATE marker_sets SET " + update_query + " WHERE id = %s", params + [marker_set_id])
             
-            temp_table_name = self.GenerateTempTableName()
+            temp_table_name = Tools.generateTempTableName()
 
             if operation is not None:
                 
