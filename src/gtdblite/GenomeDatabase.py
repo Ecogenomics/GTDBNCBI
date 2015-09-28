@@ -24,6 +24,9 @@ class GenomeDatabase(object):
         self.warningMessages = []
         self.debugMode = False
         self.pool = Pool(threads)
+	self.genomeFileSuffix="_genomic.fna"
+	self.proteinFileSuffix="_protein.faa"
+	self.sumFileName="genome_dirs.tsv"
         
         self.genomeCopyDir = None
         if Config.GTDB_GENOME_COPY_DIR:
@@ -439,16 +442,18 @@ class GenomeDatabase(object):
                                 raise GenomeDatabaseError("Genome copy directory exists, but isn't a directory: %s" % (target_dir,))
                         else:
                             os.mkdir(sub_target_dir)
-                        target_file = os.path.join(sub_target_dir, external_id + ".fasta")
+                        target_file = os.path.join(sub_target_dir, external_id + self.genomeFileSuffix)
                         shutil.copy(fasta_paths_to_copy.get(genome_id).get('fasta_path'), target_file)
                         os.chmod(target_file, stat.S_IROTH | stat.S_IRGRP | stat.S_IRUSR)
                         copied_fasta_paths.append(target_file)
-                        genes_target_file = os.path.join(sub_target_dir, external_id + "_proteins.faa")
+                        genes_target_file = os.path.join(sub_target_dir, external_id + self.proteinFileSuffix)
                         shutil.copy(fasta_paths_to_copy.get(genome_id).get('gene_path'), genes_target_file)
                         copied_genes_fasta_paths.append(genes_target_file)
 
-
                         cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (target_file, genes_target_file,genome_id))
+
+		    #The Genome file summary is written
+		    self.updateGenomeSummary(copied_fasta_paths)
                         
                 except Exception as e:
                     try:
@@ -578,6 +583,15 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+    def updateGenomeSummary(self,copied_fasta_paths=None):
+     summaryFile=self.genomeCopyDir+self.sumFileName
+     with open(summaryFile,"a") as sf:
+	  for copied_path in copied_fasta_paths:
+		sf.write("{0}\t{1}\n".format(os.path.basename(os.path.dirname(copied_path)),os.path.dirname(copied_path)))
+     sf.close()
+		
+	     
 
     def list_markers(self,cur=None,library=None):
       cur.execute("SELECT id_in_database FROM markers m "+
