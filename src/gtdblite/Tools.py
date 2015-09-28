@@ -9,7 +9,10 @@ import multiprocessing
 import math
 import time
 
+from itertools import islice
 from gtdblite.Exceptions import GenomeDatabaseError
+from gtdblite import MarkerCalculation
+from itertools import islice
 
 ##################################################
 ##################################################
@@ -38,15 +41,58 @@ def populate_required_headers(checkm_fh):
 	    raise GenomeDatabaseError("Unable to find %s header in the checkM file. Check the checkM file is correct: %s." % (header, checkM_file))
     return required_headers
 
+#################################################
+#################################################
+#################################################
+
+def runMultiProdigal(nprocs=None,nogene_list=None):
+    def worker(nogene_subdict, out_dict):
+        """ The worker function, invoked in a process. 'genome_dict' is a
+            dictionnary of genes to align. The results are placed in
+            a dictionary that's pushed to a queue.
+        """
+
+        prodig_dir=tempfile.mkdtemp()
+        for key,value in nogene_subdict.iteritems():
+            if(value.get("gene_path") is None):
+                prodigal_tmp_dir = MarkerCalculation.RunProdigalOnGenomeFasta(value.get("fasta_path"))
+                value["gene_path"]=os.path.join(prodigal_tmp_dir,"genes.faa")
+            out_dict[key]=value
+        return True
+    # Each process will get 'chunksize' nums and a queue to put his out
+    # dict into
+    manager = multiprocessing.Manager()
+    out_dict = manager.dict()
+#    chunksize = int(math.ceil(len(genome_dict) / float(nprocs)))
+    procs = []
+    index=0
+
+    for item in splitchunks(nogene_list,nprocs):
+        p = multiprocessing.Process(
+                target=worker,
+                args=(item,out_dict))
+        procs.append(p)
+        p.start()
+    # Collect all results into a single result dict. We know how many dicts
+    # with results to expect.
+    resultlist = []
+    while len(out_dict)<len(nogene_list):
+        time.sleep(1)
+
+    # Wait for all worker processes to finish
+    for p in procs:
+        p.join()
+    print out_dict
+    return out_dict
 
 
 ##################################################
 ############MISC UTILITIES########################
 ##################################################
-def splitchunks(l, n):
-    """Yield successive n-sized chunks from l."""
-    for i in xrange(0, len(l), n):
-        yield l[i:i+n]
+def splitchunks(d, n):
+    it = iter(d)
+    for i in xrange(0, len(d), n):
+        yield {k:d[k] for k in islice(it, n)}
 
 def generateTempTableName(self):
     rng = random.SystemRandom()

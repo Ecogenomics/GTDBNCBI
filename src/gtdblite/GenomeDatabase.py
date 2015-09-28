@@ -389,30 +389,32 @@ class GenomeDatabase(object):
                     raise GenomeDatabaseError("Unable to create the new genome list.")
 
             # Add the genomes
-            added_genome_ids = self.add_genome_list(cur,checkM_results_dict,batchfile,force_overwrite)
+            added_genome_dict = self.add_genome_list(cur,checkM_results_dict,batchfile,force_overwrite)
+
+	    #We run Prodigal on Genomes having only a genome file
+	    fasta_paths_to_copy = Tools.runMultiProdigal(2,added_genome_dict)
 
 
             if modify_genome_list_id is not None:
-                if not self.EditGenomeListWorking(cur, modify_genome_list_id, genome_ids=added_genome_ids, operation='add'):
+                if not self.EditGenomeListWorking(cur, modify_genome_list_id, genome_ids=added_genome_dict.keys(), operation='add'):
                     raise GenomeDatabaseError("Unable to add genomes to genome list.")
    
             copied_fasta_paths = []
 	    copied_genes_fasta_paths = []
-            fasta_paths_to_copy = {}
+	    external_id_dict={}
             
-            cur.execute("SELECT genomes.id, fasta_file_location, genes_file_location,user_editable, external_id_prefix || '_' || id_at_source as external_id "
+            cur.execute("SELECT genomes.id,user_editable, external_id_prefix || '_' || id_at_source as external_id "+
                         "FROM genomes, genome_sources " +
                         "WHERE genome_source_id = genome_sources.id " +
-                        "AND genomes.id in %s", (tuple(added_genome_ids),))
-            
-            for (genome_id, abs_path, abs_gene_path,user_editable, external_id) in cur:
-                if user_editable:
-                    fasta_paths_to_copy[genome_id] = {'src_path': abs_path,
-                                                      'external_id': external_id,
-                                                      'gene_path':abs_gene_path}
+                        "AND genomes.id in %s", (tuple(added_genome_dict.keys()),))
+	            
 
+            for (genome_id,user_editable,external_id) in cur:
+                if user_editable:
+		  external_id_dict[genome_id]=external_id
+		  	
             
-            if len(fasta_paths_to_copy.keys()) > 0:
+            if len(external_id_dict.keys()) > 0:
                 username = None
                 if self.currentUser.isRootUser():
                     username = self.currentUser.getElevatedFromUsername()
@@ -430,24 +432,20 @@ class GenomeDatabase(object):
                     os.mkdir(target_dir)
                     
                 try:
-                    for (genome_id, details) in fasta_paths_to_copy.items():
-                        sub_target_dir=os.path.join(target_dir,details['external_id'])
+                    for genome_id,external_id in external_id_dict.items():
+                        sub_target_dir=os.path.join(target_dir,external_id)
                         if os.path.exists(sub_target_dir):
                             if not os.path.isdir(target_dir):
                                 raise GenomeDatabaseError("Genome copy directory exists, but isn't a directory: %s" % (target_dir,))
                         else:
                             os.mkdir(sub_target_dir)
-
-                    
-                        target_file = os.path.join(sub_target_dir, details['external_id'] + ".fasta")
-                        shutil.copy(details['src_path'], target_file)
+                        target_file = os.path.join(sub_target_dir, external_id + ".fasta")
+                        shutil.copy(fasta_paths_to_copy.get(genome_id).get('fasta_path'), target_file)
                         os.chmod(target_file, stat.S_IROTH | stat.S_IRGRP | stat.S_IRUSR)
                         copied_fasta_paths.append(target_file)
-                        genes_target_file=None
-                        if details['gene_path'] is not None:
-                            genes_target_file = os.path.join(sub_target_dir, details['external_id'] + "_proteins.faa")
-                            shutil.copy(details['gene_path'], genes_target_file)
-                            copied_genes_fasta_paths.append(genes_target_file)
+                        genes_target_file = os.path.join(sub_target_dir, external_id + "_proteins.faa")
+                        shutil.copy(fasta_paths_to_copy.get(genome_id).get('gene_path'), genes_target_file)
+                        copied_genes_fasta_paths.append(genes_target_file)
 
 
                         cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (target_file, genes_target_file,genome_id))
@@ -485,11 +483,9 @@ class GenomeDatabase(object):
         try:
 	    fasta_sha256_checksum = Tools.sha256Calculator(fasta_file_path)
 	    gene_sha256_checksum=None
-            if gene_path is None:
-               prodigal_tmp_dir = MarkerCalculation.RunProdigalOnGenomeFasta(fasta_file_path)
-               gene_path =os.path.join(prodigal_tmp_dir,"genes.faa")
 
-            gene_sha256_checksum = Tools.sha256Calculator(gene_path)
+            if gene_path is not None:
+            	gene_sha256_checksum = Tools.sha256Calculator(gene_path)
             if source is None:
                 source = self.defaultGenomeSourceName
             
@@ -593,7 +589,7 @@ class GenomeDatabase(object):
 
     def add_genome_list(self,cur=None,checkM_results_dict=None,batchfile=None,force_overwrite=False):
       # Add the genomes
-      added_genome_ids = []
+      added_genome_ids = {}
       fh = open(batchfile, "rb")
       for line in fh:
            line = line.rstrip()
@@ -617,7 +613,7 @@ class GenomeDatabase(object):
            abs_gene_path=None
            if gene_path is not None and gene_path != '':
                abs_gene_path = os.path.abspath(gene_path)
-               gene_basename = os.path.splitext(os.path.basename(abs_gene_path))[0]
+	      
 
 
            if basename not in checkM_results_dict:
@@ -630,7 +626,7 @@ class GenomeDatabase(object):
            if not (genome_id):
                raise GenomeDatabaseError("Failed to add genome: %s" % abs_path)
 
-           added_genome_ids.append(genome_id)
+           added_genome_ids[genome_id]={"gene_path":abs_gene_path,"fasta_path":abs_path}
       return added_genome_ids
 
     # True if has permission. False if doesn't. None on error.
