@@ -1,4 +1,22 @@
 #!/usr/bin/env python
+
+###############################################################################
+#                                                                             #
+#    This program is free software: you can redistribute it and/or modify     #
+#    it under the terms of the GNU General Public License as published by     #
+#    the Free Software Foundation, either version 3 of the License, or        #
+#    (at your option) any later version.                                      #
+#                                                                             #
+#    This program is distributed in the hope that it will be useful,          #
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of           #
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #
+#    GNU General Public License for more details.                             #
+#                                                                             #
+#    You should have received a copy of the GNU General Public License        #
+#    along with this program. If not, see <http://www.gnu.org/licenses/>.     #
+#                                                                             #
+###############################################################################
+
 import argparse
 import sys
 import os
@@ -8,20 +26,25 @@ from gtdblite import GenomeDatabase
 from gtdblite import profiles
 from gtdblite.Exceptions import GenomeDatabaseError
 
+
 def GetLinuxUsername():
     return pwd.getpwuid(os.getuid())[0]
+
 
 def DumpDBErrors(db):
     ErrorReport("\n".join(["\t" + x for x in db.GetErrors()]) + "\n")
     db.ClearErrors()
 
+
 def DumpDBWarnings(db):
     ErrorReport("\n".join(["\t" + x for x in db.GetWarnings()]) + "\n")
     db.ClearWarnings()
 
+
 def ErrorReport(msg):
     sys.stderr.write(msg)
     sys.stderr.flush()
+
 
 def AddUser(db, args):
 
@@ -30,6 +53,7 @@ def AddUser(db, args):
         has_root = True
 
     return db.AddUser(args.username, args.role, has_root)
+
 
 def EditUser(db, args):
     return db.EditUser(args.username, args.role, args.has_root)
@@ -41,11 +65,13 @@ def AddManyFastaGenomes(db, args):
         args.genome_list_name, args.force
     )
 
+
 def AddMarkers(db, args):
     return db.AddMarkers(
         args.batchfile, args.marker_set_id,
         args.marker_set_name, args.force
     )
+
 
 def CreateTreeData(db, args):
 
@@ -124,8 +150,8 @@ def CreateTreeData(db, args):
             except IndexError:
                 profile_config_dict[key_value_pair[0]] = None
 
-
     return db.MakeTreeData(marker_id_list, genome_id_list, args.out_dir, "gtdblite", args.profile, profile_config_dict, not(args.no_tree))
+
 
 def ViewGenomes(db, args):
 
@@ -136,6 +162,7 @@ def ViewGenomes(db, args):
         if args.id_list:
             external_ids = args.genome_ids.split(",")
         return db.ViewGenomes(args.batchfile, external_ids)
+
 
 def DeleteGenomes(db, args):
 
@@ -167,6 +194,7 @@ def CreateGenomeList(db, args):
 
     return genome_list_id
 
+
 def ViewGenomeLists(db, args):
 
     genome_lists = []
@@ -191,6 +219,7 @@ def ViewGenomeLists(db, args):
         return True
     return db.PrintGenomeListsDetails(genome_lists)
 
+
 def ContentsGenomeLists(db, args):
 
     list_ids = []
@@ -199,6 +228,7 @@ def ContentsGenomeLists(db, args):
         list_ids = args.list_ids.split(",")
 
     return db.ViewGenomeListsContents(list_ids)
+
 
 def EditGenomeLists(db, args):
 
@@ -214,6 +244,7 @@ def EditGenomeLists(db, args):
 
     return db.EditGenomeList(args.list_id, args.batchfile, genome_ids, args.operation, args.name, args.description, private)
 
+
 def ViewMarkers(db, args):
 
     if args.view_all:
@@ -223,6 +254,7 @@ def ViewMarkers(db, args):
         if args.id_list:
             external_ids = args.id_list.split(",")
         return db.ViewMarkers(args.batchfile, external_ids)
+
 
 def CreateMarkerSet(db, args):
 
@@ -244,6 +276,7 @@ def CreateMarkerSet(db, args):
         db.ReportWarning("New marker set was created, but failed to print details to screen.")
 
     return marker_set_id
+
 
 def ViewMarkerSets(db, args):
 
@@ -269,6 +302,7 @@ def ViewMarkerSets(db, args):
         return True
     return db.PrintMarkerSetsDetails(marker_sets)
 
+
 def EditMarkerSet(db, args):
 
     marker_ids = None
@@ -282,6 +316,7 @@ def EditMarkerSet(db, args):
         private = True
 
     return db.EditMarkerSet(args.set_id, args.batchfile, marker_ids, args.operation, args.name, args.description, private)
+
 
 def MarkerSetsContents(db, args):
     set_ids = []
@@ -344,7 +379,6 @@ if __name__ == '__main__':
                                     required=False, help='User has permission to become the root user.')
     parser_user_add.set_defaults(func=AddUser)
 
-
     # user edit parser
     parser_user_edit = user_category_subparser.add_parser('edit',
                                     help='Edit a user')
@@ -359,7 +393,6 @@ if __name__ == '__main__':
     mutex_group.add_argument('--no_root', dest='has_root', action="store_false", default=None,
                                     help="Revoke user's permission to become the root user.")
     parser_user_edit.set_defaults(func=EditUser)
-
 
     # user delete parser
 
@@ -514,7 +547,6 @@ if __name__ == '__main__':
 
     parser_marker_sets_create.set_defaults(func=CreateMarkerSet)
 
-
     parser_marker_sets_view = marker_set_category_subparser.add_parser('view',
                                         help='View visible marker sets.')
 
@@ -531,7 +563,6 @@ if __name__ == '__main__':
                                         help='View EVERY marker set that you can access (the default is to show only public and your own sets).')
 
     parser_marker_sets_view.set_defaults(func=ViewMarkerSets)
-
 
     #------------ Show marker set(s) contents
     parser_marker_sets_contents = marker_set_category_subparser.add_parser('contents',
@@ -597,13 +628,10 @@ if __name__ == '__main__':
 
     parser_tree_create.set_defaults(func=CreateTreeData)
 
-
     # Do the parsing
-
     args = parser.parse_args()
 
     # Special parser checks
-
     if (args.category_parser_name == 'trees' and args.tree_subparser_name == 'create'):
         if (args.genome_batchfile is None and args.genome_ids is None and args.genome_list_ids is None and not args.all_genomes):
             parser_tree_create.error('Need to specify at least one of --genome_batchfile, --genome_ids, --genome_list_ids or --all_genomes')
@@ -683,4 +711,3 @@ if __name__ == '__main__':
         ErrorReport("Database action failed. The following error(s) were reported:\n")
         DumpDBErrors(db)
         sys.exit(-1)
-
