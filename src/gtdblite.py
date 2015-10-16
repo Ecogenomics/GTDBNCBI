@@ -47,7 +47,6 @@ def ErrorReport(msg):
 
 
 def AddUser(db, args):
-
     has_root = False
     if args.has_root:
         has_root = True
@@ -160,7 +159,7 @@ def ViewGenomes(db, args):
     else:
         external_ids = None
         if args.id_list:
-            external_ids = args.genome_ids.split(",")
+            external_ids = args.id_list.split(",")
         return db.ViewGenomes(args.batchfile, external_ids)
 
 
@@ -178,7 +177,7 @@ def CreateGenomeList(db, args):
     external_ids = []
 
     if args.genome_ids:
-        external_ids = args.id_list.split(",")
+        external_ids = args.genome_ids.split(",")
     genome_list_id = db.CreateGenomeList(args.batchfile, external_ids, args.name, args.description, (not args.public))
 
     if genome_list_id is False:
