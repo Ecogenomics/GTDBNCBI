@@ -1,0 +1,14 @@
+Releases
+
+19-Oct-2015
+
+New Features
+
+Medadata -
+List available metadata columns plsu description
+gtdblite.py metadata view
+Export table of all metadata for all genomes
+gtdblite.py metadata export --output /path/to/file
+
+Build a Tree
+gtdblite.py -t 20 trees create --genome_list_ids 2 --marker_set_ids 2 --output ~/development/trees/myfirsttree  --profile_args guaranteed_genome_list_ids=2

@@ -325,6 +325,13 @@ def MarkerSetsContents(db, args):
 
     return db.ViewMarkerSetsContents(set_ids)
 
+def viewMetadata(db,args):
+    return db.viewMetadata()
+
+def exportMetadata(db,args):
+    return db.exportMetadata(args.outfile)
+
+
 if __name__ == '__main__':
 
     # create the top-level parser
@@ -358,12 +365,16 @@ if __name__ == '__main__':
 
     marker_set_category_parser = category_parser.add_parser('marker_sets', help='Access the marker set management sub-commands')
     marker_set_category_subparser = marker_set_category_parser.add_subparsers(help='Marker Set command help', dest='marker_sets_subparser_name')
+    
+    metadata_category_parser = category_parser.add_parser('metadata', help='Access the metadata management commands')
+    metadata_category_subparser = metadata_category_parser.add_subparsers(help='Metadata command help', dest='metadata_subparser_name')
 
     tree_category_parser = category_parser.add_parser('trees', help='Access the tree management commands')
     tree_category_subparser = tree_category_parser.add_subparsers(help='Tree command help', dest='tree_subparser_name')
 
     profile_category_parser = category_parser.add_parser('profiles', help='Access the profile management commands')
     profile_category_subparser = profile_category_parser.add_subparsers(help='Profile command help', dest='profile_subparser_name')
+
 
 # -------- User Management subparsers
 
@@ -593,6 +604,42 @@ if __name__ == '__main__':
                              help='Make this marker set public (all users can see).')
 
     parser_marker_sets_edit.set_defaults(func=EditMarkerSet)
+
+# -------- Metadata Management subparsers
+
+    # metadata create columns parser
+    parser_metadata_create = metadata_category_subparser.add_parser('create',
+                                    help='Create one or many metadata field.')
+    parser_metadata_create.add_argument('--file', dest = 'metadatafile',
+                                    required=True, help='Metadata file describing the new field - one metadata per line, tab separated in 4 columns (name,description,datatype,metadata table')
+#    parser_metadata_create.set_defaults(func=createMetadata)
+
+    # metadata view parser
+    parser_metadata_view = metadata_category_subparser.add_parser('view',
+                                    help='List all existing metadata fields with table name and description')
+    parser_metadata_view.set_defaults(func=viewMetadata)
+
+    # metadata import parser
+    parser_metadata_import = metadata_category_subparser.add_parser('import',
+                                    help='Import Metadata values for a list of genome')
+    parser_metadata_import.add_argument('--table', dest = 'table', default=None,
+                                    help='Table where the metadata field is present')
+    parser_metadata_import.add_argument('--field', dest = 'field', default=None,
+                                    help='Metadata field where the value(s) will be saved')
+    parser_metadata_import.add_argument('--type', dest = 'type', default=None,
+                                    help='Type of the Metadata field')
+    parser_metadata_import.add_argument('--metadatafile', dest = 'metadatafile', default=None,
+                                    help='TSV file . One genome per line , tab separated in 2 columns (genome id , metadata value)')                                    
+#    parser_metadata_import.set_defaults(func=importMetadata)
+    
+    # metadata export parser
+    
+    parser_metadata_export = metadata_category_subparser.add_parser('export',
+                                    help='Export a TSV file with all Metadata fields')
+    parser_metadata_export.add_argument('--output', dest = 'outfile', default=None,required=True,
+                                    help='Destination to write the TSV file')
+    parser_metadata_export.set_defaults(func=exportMetadata)
+                           
 
 # -------- Generate Tree Data
 

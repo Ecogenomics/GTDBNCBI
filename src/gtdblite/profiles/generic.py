@@ -2,6 +2,7 @@ import os
 import sys
 import psycopg2 as pg
 import common
+from .. import Tools 
 
 valid_configs = [('individual', type(None), "Create individual FASTA files for each marker instead of a concatenated alignment."),
                  ('checkm_contamination_threshold', float, "Only include genomes with CheckM contamination below this"),
@@ -112,7 +113,8 @@ def MakeTreeData(GenomeDatabase, marker_ids, genome_ids, directory, prefix=None,
         sys.stderr.flush()  
     
     # Select all the genomes - could be lots of genome id, create a temp table
-    temp_table_name = GenomeDatabase.GenerateTempTableName()
+#    temp_table_name = GenomeDatabase.GenerateTempTableName()
+    temp_table_name = Tools.generateTempTableName()
 
     cur.execute("CREATE TEMP TABLE %s (id integer)" % (temp_table_name,) )
     query = "INSERT INTO {0} (id) VALUES (%s)".format(temp_table_name)
