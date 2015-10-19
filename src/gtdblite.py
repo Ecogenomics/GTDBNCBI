@@ -325,10 +325,12 @@ def MarkerSetsContents(db, args):
 
     return db.ViewMarkerSetsContents(set_ids)
 
-def viewMetadata(db,args):
+
+def viewMetadata(db, args):
     return db.viewMetadata()
 
-def exportMetadata(db,args):
+
+def exportMetadata(db, args):
     return db.exportMetadata(args.outfile)
 
 
@@ -365,7 +367,7 @@ if __name__ == '__main__':
 
     marker_set_category_parser = category_parser.add_parser('marker_sets', help='Access the marker set management sub-commands')
     marker_set_category_subparser = marker_set_category_parser.add_subparsers(help='Marker Set command help', dest='marker_sets_subparser_name')
-    
+
     metadata_category_parser = category_parser.add_parser('metadata', help='Access the metadata management commands')
     metadata_category_subparser = metadata_category_parser.add_subparsers(help='Metadata command help', dest='metadata_subparser_name')
 
@@ -374,7 +376,6 @@ if __name__ == '__main__':
 
     profile_category_parser = category_parser.add_parser('profiles', help='Access the profile management commands')
     profile_category_subparser = profile_category_parser.add_subparsers(help='Profile command help', dest='profile_subparser_name')
-
 
 # -------- User Management subparsers
 
@@ -610,7 +611,7 @@ if __name__ == '__main__':
     # metadata create columns parser
     parser_metadata_create = metadata_category_subparser.add_parser('create',
                                     help='Create one or many metadata field.')
-    parser_metadata_create.add_argument('--file', dest = 'metadatafile',
+    parser_metadata_create.add_argument('--file', dest='metadatafile',
                                     required=True, help='Metadata file describing the new field - one metadata per line, tab separated in 4 columns (name,description,datatype,metadata table')
 #    parser_metadata_create.set_defaults(func=createMetadata)
 
@@ -622,27 +623,25 @@ if __name__ == '__main__':
     # metadata import parser
     parser_metadata_import = metadata_category_subparser.add_parser('import',
                                     help='Import Metadata values for a list of genome')
-    parser_metadata_import.add_argument('--table', dest = 'table', default=None,
+    parser_metadata_import.add_argument('--table', dest='table', default=None,
                                     help='Table where the metadata field is present')
-    parser_metadata_import.add_argument('--field', dest = 'field', default=None,
+    parser_metadata_import.add_argument('--field', dest='field', default=None,
                                     help='Metadata field where the value(s) will be saved')
-    parser_metadata_import.add_argument('--type', dest = 'type', default=None,
+    parser_metadata_import.add_argument('--type', dest='type', default=None,
                                     help='Type of the Metadata field')
-    parser_metadata_import.add_argument('--metadatafile', dest = 'metadatafile', default=None,
-                                    help='TSV file . One genome per line , tab separated in 2 columns (genome id , metadata value)')                                    
+    parser_metadata_import.add_argument('--metadatafile', dest='metadatafile', default=None,
+                                    help='TSV file . One genome per line , tab separated in 2 columns (genome id , metadata value)')
 #    parser_metadata_import.set_defaults(func=importMetadata)
-    
+
     # metadata export parser
-    
+
     parser_metadata_export = metadata_category_subparser.add_parser('export',
                                     help='Export a TSV file with all Metadata fields')
-    parser_metadata_export.add_argument('--output', dest = 'outfile', default=None,required=True,
+    parser_metadata_export.add_argument('--output', dest='outfile', default=None, required=True,
                                     help='Destination to write the TSV file')
     parser_metadata_export.set_defaults(func=exportMetadata)
-                           
 
 # -------- Generate Tree Data
-
     parser_tree_create = tree_category_subparser.add_parser('create',
                                         help='Create a genome tree')
 
