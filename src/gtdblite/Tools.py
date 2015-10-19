@@ -8,6 +8,7 @@ import subprocess
 import multiprocessing
 import math
 import time
+import random
 
 from itertools import islice
 from gtdblite.Exceptions import GenomeDatabaseError
@@ -90,11 +91,12 @@ def runMultiProdigal(nprocs=None,nogene_list=None):
 ############MISC UTILITIES########################
 ##################################################
 def splitchunks(d, n):
+    chunksize = int(math.ceil(len(genome_dict) / float(nprocs)))
     it = iter(d)
-    for i in xrange(0, len(d), n):
-        yield {k:d[k] for k in islice(it, n)}
+    for i in xrange(0, len(d), chunksize):
+        yield {k:d[k] for k in islice(it, chunksize)}
 
-def generateTempTableName(self):
+def generateTempTableName():
     rng = random.SystemRandom()
     suffix = ''
     for i in range(0,10):
