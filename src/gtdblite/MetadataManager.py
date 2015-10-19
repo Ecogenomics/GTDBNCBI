@@ -1,7 +1,3 @@
-import shutil
-import os
-import sys
-
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
 from gtdblite.Exceptions import GenomeDatabaseError
 
