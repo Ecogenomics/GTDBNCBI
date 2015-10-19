@@ -12,3 +12,16 @@ gtdblite.py metadata export --output /path/to/file
 
 Build a Tree
 gtdblite.py -t 20 trees create --genome_list_ids 2 --marker_set_ids 2 --output ~/development/trees/myfirsttree  --profile_args guaranteed_genome_list_ids=2
+
+-----------
+20-Oct-2015
+
+New Feature
+
+Import Data into an existing column
+gtdblite.py metadata import --table metadata_table_name --field column_name --type datatype (either int/float/text) --metadatafile /path/to/tsv_file.tsv
+Where TSV file is in the format : First column Genome id, Second Column Value to Save
+U_27    75.4
+NCBI_GCA_000421925.1    98.4
+
+

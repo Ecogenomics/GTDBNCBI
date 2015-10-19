@@ -70,3 +70,25 @@ class MetadataManager(object):
             self.conn.ClosePostgresConnection
         except GenomeDatabaseError as e:
             raise self.ReportError(e.message)
+
+    def importMetadata(self, table=None, field=None, typemeta=None, metafile=None):
+        try:
+            self.conn.MakePostgresConnection()
+            cur = self.conn.cursor()
+            data_list = []
+            with open(metafile, 'r') as metaf:
+                for line in metaf:
+                    data_list.append(tuple(line.strip().split('\t')))
+            data_zip = zip(*data_list)
+            genome_id = list(data_zip[0])
+            meta_value = list(data_zip[1])
+            for n, i in enumerate(genome_id):
+                new_i = i.split("_", 1)[1]
+                genome_id[n] = new_i
+            query = "SELECT upsert('{0}','{1}','{2}',%s,%s)".format(table, field, typemeta)
+            cur.execute(query, (genome_id, meta_value))
+            self.conn.commit()
+            cur.close()
+            self.conn.ClosePostgresConnection()
+        except GenomeDatabaseError as e:
+            raise self.ReportError(e.message)
