@@ -85,10 +85,49 @@ class MetadataManager(object):
             for n, i in enumerate(genome_id):
                 new_i = i.split("_", 1)[1]
                 genome_id[n] = new_i
-            query = "SELECT upsert('{0}','{1}','{2}',%s,%s)".format(table, field, typemeta)
+            query = "SELECT upsert('{0}','{1}','{2}',%s,%s)".format(
+                table, field, typemeta)
             cur.execute(query, (genome_id, meta_value))
             self.conn.commit()
             cur.close()
             self.conn.ClosePostgresConnection()
+        except GenomeDatabaseError as e:
+            raise self.ReportError(e.message)
+
+    def createMetadata(self, metadatafile):
+        try:
+            self.conn.MakePostgresConnection()
+            cur = self.conn.cursor()
+            data_dict = {}
+            with open(metadatafile, 'r') as metaf:
+                for line in metaf:
+                    array_line = line.strip().split('\t')
+                    data_dict[array_line[1]] = {
+                        "table": array_line[0], "type": array_line[2], "desc": array_line[3]}
+
+            query = "SELECT v.field,v.table from view_list_meta_columns as v"
+            cur.execute(query)
+            all_col_dict = dict(cur.fetchall())
+            print all_col_dict
+            for key, value in data_dict.iteritems():
+                if key in all_col_dict:
+                    if all_col_dict.get(key) == value.get("table"):
+                        query_comment = "COMMENT ON COLUMN {0}.{1} IS '{2}'".format(
+                            value.get("table"), key, value.get("desc"))
+                        cur.execute(query_comment)
+                    else:
+                        print "warning"
+                        self.ReportWarning("Column {0} is already presents in the {1} table .".format(
+                            key, all_col_dict.get(key)))
+                else:
+                    query_add_col = "ALTER TABLE {0} ADD COLUMN {1} {2}".format(
+                        value.get("table"), key, value.get("type"))
+                    cur.execute(query_add_col)
+                    query_add_comment = "COMMENT ON COLUMN {0}.{1} IS '{2}'".format(
+                        value.get("table"), key, value.get("desc"))
+                    cur.execute(query_add_comment)
+            self.conn.commit()
+            cur.close()
+            self.conn.ClosePostgresConnection
         except GenomeDatabaseError as e:
             raise self.ReportError(e.message)
