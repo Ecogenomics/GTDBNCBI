@@ -82,13 +82,15 @@ def CreateTreeData(db, args):
             return False
     else:
         if args.genome_ids:
-            temp_list = db.ExternalGenomeIdsToGenomeIds(args.genome_ids.split(","))
+            temp_list = db.ExternalGenomeIdsToGenomeIds(
+                args.genome_ids.split(","))
             if temp_list is False:
                 return False
             genome_id_list += temp_list
 
         if args.genome_list_ids:
-            temp_list = db.GetGenomeIdListFromGenomeListIds(args.genome_list_ids.split(","))
+            temp_list = db.GetGenomeIdListFromGenomeListIds(
+                args.genome_list_ids.split(","))
             if temp_list is False:
                 return False
             genome_id_list += temp_list
@@ -101,7 +103,8 @@ def CreateTreeData(db, args):
                 genome_batchfile_ids.append(line)
 
         if genome_batchfile_ids:
-            genome_id_list += db.ExternalGenomeIdsToGenomeIds(genome_batchfile_ids)
+            genome_id_list += db.ExternalGenomeIdsToGenomeIds(
+                genome_batchfile_ids)
 
     if (len(genome_id_list) == 0):
         db.ReportError("No genomes found from the information provided.")
@@ -178,7 +181,8 @@ def CreateGenomeList(db, args):
 
     if args.genome_ids:
         external_ids = args.genome_ids.split(",")
-    genome_list_id = db.CreateGenomeList(args.batchfile, external_ids, args.name, args.description, (not args.public))
+    genome_list_id = db.CreateGenomeList(
+        args.batchfile, external_ids, args.name, args.description, (not args.public))
 
     if genome_list_id is False:
         return False
@@ -189,7 +193,8 @@ def CreateGenomeList(db, args):
         print_success = False
 
     if not print_success:
-        db.ReportWarning("New genome list was created, but failed to print details to screen.")
+        db.ReportWarning(
+            "New genome list was created, but failed to print details to screen.")
 
     return genome_list_id
 
@@ -203,14 +208,17 @@ def ViewGenomeLists(db, args):
         view_all = True
 
     if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
-        genome_lists = db.GetVisibleGenomeListsByOwner(all_non_private=view_all)
+        genome_lists = db.GetVisibleGenomeListsByOwner(
+            all_non_private=view_all)
     elif args.self_owned:
-        genome_lists = db.GetVisibleGenomeListsByOwner(db.currentUser.getUserId(), all_non_private=view_all)
+        genome_lists = db.GetVisibleGenomeListsByOwner(
+            db.currentUser.getUserId(), all_non_private=view_all)
     elif args.all_owners:
         genome_lists = db.GetAllVisibleGenomeListIds(all_non_private=view_all)
     else:
         # TODO: this
-        db.ReportError("Viewing other peoples' genome lists not yet implemented.")
+        db.ReportError(
+            "Viewing other peoples' genome lists not yet implemented.")
         return False
 
     if len(genome_lists) == 0:
@@ -261,7 +269,8 @@ def CreateMarkerSet(db, args):
 
     if args.genome_ids:
         external_ids = args.id_list.split(",")
-    marker_set_id = db.CreateMarkerSet(args.batchfile, external_ids, args.name, args.description, (not args.public))
+    marker_set_id = db.CreateMarkerSet(
+        args.batchfile, external_ids, args.name, args.description, (not args.public))
 
     if marker_set_id is False:
         return False
@@ -272,7 +281,8 @@ def CreateMarkerSet(db, args):
         print_success = False
 
     if not print_success:
-        db.ReportWarning("New marker set was created, but failed to print details to screen.")
+        db.ReportWarning(
+            "New marker set was created, but failed to print details to screen.")
 
     return marker_set_id
 
@@ -288,12 +298,14 @@ def ViewMarkerSets(db, args):
     if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
         marker_sets = db.GetVisibleMarkerSetsByOwner(all_non_private=view_all)
     elif args.self_owned:
-        marker_sets = db.GetVisibleMarkerSetsByOwner(db.currentUser.getUserId(), all_non_private=view_all)
+        marker_sets = db.GetVisibleMarkerSetsByOwner(
+            db.currentUser.getUserId(), all_non_private=view_all)
     elif args.all_owners:
         marker_sets = db.GetAllVisibleMarkerSetIds(all_non_private=view_all)
     else:
         # TODO: this
-        db.ReportError("Viewing other peoples' marker sets not yet implemented.")
+        db.ReportError(
+            "Viewing other peoples' marker sets not yet implemented.")
         return False
 
     if len(marker_sets) == 0:
@@ -337,6 +349,10 @@ def exportMetadata(db, args):
 def importMetadata(db, args):
     return db.importMetadata(args.table, args.field, args.typemeta, args.metadatafile)
 
+
+def createMetadata(db, args):
+    return db.createMetadata(args.metadatafile)
+
 if __name__ == '__main__':
 
     # create the top-level parser
@@ -354,31 +370,48 @@ if __name__ == '__main__':
     parser.add_argument('--debug', dest='debug', action='store_true',
                         help='Run in debug mode')
 
-    category_parser = parser.add_subparsers(help='Category Command Help', dest='category_parser_name')
+    category_parser = parser.add_subparsers(
+        help='Category Command Help', dest='category_parser_name')
 
-    user_category_parser = category_parser.add_parser('users', help='Access the user management sub-commands')
-    user_category_subparser = user_category_parser.add_subparsers(help='User command help', dest='user_subparser_name')
+    user_category_parser = category_parser.add_parser(
+        'users', help='Access the user management sub-commands')
+    user_category_subparser = user_category_parser.add_subparsers(
+        help='User command help', dest='user_subparser_name')
 
-    genome_category_parser = category_parser.add_parser('genomes', help='Access the genome management sub-commands')
-    genome_category_subparser = genome_category_parser.add_subparsers(help='Genome command help', dest='genome_subparser_name')
+    genome_category_parser = category_parser.add_parser(
+        'genomes', help='Access the genome management sub-commands')
+    genome_category_subparser = genome_category_parser.add_subparsers(
+        help='Genome command help', dest='genome_subparser_name')
 
-    genome_list_category_parser = category_parser.add_parser('genome_lists', help='Access the genome list management sub-commands')
-    genome_list_category_subparser = genome_list_category_parser.add_subparsers(help='Genome List command help', dest='genome_list_subparser_name')
+    genome_list_category_parser = category_parser.add_parser(
+        'genome_lists', help='Access the genome list management sub-commands')
+    genome_list_category_subparser = genome_list_category_parser.add_subparsers(
+        help='Genome List command help', dest='genome_list_subparser_name')
 
-    marker_category_parser = category_parser.add_parser('markers', help='Access the marker management commands')
-    marker_category_subparser = marker_category_parser.add_subparsers(help='Marker command help', dest='marker_subparser_name')
+    marker_category_parser = category_parser.add_parser(
+        'markers', help='Access the marker management commands')
+    marker_category_subparser = marker_category_parser.add_subparsers(
+        help='Marker command help', dest='marker_subparser_name')
 
-    marker_set_category_parser = category_parser.add_parser('marker_sets', help='Access the marker set management sub-commands')
-    marker_set_category_subparser = marker_set_category_parser.add_subparsers(help='Marker Set command help', dest='marker_sets_subparser_name')
+    marker_set_category_parser = category_parser.add_parser(
+        'marker_sets', help='Access the marker set management sub-commands')
+    marker_set_category_subparser = marker_set_category_parser.add_subparsers(
+        help='Marker Set command help', dest='marker_sets_subparser_name')
 
-    metadata_category_parser = category_parser.add_parser('metadata', help='Access the metadata management commands')
-    metadata_category_subparser = metadata_category_parser.add_subparsers(help='Metadata command help', dest='metadata_subparser_name')
+    metadata_category_parser = category_parser.add_parser(
+        'metadata', help='Access the metadata management commands')
+    metadata_category_subparser = metadata_category_parser.add_subparsers(
+        help='Metadata command help', dest='metadata_subparser_name')
 
-    tree_category_parser = category_parser.add_parser('trees', help='Access the tree management commands')
-    tree_category_subparser = tree_category_parser.add_subparsers(help='Tree command help', dest='tree_subparser_name')
+    tree_category_parser = category_parser.add_parser(
+        'trees', help='Access the tree management commands')
+    tree_category_subparser = tree_category_parser.add_subparsers(
+        help='Tree command help', dest='tree_subparser_name')
 
-    profile_category_parser = category_parser.add_parser('profiles', help='Access the profile management commands')
-    profile_category_subparser = profile_category_parser.add_subparsers(help='Profile command help', dest='profile_subparser_name')
+    profile_category_parser = category_parser.add_parser(
+        'profiles', help='Access the profile management commands')
+    profile_category_subparser = profile_category_parser.add_subparsers(
+        help='Profile command help', dest='profile_subparser_name')
 
 # -------- User Management subparsers
 
@@ -472,12 +505,14 @@ if __name__ == '__main__':
     parser_genome_lists_view = genome_list_category_subparser.add_parser('view',
                                                                          help='View visible genome lists.')
 
-    mutex_group = parser_genome_lists_view.add_mutually_exclusive_group(required=True)
+    mutex_group = parser_genome_lists_view.add_mutually_exclusive_group(
+        required=True)
     mutex_group.add_argument('--root', dest='root_owned', default=False,
                              action='store_true', help='Only show genome lists owned by the root user.')
     mutex_group.add_argument('--self', dest='self_owned', default=False,
                              action='store_true', help='Only show genome lists owned by you.')
-    mutex_group.add_argument('--owner', dest='owner_name', help='Only show genome lists owned by a specific user.')
+    mutex_group.add_argument(
+        '--owner', dest='owner_name', help='Only show genome lists owned by a specific user.')
     mutex_group.add_argument('--everyone', dest='all_owners', default=False,
                              action='store_true', help='Show genome lists of all users.')
 
@@ -509,7 +544,8 @@ if __name__ == '__main__':
     parser_genome_lists_edit.add_argument('--description', dest='description',
                                           help='Change the brief description of the genome list to this.')
 
-    mutex_group = parser_genome_lists_edit.add_mutually_exclusive_group(required=False)
+    mutex_group = parser_genome_lists_edit.add_mutually_exclusive_group(
+        required=False)
     mutex_group.add_argument('--set_private', dest='private', action="store_true", default=False,
                              help='Make this genome list private (only you can see).')
     mutex_group.add_argument('--set_public', dest='public', action="store_true", default=False,
@@ -564,12 +600,14 @@ if __name__ == '__main__':
     parser_marker_sets_view = marker_set_category_subparser.add_parser('view',
                                                                        help='View visible marker sets.')
 
-    mutex_group = parser_marker_sets_view.add_mutually_exclusive_group(required=True)
+    mutex_group = parser_marker_sets_view.add_mutually_exclusive_group(
+        required=True)
     mutex_group.add_argument('--root', dest='root_owned', default=False,
                              action='store_true', help='Only show marker sets owned by the root user.')
     mutex_group.add_argument('--self', dest='self_owned', default=False,
                              action='store_true', help='Only show marker sets owned by you.')
-    mutex_group.add_argument('--owner', dest='owner_name', help='Only show marker sets owned by a specific user.')
+    mutex_group.add_argument(
+        '--owner', dest='owner_name', help='Only show marker sets owned by a specific user.')
     mutex_group.add_argument('--everyone', dest='all_owners', default=False,
                              action='store_true', help='Show marker sets of all users.')
 
@@ -601,7 +639,8 @@ if __name__ == '__main__':
     parser_marker_sets_edit.add_argument('--description', dest='description',
                                          help='Change the brief description of the marker set to this.')
 
-    mutex_group = parser_marker_sets_edit.add_mutually_exclusive_group(required=False)
+    mutex_group = parser_marker_sets_edit.add_mutually_exclusive_group(
+        required=False)
     mutex_group.add_argument('--set_private', dest='private', action="store_true", default=False,
                              help='Make this marker set private (only you can see).')
     mutex_group.add_argument('--set_public', dest='public', action="store_true", default=False,
@@ -617,7 +656,7 @@ if __name__ == '__main__':
     parser_metadata_create.add_argument('--file', dest='metadatafile',
                                         required=True, help='Metadata file describing the new field \
                                         - one metadata per line, tab separated in 4 columns (name,description,datatype,metadata table')
-#    parser_metadata_create.set_defaults(func=createMetadata)
+    parser_metadata_create.set_defaults(func=createMetadata)
 
     # metadata view parser
     parser_metadata_view = metadata_category_subparser.add_parser('view',
@@ -683,27 +722,34 @@ if __name__ == '__main__':
     # Special parser checks
     if (args.category_parser_name == 'trees' and args.tree_subparser_name == 'create'):
         if (args.genome_batchfile is None and args.genome_ids is None and args.genome_list_ids is None and not args.all_genomes):
-            parser_tree_create.error('Need to specify at least one of --genome_batchfile, --genome_ids, --genome_list_ids or --all_genomes')
+            parser_tree_create.error(
+                'Need to specify at least one of --genome_batchfile, --genome_ids, --genome_list_ids or --all_genomes')
         if (args.marker_batchfile is None and args.marker_ids is None and args.marker_set_ids is None):
-            parser_tree_create.error('Need to specify at least one of --marker_batchfile, --marker_ids or --marker_set_ids')
+            parser_tree_create.error(
+                'Need to specify at least one of --marker_batchfile, --marker_ids or --marker_set_ids')
 
     if (args.category_parser_name == 'genomes' and args.genome_subparser_name == 'view'):
         if (args.batchfile is not None or args.id_list is not None):
             if args.view_all:
-                parser_genome_view.error('argument --all must be used by itself')
+                parser_genome_view.error(
+                    'argument --all must be used by itself')
         elif not args.view_all:
-            parser_genome_view.error('need to specify at least one of --all, --batchfile or --genome_ids')
+            parser_genome_view.error(
+                'need to specify at least one of --all, --batchfile or --genome_ids')
 
     if (args.category_parser_name == 'genomes' and args.genome_subparser_name == 'delete'):
         if (args.batchfile is None and args.id_list is None):
-                parser_genome_delete.error('need to specify at least one of --batchfile or --genome_ids')
+            parser_genome_delete.error(
+                'need to specify at least one of --batchfile or --genome_ids')
 
     if (args.category_parser_name == 'markers' and args.marker_subparser_name == 'view'):
         if (args.batchfile is not None or args.id_list is not None):
             if args.view_all:
-                parser_marker_view.error('argument --all must be used by itself')
+                parser_marker_view.error(
+                    'argument --all must be used by itself')
         elif not args.view_all:
-            parser_marker_view.error('need to specify at least one of --all, --batchfile or --marker_ids')
+            parser_marker_view.error(
+                'need to specify at least one of --all, --batchfile or --marker_ids')
 
     # Initialise the backend
     if args.threads:
@@ -720,10 +766,12 @@ if __name__ == '__main__':
     try:
         if args.logon_as_user:
             if not db.RootLogin(GetLinuxUsername()):
-                raise GenomeDatabaseError("Unable to impersonate user %s." % args.logon_as_user)
+                raise GenomeDatabaseError(
+                    "Unable to impersonate user %s." % args.logon_as_user)
 
             if not db.UserLogin(args.logon_as_user):
-                raise GenomeDatabaseError("Unable to impersonate user %s." % args.logon_as_user)
+                raise GenomeDatabaseError(
+                    "Unable to impersonate user %s." % args.logon_as_user)
 
         elif args.login_as_root:
             if not db.RootLogin(GetLinuxUsername()):
@@ -757,6 +805,7 @@ if __name__ == '__main__':
         DumpDBWarnings(db)
 
     if not result:
-        ErrorReport("Database action failed. The following error(s) were reported:\n")
+        ErrorReport(
+            "Database action failed. The following error(s) were reported:\n")
         DumpDBErrors(db)
         sys.exit(-1)

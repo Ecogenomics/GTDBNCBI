@@ -24,4 +24,10 @@ Where TSV file is in the format : First column Genome id, Second Column Value to
 U_27    75.4
 NCBI_GCA_000421925.1    98.4
 
+Create new metadata column
+gtdblite.py metadata create --file /path/to/metadata_file
+Where metadata file is in the format
+table_name \t column_name \t datatype(float,integer,text) \t description(without quotes)
+
+
 
