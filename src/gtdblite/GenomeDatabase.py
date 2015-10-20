@@ -2459,3 +2459,12 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+    def createMetadata(self, path):
+        try:
+            metaman = MetadataManager()
+            metaman.createMetadata(path)
+            return True
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
