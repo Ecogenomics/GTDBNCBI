@@ -1,3 +1,6 @@
+import logging
+import psycopg2
+
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
 from gtdblite.Exceptions import GenomeDatabaseError
 
@@ -48,7 +51,6 @@ class MetadataManager(object):
         try:
             self.conn.MakePostgresConnection()
             cur = self.conn.cursor()
-
             cur.execute("SELECT * FROM view_list_meta_columns")
             print "\t".join(("Table", "Field", "Description"))
             for tup in cur.fetchall():
@@ -65,7 +67,6 @@ class MetadataManager(object):
             query = "SELECT exportMeta('{0}')".format(path)
             cur.execute(query)
             print "Export Successful"
-
             cur.close()
             self.conn.ClosePostgresConnection
         except GenomeDatabaseError as e:
@@ -87,8 +88,11 @@ class MetadataManager(object):
                 genome_id[n] = new_i
             query = "SELECT upsert('{0}','{1}','{2}',%s,%s)".format(
                 table, field, typemeta)
-            cur.execute(query, (genome_id, meta_value))
-            self.conn.commit()
+            try:
+                cur.execute(query, (genome_id, meta_value))
+                self.conn.commit()
+            except psycopg2.Error as e:
+                print e.pgerror
             cur.close()
             self.conn.ClosePostgresConnection()
         except GenomeDatabaseError as e:
@@ -102,8 +106,11 @@ class MetadataManager(object):
             with open(metadatafile, 'r') as metaf:
                 for line in metaf:
                     array_line = line.strip().split('\t')
-                    data_dict[array_line[1]] = {
-                        "table": array_line[0], "type": array_line[2], "desc": array_line[3]}
+#                    if not array_line[3].startswith("metadata_"):
+#                        raise GenomeDatabaseError(
+#                            "Only Metadata Tables can be modified")
+                    data_dict[array_line[0]] = {
+                        "table": array_line[3], "type": array_line[2], "desc": array_line[1]}
 
             query = "SELECT v.field,v.table from view_list_meta_columns as v"
             cur.execute(query)
@@ -116,8 +123,7 @@ class MetadataManager(object):
                             value.get("table"), key, value.get("desc"))
                         cur.execute(query_comment)
                     else:
-                        print "warning"
-                        self.ReportWarning("Column {0} is already presents in the {1} table .".format(
+                        logging.warning("Column {0} is already presents in the {1} table .".format(
                             key, all_col_dict.get(key)))
                 else:
                     query_add_col = "ALTER TABLE {0} ADD COLUMN {1} {2}".format(
