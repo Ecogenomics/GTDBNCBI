@@ -27,7 +27,7 @@ NCBI_GCA_000421925.1    98.4
 Create new metadata column
 gtdblite.py metadata create --file /path/to/metadata_file
 Where metadata file is in the format
-table_name \t column_name \t datatype(float,integer,text) \t description(without quotes)
+column_name \t description(without quotes) \t datatype(float,integer,text) \t table_name
 
 
 

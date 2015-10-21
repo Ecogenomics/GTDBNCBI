@@ -52,23 +52,42 @@ class MetadataManager(object):
             self.conn.MakePostgresConnection()
             cur = self.conn.cursor()
             cur.execute("SELECT * FROM view_list_meta_columns")
-            print "\t".join(("Table", "Field", "Description"))
+            print "\t".join(("Table", "Field", "Datatype", "Description"))
             for tup in cur.fetchall():
-                print "\t".join(list(tup))
+                info_list = list(tup)
+                if info_list[2] == "double precision":
+                    info_list[2] = "float"
+                elif str(info_list[2]).startswith("timestamp"):
+                    info_list[2] = "timestamp"
+                print "\t".join(info_list)
             cur.close()
             self.conn.ClosePostgresConnection()
         except GenomeDatabaseError as e:
             raise self.ReportError(e.message)
 
+#     def exportMetadata(self, path):
+#         try:
+#             self.conn.MakePostgresConnection()
+#             cur = self.conn.cursor()
+#             query = "SELECT exportMeta('{0}')".format(path)
+#             cur.execute(query)
+#             print "Export Successful"
+#             cur.close()
+#             self.conn.ClosePostgresConnection
+#         except GenomeDatabaseError as e:
+#             raise self.ReportError(e.message)
+
     def exportMetadata(self, path):
         try:
             self.conn.MakePostgresConnection()
             cur = self.conn.cursor()
-            query = "SELECT exportMeta('{0}')".format(path)
-            cur.execute(query)
+            query = "SELECT * from metadata_view"
+            outputquery = 'copy ({0}) to stdout with csv header'.format(query)
+            with open(path, 'w') as f:
+                cur.copy_expert(outputquery, f)
             print "Export Successful"
             cur.close()
-            self.conn.ClosePostgresConnection
+            self.conn.ClosePostgresConnection()
         except GenomeDatabaseError as e:
             raise self.ReportError(e.message)
 

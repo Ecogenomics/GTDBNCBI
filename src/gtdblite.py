@@ -92,7 +92,8 @@ def loggerSetup(output_dir, silent=False):
         stream_logger.setLevel(logging.DEBUG)
         logger.addHandler(stream_logger)
 
-    file_logger = logging.FileHandler(os.path.join(output_dir, 'gtdb.log'), 'a')
+    file_logger = logging.FileHandler(
+        os.path.join(output_dir, 'gtdb.log'), 'a')
     file_logger.setFormatter(log_format)
     logger.addHandler(file_logger)
 
@@ -443,7 +444,8 @@ if __name__ == '__main__':
                         help='Assume yes to all confirm prompts (useful for batch processing)'),
     parser.add_argument('--debug', dest='debug', action='store_true',
                         help='Run in debug mode')
-    parser.add_argument('--version', help='Show version information', action='version', version=versionInfo())
+    parser.add_argument(
+        '--version', help='Show version information', action='version', version=versionInfo())
 
     category_parser = parser.add_subparsers(
         help='Category Command Help', dest='category_parser_name')
