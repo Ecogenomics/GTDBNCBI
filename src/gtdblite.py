@@ -21,10 +21,83 @@ import argparse
 import sys
 import os
 import pwd
+import ntpath
+import logging
+
+from biolib.common import make_sure_path_exists
 
 from gtdblite import GenomeDatabase
 from gtdblite import profiles
 from gtdblite.Exceptions import GenomeDatabaseError
+
+
+def version():
+    """Read software and NCBI version information from file.
+
+    Returns
+    -------
+    str
+        Software version.
+    str
+        NCBI database version.
+    """
+    cur_dir = os.path.dirname(os.path.realpath(__file__))
+    version_file = open(os.path.join(cur_dir, 'VERSION'))
+
+    software_version = version_file.readline().strip()
+    software_version = software_version[software_version.find('=') + 1:]
+
+    ncbi_version = version_file.readline().strip()
+    ncbi_version = ncbi_version[ncbi_version.find('=') + 1:]
+
+    return software_version, ncbi_version
+
+
+def versionInfo():
+    """Get version information.
+
+    Returns
+    -------
+    str
+        String indication software and NCBI version information.
+    """
+
+    software_version, ncbi_version = version()
+    return 'GTDB v%s (NCBI database %s)' % (software_version, ncbi_version)
+
+
+def loggerSetup(output_dir, silent=False):
+    """Set logging for application.
+
+    Parameters
+    ----------
+    output_dir : str
+        Output directory for log file.
+    silent : boolean
+        Flag indicating if output to stdout should be suppressed.
+    """
+
+    make_sure_path_exists(output_dir)
+
+    # setup general properties of logger
+    logger = logging.getLogger('')
+    logger.setLevel(logging.DEBUG)
+    log_format = logging.Formatter(fmt="[%(asctime)s] %(levelname)s: %(message)s",
+                                   datefmt="%Y-%m-%d %H:%M:%S")
+
+    # setup logging to console
+    if not silent:
+        stream_logger = logging.StreamHandler(sys.stdout)
+        stream_logger.setFormatter(log_format)
+        stream_logger.setLevel(logging.DEBUG)
+        logger.addHandler(stream_logger)
+
+    file_logger = logging.FileHandler(os.path.join(output_dir, 'gtdb.log'), 'a')
+    file_logger.setFormatter(log_format)
+    logger.addHandler(file_logger)
+
+    logger.info(versionInfo())
+    logger.info(ntpath.basename(sys.argv[0]) + ' ' + ' '.join(sys.argv[1:]))
 
 
 def GetLinuxUsername():
@@ -73,6 +146,7 @@ def AddMarkers(db, args):
 
 
 def CreateTreeData(db, args):
+    loggerSetup(args.out_dir)
 
     genome_id_list = []
 
@@ -369,6 +443,7 @@ if __name__ == '__main__':
                         help='Assume yes to all confirm prompts (useful for batch processing)'),
     parser.add_argument('--debug', dest='debug', action='store_true',
                         help='Run in debug mode')
+    parser.add_argument('--version', help='Show version information', action='version', version=versionInfo())
 
     category_parser = parser.add_subparsers(
         help='Category Command Help', dest='category_parser_name')
