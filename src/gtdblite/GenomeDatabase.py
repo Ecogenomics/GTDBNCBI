@@ -762,6 +762,12 @@ class GenomeDatabase(object):
 
     # True on success. False on error/failure.
     def DeleteGenomes(self, batchfile=None, external_ids=None):
+        '''
+        Delete Genomes from either of the following parameters
+        :param batchfile:
+        :param external_ids:
+
+        '''
         try:
             cur = self.conn.cursor()
 
