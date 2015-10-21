@@ -118,4 +118,3 @@ def sha256Calculator(file_path):
     sha256_checksum = m.hexdigest()
     filereader.close()
     return sha256_checksum
-
