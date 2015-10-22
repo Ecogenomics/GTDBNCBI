@@ -764,7 +764,7 @@ class GenomeDatabase(object):
     def DeleteGenomes(self, batchfile=None, external_ids=None):
         '''
         Delete Genomes from either of the following parameters
-        :param batchfile:
+        :param batchfile:test
         :param external_ids:
 
         '''
