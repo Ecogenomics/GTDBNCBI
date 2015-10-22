@@ -34,12 +34,16 @@ def populate_required_headers(checkm_fh):
         header = split_headers[pos]
         if header not in required_headers:
             continue
+
         if required_headers[header] is not None:
-            raise GenomeDatabaseError("Seen %s header twice in the checkM file. Check the checkM file is correct: %s." % (header, checkM_file))
+            raise GenomeDatabaseError("Seen %s header twice in the CheckM file. Check that the CheckM file is correct: %s." % (header, checkm_fh.name))
+
         required_headers[header] = pos
-        for header, col in required_headers.items():
-            if col is None:
-                raise GenomeDatabaseError("Unable to find %s header in the checkM file. Check the checkM file is correct: %s." % (header, checkM_file))
+
+    for header, col in required_headers.items():
+        if col is None:
+            raise GenomeDatabaseError("Unable to find %s header in the CheckM file. Check that the CheckM file is correct: %s." % (header, checkm_fh.name))
+
     return required_headers
 
 
@@ -48,29 +52,28 @@ def populate_required_headers(checkm_fh):
 #################################################
 def runMultiProdigal(nprocs=None, nogene_list=None):
     def worker(nogene_subdict, out_dict):
-        """ The worker function, invoked in a process. 'genome_dict' is a
-            dictionnary of genes to align. The results are placed in
-            a dictionary that's pushed to a queue.
-        """
+        """This worker function is invoked in a process."""
 
         for key, value in nogene_subdict.iteritems():
-            if(value.get("gene_path") is None):
-                prodigal_tmp_dir = MarkerCalculation.RunProdigalOnGenomeFasta(value.get("fasta_path"))
-                value["gene_path"] = os.path.join(prodigal_tmp_dir, "genes.faa")
+            if value.get("aa_gene_file") is None:
+                rtn_files = MarkerCalculation.RunProdigalOnGenomeFasta(value.get("fasta_path"))
+                aa_gene_file, nt_gene_file, gff_file, translation_table_file = rtn_files
+                value["aa_gene_file"] = aa_gene_file
+                value["nt_gene_file"] = nt_gene_file
+                value["gff_file"] = gff_file
+                value["translation_table_file"] = translation_table_file
+
             out_dict[key] = value
+
         return True
 
-    # Each process will get 'chunksize' nums and a queue to put his out
-    # dict into
+    # split bins to process over specified number of processors
     manager = multiprocessing.Manager()
     out_dict = manager.dict()
-#    chunksize = int(math.ceil(len(genome_dict) / float(nprocs)))
-    procs = []
 
+    procs = []
     for item in splitchunks(nogene_list, nprocs):
-        p = multiprocessing.Process(
-                target=worker,
-                args=(item, out_dict))
+        p = multiprocessing.Process(target=worker, args=(item, out_dict))
         procs.append(p)
         p.start()
 
@@ -83,8 +86,6 @@ def runMultiProdigal(nprocs=None, nogene_list=None):
     for p in procs:
         p.join()
 
-    print out_dict
-
     return out_dict
 
 
@@ -92,7 +93,7 @@ def runMultiProdigal(nprocs=None, nogene_list=None):
 ############MISC UTILITIES########################
 ##################################################
 def splitchunks(d, n):
-    chunksize = int(math.ceil(len(genome_dict) / float(nprocs)))
+    chunksize = int(math.ceil(len(d) / float(n)))
     it = iter(d)
     for _ in xrange(0, len(d), chunksize):
         yield {k: d[k] for k in islice(it, chunksize)}
@@ -115,6 +116,8 @@ def sha256Calculator(file_path):
     m = hashlib.sha256()
     for line in filereader:
         m.update(line)
+
     sha256_checksum = m.hexdigest()
     filereader.close()
+
     return sha256_checksum
