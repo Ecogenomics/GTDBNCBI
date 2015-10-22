@@ -4,9 +4,10 @@ Releases
 
 New Features
 
-Medadata -
-List available metadata columns plsu description
+Metadata -
+List available metadata columns plus description
 gtdblite.py metadata view
+
 Export table of all metadata for all genomes
 gtdblite.py metadata export --output /path/to/file
 

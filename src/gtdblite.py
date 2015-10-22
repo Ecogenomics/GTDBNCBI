@@ -259,7 +259,7 @@ def CreateGenomeList(db, args):
     genome_list_id = db.CreateGenomeList(
         args.batchfile, external_ids, args.name, args.description, (not args.public))
 
-    if genome_list_id is False:
+    if not genome_list_id:
         return False
 
     try:
@@ -526,9 +526,9 @@ if __name__ == '__main__':
     parser_genome_add = genome_category_subparser.add_parser('add',
                                                              help='Add one or many genomes to the tree.')
     parser_genome_add.add_argument('--batchfile', dest='batchfile',
-                                   required=True, help='Batchfile describing the genomes - one genome per line, tab separated in 3-5 columns (filename, name, desc, [source], [id_at_source])')
+                                   required=True, help='Batch file describing the genomes - one genome per line, tab separated in 3-6 columns (bin_filename, bin_name, bin_desc, [gene_filename], [source], [id_at_source])')
     parser_genome_add.add_argument('--checkm_results', dest='checkm_file',
-                                   required=True, help='Provide a checkM results file. MUST BE A TAB TABLE! e.g. "checkm taxonomy_wf -f CHECKM_FILE --tab_table domain Bacteria bins/ output"')
+                                   required=True, help='Provide a CheckM results file. MUST BE A TAB TABLE! e.g. "checkm taxonomy_wf -f CHECKM_FILE --tab_table domain Bacteria bins/ output"')
 
     mutex_group = parser_genome_add.add_mutually_exclusive_group(required=True)
     mutex_group.add_argument('--modify_list', dest='genome_list_id',

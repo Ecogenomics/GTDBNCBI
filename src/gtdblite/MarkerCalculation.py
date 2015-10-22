@@ -7,36 +7,46 @@ from gtdblite.Exceptions import GenomeDatabaseError
 from checkm_static import prodigal, hmmer, resultsParser
 from simplehmmer import hmmmodelparser
 
+from biolib.external.prodigal import Prodigal
+from biolib.common import remove_extension
+
 
 def RunProdigalOnGenomeFasta(fasta_path):
     try:
+        genome_id = remove_extension(fasta_path)
         prodigal_dir = tempfile.mkdtemp()
 
-        runner = prodigal.ProdigalRunner(prodigal_dir)
-        if runner.run(fasta_path) is None:
-            raise GenomeDatabaseError("Failed to run prodigal.")
+        prodigal = Prodigal(1, False)
+        summary_stats = prodigal.run([fasta_path], prodigal_dir)
 
         # Rename the genes.faa fasta entries to remove the chance id parsing mixups, etc....
         modified_genes_filepath = os.path.join(prodigal_dir, 'genes_id_modified.faa')
 
         out_fh = open(modified_genes_filepath, 'wb')
-        genes_fh = open(os.path.join(prodigal_dir, 'genes.faa'), 'rb')
+        genes_fh = open(os.path.join(prodigal_dir, summary_stats[genome_id].aa_gene_file), 'rb')
 
         count = 1
-
         for line in genes_fh:
-
             if line[0] == ">":
                 out_fh.write(">%i\n" % count)
                 count += 1
                 continue
-
             out_fh.write(line)
 
         out_fh.close()
         genes_fh.close()
 
-        return prodigal_dir
+        translation_table_file = os.path.join(prodigal_dir, 'prodigal_translation_table.tsv')
+        fout = open(translation_table_file, 'w')
+        fout.write('%s\t%d\n' % ('best_translation_table', summary_stats[genome_id].best_translation_table))
+        fout.write('%s\t%.2f\n' % ('coding_density_4', summary_stats[genome_id].coding_density_4 * 100))
+        fout.write('%s\t%.2f\n' % ('coding_density_11', summary_stats[genome_id].coding_density_11 * 100))
+        fout.close()
+
+        return (summary_stats[genome_id].aa_gene_file,
+                summary_stats[genome_id].nt_gene_file,
+                summary_stats[genome_id].gff_file,
+                translation_table_file)
 
     except:
         if prodigal_dir:
