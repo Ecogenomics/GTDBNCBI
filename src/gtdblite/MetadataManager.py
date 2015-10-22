@@ -187,7 +187,6 @@ class MetadataManager(object):
 
     def storeMetadata(self, genome_dir):
         """Parse metadata files for genome and store in database.
-
         Parameters
         ----------
         genome_dir : str
@@ -195,17 +194,27 @@ class MetadataManager(object):
         """
 
         try:
+            cur = self.conn.cursor()
+
+# Genome_id will be similar to GCA_000447245.1_RBG_1 instead of
+# GCA_000447245
             genome_id = os.path.basename(os.path.normpath(genome_dir))
 
-            for line in open(os.path.join(genome_dir, 'metadata.genome_nt.tsv')):
-                field, value = line.rstrip().split('\t')
-                #***PIERRE: insert 'value' into the column 'field' for the genome 'genome_id' in the table metadata_nucleotide
-                print field, value
+            genome_list_nt = [tuple(line.rstrip().split('\t')) for line in open(
+                os.path.join(genome_dir, 'metadata.genome_nt.tsv'))]
+            query_nt = "INSERT INTO metadata_nucleotide (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s) ".format(
+                genome_id)
+            cur.executemany(query_nt, [nt_tup for nt_tup in genome_list_nt])
 
-            for line in open(os.path.join(genome_dir, 'metadata.genome_gene.tsv')):
-                field, value = line.rstrip().split('\t')
-                #***PIERRE: insert 'value' into the column 'field' for the genome 'genome_id' in the table metadata_genes
-                print field, value
+            genome_list_gene = [tuple(line.rstrip().split('\t')) for line in open(
+                os.path.join(genome_dir, 'metadata.genome_gene.tsv'))]
+            query_gene = "INSERT INTO metadata_nucleotide (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s) ".format(
+                genome_id)
+            cur.executemany(query_gene, [g_tup for g_tup in genome_list_gene])
+
+            self.conn.commit()
+
         except:
             pass
             # raise self.ReportError(e.message)
+
