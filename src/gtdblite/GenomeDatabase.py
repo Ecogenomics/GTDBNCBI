@@ -3,6 +3,7 @@ import os
 import stat
 import datetime
 import hashlib
+import logging
 from multiprocessing import Pool
 
 from gtdblite import Config
@@ -14,10 +15,14 @@ from gtdblite import Tools
 from gtdblite import profiles
 from gtdblite.Exceptions import GenomeDatabaseError
 
+from biolib.checksum import sha256
+
 
 class GenomeDatabase(object):
 
     def __init__(self, threads=1):
+        self.logger = logging.getLogger()
+
         self.conn = GenomeDatabaseConnection()
         self.currentUser = None
         self.errorMessages = []
@@ -30,6 +35,7 @@ class GenomeDatabase(object):
         self.ntGeneFileSuffix = "_protein.fna"
         self.gffFileSuffix = "_protein.gff"
         self.tranTableFileSuffix = "_translation_table.tsv"
+        self.checksumSuffix = ".sha256"
 
         self.genomeCopyDir = None
         if Config.GTDB_GENOME_COPY_DIR:
@@ -373,6 +379,7 @@ class GenomeDatabase(object):
     def AddManyFastaGenomes(self, batchfile, checkm_file, modify_genome_list_id=None,
                             new_genome_list_name=None, force_overwrite=False):
         try:
+            self.logger.info("Reading CheckM file.")
             try:
                 checkm_fh = open(checkm_file, "rb")
             except:
@@ -420,6 +427,7 @@ class GenomeDatabase(object):
             added_genome_dict = self.add_genome_list(cur, checkm_results_dict, batchfile, force_overwrite)
 
             # run Prodigal on Genomes having only a genome file
+            self.logger.info("Running Prodigal on genomes without identified genes.")
             fasta_paths_to_copy = Tools.runMultiProdigal(2, added_genome_dict)
             if modify_genome_list_id is not None:
                 if not self.EditGenomeListWorking(cur, modify_genome_list_id, genome_ids=added_genome_dict.keys(), operation='add'):
@@ -457,6 +465,8 @@ class GenomeDatabase(object):
                     os.mkdir(target_dir)
 
                 try:
+                    self.logger.info("Calculating and storing metadata for each genomes.")
+                    metadata_mngr = MetadataManager()
                     for genome_id, external_id in external_id_dict.items():
                         sub_target_dir = os.path.join(target_dir, external_id)
                         if os.path.exists(sub_target_dir):
@@ -474,6 +484,11 @@ class GenomeDatabase(object):
                         shutil.copy(fasta_paths_to_copy.get(genome_id).get('aa_gene_file'), genes_target_file)
                         copied_genes_fasta_paths.append(genes_target_file)
 
+                        checksum = sha256(genes_target_file)
+                        fout = open(genes_target_file + self.checksumSuffix, 'w')
+                        fout.write(checksum)
+                        fout.close()
+
                         nt_target_file = os.path.join(sub_target_dir, external_id + self.ntGeneFileSuffix)
                         shutil.copy(fasta_paths_to_copy.get(genome_id).get('nt_gene_file'), nt_target_file)
 
@@ -485,6 +500,10 @@ class GenomeDatabase(object):
 
                         cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (
                             target_file, genes_target_file, genome_id))
+
+                        # calculate metadata and store results in database
+                        metadata_mngr.calculateMetadata(target_file, gff_target_file, sub_target_dir)
+                        metadata_mngr.storeMetadata(sub_target_dir)
 
                 except Exception as e:
                     try:
@@ -517,11 +536,11 @@ class GenomeDatabase(object):
     def AddFastaGenomeWorking(self, cur, fasta_file_path, name, desc, genome_list_id=None, force_overwrite=False,
                               source=None, id_at_source=None, gene_path=None, completeness=0, contamination=0):
         try:
-            fasta_sha256_checksum = Tools.sha256Calculator(fasta_file_path)
+            fasta_sha256_checksum = sha256(fasta_file_path)
 
             gene_sha256_checksum = None
             if gene_path is not None:
-                gene_sha256_checksum = Tools.sha256Calculator(gene_path)
+                gene_sha256_checksum = sha256(gene_path)
             if source is None:
                 source = self.defaultGenomeSourceName
 

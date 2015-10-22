@@ -30,6 +30,8 @@ from gtdblite import GenomeDatabase
 from gtdblite import profiles
 from gtdblite.Exceptions import GenomeDatabaseError
 
+from biolib.external.execute import check_dependencies
+
 
 def version():
     """Read software and NCBI version information from file.
@@ -77,8 +79,6 @@ def loggerSetup(output_dir, silent=False):
         Flag indicating if output to stdout should be suppressed.
     """
 
-    make_sure_path_exists(output_dir)
-
     # setup general properties of logger
     logger = logging.getLogger('')
     logger.setLevel(logging.DEBUG)
@@ -92,10 +92,11 @@ def loggerSetup(output_dir, silent=False):
         stream_logger.setLevel(logging.DEBUG)
         logger.addHandler(stream_logger)
 
-    file_logger = logging.FileHandler(
-        os.path.join(output_dir, 'gtdb.log'), 'a')
-    file_logger.setFormatter(log_format)
-    logger.addHandler(file_logger)
+    if output_dir:
+        make_sure_path_exists(output_dir)
+        file_logger = logging.FileHandler(os.path.join(output_dir, 'gtdb.log'), 'a')
+        file_logger.setFormatter(log_format)
+        logger.addHandler(file_logger)
 
     logger.info(versionInfo())
     logger.info(ntpath.basename(sys.argv[0]) + ' ' + ' '.join(sys.argv[1:]))
@@ -133,6 +134,8 @@ def EditUser(db, args):
 
 
 def AddManyFastaGenomes(db, args):
+    loggerSetup(None)
+
     return db.AddManyFastaGenomes(
         args.batchfile, args.checkm_file, args.genome_list_id,
         args.genome_list_name, args.force
@@ -429,6 +432,8 @@ def createMetadata(db, args):
     return db.createMetadata(args.metadatafile)
 
 if __name__ == '__main__':
+    # make sure all required dependencies are on the system path
+    check_dependencies(['prodigal', 'genometk', 'blastn'])
 
     # create the top-level parser
     parser = argparse.ArgumentParser(prog='gtdblite.py')

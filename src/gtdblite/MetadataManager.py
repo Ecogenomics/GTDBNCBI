@@ -1,8 +1,12 @@
+import os
 import logging
 import psycopg2
 
+from gtdblite import Config
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
 from gtdblite.Exceptions import GenomeDatabaseError
+
+from biolib.common import remove_extension
 
 
 class MetadataManager(object):
@@ -156,3 +160,52 @@ class MetadataManager(object):
             self.conn.ClosePostgresConnection
         except GenomeDatabaseError as e:
             raise self.ReportError(e.message)
+
+    def calculateMetadata(self, genome_file, gff_file, output_dir):
+        """Calculate metadata for new genome.
+
+        Parameters
+        ----------
+        genome_file : str
+            Name of fasta file containing nucleotide sequences.
+        gff_file : str
+            Name of generic feature file describing genes.
+        output_dir : str
+            Output directory.
+        """
+
+        os.system('genometk nucleotide --silent %s %s' % (genome_file, output_dir))
+        os.system('genometk gene --silent %s %s %s' % (genome_file, gff_file, output_dir))
+        os.system('genometk ssu --silent %s %s %s %s' % (genome_file,
+                                                         Config.GTDB_SSU_GG_DB,
+                                                         Config.GTDB_SSU_GG_TAXONOMY,
+                                                         os.path.join(output_dir, Config.GTDB_SSU_GG_OUTPUT_DIR)))
+        os.system('genometk ssu --silent %s %s %s %s' % (genome_file,
+                                                         Config.GTDB_SSU_SILVA_DB,
+                                                         Config.GTDB_SSU_SILVA_TAXONOMY,
+                                                         os.path.join(output_dir, Config.GTDB_SSU_SILVA_OUTPUT_DIR)))
+
+    def storeMetadata(self, genome_dir, ssu_):
+        """Parse metadata files for genome and store in database.
+
+        Parameters
+        ----------
+        genome_dir : str
+            Directory containing metadata files to parse.
+        """
+
+        try:
+            genome_id = os.path.basename(os.path.normpath(genome_dir))
+
+            for line in open(os.path.join(genome_dir, 'metadata.genome_nt.tsv')):
+                field, value = line.rstrip().split('\t')
+                #***PIERRE: insert 'value' into the column 'field' for the genome 'genome_id' in the table metadata_nucleotide
+                print field, value
+
+            for line in open(os.path.join(genome_dir, 'metadata.genome_gene.tsv')):
+                field, value = line.rstrip().split('\t')
+                #***PIERRE: insert 'value' into the column 'field' for the genome 'genome_id' in the table metadata_genes
+                print field, value
+        except:
+            pass
+            # raise self.ReportError(e.message)
