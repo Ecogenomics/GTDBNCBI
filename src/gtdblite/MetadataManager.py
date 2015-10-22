@@ -13,8 +13,7 @@ class MetadataManager(object):
 
     def __init__(self):
         self.conn = GenomeDatabaseConnection()
-        self.errorMessages = []
-        self.warningMessages = []
+        self.conn.MakePostgresConnection()
 
     #
     # Group: General Functions
@@ -53,7 +52,6 @@ class MetadataManager(object):
     # Print lists
     def viewMetadata(self):
         try:
-            self.conn.MakePostgresConnection()
             cur = self.conn.cursor()
             cur.execute("SELECT * FROM view_list_meta_columns")
             print "\t".join(("Table", "Field", "Datatype", "Description"))
@@ -83,7 +81,6 @@ class MetadataManager(object):
 
     def exportMetadata(self, path):
         try:
-            self.conn.MakePostgresConnection()
             cur = self.conn.cursor()
             query = "SELECT * from metadata_view"
             outputquery = 'copy ({0}) to stdout with csv header'.format(query)
@@ -97,7 +94,6 @@ class MetadataManager(object):
 
     def importMetadata(self, table=None, field=None, typemeta=None, metafile=None):
         try:
-            self.conn.MakePostgresConnection()
             cur = self.conn.cursor()
             data_list = []
             with open(metafile, 'r') as metaf:
@@ -123,7 +119,6 @@ class MetadataManager(object):
 
     def createMetadata(self, metadatafile):
         try:
-            self.conn.MakePostgresConnection()
             cur = self.conn.cursor()
             data_dict = {}
             with open(metadatafile, 'r') as metaf:
@@ -174,8 +169,10 @@ class MetadataManager(object):
             Output directory.
         """
 
-        os.system('genometk nucleotide --silent %s %s' % (genome_file, output_dir))
-        os.system('genometk gene --silent %s %s %s' % (genome_file, gff_file, output_dir))
+        os.system('genometk nucleotide --silent %s %s' %
+                  (genome_file, output_dir))
+        os.system('genometk gene --silent %s %s %s' %
+                  (genome_file, gff_file, output_dir))
         os.system('genometk ssu --silent %s %s %s %s' % (genome_file,
                                                          Config.GTDB_SSU_GG_DB,
                                                          Config.GTDB_SSU_GG_TAXONOMY,
