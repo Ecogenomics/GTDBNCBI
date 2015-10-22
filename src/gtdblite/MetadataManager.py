@@ -182,9 +182,12 @@ class MetadataManager(object):
         """
 
         # create rows for genome in metadata tables
-        cur.execute("INSERT INTO metadata_nucleotide (id) VALUES ({0})".format(db_genome_id))
-        cur.execute("INSERT INTO metadata_genes (id) VALUES ({0})".format(db_genome_id))
-        cur.execute("INSERT INTO metadata_taxonomy (id) VALUES ({0})".format(db_genome_id))
+        cur.execute(
+            "INSERT INTO metadata_nucleotide (id) VALUES ({0})".format(db_genome_id))
+        cur.execute(
+            "INSERT INTO metadata_genes (id) VALUES ({0})".format(db_genome_id))
+        cur.execute(
+            "INSERT INTO metadata_taxonomy (id) VALUES ({0})".format(db_genome_id))
 
         self._calculateMetadata(genome_file, gff_file, output_dir)
         self._storeMetadata(cur, db_genome_id, output_dir)
@@ -230,10 +233,12 @@ class MetadataManager(object):
         """
 
         # nucleotide metadata
-        metadata_nt_path = os.path.join(genome_dir, ConfigMetadata.GTDB_NT_FILE)
+        metadata_nt_path = os.path.join(
+            genome_dir, ConfigMetadata.GTDB_NT_FILE)
         genome_list_nt = [tuple(line.rstrip().split('\t'))
                           for line in open(metadata_nt_path)]
-        query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(db_genome_id)
+        query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(
+            db_genome_id)
         cur.executemany(query_nt, [(AsIs(c), v) for (c, v) in genome_list_nt])
 
         try:
@@ -242,7 +247,8 @@ class MetadataManager(object):
                 genome_dir, ConfigMetadata.GTDB_GENE_FILE)
             genome_list_gene = [tuple(line.rstrip().split('\t'))
                                 for line in open(metadata_gene_path)]
-            query_gene = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(db_genome_id)
+            query_gene = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(
+                db_genome_id)
             cur.executemany(query_gene, [(AsIs(c), v)
                                          for (c, v) in genome_list_gene])
 
@@ -251,7 +257,8 @@ class MetadataManager(object):
                 genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
             genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
                 metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX)
-            query_taxonomy = "UPDATE metadata_taxonomy SET %s = %s WHERE id = {0}".format(db_genome_id)
+            query_taxonomy = "UPDATE metadata_taxonomy SET %s = %s WHERE id = {0}".format(
+                db_genome_id)
             cur.executemany(
                 query_taxonomy, [(AsIs(c), v) for (c, v) in genome_list_taxonomy])
 
@@ -329,12 +336,15 @@ class MetadataManager(object):
         """
 
         checkm_data = [('checkm_completeness', checkm_results['completeness']),
-                            ('checkm_contamination', checkm_results['contamination']),
-                            ('checkm_marker_count', checkm_results['marker_count']),
-                            ('checkm_marker_lineage', checkm_results['lineage']),
-                            ('checkm_genome_count', checkm_results['genome_count']),
-                            ('checkm_marker_set_count', checkm_results['set_count']),
-                            ('checkm_strain_heterogeneity', checkm_results['heterogeneity'])]
+                       ('checkm_contamination',
+                        checkm_results['contamination']),
+                       ('checkm_marker_count', checkm_results['marker_count']),
+                       ('checkm_marker_lineage', checkm_results['lineage']),
+                       ('checkm_genome_count', checkm_results['genome_count']),
+                       ('checkm_marker_set_count',
+                        checkm_results['set_count']),
+                       ('checkm_strain_heterogeneity', checkm_results['heterogeneity'])]
 
-        query = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(db_genome_id)
+        query = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(
+            db_genome_id)
         cur.executemany(query, [(AsIs(c), v) for (c, v) in checkm_data])
