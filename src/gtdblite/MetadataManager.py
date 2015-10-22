@@ -9,37 +9,6 @@ class MetadataManager(object):
 
     def __init__(self):
         self.conn = GenomeDatabaseConnection()
-        self.errorMessages = []
-        self.warningMessages = []
-
-    #
-    # Group: General Functions
-    #
-    # Function: ReportError
-    # Sets the last error message of the database.
-    #
-    # Parameters:
-    #     msg - The message to set.
-    #
-    # Returns:
-    #   No return value.
-    def ReportError(self, msg):
-        self.errorMessages.append(str(msg))
-
-    def GetErrors(self):
-        return self.errorMessages
-
-    def ClearErrors(self):
-        self.errorMessages = []
-
-    def ReportWarning(self, msg):
-        self.warningMessages.append(str(msg))
-
-    def GetWarnings(self):
-        return self.warningMessages
-
-    def ClearWarnings(self):
-        self.warningMessages = []
 
     # Function: viewMetadata
     #
@@ -48,6 +17,14 @@ class MetadataManager(object):
     # Returns:
     # Print lists
     def viewMetadata(self):
+        '''
+        # Function: viewMetadata
+    #
+    # Lists all metadata field available in the database
+    #
+    # Returns:
+    # Print lists
+        '''
         try:
             self.conn.MakePostgresConnection()
             cur = self.conn.cursor()
@@ -63,19 +40,7 @@ class MetadataManager(object):
             cur.close()
             self.conn.ClosePostgresConnection()
         except GenomeDatabaseError as e:
-            raise self.ReportError(e.message)
-
-#     def exportMetadata(self, path):
-#         try:
-#             self.conn.MakePostgresConnection()
-#             cur = self.conn.cursor()
-#             query = "SELECT exportMeta('{0}')".format(path)
-#             cur.execute(query)
-#             print "Export Successful"
-#             cur.close()
-#             self.conn.ClosePostgresConnection
-#         except GenomeDatabaseError as e:
-#             raise self.ReportError(e.message)
+            raise e
 
     def exportMetadata(self, path):
         try:
@@ -89,7 +54,7 @@ class MetadataManager(object):
             cur.close()
             self.conn.ClosePostgresConnection()
         except GenomeDatabaseError as e:
-            raise self.ReportError(e.message)
+            raise e
 
     def importMetadata(self, table=None, field=None, typemeta=None, metafile=None):
         try:
@@ -107,15 +72,14 @@ class MetadataManager(object):
                 genome_id[n] = new_i
             query = "SELECT upsert('{0}','{1}','{2}',%s,%s)".format(
                 table, field, typemeta)
-            try:
-                cur.execute(query, (genome_id, meta_value))
-                self.conn.commit()
-            except psycopg2.Error as e:
-                print e.pgerror
+            cur.execute(query, (genome_id, meta_value))
+            self.conn.commit()
             cur.close()
             self.conn.ClosePostgresConnection()
         except GenomeDatabaseError as e:
-            raise self.ReportError(e.message)
+            raise e
+        except psycopg2.Error as e:
+            raise GenomeDatabaseError(e.pgerror)
 
     def createMetadata(self, metadatafile):
         try:
@@ -125,9 +89,9 @@ class MetadataManager(object):
             with open(metadatafile, 'r') as metaf:
                 for line in metaf:
                     array_line = line.strip().split('\t')
-#                    if not array_line[3].startswith("metadata_"):
-#                        raise GenomeDatabaseError(
-#                            "Only Metadata Tables can be modified")
+                    if not array_line[3].startswith("metadata_"):
+                        raise GenomeDatabaseError(
+                            "Only Metadata Tables can be modified")
                     data_dict[array_line[0]] = {
                         "table": array_line[3], "type": array_line[2], "desc": array_line[1]}
 
@@ -151,8 +115,11 @@ class MetadataManager(object):
                     query_add_comment = "COMMENT ON COLUMN {0}.{1} IS '{2}'".format(
                         value.get("table"), key, value.get("desc"))
                     cur.execute(query_add_comment)
+
+# ---------- PSQL are not refresh automatically so we need to drop the existing view and recreate it with a new Definition.
+            cur.execute("SELECT refreshView()")
             self.conn.commit()
             cur.close()
             self.conn.ClosePostgresConnection
         except GenomeDatabaseError as e:
-            raise self.ReportError(e.message)
+            raise e
