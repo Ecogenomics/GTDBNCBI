@@ -13,8 +13,7 @@ class MetadataManager(object):
 
     def __init__(self):
         self.conn = GenomeDatabaseConnection()
-        self.errorMessages = []
-        self.warningMessages = []
+        self.conn.MakePostgresConnection()
 
     #
     # Group: General Functions
@@ -53,7 +52,6 @@ class MetadataManager(object):
     # Print lists
     def viewMetadata(self):
         try:
-            self.conn.MakePostgresConnection()
             cur = self.conn.cursor()
             cur.execute("SELECT * FROM view_list_meta_columns")
             print "\t".join(("Table", "Field", "Datatype", "Description"))
@@ -83,7 +81,6 @@ class MetadataManager(object):
 
     def exportMetadata(self, path):
         try:
-            self.conn.MakePostgresConnection()
             cur = self.conn.cursor()
             query = "SELECT * from metadata_view"
             outputquery = 'copy ({0}) to stdout with csv header'.format(query)
@@ -97,7 +94,6 @@ class MetadataManager(object):
 
     def importMetadata(self, table=None, field=None, typemeta=None, metafile=None):
         try:
-            self.conn.MakePostgresConnection()
             cur = self.conn.cursor()
             data_list = []
             with open(metafile, 'r') as metaf:
@@ -123,7 +119,6 @@ class MetadataManager(object):
 
     def createMetadata(self, metadatafile):
         try:
-            self.conn.MakePostgresConnection()
             cur = self.conn.cursor()
             data_dict = {}
             with open(metadatafile, 'r') as metaf:
@@ -174,8 +169,10 @@ class MetadataManager(object):
             Output directory.
         """
 
-        os.system('genometk nucleotide --silent %s %s' % (genome_file, output_dir))
-        os.system('genometk gene --silent %s %s %s' % (genome_file, gff_file, output_dir))
+        os.system('genometk nucleotide --silent %s %s' %
+                  (genome_file, output_dir))
+        os.system('genometk gene --silent %s %s %s' %
+                  (genome_file, gff_file, output_dir))
         os.system('genometk ssu --silent %s %s %s %s' % (genome_file,
                                                          Config.GTDB_SSU_GG_DB,
                                                          Config.GTDB_SSU_GG_TAXONOMY,
@@ -195,17 +192,26 @@ class MetadataManager(object):
         """
 
         try:
+            cur = self.conn.cursor()
+
+# Genome_id will be similar to GCA_000447245.1_RBG_1 instead of
+# GCA_000447245
             genome_id = os.path.basename(os.path.normpath(genome_dir))
 
-            for line in open(os.path.join(genome_dir, 'metadata.genome_nt.tsv')):
-                field, value = line.rstrip().split('\t')
-                #***PIERRE: insert 'value' into the column 'field' for the genome 'genome_id' in the table metadata_nucleotide
-                print field, value
+            genome_list_nt = [tuple(line.rstrip().split('\t')) for line in open(
+                os.path.join(genome_dir, 'metadata.genome_nt.tsv'))]
+            query_nt = "INSERT INTO metadata_nucleotide (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s) ".format(
+                genome_id)
+            cur.executemany(query_nt, [nt_tup for nt_tup in genome_list_nt])
 
-            for line in open(os.path.join(genome_dir, 'metadata.genome_gene.tsv')):
-                field, value = line.rstrip().split('\t')
-                #***PIERRE: insert 'value' into the column 'field' for the genome 'genome_id' in the table metadata_genes
-                print field, value
+            genome_list_gene = [tuple(line.rstrip().split('\t')) for line in open(
+                os.path.join(genome_dir, 'metadata.genome_gene.tsv'))]
+            query_gene = "INSERT INTO metadata_nucleotide (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s) ".format(
+                genome_id)
+            cur.executemany(query_gene, [g_tup for g_tup in genome_list_gene])
+
+            self.conn.commit()
+
         except:
             pass
             # raise self.ReportError(e.message)
