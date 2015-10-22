@@ -105,19 +105,3 @@ def generateTempTableName():
     for _ in range(0, 10):
         suffix += rng.choice('abcefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
     return "TEMP" + suffix + str(int(time.time()))
-
-
-def sha256Calculator(file_path):
-    try:
-        filereader = open(file_path, "rb")
-    except:
-        raise GenomeDatabaseError("Cannot open Fasta file: " + file_path)
-
-    m = hashlib.sha256()
-    for line in filereader:
-        m.update(line)
-
-    sha256_checksum = m.hexdigest()
-    filereader.close()
-
-    return sha256_checksum

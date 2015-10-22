@@ -4,7 +4,7 @@ import shutil
 
 from gtdblite.Exceptions import GenomeDatabaseError
 
-from checkm_static import prodigal, hmmer, resultsParser
+from checkm_static import hmmer, resultsParser
 from simplehmmer import hmmmodelparser
 
 from biolib.external.prodigal import Prodigal
