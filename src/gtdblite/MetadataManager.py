@@ -185,7 +185,7 @@ class MetadataManager(object):
                                                          Config.GTDB_SSU_SILVA_TAXONOMY,
                                                          os.path.join(output_dir, Config.GTDB_SSU_SILVA_OUTPUT_DIR)))
 
-    def storeMetadata(self, genome_dir, ssu_):
+    def storeMetadata(self, genome_dir):
         """Parse metadata files for genome and store in database.
 
         Parameters
