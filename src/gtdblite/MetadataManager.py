@@ -196,7 +196,7 @@ class MetadataManager(object):
         # nucleotide metadata
         metadata_nt_path = os.path.join(genome_dir, ConfigMetadata.GTDB_NT_FILE)
         genome_list_nt = [tuple(line.rstrip().split('\t')) for line in open(metadata_nt_path)]
-        query_nt = "INSERT INTO metadata_nucleotide (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s)".format(
+        query_nt = "INSERT INTO metadata_nucleotide (id,%I) VALUES (SELECT id from genomes where id_at_source like '{0}',%s)".format(
             genome_id.replace('U_', ''))
         cur.executemany(query_nt, [nt_tup for nt_tup in genome_list_nt])
 
