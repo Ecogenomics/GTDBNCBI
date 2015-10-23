@@ -2,7 +2,7 @@ import os
 import logging
 import psycopg2
 
-from gtdblite import Config
+from gtdblite import ConfigMetadata
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
 from gtdblite.Exceptions import GenomeDatabaseError
 
@@ -174,13 +174,13 @@ class MetadataManager(object):
         os.system('genometk gene --silent %s %s %s' %
                   (genome_file, gff_file, output_dir))
         os.system('genometk ssu --silent %s %s %s %s' % (genome_file,
-                                                         Config.GTDB_SSU_GG_DB,
-                                                         Config.GTDB_SSU_GG_TAXONOMY,
-                                                         os.path.join(output_dir, Config.GTDB_SSU_GG_OUTPUT_DIR)))
+                                                         ConfigMetadata.GTDB_SSU_GG_DB,
+                                                         ConfigMetadata.GTDB_SSU_GG_TAXONOMY,
+                                                         os.path.join(output_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR)))
         os.system('genometk ssu --silent %s %s %s %s' % (genome_file,
-                                                         Config.GTDB_SSU_SILVA_DB,
-                                                         Config.GTDB_SSU_SILVA_TAXONOMY,
-                                                         os.path.join(output_dir, Config.GTDB_SSU_SILVA_OUTPUT_DIR)))
+                                                         ConfigMetadata.GTDB_SSU_SILVA_DB,
+                                                         ConfigMetadata.GTDB_SSU_SILVA_TAXONOMY,
+                                                         os.path.join(output_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR)))
 
     def storeMetadata(self, genome_dir):
         """Parse metadata files for genome and store in database.
@@ -191,27 +191,80 @@ class MetadataManager(object):
             Directory containing metadata files to parse.
         """
 
-        try:
-            cur = self.conn.cursor()
+        cur = self.conn.cursor()
+        genome_id = os.path.basename(os.path.normpath(genome_dir))
 
-# Genome_id will be similar to GCA_000447245.1_RBG_1 instead of
-# GCA_000447245
-            genome_id = os.path.basename(os.path.normpath(genome_dir))
+        # nucleotide metadata
+        metadata_nt_path = os.path.join(genome_dir, ConfigMetadata.GTDB_NT_FILE)
+        genome_list_nt = [tuple(line.rstrip().split('\t')) for line in open(metadata_nt_path)]
+        query_nt = "INSERT INTO metadata_nucleotide (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s)".format(
+            genome_id.replace('U_', ''))
+        cur.executemany(query_nt, [nt_tup for nt_tup in genome_list_nt])
 
-            genome_list_nt = [tuple(line.rstrip().split('\t')) for line in open(
-                os.path.join(genome_dir, 'metadata.genome_nt.tsv'))]
-            query_nt = "INSERT INTO metadata_nucleotide (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s) ".format(
-                genome_id)
-            cur.executemany(query_nt, [nt_tup for nt_tup in genome_list_nt])
+        # protein metadata
+        metadata_gene_path = os.path.join(genome_dir, ConfigMetadata.GTDB_GENE_FILE)
+        genome_list_gene = [tuple(line.rstrip().split('\t')) for line in open(metadata_gene_path)]
+        query_gene = "INSERT INTO metadata_genes (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s)".format(
+            genome_id)
+        cur.executemany(query_gene, [g_tup for g_tup in genome_list_gene])
 
-            genome_list_gene = [tuple(line.rstrip().split('\t')) for line in open(
-                os.path.join(genome_dir, 'metadata.genome_gene.tsv'))]
-            query_gene = "INSERT INTO metadata_nucleotide (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s) ".format(
-                genome_id)
-            cur.executemany(query_gene, [g_tup for g_tup in genome_list_gene])
+        # Greengenes SSU metadata
+        metadata_ssu_gg_path = os.path.join(genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
+        genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX)
+        query_taxonomy = "INSERT INTO metadata_taxonomy (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s)".format(
+            genome_id)
+        cur.executemany(query_taxonomy, [g_tup for g_tup in genome_list_taxonomy])
+        cur.execute(query_gene, ('ssu_count', ssu_count))
 
-            self.conn.commit()
+        # SILVA SSU metadata
+        metadata_ssu_silva_path = os.path.join(genome_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
+        genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(metadata_ssu_silva_path, ConfigMetadata.GTDB_SSU_SILVA_PREFIX)
+        cur.executemany(query_taxonomy, [g_tup for g_tup in genome_list_taxonomy])
+        cur.execute(query_gene, ('ssu_count', ssu_count))
 
-        except:
-            pass
-            # raise self.ReportError(e.message)
+        self.conn.commit()
+
+    def _parse_taxonomy_file(self, metadata_taxonomy_file, prefix):
+        """Parse metadata file with taxonomic information for 16S rRNA genes.
+
+        Parameters
+        ----------
+        metadata_taxonomy_file : str
+          Full path to file containing 16S rRNA metadata.
+        Prefix : str
+          Prefix to append to metadata fields.
+
+        Returns
+        -------
+        list of tuples
+          Field, value pairs for all metadata items.
+        int
+            Number of 16S sequences.
+        """
+
+        if not os.path.exists(metadata_taxonomy_file):
+            return None, 0
+
+        metadata = []
+        with open(metadata_taxonomy_file) as f:
+            header_line = f.readline().rstrip()
+            headers = [prefix + '_' + x.replace('ssu_', '') for x in header_line.split('\t')]
+
+            # Report hit to longest 16S rRNA gene. It is possible that
+            # the HMMs identified a putative 16S rRNA gene, but that
+            # there was no valid BLAST hit.
+            longest_query_len = 0
+            longest_ssu_hit_info = None
+            ssu_count = 0
+            for line in f:
+                ssu_count += 1
+                line_split = line.strip().split('\t')
+                query_len = int(line_split[2])
+                if query_len > longest_query_len:
+                    longest_query_len = query_len
+                    longest_ssu_hit_info = line_split
+
+            if longest_ssu_hit_info:
+                metadata = [(headers[i], value) for i, value in enumerate(line_split)]
+
+        return metadata, ssu_count
