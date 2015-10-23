@@ -1,6 +1,10 @@
 import os
 import logging
 import psycopg2
+import sys
+
+
+from psycopg2.extensions import AsIs
 
 from gtdblite import ConfigMetadata
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
@@ -15,42 +19,14 @@ class MetadataManager(object):
         self.conn = GenomeDatabaseConnection()
         self.conn.MakePostgresConnection()
 
-    #
-    # Group: General Functions
-    #
-    # Function: ReportError
-    # Sets the last error message of the database.
-    #
-    # Parameters:
-    #     msg - The message to set.
-    #
-    # Returns:
-    #   No return value.
-    def ReportError(self, msg):
-        self.errorMessages.append(str(msg))
-
-    def GetErrors(self):
-        return self.errorMessages
-
-    def ClearErrors(self):
-        self.errorMessages = []
-
-    def ReportWarning(self, msg):
-        self.warningMessages.append(str(msg))
-
-    def GetWarnings(self):
-        return self.warningMessages
-
-    def ClearWarnings(self):
-        self.warningMessages = []
-
-    # Function: viewMetadata
-    #
-    # Lists all metadata field available in the database
-    #
-    # Returns:
-    # Print lists
     def viewMetadata(self):
+        '''
+         Function: viewMetadata
+        Lists all metadata field available in the database
+
+        Returns:
+        Print lists of Metadata on Screen
+        '''
         try:
             cur = self.conn.cursor()
             cur.execute("SELECT * FROM view_list_meta_columns")
@@ -80,6 +56,13 @@ class MetadataManager(object):
 #             raise self.ReportError(e.message)
 
     def exportMetadata(self, path):
+        '''
+        Function: exportMetadata
+        Export all Metadata for all genomes to a csv file
+
+        :param path: Path to the output file
+        '''
+
         try:
             cur = self.conn.cursor()
             query = "SELECT * from metadata_view"
@@ -93,6 +76,15 @@ class MetadataManager(object):
             raise self.ReportError(e.message)
 
     def importMetadata(self, table=None, field=None, typemeta=None, metafile=None):
+        '''
+        Function importMetadata
+        import one field of Metadata for a list of Genomes
+
+        :param table: Table where the column is located
+        :param field: Name of the Column
+        :param typemeta: Data type of the column
+        :param metafile: TSV file with the format (Genome_id \t Value)
+        '''
         try:
             cur = self.conn.cursor()
             data_list = []
@@ -118,6 +110,13 @@ class MetadataManager(object):
             raise self.ReportError(e.message)
 
     def createMetadata(self, metadatafile):
+        '''
+        Function createMetadata
+        Create or Update metaddata columns in the database
+
+        :param metadatafile: TSV file listing one new field per line
+        Format of the TSV file is new_field \t description \t type \t table
+        '''
         try:
             cur = self.conn.cursor()
             data_dict = {}
@@ -182,7 +181,7 @@ class MetadataManager(object):
                                                          ConfigMetadata.GTDB_SSU_SILVA_TAXONOMY,
                                                          os.path.join(output_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR)))
 
-    def storeMetadata(self, genome_dir):
+    def storeMetadata(self, genome_dir, genome_id=None, cur=None):
         """Parse metadata files for genome and store in database.
         Parameters
         ----------
@@ -190,38 +189,61 @@ class MetadataManager(object):
             Directory containing metadata files to parse.
         """
 
-        cur = self.conn.cursor()
-        genome_id = os.path.basename(os.path.normpath(genome_dir))
+        #cur = self.conn.cursor()
+        #genome_id = os.path.basename(os.path.normpath(genome_dir))
+        cur.execute(
+            "INSERT INTO metadata_nucleotide (id) VALUES ({0})".format(genome_id))
+        cur.execute(
+            "INSERT INTO metadata_genes (id) VALUES ({0})".format(genome_id))
+        cur.execute(
+            "INSERT INTO metadata_taxonomy (id) VALUES ({0})".format(genome_id))
 
         # nucleotide metadata
-        metadata_nt_path = os.path.join(genome_dir, ConfigMetadata.GTDB_NT_FILE)
-        genome_list_nt = [tuple(line.rstrip().split('\t')) for line in open(metadata_nt_path)]
-        query_nt = "INSERT INTO metadata_nucleotide (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s)".format(
-            genome_id.replace('U_', ''))
-        cur.executemany(query_nt, [nt_tup for nt_tup in genome_list_nt])
+        metadata_nt_path = os.path.join(
+            genome_dir, ConfigMetadata.GTDB_NT_FILE)
+        genome_list_nt = [tuple(line.rstrip().split('\t'))
+                          for line in open(metadata_nt_path)]
 
-        # protein metadata
-        metadata_gene_path = os.path.join(genome_dir, ConfigMetadata.GTDB_GENE_FILE)
-        genome_list_gene = [tuple(line.rstrip().split('\t')) for line in open(metadata_gene_path)]
-        query_gene = "INSERT INTO metadata_genes (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s)".format(
+        query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(
             genome_id)
-        cur.executemany(query_gene, [g_tup for g_tup in genome_list_gene])
+        print query_nt
+        cur.executemany(query_nt, [(AsIs(c), v) for (c, v) in genome_list_nt])
 
-        # Greengenes SSU metadata
-        metadata_ssu_gg_path = os.path.join(genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
-        genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX)
-        query_taxonomy = "INSERT INTO metadata_taxonomy (id,%s) VALUES (SELECT id from genomes where id_at_source like '{0}',%s)".format(
-            genome_id)
-        cur.executemany(query_taxonomy, [g_tup for g_tup in genome_list_taxonomy])
-        cur.execute(query_gene, ('ssu_count', ssu_count))
+        try:
+            # protein metadata
+            metadata_gene_path = os.path.join(
+                genome_dir, ConfigMetadata.GTDB_GENE_FILE)
+            genome_list_gene = [tuple(line.rstrip().split('\t'))
+                                for line in open(metadata_gene_path)]
+            query_gene = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(
+                genome_id)
+            cur.executemany(query_gene, [(AsIs(c), v)
+                                         for (c, v) in genome_list_gene])
 
-        # SILVA SSU metadata
-        metadata_ssu_silva_path = os.path.join(genome_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
-        genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(metadata_ssu_silva_path, ConfigMetadata.GTDB_SSU_SILVA_PREFIX)
-        cur.executemany(query_taxonomy, [g_tup for g_tup in genome_list_taxonomy])
-        cur.execute(query_gene, ('ssu_count', ssu_count))
+            # Greengenes SSU metadata
+            metadata_ssu_gg_path = os.path.join(
+                genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
+            genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
+                metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX)
+            query_taxonomy = "UPDATE metadata_taxonomy SET %s = %s WHERE id = {0}".format(
+                genome_id)
+            cur.executemany(
+                query_taxonomy, [(AsIs(c), v) for (c, v) in genome_list_taxonomy])
 
-        self.conn.commit()
+            # SILVA SSU metadata
+            metadata_ssu_silva_path = os.path.join(
+                genome_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
+            genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
+                metadata_ssu_silva_path, ConfigMetadata.GTDB_SSU_SILVA_PREFIX)
+            cur.executemany(
+                query_taxonomy, [(AsIs(c), v) for (c, v) in genome_list_taxonomy])
+            query_gene_ssu = "UPDATE metadata_genes SET ssu_count = %s WHERE id = {0}".format(
+                genome_id)
+            cur.execute(query_gene_ssu, (ssu_count,))
+        except psycopg2.Error as e:
+            raise GenomeDatabaseError(e.pgerror)
+
+        # self.conn.commit()
 
     def _parse_taxonomy_file(self, metadata_taxonomy_file, prefix):
         """Parse metadata file with taxonomic information for 16S rRNA genes.
@@ -247,7 +269,8 @@ class MetadataManager(object):
         metadata = []
         with open(metadata_taxonomy_file) as f:
             header_line = f.readline().rstrip()
-            headers = [prefix + '_' + x.replace('ssu_', '') for x in header_line.split('\t')]
+            headers = [
+                prefix + '_' + x.replace('ssu_', '') for x in header_line.split('\t')]
 
             # Report hit to longest 16S rRNA gene. It is possible that
             # the HMMs identified a putative 16S rRNA gene, but that
@@ -264,6 +287,7 @@ class MetadataManager(object):
                     longest_ssu_hit_info = line_split
 
             if longest_ssu_hit_info:
-                metadata = [(headers[i], value) for i, value in enumerate(line_split)]
+                metadata = [(headers[i], value)
+                            for i, value in enumerate(line_split)]
 
         return metadata, ssu_count

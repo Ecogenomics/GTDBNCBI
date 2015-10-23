@@ -384,7 +384,8 @@ class GenomeDatabase(object):
             try:
                 checkm_fh = open(checkm_file, "rb")
             except:
-                raise GenomeDatabaseError("Cannot open CheckM file: " + checkm_file)
+                raise GenomeDatabaseError(
+                    "Cannot open CheckM file: " + checkm_file)
 
             required_headers = Tools.populate_required_headers(checkm_fh)
 
@@ -395,11 +396,12 @@ class GenomeDatabase(object):
                 line = line.rstrip()
                 splitline = line.split("\t")
                 bin_id, completeness, contamination = (splitline[required_headers["Bin Id"]],
-                                                          splitline[required_headers["Completeness"]],
-                                                          splitline[required_headers["Contamination"]])
+                                                       splitline[
+                                                           required_headers["Completeness"]],
+                                                       splitline[required_headers["Contamination"]])
 
                 checkm_results_dict[bin_id] = {"completeness": completeness,
-                                                  "contamination": contamination}
+                                               "contamination": contamination}
 
             checkm_fh.close()
 
@@ -407,28 +409,36 @@ class GenomeDatabase(object):
 
             if modify_genome_list_id is not None:
                 if new_genome_list_name is not None:
-                    raise GenomeDatabaseError("Unable to both modify and create genome lists at the same time.")
+                    raise GenomeDatabaseError(
+                        "Unable to both modify and create genome lists at the same time.")
 
-                has_permission = self.HasPermissionToEditGenomeList(modify_genome_list_id)
+                has_permission = self.HasPermissionToEditGenomeList(
+                    modify_genome_list_id)
                 if has_permission is None:
-                    raise GenomeDatabaseError("Unable to add genomes to list %s." % modify_genome_list_id)
+                    raise GenomeDatabaseError(
+                        "Unable to add genomes to list %s." % modify_genome_list_id)
                 elif not has_permission:
-                    raise GenomeDatabaseError("Insufficient permissions to add genomes to list %s." % modify_genome_list_id)
+                    raise GenomeDatabaseError(
+                        "Insufficient permissions to add genomes to list %s." % modify_genome_list_id)
 
             if new_genome_list_name is not None:
                 owner_id = None
                 if not self.currentUser.isRootUser():
                     owner_id = self.currentUser.getUserId()
 
-                modify_genome_list_id = self.CreateGenomeListWorking(cur, [], new_genome_list_name, "", owner_id)
+                modify_genome_list_id = self.CreateGenomeListWorking(
+                    cur, [], new_genome_list_name, "", owner_id)
                 if modify_genome_list_id is None:
-                    raise GenomeDatabaseError("Unable to create the new genome list.")
+                    raise GenomeDatabaseError(
+                        "Unable to create the new genome list.")
 
             # add the genomes
-            added_genome_dict = self.add_genome_list(cur, checkm_results_dict, batchfile, force_overwrite)
+            added_genome_dict = self.add_genome_list(
+                cur, checkm_results_dict, batchfile, force_overwrite)
 
             # run Prodigal on Genomes having only a genome file
-            self.logger.info("Running Prodigal on genomes without identified genes.")
+            self.logger.info(
+                "Running Prodigal on genomes without identified genes.")
             fasta_paths_to_copy = Tools.runMultiProdigal(2, added_genome_dict)
             if modify_genome_list_id is not None:
                 if not self.EditGenomeListWorking(cur, modify_genome_list_id, genome_ids=added_genome_dict.keys(), operation='add'):
@@ -456,55 +466,72 @@ class GenomeDatabase(object):
                     username = self.currentUser.getUsername()
 
                 if username is None:
-                    raise GenomeDatabaseError("Unable to determine user to add genomes under.")
+                    raise GenomeDatabaseError(
+                        "Unable to determine user to add genomes under.")
 
                 target_dir = os.path.join(self.genomeCopyDir, username)
                 if os.path.exists(target_dir):
                     if not os.path.isdir(target_dir):
-                        raise GenomeDatabaseError("Genome copy directory exists, but isn't a directory: %s" % (target_dir,))
+                        raise GenomeDatabaseError(
+                            "Genome copy directory exists, but isn't a directory: %s" % (target_dir,))
                 else:
                     os.mkdir(target_dir)
 
                 try:
-                    self.logger.info("Calculating and storing metadata for each genomes.")
+                    self.logger.info(
+                        "Calculating and storing metadata for each genomes.")
                     metadata_mngr = MetadataManager()
                     for genome_id, external_id in external_id_dict.items():
                         sub_target_dir = os.path.join(target_dir, external_id)
                         if os.path.exists(sub_target_dir):
                             if not os.path.isdir(target_dir):
-                                raise GenomeDatabaseError("Genome copy directory exists, but isn't a directory: %s" % (target_dir,))
+                                raise GenomeDatabaseError(
+                                    "Genome copy directory exists, but isn't a directory: %s" % (target_dir,))
                         else:
                             os.mkdir(sub_target_dir)
 
-                        target_file = os.path.join(sub_target_dir, external_id + self.genomeFileSuffix)
-                        shutil.copy(fasta_paths_to_copy.get(genome_id).get('fasta_path'), target_file)
-                        os.chmod(target_file, stat.S_IROTH | stat.S_IRGRP | stat.S_IRUSR)
+                        target_file = os.path.join(
+                            sub_target_dir, external_id + self.genomeFileSuffix)
+                        shutil.copy(
+                            fasta_paths_to_copy.get(genome_id).get('fasta_path'), target_file)
+                        #os.chmod(target_file, stat.S_IROTH | stat.S_IRGRP | stat.S_IRUSR)
                         copied_fasta_paths.append(target_file)
 
-                        genes_target_file = os.path.join(sub_target_dir, external_id + self.proteinFileSuffix)
-                        shutil.copy(fasta_paths_to_copy.get(genome_id).get('aa_gene_file'), genes_target_file)
+                        genes_target_file = os.path.join(
+                            sub_target_dir, external_id + self.proteinFileSuffix)
+                        shutil.copy(
+                            fasta_paths_to_copy.get(genome_id).get('aa_gene_file'), genes_target_file)
                         copied_genes_fasta_paths.append(genes_target_file)
 
                         checksum = sha256(genes_target_file)
-                        fout = open(genes_target_file + self.checksumSuffix, 'w')
+                        fout = open(
+                            genes_target_file + self.checksumSuffix, 'w')
                         fout.write(checksum)
                         fout.close()
 
-                        nt_target_file = os.path.join(sub_target_dir, external_id + self.ntGeneFileSuffix)
-                        shutil.copy(fasta_paths_to_copy.get(genome_id).get('nt_gene_file'), nt_target_file)
+                        nt_target_file = os.path.join(
+                            sub_target_dir, external_id + self.ntGeneFileSuffix)
+                        shutil.copy(
+                            fasta_paths_to_copy.get(genome_id).get('nt_gene_file'), nt_target_file)
 
-                        gff_target_file = os.path.join(sub_target_dir, external_id + self.gffFileSuffix)
-                        shutil.copy(fasta_paths_to_copy.get(genome_id).get('gff_file'), gff_target_file)
+                        gff_target_file = os.path.join(
+                            sub_target_dir, external_id + self.gffFileSuffix)
+                        shutil.copy(
+                            fasta_paths_to_copy.get(genome_id).get('gff_file'), gff_target_file)
 
-                        trans_table_target_file = os.path.join(sub_target_dir, external_id + self.tranTableFileSuffix)
-                        shutil.copy(fasta_paths_to_copy.get(genome_id).get('translation_table_file'), trans_table_target_file)
+                        trans_table_target_file = os.path.join(
+                            sub_target_dir, external_id + self.tranTableFileSuffix)
+                        shutil.copy(fasta_paths_to_copy.get(genome_id).get(
+                            'translation_table_file'), trans_table_target_file)
 
                         cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (
                             target_file, genes_target_file, genome_id))
 
                         # calculate metadata and store results in database
-                        metadata_mngr.calculateMetadata(target_file, gff_target_file, sub_target_dir)
-                        metadata_mngr.storeMetadata(sub_target_dir)
+                        metadata_mngr.calculateMetadata(
+                            target_file, gff_target_file, sub_target_dir)
+                        metadata_mngr.storeMetadata(
+                            sub_target_dir, genome_id, cur)
 
                 except Exception as e:
                     try:
@@ -546,35 +573,44 @@ class GenomeDatabase(object):
                 source = self.defaultGenomeSourceName
 
             if genome_list_id is not None:
-                has_permission = self.HasPermissionToEditGenomeList(genome_list_id)
+                has_permission = self.HasPermissionToEditGenomeList(
+                    genome_list_id)
                 if has_permission is None:
-                    raise GenomeDatabaseError("Unable to add genome to list %s." % genome_list_id)
+                    raise GenomeDatabaseError(
+                        "Unable to add genome to list %s." % genome_list_id)
                 elif not has_permission:
-                    raise GenomeDatabaseError("Insufficient permission to add genome to genome list %s." % genome_list_id)
+                    raise GenomeDatabaseError(
+                        "Insufficient permission to add genome to genome list %s." % genome_list_id)
 
-            cur.execute("SELECT id, external_id_prefix, user_editable FROM genome_sources WHERE name = %s", (source,))
+            cur.execute(
+                "SELECT id, external_id_prefix, user_editable FROM genome_sources WHERE name = %s", (source,))
             source_id = None
 
             for (db_id, _external_id_prefix, user_editable) in cur:
                 if (not user_editable):
                     if id_at_source is None:
-                        raise GenomeDatabaseError("Cannot auto generate ids at source for the %s genome source." % source)
+                        raise GenomeDatabaseError(
+                            "Cannot auto generate ids at source for the %s genome source." % source)
                     if (not self.currentUser.isRootUser()):
-                        raise GenomeDatabaseError("Only the root user can add genomes to the %s genome source." % source)
+                        raise GenomeDatabaseError(
+                            "Only the root user can add genomes to the %s genome source." % source)
                 source_id = db_id
                 break
 
             if source_id is None:
-                raise GenomeDatabaseError("Could not find the %s genome source." % source)
+                raise GenomeDatabaseError(
+                    "Could not find the %s genome source." % source)
 
             if id_at_source is None:
-                cur.execute("SELECT id_at_source FROM genomes WHERE genome_source_id = %s order by id_at_source::int desc", (source_id,))
+                cur.execute(
+                    "SELECT id_at_source FROM genomes WHERE genome_source_id = %s order by id_at_source::int desc", (source_id,))
                 last_id = None
                 for (last_id_at_source,) in cur:
                     last_id = last_id_at_source
                     break
 
-                cur.execute("SELECT last_auto_id FROM genome_sources WHERE id = %s ", (source_id,))
+                cur.execute(
+                    "SELECT last_auto_id FROM genome_sources WHERE id = %s ", (source_id,))
                 for (last_auto_id,) in cur:
                     if last_id is None:
                         last_id = last_auto_id
@@ -591,7 +627,8 @@ class GenomeDatabase(object):
                 if id_at_source is None:
                     id_at_source = str(new_id)
 
-                cur.execute("UPDATE genome_sources set last_auto_id = %s where id = %s", (new_id, source_id))
+                cur.execute(
+                    "UPDATE genome_sources set last_auto_id = %s where id = %s", (new_id, source_id))
 
             added = datetime.datetime.now()
 
@@ -599,7 +636,8 @@ class GenomeDatabase(object):
             if not self.currentUser.isRootUser():
                 owner_id = self.currentUser.getUserId()
 
-            cur.execute("SELECT id FROM genomes WHERE genome_source_id = %s AND id_at_source = %s", (source_id, id_at_source))
+            cur.execute(
+                "SELECT id FROM genomes WHERE genome_source_id = %s AND id_at_source = %s", (source_id, id_at_source))
 
             result = cur.fetchall()
 
@@ -608,9 +646,11 @@ class GenomeDatabase(object):
 
             if len(result):
                 if force_overwrite:
-                    raise GenomeDatabaseError("Force overwrite not implemented yet")
+                    raise GenomeDatabaseError(
+                        "Force overwrite not implemented yet")
                 else:
-                    raise GenomeDatabaseError("Genome source '%s' already contains id '%s'. Use -f to force an overwrite." % (source, id_at_source))
+                    raise GenomeDatabaseError(
+                        "Genome source '%s' already contains id '%s'. Use -f to force an overwrite." % (source, id_at_source))
 
             cur.execute("INSERT INTO genomes " + columns + " "
                         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) " +
@@ -651,20 +691,24 @@ class GenomeDatabase(object):
         for line in fh:
             line = line.rstrip()
             if line == '':
-                self.ReportWarning("Encountered blank line in batch file. It has been ignored.")
+                self.ReportWarning(
+                    "Encountered blank line in batch file. It has been ignored.")
                 continue
 
             splitline = line.split("\t")
             if len(splitline) < 6:
                 splitline += [None] * (6 - len(splitline))
 
-            (fasta_path, name, desc, gene_path, source_name, id_at_source) = splitline
+            (fasta_path, name, desc, gene_path,
+             source_name, id_at_source) = splitline
 
             if fasta_path is None or fasta_path == '':
-                raise GenomeDatabaseError("Each line in the batch file must specify a path to the genome's fasta file.")
+                raise GenomeDatabaseError(
+                    "Each line in the batch file must specify a path to the genome's fasta file.")
 
             if name is None or name == '':
-                raise GenomeDatabaseError("Each line in the batch file must specify a name for the genome.")
+                raise GenomeDatabaseError(
+                    "Each line in the batch file must specify a name for the genome.")
 
             abs_path = os.path.abspath(fasta_path)
             bin_id = os.path.splitext(os.path.basename(abs_path))[0]
@@ -674,16 +718,19 @@ class GenomeDatabase(object):
                 abs_gene_path = os.path.abspath(gene_path)
 
             if bin_id not in checkm_results_dict:
-                raise GenomeDatabaseError("Couldn't find CheckM result for %s (%s). Bin identifier is %s." % (name, abs_path, bin_id))
+                raise GenomeDatabaseError(
+                    "Couldn't find CheckM result for %s (%s). Bin identifier is %s." % (name, abs_path, bin_id))
 
             genome_id = self.AddFastaGenomeWorking(
                 cur, abs_path, name, desc, None, force_overwrite, source_name, id_at_source, abs_gene_path,
                 checkm_results_dict[bin_id]["completeness"], checkm_results_dict[bin_id]["contamination"])
 
             if not (genome_id):
-                raise GenomeDatabaseError("Failed to add genome: %s" % abs_path)
+                raise GenomeDatabaseError(
+                    "Failed to add genome: %s" % abs_path)
 
-            added_genome_ids[genome_id] = {"gene_path": abs_gene_path, "fasta_path": abs_path}
+            added_genome_ids[genome_id] = {
+                "gene_path": abs_gene_path, "fasta_path": abs_path}
         return added_genome_ids
 
     # True if has permission. False if doesn't. None on error.
