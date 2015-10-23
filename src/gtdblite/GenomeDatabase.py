@@ -13,7 +13,7 @@ from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
 from gtdblite import MarkerCalculation
 from gtdblite.MetadataManager import MetadataManager
 from gtdblite import Tools
-from gtdblite import profiles
+from gtdblite.GenomeFilter import GenomeFilter
 from gtdblite.Exceptions import GenomeDatabaseError
 
 from biolib.checksum import sha256
@@ -29,6 +29,8 @@ class GenomeDatabase(object):
         self.errorMessages = []
         self.warningMessages = []
         self.debugMode = False
+
+        self.threads = threads
         self.pool = Pool(threads)
 
         self.genomeFileSuffix = "_genomic.fna"
@@ -429,7 +431,7 @@ class GenomeDatabase(object):
 
             # run Prodigal on Genomes having only a genome file
             self.logger.info("Running Prodigal on genomes without identified genes.")
-            fasta_paths_to_copy = Tools.runMultiProdigal(2, added_genome_dict)
+            fasta_paths_to_copy = Tools.runMultiProdigal(self.threads, added_genome_dict)
             if modify_genome_list_id is not None:
                 if not self.EditGenomeListWorking(cur, modify_genome_list_id, genome_ids=added_genome_dict.keys(), operation='add'):
                     raise GenomeDatabaseError(
@@ -1568,23 +1570,31 @@ class GenomeDatabase(object):
 
         return [x for x in marker_ids if x not in marker_id_dict]
 
-    # Need to fix up the multithreading of this function, could be better
-    # written
-    def MakeTreeData(self, marker_ids, genome_ids, directory, prefix, profile=None, config_dict=None, build_tree=True):
+    def MakeTreeData(self, marker_ids, genome_ids,
+                            directory, prefix,
+                            comp_threshold, cont_threshold,
+                            taxa_filter,
+                            guaranteed_genome_list_ids, guaranteed_genome_ids,
+                            individual,
+                            build_tree=True):
+
         try:
-            if profile is None:
-                profile = profiles.ReturnDefaultProfileName()
-
-                if profile not in profiles.profiles:
-                    raise GenomeDatabaseError("Unknown Profile: %s" % profile)
-                if not profiles.profiles[profile].MakeTreeData(self, marker_ids, genome_ids, directory, prefix, config_dict):
-                    raise GenomeDatabaseError(
-                        "Tree building failed for profile: %s" % profile)
-
-                return True
+            gf = GenomeFilter()
+            gf.FilterTreeData(self, marker_ids, genome_ids,
+                              comp_threshold, cont_threshold,
+                              taxa_filter,
+                              guaranteed_genome_list_ids, guaranteed_genome_ids,
+                              individual,
+                              directory, prefix)
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+        if build_tree:
+            pass
+            # To Do: should infer tree here
+
+        return True
 
     def CalculateMarkersOnProdigalDirAsync(self, marker_ids, prodigal_dir):
         try:
