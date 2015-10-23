@@ -7,6 +7,7 @@ import logging
 from multiprocessing import Pool
 
 from gtdblite import Config
+from gtdblite import ConfigMetadata
 from gtdblite.User import User
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
 from gtdblite import MarkerCalculation
