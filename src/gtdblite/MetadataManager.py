@@ -41,19 +41,7 @@ class MetadataManager(object):
             cur.close()
             self.conn.ClosePostgresConnection()
         except GenomeDatabaseError as e:
-            raise self.ReportError(e.message)
-
-#     def exportMetadata(self, path):
-#         try:
-#             self.conn.MakePostgresConnection()
-#             cur = self.conn.cursor()
-#             query = "SELECT exportMeta('{0}')".format(path)
-#             cur.execute(query)
-#             print "Export Successful"
-#             cur.close()
-#             self.conn.ClosePostgresConnection
-#         except GenomeDatabaseError as e:
-#             raise self.ReportError(e.message)
+            raise e
 
     def exportMetadata(self, path):
         '''
@@ -73,7 +61,7 @@ class MetadataManager(object):
             cur.close()
             self.conn.ClosePostgresConnection()
         except GenomeDatabaseError as e:
-            raise self.ReportError(e.message)
+            raise e
 
     def importMetadata(self, table=None, field=None, typemeta=None, metafile=None):
         '''
@@ -99,15 +87,14 @@ class MetadataManager(object):
                 genome_id[n] = new_i
             query = "SELECT upsert('{0}','{1}','{2}',%s,%s)".format(
                 table, field, typemeta)
-            try:
-                cur.execute(query, (genome_id, meta_value))
-                self.conn.commit()
-            except psycopg2.Error as e:
-                print e.pgerror
+            cur.execute(query, (genome_id, meta_value))
+            self.conn.commit()
             cur.close()
             self.conn.ClosePostgresConnection()
         except GenomeDatabaseError as e:
-            raise self.ReportError(e.message)
+            raise e
+        except psycopg2.Error as e:
+            raise GenomeDatabaseError(e.pgerror)
 
     def createMetadata(self, metadatafile):
         '''
@@ -123,9 +110,9 @@ class MetadataManager(object):
             with open(metadatafile, 'r') as metaf:
                 for line in metaf:
                     array_line = line.strip().split('\t')
-#                    if not array_line[3].startswith("metadata_"):
-#                        raise GenomeDatabaseError(
-#                            "Only Metadata Tables can be modified")
+                    if not array_line[3].startswith("metadata_"):
+                        raise GenomeDatabaseError(
+                            "Only Metadata Tables can be modified")
                     data_dict[array_line[0]] = {
                         "table": array_line[3], "type": array_line[2], "desc": array_line[1]}
 
@@ -149,11 +136,14 @@ class MetadataManager(object):
                     query_add_comment = "COMMENT ON COLUMN {0}.{1} IS '{2}'".format(
                         value.get("table"), key, value.get("desc"))
                     cur.execute(query_add_comment)
+
+# ---------- PSQL are not refresh automatically so we need to drop the existing view and recreate it with a new Definition.
+            cur.execute("SELECT refreshView()")
             self.conn.commit()
             cur.close()
             self.conn.ClosePostgresConnection
         except GenomeDatabaseError as e:
-            raise self.ReportError(e.message)
+            raise e
 
     def calculateMetadata(self, genome_file, gff_file, output_dir):
         """Calculate metadata for new genome.
