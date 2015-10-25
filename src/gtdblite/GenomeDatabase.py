@@ -2521,3 +2521,30 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+    def reportStats(self):
+        """Report general database statistics."""
+
+        try:
+            cur = self.conn.cursor()
+
+            cur.execute("SELECT name, external_id_prefix, " +
+                            "(SELECT COUNT(*) "
+                            "FROM genomes "
+                            "WHERE genomes.genome_source_id = genome_sources.id) "
+                        "FROM genome_sources " +
+                        "ORDER BY id")
+            genome_counts = cur.fetchall()
+
+            print '\t'.join(('Genome Source', 'Prefix', 'Genome Count'))
+            for tup in genome_counts:
+                print '\t'.join(map(str, list(tup)))
+
+            print ''
+            print 'Total genomes: %d' % (sum([x[2] for x in genome_counts]))
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
