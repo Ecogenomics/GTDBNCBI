@@ -183,10 +183,15 @@ class MetadataManager(object):
 
     def storeMetadata(self, genome_dir, genome_id=None, cur=None):
         """Parse metadata files for genome and store in database.
+
         Parameters
         ----------
         genome_dir : str
             Directory containing metadata files to parse.
+        genome_id : str
+            Unique identifer of genome.
+        cur :
+            Database cursor.
         """
 
         cur.execute(
@@ -203,7 +208,6 @@ class MetadataManager(object):
                           for line in open(metadata_nt_path)]
         query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(
             genome_id)
-        print query_nt
         cur.executemany(query_nt, [(AsIs(c), v) for (c, v) in genome_list_nt])
 
         try:

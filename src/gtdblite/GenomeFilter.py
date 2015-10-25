@@ -44,12 +44,9 @@ class GenomeFilter(object):
             chosen_markers[marker_id] = {'external_id_prefix': external_id_prefix, 'name': marker_name, 'description': marker_description, 'id_in_database': id_in_database, 'size': size}
             chosen_markers_order.append(marker_id)
 
-        gg_fh = open(os.path.join(directory, prefix + "_concatenated.arbtxt"), 'wb')
-        fasta_concat_fh = open(os.path.join(directory, prefix + "_concatenated.faa"), 'wb')
+        # output the marker info and multi_hit info
         marker_info_fh = open(os.path.join(directory, prefix + "_concatenated_markers.info"), 'wb')
         multi_hits_fh = open(os.path.join(directory, prefix + "_multi_hits.info"), 'wb')
-
-        # output the marker info and multi_hit info
         multi_hits_header = ["Genome_ID"]
         for marker_id in chosen_markers_order:
             external_id = chosen_markers[marker_id]['external_id_prefix'] + "_" + chosen_markers[marker_id]['id_in_database']
@@ -79,16 +76,16 @@ class GenomeFilter(object):
         # find genomes that fail completeness and contamination thresholds
         self.logger.info('Filtering genomes with completeness <%.1f%% or contamination >%.1f%%.' % (comp_threshold, cont_threshold))
 
-        cur.execute("SELECT external_id_prefix || '_' || id_at_source as external_id, genomes.id, checkm_completeness, checkm_contamination " +
+        cur.execute("SELECT id " +
                      "FROM genomes " +
-                     "LEFT OUTER JOIN genome_sources ON genomes.genome_source_id = genome_sources.id " +
                      "WHERE genomes.id in %s " +
                      "AND (checkm_completeness < %s " +
                           "OR checkm_contamination > %s)",
                     (tuple(genome_ids), comp_threshold, cont_threshold))
 
-        filtered_genomes = set([values[1] for values in cur])
+        filtered_genomes = set([x[0] for x in cur])
         filtered_genomes -= guaranteed_genomes
+        filtered_genomes
 
         self.logger.info('Filtered %d genomes based on completeness and contamination.' % len(filtered_genomes))
 
@@ -114,6 +111,8 @@ class GenomeFilter(object):
 
         # run through each of the genomes and make the magic happen
         self.logger.info('Writing concatenated alignment and genome metadata.')
+        gg_fh = open(os.path.join(directory, prefix + "_concatenated.arbtxt"), 'wb')
+        fasta_concat_fh = open(os.path.join(directory, prefix + "_concatenated.faa"), 'wb')
         individual_marker_fasta = dict()
         genome_info = dict()
         for (external_id, genome_id, name, checkm_completeness, checkm_contamination, owned_by_root, owner) in genome_details:
@@ -137,8 +136,7 @@ class GenomeFilter(object):
                         "AND marker_id in %s ", (genome_id, tuple(marker_ids,)))
 
             if (cur.rowcount == 0):
-                sys.stderr.write("WARNING: Genome %s has no markers for this marker set in the database and will be missing from the output files.\n" % external_id)
-                sys.stderr.flush()
+                self.logger.warning("Genome %s has no markers for this marker set in the database and will be missing from the output files.\n" % external_id)
                 continue
 
             for marker_id, sequence, multiple_hits in cur:
@@ -163,8 +161,7 @@ class GenomeFilter(object):
                     sequence = chosen_markers[marker_id]['size'] * '-'
                 aligned_seq += sequence
 
-            fasta_outstr = ">%s\n%s\n" % (genome_info['external_id'],
-                                          aligned_seq)
+            fasta_outstr = ">%s\n%s\n" % (genome_info['external_id'], aligned_seq)
             multi_hits_outstr = "\t".join(multi_hits_details) + "\n"
 
             gg_list = ["BEGIN",
