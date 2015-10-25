@@ -428,6 +428,11 @@ def importMetadata(db, args):
 def createMetadata(db, args):
     return db.createMetadata(args.metadatafile)
 
+
+def DatabaseStatsData(db, args):
+    return db.reportStats()
+
+
 if __name__ == '__main__':
     # make sure all required dependencies are on the system path
     check_dependencies(['prodigal', 'genometk', 'blastn'])
@@ -435,15 +440,15 @@ if __name__ == '__main__':
     # create the top-level parser
     parser = argparse.ArgumentParser(prog='gtdblite.py')
     parser.add_argument('-r', dest='login_as_root', action='store_true',
-                        help='Login as the root user'),
+                        help='Login as the root user')
     parser.add_argument('-u', dest='logon_as_user',
                         help='Logon as this user (implies -r)'),
     parser.add_argument('-t', dest='threads', type=int,
-                        help='Threads to use'),
+                        help='Threads to use')
     parser.add_argument('-f', dest='force', action='store_true',
-                        help='Force the action (required to override warnings for certain actions)'),
+                        help='Force the action (required to override warnings for certain actions)')
     parser.add_argument('-y', dest='assume_yes', action='store_true',
-                        help='Assume yes to all confirm prompts (useful for batch processing)'),
+                        help='Assume yes to all confirm prompts (useful for batch processing)')
     parser.add_argument('--debug', dest='debug', action='store_true',
                         help='Run in debug mode')
     parser.add_argument('--version', action='version', version=versionInfo(),
@@ -487,10 +492,10 @@ if __name__ == '__main__':
     tree_category_subparser = tree_category_parser.add_subparsers(
         help='Tree command help', dest='tree_subparser_name')
 
-    profile_category_parser = category_parser.add_parser(
-        'profiles', help='Access the profile management commands')
-    profile_category_subparser = profile_category_parser.add_subparsers(
-        help='Profile command help', dest='profile_subparser_name')
+    db_stats_category_parser = category_parser.add_parser(
+        'db_stats', help='Commands for viewing database statistics')
+    db_stats_category_subparser = db_stats_category_parser.add_subparsers(
+        help='Database stats command help', dest='db_stats_subparser_name')
 
 # -------- User Management subparsers
 
@@ -776,9 +781,9 @@ if __name__ == '__main__':
 
     parser_metadata_export = metadata_category_subparser.add_parser('export',
                                                                     formatter_class=CustomHelpFormatter,
-                                                                    help='Export a TSV file with all Metadata fields')
+                                                                    help='Export a CSV file with all Metadata fields')
     parser_metadata_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                        help='Destination to write the TSV file')
+                                        help='Destination to write the CSV file')
     parser_metadata_export.set_defaults(func=exportMetadata)
 
 # -------- Generate Tree Data
@@ -819,6 +824,13 @@ if __name__ == '__main__':
                                     help="Only output tree data, don't build the tree")
 
     parser_tree_create.set_defaults(func=CreateTreeData)
+
+# -------- Generate Tree Data
+    parser_db_stats_view = db_stats_category_subparser.add_parser('view',
+                                                            formatter_class=CustomHelpFormatter,
+                                                            help='View database statistics')
+
+    parser_db_stats_view.set_defaults(func=DatabaseStatsData)
 
     # Do the parsing
     args = parser.parse_args()
