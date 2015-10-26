@@ -134,7 +134,7 @@ def EditUser(db, args):
 
 
 def AddManyFastaGenomes(db, args):
-    loggerSetup(None)
+    loggerSetup(None, args.silent)
 
     return db.AddManyFastaGenomes(
         args.batchfile, args.checkm_file, args.genome_list_id,
@@ -150,7 +150,7 @@ def AddMarkers(db, args):
 
 
 def CreateTreeData(db, args):
-    loggerSetup(args.out_dir)
+    loggerSetup(args.out_dir, args.silent)
 
     genome_id_list = []
 
@@ -449,6 +449,8 @@ if __name__ == '__main__':
                         help='Force the action (required to override warnings for certain actions)')
     parser.add_argument('-y', dest='assume_yes', action='store_true',
                         help='Assume yes to all confirm prompts (useful for batch processing)')
+    parser.add_argument('--silent', action='store_true',
+                        help='Suppress output to screen')
     parser.add_argument('--debug', dest='debug', action='store_true',
                         help='Run in debug mode')
     parser.add_argument('--version', action='version', version=versionInfo(),
