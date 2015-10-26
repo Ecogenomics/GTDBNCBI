@@ -94,7 +94,8 @@ def loggerSetup(output_dir, silent=False):
 
     if output_dir:
         make_sure_path_exists(output_dir)
-        file_logger = logging.FileHandler(os.path.join(output_dir, 'gtdb.log'), 'a')
+        file_logger = logging.FileHandler(
+            os.path.join(output_dir, 'gtdb.log'), 'a')
         file_logger.setFormatter(log_format)
         logger.addHandler(file_logger)
 
@@ -231,14 +232,7 @@ def CreateTreeData(db, args):
 
 
 def ViewGenomes(db, args):
-
-    if args.view_all:
-        return db.ViewGenomes()
-    else:
-        external_ids = None
-        if args.id_list:
-            external_ids = args.id_list.split(",")
-        return db.ViewGenomes(args.batchfile, external_ids)
+    print "deprecated Function"
 
 
 def DeleteGenomes(db, args):
@@ -810,16 +804,20 @@ if __name__ == '__main__':
                                     help='Provide a list of marker set ids (comma separated), whose markers will be used to build the tree')
 
     parser_tree_create.add_argument('--completeness_threshold', dest='comp_threshold',
-                                        type=float, default=50, help='Filter genomes below this completeness threshold')
+                                    type=float, default=50, help='Filter genomes below this completeness threshold')
     parser_tree_create.add_argument('--contamination_threshold', dest='cont_threshold',
-                                        type=float, default=10, help='Filter genomes above this contamination threshold')
-    parser_tree_create.add_argument('--guaranteed_genome_list_ids', help='Comma-separated list of genome lists to retain in tree independent of filtering criteria')
-    parser_tree_create.add_argument('--guaranteed_genome_ids', help='Comma-separated list of genome identifiers to retain in tree independent of filtering criteria')
-    parser_tree_create.add_argument('--taxa_filter', help='Filter genomes to taxa within taxonomic groups specified as a comma-separated list.')
+                                    type=float, default=10, help='Filter genomes above this contamination threshold')
+    parser_tree_create.add_argument(
+        '--guaranteed_genome_list_ids', help='Comma-separated list of genome lists to retain in tree independent of filtering criteria')
+    parser_tree_create.add_argument(
+        '--guaranteed_genome_ids', help='Comma-separated list of genome identifiers to retain in tree independent of filtering criteria')
+    parser_tree_create.add_argument(
+        '--taxa_filter', help='Filter genomes to taxa within taxonomic groups specified as a comma-separated list.')
 
     parser_tree_create.add_argument('--prefix', required=False, default='gtdb',
                                     help='Desired prefix for output files')
-    parser_tree_create.add_argument('--individual', action='store_true', help='Create individual FASTA files for each marker')
+    parser_tree_create.add_argument(
+        '--individual', action='store_true', help='Create individual FASTA files for each marker')
     parser_tree_create.add_argument('--output', dest='out_dir', required=True,
                                     help='Directory to output the files')
     parser_tree_create.add_argument('--no_tree', dest='no_tree', action="store_true",
