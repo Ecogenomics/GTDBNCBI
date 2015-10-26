@@ -46,7 +46,7 @@ class MetadataManager(object):
     def exportMetadata(self, path):
         '''
         Function: exportMetadata
-        Export all Metadata for all genomes to a csv file
+        Export metadata for all genomes to a csv file
 
         :param path: Path to the output file
         '''
