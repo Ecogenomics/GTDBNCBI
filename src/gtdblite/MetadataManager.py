@@ -179,10 +179,9 @@ class MetadataManager(object):
             Directory containing metadata files to parse.
         """
 
+# ------We do not need to create a row in metadata_genes table. This row was created when importing the checkm information
         cur.execute(
             "INSERT INTO metadata_nucleotide (id) VALUES ({0})".format(genome_id))
-        cur.execute(
-            "INSERT INTO metadata_genes (id) VALUES ({0})".format(genome_id))
         cur.execute(
             "INSERT INTO metadata_taxonomy (id) VALUES ({0})".format(genome_id))
 
@@ -193,7 +192,6 @@ class MetadataManager(object):
                           for line in open(metadata_nt_path)]
         query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(
             genome_id)
-        print query_nt
         cur.executemany(query_nt, [(AsIs(c), v) for (c, v) in genome_list_nt])
 
         try:

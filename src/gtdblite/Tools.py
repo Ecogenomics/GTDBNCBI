@@ -23,9 +23,14 @@ from itertools import islice
 
 def populate_required_headers(checkm_fh):
     required_headers = {
-    "Bin Id": None,
-    "Completeness": None,
-    "Contamination": None
+        "Bin Id": None,
+        "Completeness": None,
+        "Contamination": None,
+        "Marker lineage": None,
+        "# genomes": None,
+        "# markers": None,
+        "# marker sets": None,
+        "Strain heterogeneity": None
     }
 
     # Check the CheckM headers are consistent
@@ -36,13 +41,15 @@ def populate_required_headers(checkm_fh):
             continue
 
         if required_headers[header] is not None:
-            raise GenomeDatabaseError("Seen %s header twice in the CheckM file. Check that the CheckM file is correct: %s." % (header, checkm_fh.name))
+            raise GenomeDatabaseError(
+                "Seen %s header twice in the CheckM file. Check that the CheckM file is correct: %s." % (header, checkm_fh.name))
 
         required_headers[header] = pos
 
     for header, col in required_headers.items():
-        if col is None:
-            raise GenomeDatabaseError("Unable to find %s header in the CheckM file. Check that the CheckM file is correct: %s." % (header, checkm_fh.name))
+        if (header is "Completeness" or header is "Contamination") and col is None:
+            raise GenomeDatabaseError(
+                "Unable to find %s header in the CheckM file. Check that the CheckM file is correct: %s." % (header, checkm_fh.name))
 
     return required_headers
 
@@ -56,7 +63,8 @@ def runMultiProdigal(nprocs=None, nogene_list=None):
 
         for key, value in nogene_subdict.iteritems():
             if value.get("aa_gene_file") is None:
-                rtn_files = MarkerCalculation.RunProdigalOnGenomeFasta(value.get("fasta_path"))
+                rtn_files = MarkerCalculation.RunProdigalOnGenomeFasta(
+                    value.get("fasta_path"))
                 aa_gene_file, nt_gene_file, gff_file, translation_table_file = rtn_files
                 value["aa_gene_file"] = aa_gene_file
                 value["nt_gene_file"] = nt_gene_file
@@ -103,5 +111,6 @@ def generateTempTableName():
     rng = random.SystemRandom()
     suffix = ''
     for _ in range(0, 10):
-        suffix += rng.choice('abcefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
+        suffix += rng.choice(
+            'abcefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
     return "TEMP" + suffix + str(int(time.time()))
