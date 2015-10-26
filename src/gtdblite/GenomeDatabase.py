@@ -399,11 +399,33 @@ class GenomeDatabase(object):
                 splitline = line.split("\t")
                 bin_id, completeness, contamination = (splitline[required_headers["Bin Id"]],
                                                        splitline[
-                                                           required_headers["Completeness"]],
-                                                       splitline[required_headers["Contamination"]])
+                    required_headers["Completeness"]],
+                    splitline[
+                    required_headers["Contamination"]])
+                lineage = None
+                if required_headers.get("Marker lineage") is not None:
+                    lineage = splitline[required_headers["Marker lineage"]]
+                genome_count = None
+                if required_headers.get("# genomes") is not None:
+                    genome_count = splitline[required_headers["# genomes"]]
+                marker_count = None
+                if required_headers.get("# markers") is not None:
+                    marker_count = splitline[required_headers["# markers"]]
+                set_count = None
+                if required_headers.get("# marker sets") is not None:
+                    set_count = splitline[required_headers["# marker sets"]]
+                heterogeneity = None
+                if required_headers.get("Strain heterogeneity") is not None:
+                    heterogeneity = splitline[
+                        required_headers["Strain heterogeneity"]]
 
                 checkm_results_dict[bin_id] = {"completeness": completeness,
-                                               "contamination": contamination}
+                                               "contamination": contamination,
+                                               "lineage": lineage,
+                                               "genome_count": genome_count,
+                                               "marker_count": marker_count,
+                                               "set_count": set_count,
+                                               "heterogeneity": heterogeneity}
 
             checkm_fh.close()
 
@@ -439,8 +461,10 @@ class GenomeDatabase(object):
                 cur, checkm_results_dict, batchfile, force_overwrite)
 
             # run Prodigal on Genomes having only a genome file
-            self.logger.info("Running Prodigal on genomes without identified genes.")
-            fasta_paths_to_copy = Tools.runMultiProdigal(self.threads, added_genome_dict)
+            self.logger.info(
+                "Running Prodigal on genomes without identified genes.")
+            fasta_paths_to_copy = Tools.runMultiProdigal(
+                self.threads, added_genome_dict)
 
             if modify_genome_list_id is not None:
                 if not self.EditGenomeListWorking(cur, modify_genome_list_id, genome_ids=added_genome_dict.keys(), operation='add'):
@@ -564,7 +588,7 @@ class GenomeDatabase(object):
     # Returns:
     #     Genome id if it was added. False if it fails.
     def AddFastaGenomeWorking(self, cur, fasta_file_path, name, desc, genome_list_id=None, force_overwrite=False,
-                              source=None, id_at_source=None, gene_path=None, completeness=0, contamination=0):
+                              source=None, id_at_source=None, gene_path=None, checkm_dict=None):
         try:
             fasta_sha256_checksum = sha256(fasta_file_path)
 
@@ -644,7 +668,7 @@ class GenomeDatabase(object):
             result = cur.fetchall()
 
             columns = "(name, description, owned_by_root, owner_id, fasta_file_location, " + \
-                "fasta_file_sha256, genes_file_location, genes_file_sha256,genome_source_id, id_at_source, date_added, checkm_completeness, checkm_contamination)"
+                "fasta_file_sha256, genes_file_location, genes_file_sha256,genome_source_id, id_at_source, date_added)"
 
             if len(result):
                 if force_overwrite:
@@ -655,11 +679,28 @@ class GenomeDatabase(object):
                         "Genome source '%s' already contains id '%s'. Use -f to force an overwrite." % (source, id_at_source))
 
             cur.execute("INSERT INTO genomes " + columns + " "
-                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) " +
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) " +
                         "RETURNING id",
-                        (name, desc, self.currentUser.isRootUser(), owner_id, fasta_file_path, fasta_sha256_checksum, gene_path, gene_sha256_checksum, source_id, id_at_source, added, completeness, contamination))
+                        (name, desc, self.currentUser.isRootUser(), owner_id, fasta_file_path, fasta_sha256_checksum, gene_path, gene_sha256_checksum, source_id, id_at_source, added))
 
             (genome_id,) = cur.fetchone()
+
+            # We insert checkm information into the metadata_genes table
+            column_checkm = "(id,checkm_completeness,checkm_contamination,checkm_marker_count,checkm_marker_lineage,checkm_genome_count,checkm_marker_set_count,checkm_strain_heterogeneity)"
+
+            cur.execute("INSERT INTO metadata_genes " + column_checkm + " "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s,%s) ", (genome_id, checkm_dict.get("completeness"),
+                                                                    checkm_dict.get(
+                            "contamination"),
+                            checkm_dict.get(
+                            "marker_count"),
+                            checkm_dict.get(
+                            "lineage"),
+                            checkm_dict.get(
+                            "genome_count"),
+                            checkm_dict.get(
+                            "set_count"),
+                            checkm_dict.get("heterogeneity")))
 
             if genome_list_id:
                 has_permission = self.HasPermissionToEditGenomeList(
@@ -725,7 +766,7 @@ class GenomeDatabase(object):
 
             genome_id = self.AddFastaGenomeWorking(
                 cur, abs_path, name, desc, None, force_overwrite, source_name, id_at_source, abs_gene_path,
-                checkm_results_dict[bin_id]["completeness"], checkm_results_dict[bin_id]["contamination"])
+                checkm_results_dict[bin_id])
 
             if not (genome_id):
                 raise GenomeDatabaseError(
@@ -1618,12 +1659,12 @@ class GenomeDatabase(object):
         return [x for x in marker_ids if x not in marker_id_dict]
 
     def MakeTreeData(self, marker_ids, genome_ids,
-                            directory, prefix,
-                            comp_threshold, cont_threshold,
-                            taxa_filter,
-                            guaranteed_genome_list_ids, guaranteed_genome_ids,
-                            individual,
-                            build_tree=True):
+                     directory, prefix,
+                     comp_threshold, cont_threshold,
+                     taxa_filter,
+                     guaranteed_genome_list_ids, guaranteed_genome_ids,
+                     individual,
+                     build_tree=True):
 
         try:
             gf = GenomeFilter()
