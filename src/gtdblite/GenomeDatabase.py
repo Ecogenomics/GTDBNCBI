@@ -1628,11 +1628,12 @@ class GenomeDatabase(object):
         try:
             gf = GenomeFilter()
             gf.FilterTreeData(self, marker_ids, genome_ids,
-                              comp_threshold, cont_threshold,
-                              taxa_filter,
-                              guaranteed_genome_list_ids, guaranteed_genome_ids,
-                              individual,
-                              directory, prefix)
+                                      comp_threshold, cont_threshold,
+                                      taxa_filter,
+                                      guaranteed_genome_list_ids, guaranteed_genome_ids,
+                                      individual,
+                                      directory, prefix)
+
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
@@ -1640,6 +1641,8 @@ class GenomeDatabase(object):
         if build_tree:
             pass
             # To Do: should infer tree here
+
+        self.logger.info('Done.')
 
         return True
 
