@@ -1,10 +1,13 @@
 import os
 import sys
 import logging
+from collections import defaultdict
 
 import psycopg2 as pg
 
 from gtdblite import Tools
+
+from biolib.taxonomy import Taxonomy
 
 
 class GenomeFilter(object):
@@ -16,7 +19,7 @@ class GenomeFilter(object):
                        comp_threshold, cont_threshold,
                        taxa_filter,
                        guaranteed_genome_list_ids, guaranteed_genome_ids,
-                       individual,
+                       alignment, individual,
                        directory, prefix):
         """Filter genomes based on provided criteria.
 
@@ -29,7 +32,7 @@ class GenomeFilter(object):
             Database identifiers of retained genomes.
         """
 
-        self.logger.info('Filtering genomes.')
+        self.logger.info('Filtering initial set of %d genomes.' % len(genome_ids))
 
         if not os.path.isdir(directory):
             GenomeDatabase.ReportError("Directory doesn't exist: " + directory)
@@ -54,25 +57,16 @@ class GenomeFilter(object):
             chosen_markers[marker_id] = {'external_id_prefix': external_id_prefix, 'name': marker_name, 'description': marker_description, 'id_in_database': id_in_database, 'size': size}
             chosen_markers_order.append(marker_id)
 
-        # output the marker info and multi_hit info
-        marker_info_fh = open(os.path.join(directory, prefix + "_markers.info"), 'wb')
-        multi_hits_fh = open(os.path.join(directory, prefix + "_multi_hits.info"), 'wb')
+        # output the marker info and multiple hit info
+        multi_hits_fh = open(os.path.join(directory, prefix + "_multi_hits.tsv"), 'wb')
         multi_hits_header = ["Genome_ID"]
         for marker_id in chosen_markers_order:
             external_id = chosen_markers[marker_id]['external_id_prefix'] + "_" + chosen_markers[marker_id]['id_in_database']
-            out_str = "\t".join([
-                external_id,
-                chosen_markers[marker_id]['name'],
-                chosen_markers[marker_id]['description'],
-                str(chosen_markers[marker_id]['size'])
-            ]) + "\n"
-            marker_info_fh.write(out_str)
             multi_hits_header.append(external_id)
-        marker_info_fh.close()
         multi_hits_fh.write("\t".join(multi_hits_header) + "\n")
 
         # find genomes that are in the guaranteed list
-        self.logger.info('Identified genomes to be excluded from filtering.')
+        self.logger.info('Identifying genomes to be excluded from filtering.')
         guaranteed_genomes = set()
         if guaranteed_genome_ids:
             guaranteed_genome_ids = [x.strip() for x in guaranteed_genome_ids.split(",")]
@@ -85,27 +79,25 @@ class GenomeFilter(object):
 
         # find genomes that fail completeness and contamination thresholds
         self.logger.info('Filtering genomes with completeness <%.1f%% or contamination >%.1f%%.' % (comp_threshold, cont_threshold))
-
-        cur.execute("SELECT id " +
-                     "FROM metadata_genes " +
-                     "WHERE id IN %s " +
-                     "AND (checkm_completeness < %s " +
-                          "OR checkm_contamination > %s)",
-                    (tuple(genome_ids), comp_threshold, cont_threshold))
-
-        filtered_genomes = set([x[0] for x in cur])
+        filtered_genomes = self._filterOnGenomeQuality(cur, genome_ids, comp_threshold, cont_threshold)
         filtered_genomes -= guaranteed_genomes
-        filtered_genomes
-
         self.logger.info('Filtered %d genomes based on completeness and contamination.' % len(filtered_genomes))
 
-        if GenomeDatabase.debugMode:
-            self.logger.info("Outputting aligned markers...\n")
+        # filter genomes based on taxonomy
+        genomes_to_retain = set(genome_ids) - filtered_genomes
+        if taxa_filter:
+            self.logger.info('Filtering genomes outside taxonomic groups of interest.')
+            taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
+            genome_ids_from_taxa = self._genomesFromTaxa(cur, genome_ids, taxa_to_retain)
 
-        # select all genomes of interest (including those to be filtered)
+            new_genomes_to_retain = genomes_to_retain.intersection(genome_ids_from_taxa).union(guaranteed_genomes)
+            self.logger.info('Filtered %d additional genomes based on taxonomic affiliations.' % (len(genomes_to_retain) - len(new_genomes_to_retain)))
+            genomes_to_retain = new_genomes_to_retain
+
+        # select genomes to retain
         cur.execute("SELECT * " +
                     "FROM metadata_view "
-                    "WHERE id IN %s", (tuple(genome_ids),))
+                    "WHERE id IN %s", (tuple(genomes_to_retain),))
         col_headers = [desc[0] for desc in cur.description]
         metadata = cur.fetchall()
 
@@ -114,41 +106,34 @@ class GenomeFilter(object):
         self._arbImportFilter(col_headers[2:], arb_import_filter)
 
         # run through each of the genomes and make the magic happen
-        self.logger.info('Writing concatenated alignment and genome metadata.')
+        self.logger.info('Writing concatenated alignment and genome metadata for %d genomes.' % len(genomes_to_retain))
         arb_metadata_fh = open(os.path.join(directory, prefix + "_arb_metadata.txt"), 'wb')
         fasta_concat_fh = open(os.path.join(directory, prefix + "_concatenated.faa"), 'wb')
         individual_marker_fasta = dict()
+        single_copy = defaultdict(int)
+        ubiquitous = defaultdict(int)
         for tup in metadata:
             db_genome_id = tup[0]
             external_genome_id = tup[1]
-
-            # filter out genomes
-            if db_genome_id in filtered_genomes:
-                if GenomeDatabase.debugMode:
-                    checkm_completeness = tup[col_headers.index('checkm_completeness')]
-                    checkm_contamination = tup[col_headers.index('checkm_contamination')]
-
-                    self.logger.info("Genome id %s excluded. Failed CheckM quality filtering. Genomes completeness and contamination: (%f, %f)\n" %
-                                     (external_genome_id, checkm_completeness, checkm_contamination))
-                continue
 
             # write out genome info
             genome_info = dict()
             genome_info['markers'] = dict()
             genome_info['multiple_hits'] = dict()
 
-            cur.execute("SELECT aligned_markers.marker_id, sequence, multiple_hits " +
+            cur.execute("SELECT aligned_markers.marker_id, sequence, multiple_hits, evalue " +
                         "FROM aligned_markers " +
                         "WHERE genome_id = %s " +
                         "AND sequence is NOT NULL " +
                         "AND marker_id in %s ", (db_genome_id, tuple(marker_ids,)))
 
             if (cur.rowcount == 0):
-                self.logger.warning("Genome %s has no markers for this marker set in the database and will be missing from the output files.\n" % external_id)
+                self.logger.warning("Genome %s has no markers for this marker set in the database and will be missing from the output files." % external_genome_id)
                 continue
 
-            for marker_id, sequence, multiple_hits in cur:
-                genome_info['markers'][marker_id] = sequence
+            for marker_id, sequence, multiple_hits, evalue in cur:
+                if evalue:  # markers without an e-value are missing
+                    genome_info['markers'][marker_id] = sequence
                 genome_info['multiple_hits'][marker_id] = multiple_hits
 
             aligned_seq = ''
@@ -156,6 +141,11 @@ class GenomeFilter(object):
             for marker_id in chosen_markers_order:
                 multiple_hits = genome_info['multiple_hits'][marker_id]
                 multi_hits_details.append('Multiple' if multiple_hits else 'Single')
+
+                if (marker_id in genome_info['markers']):
+                    ubiquitous[marker_id] += 1
+                    if not multiple_hits:
+                        single_copy[marker_id] += 1
 
                 if (marker_id in genome_info['markers']) and not multiple_hits:
                     sequence = genome_info['markers'][marker_id]
@@ -177,6 +167,8 @@ class GenomeFilter(object):
 
             # write out ARB record
             multiple_hit_count = sum([1 if x == "Multiple" else 0 for x in multi_hits_details])
+            if not alignment:
+                aligned_seq = ''
             self._arbRecord(arb_metadata_fh, external_genome_id,
                                 col_headers[2:], tup[2:],
                                 multiple_hit_count, len(chosen_markers_order),
@@ -186,6 +178,28 @@ class GenomeFilter(object):
         fasta_concat_fh.close()
         multi_hits_fh.close()
 
+        # write out marker gene summary info
+        marker_info_fh = open(os.path.join(directory, prefix + "_markers_info.tsv"), 'wb')
+        marker_info_fh.write('Marker Id\tName\tDescription\tLength (bp)\tSingle copy (%)\tUbiquity (%)\n')
+
+        for marker_id in chosen_markers_order:
+            external_id = chosen_markers[marker_id]['external_id_prefix'] + "_" + chosen_markers[marker_id]['id_in_database']
+
+            sc = single_copy.get(marker_id, 0) * 100.0 / len(genomes_to_retain)
+            u = ubiquitous.get(marker_id, 0) * 100.0 / len(genomes_to_retain)
+
+            out_str = "\t".join([
+                external_id,
+                chosen_markers[marker_id]['name'],
+                chosen_markers[marker_id]['description'],
+                str(chosen_markers[marker_id]['size']),
+                '%.2f' % sc,
+                '%.2f' % u
+            ]) + "\n"
+            marker_info_fh.write(out_str)
+        marker_info_fh.close()
+
+        # write out individual marker gene alignments
         if individual:
             self.logger.info('Writing individual alignments.')
             for marker_id in chosen_markers.keys():
@@ -193,7 +207,82 @@ class GenomeFilter(object):
                 fasta_individual_fh.write(''.join(individual_marker_fasta[marker_id]))
                 fasta_individual_fh.close()
 
-        return (set(genome_ids) - filtered_genomes)
+        return genomes_to_retain
+
+    def _filterOnGenomeQuality(self, cur, genome_ids, comp_threshold, cont_threshold):
+        """Filter genomes on completeness and contamination thresholds.
+
+        Parameters
+        ----------
+        cur :
+            Database cursor.
+        genome_ids : list
+            Database identifier for genomes of interest.
+        comp_threshold : float
+            Minimum required completeness.
+        cont_threshold : float
+            Maximum permitted contamination.
+
+        Returns
+        -------
+        set
+            Database identifier of genomes passing quality filtering.
+        """
+
+        cur.execute("SELECT id " +
+                     "FROM metadata_genes " +
+                     "WHERE id IN %s " +
+                     "AND (checkm_completeness < %s " +
+                          "OR checkm_contamination > %s)",
+                    (tuple(genome_ids), comp_threshold, cont_threshold))
+
+        return set([x[0] for x in cur])
+
+    def _genomesFromTaxa(self, cur, genome_ids, taxa_to_retain):
+        """Filter genomes to those within specified taxonomic groups.
+
+        Parameters
+        ----------
+        cur :
+            Database cursor.
+        genome_ids : list
+            Database identifier for genomes of interest.
+        taxa_to_retain : list
+            Taxonomic groups of interest.
+
+        Returns
+        -------
+        set
+            Database identifier of genomes from specified taxonomic groups.
+        """
+
+        taxa_to_retain_at_rank = [[] for _ in xrange(len(Taxonomy.rank_prefixes))]
+        for taxon in taxa_to_retain:
+            taxon_prefix = taxon[0:3]
+            if taxon_prefix not in Taxonomy.rank_prefixes:
+                self.logger.error('Invalid taxon prefix: %s' % taxon)
+                sys.exit(0)
+
+            rank_index = Taxonomy.rank_index[taxon_prefix]
+            taxa_to_retain_at_rank[rank_index].append(taxon)
+
+        query_str = []
+        query_tuple = [tuple(genome_ids)]
+        for i, taxa in enumerate(taxa_to_retain_at_rank):
+            if len(taxa):
+                query_str.append('gtdb_%s IN %%s' % Taxonomy.rank_labels[i])
+                query_tuple.append(tuple(taxa))
+        query_str = ' OR '.join(query_str)
+
+        cur.execute("SELECT id " +
+                 "FROM metadata_taxonomy " +
+                 "WHERE id IN %s "
+                 "AND " + query_str,
+                tuple(query_tuple))
+
+        genome_ids_from_taxa = set([x[0] for x in cur])
+
+        return genome_ids_from_taxa
 
     def _arbImportFilter(self, metadata_fields, output_file):
         """Create ARB import filter.
@@ -209,12 +298,19 @@ class GenomeFilter(object):
         fout.write('AUTODETECT\t"BEGIN"\n\n')
         fout.write('BEGIN\t"BEGIN*"\n\n')
 
-        for field in ['db_name'] + metadata_fields:
+        fout.write('MATCH\t"%s\\=*"\n' % 'db_name')
+        fout.write('\tSRT "*\\=="\n')
+        fout.write('\tWRITE "%s"\n\n' % 'name')
+
+        for field in metadata_fields + ['multiple_homologs']:
             fout.write('MATCH\t"%s\\=*"\n' % field)
             fout.write('\tSRT "*\\=="\n')
             fout.write('\tWRITE "%s"\n\n' % field)
 
-        fout.write('SEQUENCEAFTER\t"warning"\nSEQUENCESRT\t"*\\=="\nSEQUENCEEND\t"END"\n\nEND\t"END"\n')
+        fout.write('SEQUENCEAFTER\t"multiple_homologs*"\n')
+        fout.write('SEQUENCESRT\t"*\\=="\n')
+        fout.write('SEQUENCEEND\t"END"\n\n')
+        fout.write('END\t"END"\n')
 
         fout.close()
 
@@ -227,7 +323,9 @@ class GenomeFilter(object):
         fout.write("BEGIN\n")
         fout.write("db_name=%s\n" % external_genome_id)
         for col_header, value in zip(metadata_fields, metadata_values):
+            if type(value) is float:
+                value = '%.4g' % value
             fout.write("%s=%s\n" % (col_header, str(value)))
-        fout.write("multiple_homologs=%i/%i" % (multiple_hit_count, num_marker_genes))
-        fout.write("aligned_seq=%s" % (aligned_seq))
+        fout.write("multiple_homologs=%i/%i\n" % (multiple_hit_count, num_marker_genes))
+        fout.write("aligned_seq=%s\n" % (aligned_seq))
         fout.write("END\n\n")
