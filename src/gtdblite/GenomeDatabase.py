@@ -6,6 +6,8 @@ import hashlib
 import logging
 from multiprocessing import Pool
 
+import prettytable
+
 from gtdblite import Config
 from gtdblite import ConfigMetadata
 from gtdblite.User import User
@@ -569,6 +571,9 @@ class GenomeDatabase(object):
                     raise
 
             self.conn.commit()
+
+            self.logger.info('Done.')
+
             return True
 
         except GenomeDatabaseError as e:
@@ -1663,7 +1668,7 @@ class GenomeDatabase(object):
                      comp_threshold, cont_threshold,
                      taxa_filter,
                      guaranteed_genome_list_ids, guaranteed_genome_ids,
-                     individual,
+                     alignment, individual,
                      build_tree=True):
 
         try:
@@ -1672,7 +1677,7 @@ class GenomeDatabase(object):
                                       comp_threshold, cont_threshold,
                                       taxa_filter,
                                       guaranteed_genome_list_ids, guaranteed_genome_ids,
-                                      individual,
+                                      alignment, individual,
                                       directory, prefix)
 
         except GenomeDatabaseError as e:
@@ -2229,8 +2234,10 @@ class GenomeDatabase(object):
             if batchfile:
                 fh = open(batchfile, "rb")
                 for line in fh:
-                    line = line.rstrip()
-                    external_ids.append(line)
+                    if line[0] == '#':
+                        continue
+                    marker_id = line.rstrip().split('\t')[0]
+                    external_ids.append(marker_id)
 
             if not external_ids:
                 raise GenomeDatabaseError(
@@ -2431,7 +2438,7 @@ class GenomeDatabase(object):
                         "Insufficient privileges to view marker sets: %s." % str(unviewable_set_ids))
 
             cur.execute(
-                "SELECT sets.id, sets.name, sets.description, sets.private, sets.owned_by_root, users.username, count(contents.set_id) " +
+                "SELECT sets.id, sets.name, sets.description, sets.owned_by_root, users.username, count(contents.set_id) " +
                 "FROM marker_sets as sets " +
                 "LEFT OUTER JOIN users ON sets.owner_id = users.id " +
                 "JOIN marker_set_contents as contents ON contents.set_id = sets.id " +
@@ -2440,15 +2447,23 @@ class GenomeDatabase(object):
                 "ORDER by sets.id asc ", (tuple(marker_set_ids),)
             )
 
-            print "\t".join(("set_id", "name", "description", "owner", "visibility", "marker_count"))
+            # print "\t".join()
 
-            for (set_id, name, description, private, owned_by_root, username, marker_count) in cur:
-                privacy_string = (
-                    "private" if private else ("unset" if (private is None) else "public"))
-                print "\t".join(
-                    (str(set_id), name, description, ("(root)" if owned_by_root else username),
-                     privacy_string, str(marker_count))
-                )
+            # for (set_id, name, description, owned_by_root, username, marker_count) in cur:
+            #    print "\t".join(
+            #        (str(set_id), name, description, ("(root)" if owned_by_root else username), str(marker_count))
+            #    )
+
+            table = prettytable.PrettyTable(("set_id", "name", "description", "owner", "marker_count"))
+            table.align = 'l'
+            table.hrules = prettytable.FRAME
+            table.vrules = prettytable.NONE
+
+            for (set_id, name, description, owned_by_root, username, marker_count) in cur:
+                tup = map(str, (set_id, name, description, ("root" if owned_by_root else username), marker_count))
+                table.add_row(tup)
+            print table.get_string()
+
             return True
 
         except GenomeDatabaseError as e:
@@ -2461,6 +2476,7 @@ class GenomeDatabase(object):
         to see. If owner_id is None, return all visible marker sets for the
         current user.
         """
+
         cur = self.conn.cursor()
 
         conditional_query = ""

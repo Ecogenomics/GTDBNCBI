@@ -227,6 +227,7 @@ def CreateTreeData(db, args):
                            args.comp_threshold, args.cont_threshold,
                            args.taxa_filter,
                            args.guaranteed_genome_list_ids, args.guaranteed_genome_ids,
+                           args.alignment,
                            args.individual,
                            not(args.no_tree))
 
@@ -334,12 +335,15 @@ def ViewMarkers(db, args):
 
 def CreateMarkerSet(db, args):
 
-    external_ids = []
+    external_marker_ids = []
+    if args.marker_ids:
+        external_marker_ids = args.marker_ids.split(",")
 
-    if args.genome_ids:
-        external_ids = args.id_list.split(",")
-    marker_set_id = db.CreateMarkerSet(
-        args.batchfile, external_ids, args.name, args.description, (not args.public))
+    marker_set_id = db.CreateMarkerSet(args.batchfile,
+                                       external_marker_ids,
+                                       args.name,
+                                       args.description,
+                                       (not args.public))
 
     if marker_set_id is False:
         return False
@@ -678,7 +682,7 @@ if __name__ == '__main__':
                                                                          help='Create a marker set')
     parser_marker_sets_create.add_argument('--batchfile', dest='batchfile',
                                            help='A file of marker IDs, one per line, to add to the created set')
-    parser_marker_sets_create.add_argument('--marker_ids', dest='genome_ids',
+    parser_marker_sets_create.add_argument('--marker_ids', dest='marker_ids',
                                            help='List of marker IDs (comma separated) to add to the created set')
     parser_marker_sets_create.add_argument('--name', dest='name', required=True,
                                            help='The name of the marker set.')
@@ -812,10 +816,12 @@ if __name__ == '__main__':
     parser_tree_create.add_argument(
         '--guaranteed_genome_ids', help='Comma-separated list of genome identifiers to retain in tree independent of filtering criteria')
     parser_tree_create.add_argument(
-        '--taxa_filter', help='Filter genomes to taxa within taxonomic groups specified as a comma-separated list.')
+        '--taxa_filter', help='Filter genomes to taxa within taxonomic groups specified as a comma-separated list')
 
     parser_tree_create.add_argument('--prefix', required=False, default='gtdb',
                                     help='Desired prefix for output files')
+    parser_tree_create.add_argument('--alignment', action='store_true',
+                                    help='Include concatenated alignment in ARB metadata file')
     parser_tree_create.add_argument(
         '--individual', action='store_true', help='Create individual FASTA files for each marker')
     parser_tree_create.add_argument('--output', dest='out_dir', required=True,
