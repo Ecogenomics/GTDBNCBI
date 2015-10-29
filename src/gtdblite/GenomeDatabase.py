@@ -12,6 +12,7 @@ from gtdblite.User import User
 from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
 from gtdblite import MarkerCalculation
 from gtdblite.MetadataManager import MetadataManager
+from gtdblite.GenomeManager import GenomeManager
 from gtdblite import Tools
 from gtdblite.GenomeFilter import GenomeFilter
 from gtdblite.Exceptions import GenomeDatabaseError
@@ -40,9 +41,9 @@ class GenomeDatabase(object):
         self.tranTableFileSuffix = "_translation_table.tsv"
         self.checksumSuffix = ".sha256"
 
-        self.genomeCopyDir = None
-        if Config.GTDB_GENOME_COPY_DIR:
-            self.genomeCopyDir = Config.GTDB_GENOME_COPY_DIR
+        self.genomeCopyUserDir = None
+        if Config.GTDB_GENOME_USR_DIR:
+            self.genomeCopyUserDir = Config.GTDB_GENOME_USR_DIR
 
         self.markerCopyDir = None
         if Config.GTDB_MARKER_COPY_DIR:
@@ -342,11 +343,11 @@ class GenomeDatabase(object):
 
     def CopyFastaToCopyDir(self, fasta_file, genome_id):
         try:
-            if self.genomeCopyDir is None:
+            if self.genomeCopyUserDir is None:
                 raise GenomeDatabaseError(
                     "Need to set the genome storage directory.")
 
-            if not os.path.isdir(self.genomeCopyDir):
+            if not os.path.isdir(self.genomeCopyUserDir):
                 raise GenomeDatabaseError(
                     "Genome storage directory is not a directory.")
 
@@ -364,7 +365,7 @@ class GenomeDatabase(object):
 
             target_file_name = external_id_prefix + "_" + str(id_at_source)
             target_file_path = os.path.join(
-                self.genomeCopyDir, target_file_name)
+                self.genomeCopyUserDir, target_file_name)
             try:
                 shutil.copy(fasta_file, target_file_path)
                 os.chmod(
@@ -495,7 +496,7 @@ class GenomeDatabase(object):
                     raise GenomeDatabaseError(
                         "Unable to determine user to add genomes under.")
 
-                target_dir = os.path.join(self.genomeCopyDir, username)
+                target_dir = os.path.join(self.genomeCopyUserDir, username)
                 if os.path.exists(target_dir):
                     if not os.path.isdir(target_dir):
                         raise GenomeDatabaseError(
@@ -550,8 +551,13 @@ class GenomeDatabase(object):
                         shutil.copy(fasta_paths_to_copy.get(genome_id).get(
                             'translation_table_file'), trans_table_target_file)
 
+                        # We only store the relative path to the genome folder
                         cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (
-                            target_file, genes_target_file, genome_id))
+                            os.path.join(
+                                username, external_id, external_id + self.genomeFileSuffix),
+                            os.path.join(
+                                username, external_id, external_id + self.proteinFileSuffix),
+                            genome_id))
 
                         # calculate metadata and store results in database
                         metadata_mngr.calculateMetadata(
@@ -641,7 +647,7 @@ class GenomeDatabase(object):
                     if last_id is None:
                         last_id = last_auto_id
                     else:
-                        last_id = max(last_id, last_auto_id)
+                        last_id = max([int(last_id), int(last_auto_id)])
                     break
 
                 # Generate a new id (for user editable lists only)
@@ -777,249 +783,117 @@ class GenomeDatabase(object):
         return added_genome_ids
 
     # True if has permission. False if doesn't. None on error.
-    def HasPermissionToEditGenome(self, genome_id):
+    def DeleteGenomes(self, batchfile=None, external_ids=None, reason=None):
         try:
-            cur = self.conn.cursor()
-
-            cur.execute("SELECT owner_id, owned_by_root "
-                        "FROM genomes " +
-                        "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
-                        "AND genomes.id = %s", (genome_id,))
-
-            result = cur.fetchone()
-
-            if not result:
-                raise GenomeDatabaseError(
-                    "No genome list with id: %s" % genome_id)
-
-            (owner_id, owned_by_root) = result
-
-            if not self.currentUser.isRootUser():
-                if (owned_by_root or owner_id != self.currentUser.getUserId()):
-                    return False
-            else:
-                if not owned_by_root:
-                    raise GenomeDatabaseError(
-                        "Root user editing of other users genomes not yet implemented.")
-
+            genome_mngr = GenomeManager(self.currentUser)
+            genome_mngr.DeleteGenomes(batchfile, external_ids, reason)
             return True
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return None
-
-    # True if has permission. False if doesn't. None on error.
-    def HasPermissionToEditGenomes(self, genome_ids):
-        try:
-            cur = self.conn.cursor()
-
-            if not genome_ids:
-                raise GenomeDatabaseError(
-                    "Unable to retrieve genome permissions, no genomes given: %s" % str(genome_ids))
-
-            cur.execute("SELECT genomes.id, owner_id, owned_by_root "
-                        "FROM genomes " +
-                        "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
-                        "WHERE genomes.id in %s", (tuple(genome_ids),))
-
-            for (genome_id, owner_id, owned_by_root) in cur:
-                if not self.currentUser.isRootUser():
-                    if (owned_by_root or owner_id != self.currentUser.getUserId()):
-                        self.ReportWarning(
-                            "Insufficient permissions to edit genome %s." % str(genome_id))
-                        return False
-                else:
-                    if not owned_by_root:
-                        self.ReportWarning(
-                            "Root user editing of other users genomes not yet implemented.")
-                        return False
-
-            return True
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return None
-
-    # True on success. False on error/failure.
-    def DeleteGenomes(self, batchfile=None, external_ids=None):
-        '''
-        Delete Genomes from either of the following parameters
-        :param batchfile:test
-        :param external_ids:
-
-        '''
-        try:
-            cur = self.conn.cursor()
-
-            if external_ids is None:
-                external_ids = []
-
-            if batchfile:
-                fh = open(batchfile, "rb")
-                for line in fh:
-                    line = line.rstrip()
-                    external_ids.append(line)
-
-            genome_ids = self.ExternalGenomeIdsToGenomeIds(external_ids)
-
-            if genome_ids is False:
-                raise GenomeDatabaseError(
-                    "Unable to delete genomes. Unable to retrieve genome ids.")
-
-            has_permission = self.HasPermissionToEditGenomes(genome_ids)
-
-            if has_permission is None:
-                raise GenomeDatabaseError(
-                    "Unable to delete genomes. Unable to retrieve permissions for genomes.")
-
-            if has_permission is False:
-                raise GenomeDatabaseError(
-                    "Unable to delete genomes. Insufficient permissions.")
-
-            if not self.Confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(genome_ids)):
-                raise GenomeDatabaseError("User aborted database action.")
-
-            paths_to_delete = []
-
-            if self.genomeCopyDir is not None:
-                cur.execute("SELECT fasta_file_location " +
-                            "FROM genomes " +
-                            "WHERE id in %s", (tuple(genome_ids),))
-
-                for (fasta_path,) in cur:
-                    # Check if path is a subdir of the copy dir
-                    abs_dir = os.path.abspath(self.genomeCopyDir)
-                    abs_file = os.path.abspath(fasta_path)
-
-                    if abs_file.startswith(abs_dir):
-                        paths_to_delete.append(fasta_path)
-
-            cur.execute("DELETE FROM aligned_markers " +
-                        "WHERE genome_id in %s", (tuple(genome_ids),))
-
-            cur.execute("DELETE FROM genome_list_contents " +
-                        "WHERE genome_id in %s", (tuple(genome_ids),))
-
-            cur.execute("DELETE FROM genomes " +
-                        "WHERE id in %s", (tuple(genome_ids),))
-
-            try:
-                for path_to_delete in paths_to_delete:
-                    os.unlink(path_to_delete)
-            except Exception as e:
-                self.ReportWarning(
-                    "Exception was raised when deleting genomes. Some orphans may remain. Exception message: %s" % e.message)
-
-            self.conn.commit()
-            return True
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            self.conn.rollback()
-            return False
-
-    # List of genome ids on success. False on error.
-    def ExternalGenomeIdsToGenomeIds(self, external_ids):
-        try:
-            cur = self.conn.cursor()
-
-            map_sources_to_ids = {}
-
-            for external_id in external_ids:
-                try:
-                    (source_prefix, id_at_source) = external_id.split("_", 1)
-                except ValueError:
-                    raise GenomeDatabaseError(
-                        "All genome ids must have the form <prefix>_<id>. Offending id: %s" % str(external_id))
-
-                if source_prefix not in map_sources_to_ids:
-                    map_sources_to_ids[source_prefix] = {}
-                map_sources_to_ids[source_prefix][id_at_source] = external_id
-
-            temp_table_name = Tools.generateTempTableName()
-
-            if len(map_sources_to_ids.keys()):
-                cur.execute("CREATE TEMP TABLE %s (prefix text)" %
-                            (temp_table_name,))
-                query = "INSERT INTO {0} (prefix) VALUES (%s)".format(
-                    temp_table_name)
-                cur.executemany(query, [(x,)
-                                        for x in map_sources_to_ids.keys()])
-            else:
-                raise GenomeDatabaseError(
-                    "No genome sources found for these ids. %s" % str(external_ids))
-
-            # Find any given tree prefixes that arent in the genome sources
-            query = ("SELECT prefix FROM {0} " +
-                     "WHERE prefix NOT IN ( " +
-                     "SELECT external_id_prefix " +
-                     "FROM genome_sources)").format(temp_table_name)
-
-            cur.execute(query)
-
-            missing_genome_sources = {}
-            for (query_prefix,) in cur:
-                missing_genome_sources[query_prefix] = map_sources_to_ids[
-                    query_prefix].values()
-
-            if len(missing_genome_sources.keys()):
-                errors = []
-                for (source_prefix, offending_ids) in missing_genome_sources.items():
-                    errors.append("(%s) %s" %
-                                  (source_prefix, str(offending_ids)))
-                raise GenomeDatabaseError("Cannot find the relevant genome source id for the following ids, check the IDs are correct: " +
-                                          ", ".join(errors))
-
-            # All genome sources should be good, find ids
-            result_ids = []
-            for source_prefix in map_sources_to_ids.keys():
-
-                # Create a table of requested external ids from this genome
-                # source
-                temp_table_name = Tools.generateTempTableName()
-                cur.execute(
-                    "CREATE TEMP TABLE %s (id_at_source text)" % (temp_table_name,))
-                query = "INSERT INTO {0} (id_at_source) VALUES (%s)".format(
-                    temp_table_name)
-                cur.executemany(
-                    query, [(x,) for x in map_sources_to_ids[source_prefix].keys()])
-
-                # Check to see if there are any that don't exist
-                query = ("SELECT id_at_source FROM {0} " +
-                         "WHERE id_at_source NOT IN ( " +
-                         "SELECT id_at_source " +
-                         "FROM genomes, genome_sources " +
-                         "WHERE genome_source_id = genome_sources.id " +
-                         "AND external_id_prefix = %s)").format(temp_table_name)
-
-                cur.execute(query, (source_prefix,))
-
-                missing_ids = []
-                for (id_at_source,) in cur:
-                    missing_ids.append(source_prefix + "_" + id_at_source)
-
-                if missing_ids:
-                    raise GenomeDatabaseError(
-                        "Cannot find the the following genome ids, check the IDs are correct: %s" % str(missing_ids))
-
-                # All exist, so get their ids.
-                query = ("SELECT genomes.id FROM genomes, genome_sources " +
-                         "WHERE genome_source_id = genome_sources.id " +
-                         "AND id_at_source IN ( " +
-                         "SELECT id_at_source " +
-                         "FROM {0} )" +
-                         "AND external_id_prefix = %s").format(temp_table_name)
-
-                cur.execute(query, (source_prefix,))
-
-                for (genome_id,) in cur:
-                    result_ids.append(genome_id)
-
-            return result_ids
-
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+#     # List of genome ids on success. False on error.
+#     def ExternalGenomeIdsToGenomeIds(self, external_ids):
+#         try:
+#             cur = self.conn.cursor()
+#
+#             map_sources_to_ids = {}
+#
+#             for external_id in external_ids:
+#                 try:
+#                     (source_prefix, id_at_source) = external_id.split("_", 1)
+#                 except ValueError:
+#                     raise GenomeDatabaseError(
+#                         "All genome ids must have the form <prefix>_<id>. Offending id: %s" % str(external_id))
+#
+#                 if source_prefix not in map_sources_to_ids:
+#                     map_sources_to_ids[source_prefix] = {}
+#                 map_sources_to_ids[source_prefix][id_at_source] = external_id
+#
+#             temp_table_name = Tools.generateTempTableName()
+#
+#             if len(map_sources_to_ids.keys()):
+#                 cur.execute("CREATE TEMP TABLE %s (prefix text)" %
+#                             (temp_table_name,))
+#                 query = "INSERT INTO {0} (prefix) VALUES (%s)".format(
+#                     temp_table_name)
+#                 cur.executemany(query, [(x,)
+#                                         for x in map_sources_to_ids.keys()])
+#             else:
+#                 raise GenomeDatabaseError(
+#                     "No genome sources found for these ids. %s" % str(external_ids))
+#
+#             # Find any given tree prefixes that arent in the genome sources
+#             query = ("SELECT prefix FROM {0} " +
+#                      "WHERE prefix NOT IN ( " +
+#                      "SELECT external_id_prefix " +
+#                      "FROM genome_sources)").format(temp_table_name)
+#
+#             cur.execute(query)
+#
+#             missing_genome_sources = {}
+#             for (query_prefix,) in cur:
+#                 missing_genome_sources[query_prefix] = map_sources_to_ids[
+#                     query_prefix].values()
+#
+#             if len(missing_genome_sources.keys()):
+#                 errors = []
+#                 for (source_prefix, offending_ids) in missing_genome_sources.items():
+#                     errors.append("(%s) %s" %
+#                                   (source_prefix, str(offending_ids)))
+#                 raise GenomeDatabaseError("Cannot find the relevant genome source id for the following ids, check the IDs are correct: " +
+#                                           ", ".join(errors))
+#
+#             # All genome sources should be good, find ids
+#             result_ids = []
+#             for source_prefix in map_sources_to_ids.keys():
+#
+#                 # Create a table of requested external ids from this genome
+#                 # source
+#                 temp_table_name = Tools.generateTempTableName()
+#                 cur.execute(
+#                     "CREATE TEMP TABLE %s (id_at_source text)" % (temp_table_name,))
+#                 query = "INSERT INTO {0} (id_at_source) VALUES (%s)".format(
+#                     temp_table_name)
+#                 cur.executemany(
+#                     query, [(x,) for x in map_sources_to_ids[source_prefix].keys()])
+#
+#                 # Check to see if there are any that don't exist
+#                 query = ("SELECT id_at_source FROM {0} " +
+#                          "WHERE id_at_source NOT IN ( " +
+#                          "SELECT id_at_source " +
+#                          "FROM genomes, genome_sources " +
+#                          "WHERE genome_source_id = genome_sources.id " +
+#                          "AND external_id_prefix = %s)").format(temp_table_name)
+#
+#                 cur.execute(query, (source_prefix,))
+#
+#                 missing_ids = []
+#                 for (id_at_source,) in cur:
+#                     missing_ids.append(source_prefix + "_" + id_at_source)
+#
+#                 if missing_ids:
+#                     raise GenomeDatabaseError(
+#                         "Cannot find the the following genome ids, check the IDs are correct: %s" % str(missing_ids))
+#
+#                 # All exist, so get their ids.
+#                 query = ("SELECT genomes.id FROM genomes, genome_sources " +
+#                          "WHERE genome_source_id = genome_sources.id " +
+#                          "AND id_at_source IN ( " +
+#                          "SELECT id_at_source " +
+#                          "FROM {0} )" +
+#                          "AND external_id_prefix = %s").format(temp_table_name)
+#
+#                 cur.execute(query, (source_prefix,))
+#
+#                 for (genome_id,) in cur:
+#                     result_ids.append(genome_id)
+#
+#             return result_ids
+#
+#         except GenomeDatabaseError as e:
+#             self.ReportError(e.message)
+#             return False
 
     # List of genome ids on success. False on error.
     def GetAllGenomeIds(self):
@@ -1391,7 +1265,7 @@ class GenomeDatabase(object):
 
             paths_to_delete = []
 
-            if self.genomeCopyDir is not None:
+            if self.genomeCopyUserDir is not None:
                 cur.execute("SELECT marker_file_location " +
                             "FROM markers " +
                             "WHERE id in %s", (tuple(marker_ids),))
