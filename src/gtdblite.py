@@ -249,7 +249,7 @@ def DeleteGenomes(db, args):
     if args.id_list:
         external_ids = args.id_list.split(",")
 
-    return db.DeleteGenomes(args.batchfile, external_ids)
+    return db.DeleteGenomes(args.batchfile, external_ids, args.reason)
 
 
 def CreateGenomeList(db, args):
@@ -584,6 +584,8 @@ if __name__ == '__main__':
                                       help='Batchfile of genome ids (one per line) to view')
     parser_genome_delete.add_argument('--genome_ids', dest='id_list', default=None,
                                       help='Provide a list of genome ids (comma separated) to view')
+    parser_genome_delete.add_argument('--reason', dest='reason', required=True,
+                                      help='Provide a reason why genomes are deleted')
     parser_genome_delete.set_defaults(func=DeleteGenomes)
 
 # -------- Genome Lists Management subparsers
