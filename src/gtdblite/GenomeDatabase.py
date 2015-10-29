@@ -1083,8 +1083,8 @@ class GenomeDatabase(object):
 
             cur = self.conn.cursor()
 
-            columns = "genomes.id, genomes.name, description, owned_by_root, username, fasta_file_location, " + \
-                "external_id_prefix || '_' || id_at_source as external_id, date_added, checkm_completeness, checkm_contamination"
+            columns = "genomes.id, genomes.name, description, owned_by_root, username, " + \
+                "external_id_prefix || '_' || id_at_source as external_id, date_added"
 
             cur.execute("SELECT " + columns + " FROM genomes " +
                         "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
@@ -1092,16 +1092,17 @@ class GenomeDatabase(object):
                         "AND genomes.id in %s " +
                         "ORDER BY genomes.id ASC", (tuple(genome_id_list),))
 
-            print "\t".join(("genome_id", "name", "description", "owner", "fasta", "data_added", "completeness", "contamination"))
+            # print table
+            table = prettytable.PrettyTable(("genome_id", "name", "description", "owner", "data_added"))
+            table.align = 'l'
+            table.hrules = prettytable.FRAME
+            table.vrules = prettytable.NONE
 
-            for (_genome_id, name, description, owned_by_root, username, fasta_file_location,
-                 external_id, date_added, completeness, contamination) in cur:
-                print "\t".join(
-                    [str(x) if x is not None else "" for x in
-                        (external_id, name, description, ("(root)" if owned_by_root else username),
-                         fasta_file_location, date_added, completeness, contamination)
-                     ]
-                )
+            for (_genome_id, name, description, owned_by_root, username, external_id, date_added) in cur:
+                tup = map(str, (external_id, name, description, ("root" if owned_by_root else username), date_added))
+                table.add_row(tup)
+            print table.get_string()
+
             return True
 
         except GenomeDatabaseError as e:
@@ -1592,7 +1593,7 @@ class GenomeDatabase(object):
 
             cur = self.conn.cursor()
 
-            columns = "markers.id, markers.name, description, owned_by_root, username, marker_file_location, " + \
+            columns = "markers.id, markers.name, description, " + \
                 "external_id_prefix || '_' || id_in_database as external_id, size"
 
             cur.execute("SELECT " + columns + " FROM markers " +
@@ -1601,14 +1602,16 @@ class GenomeDatabase(object):
                         "AND markers.id in %s " +
                         "ORDER BY markers.id ASC", (tuple(marker_id_list),))
 
-            print "\t".join(("marker_id", "name", "description", "owner", "hmm", "size (nt)"))
+            # print table
+            table = prettytable.PrettyTable(("marker_id", "name", "description", "size (nt)"))
+            table.align = 'l'
+            table.hrules = prettytable.FRAME
+            table.vrules = prettytable.NONE
 
-            for (_marker_id, name, description, owned_by_root, username,
-                 marker_file_location, external_id, size) in cur:
-                print "\t".join(
-                    (external_id, name, description, ("(root)" if owned_by_root else username),
-                     marker_file_location, str(size))
-                )
+            for (_marker_id, name, description, external_id, size) in cur:
+                tup = map(str, (external_id, name, description, size))
+                table.add_row(tup)
+            print table.get_string()
 
             return True
 
@@ -1934,12 +1937,12 @@ class GenomeDatabase(object):
     #
     # Parameters:
     #     owner_id - Get visible genome lists owned by this user with this id. If not specified, get all root owned lists.
-    #     all_non_private - If true, get all genome lists that aren't private (public and unassigned). If false, only get public genomes.
+    #     include_private - If true, private genome are also shown.
     #
     # Returns:
     #   A list containing a tuple for each visible genome list. The tuple contains the genome list id, genome list name, genome list description,
     # and username of the owner of the list (id, name, description, username).
-    def GetVisibleGenomeListsByOwner(self, owner_id=None, all_non_private=False):
+    def GetVisibleGenomeListsByOwner(self, owner_id=None, include_private=False):
         """
         Get all genome list owned by owner_id which the current user is allowed
         to see. If owner_id is None, return all visible genome lists for the
@@ -1958,8 +1961,8 @@ class GenomeDatabase(object):
 
         if not self.currentUser.isRootUser():
             privacy_condition = "private = False"
-            if all_non_private:
-                privacy_condition = "(private = False OR private is NULL)"
+            if include_private:
+                privacy_condition = "(private = False OR private = True)"
 
             conditional_query += "AND (" + \
                 privacy_condition + " OR owner_id = %s)"
@@ -1972,16 +1975,15 @@ class GenomeDatabase(object):
 
         return [list_id for (list_id,) in cur]
 
-    def GetAllVisibleGenomeListIds(self, all_non_private=False):
+    def GetAllVisibleGenomeListIds(self, include_private=False):
         cur = self.conn.cursor()
 
         conditional_query = ""
         params = []
-
         if not self.currentUser.isRootUser():
             privacy_condition = "private = False"
-            if all_non_private:
-                privacy_condition = "(private = False OR private is NULL)"
+            if include_private:
+                privacy_condition = "(private = False OR private = True)"
 
             conditional_query += "AND (" + \
                 privacy_condition + " OR owner_id = %s)"
@@ -2017,23 +2019,10 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             if not genome_list_ids:
-                raise GenomeDatabaseError(
-                    "Unable to print genome details: No genomes given.")
-
-            if not self.currentUser.isRootUser():
-                cur.execute("SELECT id " +
-                            "FROM genome_lists as lists " +
-                            "WHERE lists.private = True " +
-                            "AND lists.id in %s " +
-                            "AND (owned_by_root = True OR owner_id != %s)", (tuple(genome_list_ids), self.currentUser.getUserId()))
-
-                unviewable_list_ids = [list_id for (list_id,) in cur]
-                if unviewable_list_ids:
-                    raise GenomeDatabaseError(
-                        "Insufficient privileges to view genome lists: %s." % str(unviewable_list_ids))
+                raise GenomeDatabaseError("Unable to print genome details: No genomes given.")
 
             cur.execute(
-                "SELECT lists.id, lists.name, lists.description, lists.private, lists.owned_by_root, users.username, count(contents.list_id) " +
+                "SELECT lists.id, lists.name, lists.description, lists.owned_by_root, users.username, count(contents.list_id) " +
                 "FROM genome_lists as lists " +
                 "LEFT OUTER JOIN users ON lists.owner_id = users.id " +
                 "JOIN genome_list_contents as contents ON contents.list_id = lists.id " +
@@ -2042,15 +2031,17 @@ class GenomeDatabase(object):
                 "ORDER by lists.id asc ", (tuple(genome_list_ids),)
             )
 
-            print "\t".join(("list_id", "name", "description", "owner", "visibility", "genome_count"))
+            # print table
+            table = prettytable.PrettyTable(("list_id", "name", "description", "owner", "genome_count"))
+            table.align = 'l'
+            table.hrules = prettytable.FRAME
+            table.vrules = prettytable.NONE
 
-            for (list_id, name, description, private, owned_by_root, username, genome_count) in cur:
-                privacy_string = (
-                    "private" if private else ("unset" if (private is None) else "public"))
-                print "\t".join(
-                    (str(list_id), name, (description if description else ""),
-                     ("(root)" if owned_by_root else username), privacy_string, str(genome_count))
-                )
+            for (list_id, name, description, owned_by_root, username, genome_count) in cur:
+                tup = map(str, (list_id, name, (description if description else ''), ("root" if owned_by_root else username), genome_count))
+                table.add_row(tup)
+            print table.get_string()
+
             return True
 
         except GenomeDatabaseError as e:
@@ -2447,13 +2438,7 @@ class GenomeDatabase(object):
                 "ORDER by sets.id asc ", (tuple(marker_set_ids),)
             )
 
-            # print "\t".join()
-
-            # for (set_id, name, description, owned_by_root, username, marker_count) in cur:
-            #    print "\t".join(
-            #        (str(set_id), name, description, ("(root)" if owned_by_root else username), str(marker_count))
-            #    )
-
+            # print table
             table = prettytable.PrettyTable(("set_id", "name", "description", "owner", "marker_count"))
             table.align = 'l'
             table.hrules = prettytable.FRAME
