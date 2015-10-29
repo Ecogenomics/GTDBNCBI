@@ -233,7 +233,14 @@ def CreateTreeData(db, args):
 
 
 def ViewGenomes(db, args):
-    print "deprecated Function"
+
+    if args.view_all:
+        return db.ViewGenomes()
+    else:
+        external_ids = None
+        if args.id_list:
+            external_ids = args.id_list.split(",")
+        return db.ViewGenomes(args.batchfile, external_ids)
 
 
 def DeleteGenomes(db, args):
@@ -272,19 +279,14 @@ def CreateGenomeList(db, args):
 def ViewGenomeLists(db, args):
 
     genome_lists = []
-
-    view_all = False
-    if args.view_all:
-        view_all = True
-
     if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
-        genome_lists = db.GetVisibleGenomeListsByOwner(
-            all_non_private=view_all)
+        genome_lists = db.GetVisibleGenomeListsByOwner(include_private=False)
     elif args.self_owned:
-        genome_lists = db.GetVisibleGenomeListsByOwner(
-            db.currentUser.getUserId(), all_non_private=view_all)
+        genome_lists = db.GetVisibleGenomeListsByOwner(db.currentUser.getUserId(), include_private=False)
     elif args.all_owners:
-        genome_lists = db.GetAllVisibleGenomeListIds(all_non_private=view_all)
+        genome_lists = db.GetAllVisibleGenomeListIds(include_private=False)
+    elif args.view_all:
+        genome_lists = db.GetAllVisibleGenomeListIds(include_private=True)
     else:
         # TODO: this
         db.ReportError(
@@ -294,6 +296,7 @@ def ViewGenomeLists(db, args):
     if len(genome_lists) == 0:
         print "No genomes lists found."
         return True
+
     return db.PrintGenomeListsDetails(genome_lists)
 
 
@@ -594,21 +597,17 @@ if __name__ == '__main__':
     # View genome lists
     parser_genome_lists_view = genome_list_category_subparser.add_parser('view',
                                                                          formatter_class=CustomHelpFormatter,
-                                                                         help='View visible genome lists.')
+                                                                         help='View genome lists.')
 
-    mutex_group = parser_genome_lists_view.add_mutually_exclusive_group(
-        required=True)
+    mutex_group = parser_genome_lists_view.add_mutually_exclusive_group(required=True)
     mutex_group.add_argument('--root', dest='root_owned', default=False,
-                             action='store_true', help='Only show genome lists owned by the root user.')
+                             action='store_true', help='Show genome lists owned by the root user.')
     mutex_group.add_argument('--self', dest='self_owned', default=False,
-                             action='store_true', help='Only show genome lists owned by you.')
-    mutex_group.add_argument(
-        '--owner', dest='owner_name', help='Only show genome lists owned by a specific user.')
-    mutex_group.add_argument('--everyone', dest='all_owners', default=False,
-                             action='store_true', help='Show genome lists of all users.')
-
-    parser_genome_lists_view.add_argument('--all_accessible', dest='view_all', default=False, action='store_true',
-                                          help='View EVERY genome list that you can access (the default is to show only public and your own lists).')
+                             action='store_true', help='Show genome lists owned by you.')
+    mutex_group.add_argument('--owner', dest='owner_name', help='Show genome lists owned by a specific user.')
+    mutex_group.add_argument('--all_public', dest='all_owners', default=False,
+                             action='store_true', help='Show public genome lists from all users.')
+    mutex_group.add_argument('--all', dest='view_all', default=False, action='store_true', help='View all genome lists.')
 
     parser_genome_lists_view.set_defaults(func=ViewGenomeLists)
 
@@ -637,8 +636,7 @@ if __name__ == '__main__':
     parser_genome_lists_edit.add_argument('--description', dest='description',
                                           help='Change the brief description of the genome list to this.')
 
-    mutex_group = parser_genome_lists_edit.add_mutually_exclusive_group(
-        required=False)
+    mutex_group = parser_genome_lists_edit.add_mutually_exclusive_group(required=False)
     mutex_group.add_argument('--set_private', dest='private', action="store_true", default=False,
                              help='Make this genome list private (only you can see).')
     mutex_group.add_argument('--set_public', dest='public', action="store_true", default=False,
@@ -728,7 +726,7 @@ if __name__ == '__main__':
     parser_marker_sets_edit.add_argument('--set_id', dest='set_id',
                                          required=True, help='The id of the marker set to edit')
     parser_marker_sets_edit.add_argument('--batchfile', dest='batchfile',
-                                         help='A file of marker ids, one per line, to add remove from the set')
+                                         help='A file of marker ids, one per line, to add/remove from the set')
     parser_marker_sets_edit.add_argument('--marker_ids', dest='marker_ids',
                                          help='List (comma separated) of marker ids to add/remove from set')
     parser_marker_sets_edit.add_argument('--operation', dest='operation', choices=('add', 'remove'),
