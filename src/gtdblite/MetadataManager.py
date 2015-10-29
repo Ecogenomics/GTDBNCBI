@@ -232,6 +232,13 @@ class MetadataManager(object):
             Directory containing metadata files to parse.
         """
 
+        # We do not need to create a row in metadata_genes table. This row was
+        # created when importing the checkm information
+        cur.execute(
+            "INSERT INTO metadata_nucleotide (id) VALUES ({0})".format(genome_id))
+        cur.execute(
+            "INSERT INTO metadata_taxonomy (id) VALUES ({0})".format(genome_id))
+
         # nucleotide metadata
         metadata_nt_path = os.path.join(
             genome_dir, ConfigMetadata.GTDB_NT_FILE)
