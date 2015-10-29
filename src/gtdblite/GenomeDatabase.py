@@ -23,7 +23,7 @@ from biolib.checksum import sha256
 
 class GenomeDatabase(object):
 
-    def __init__(self, threads=1):
+    def __init__(self, threads=1, tab_table=False):
         self.logger = logging.getLogger()
 
         self.conn = GenomeDatabaseConnection()
@@ -34,6 +34,8 @@ class GenomeDatabase(object):
 
         self.threads = threads
         self.pool = Pool(threads)
+
+        self.tab_table = tab_table
 
         self.genomeFileSuffix = "_genomic.fna"
         self.proteinFileSuffix = "_protein.faa"
@@ -81,6 +83,23 @@ class GenomeDatabase(object):
 
     def ClearWarnings(self):
         self.warningMessages = []
+
+    def PrintTable(self, header, rows):
+        """Print table."""
+
+        if self.tab_table:
+            print '\t'.join(header)
+            for r in rows:
+                print '\t'.join(map(str, r))
+        else:
+            table = prettytable.PrettyTable(header)
+            table.align = 'l'
+            table.hrules = prettytable.FRAME
+            table.vrules = prettytable.NONE
+
+            for r in rows:
+                table.add_row(r)
+            print table.get_string()
 
     # Function: SetDebugMode
     # Sets the debug mode of the database (at the moment its either on (non-zero) or off (zero))
@@ -1093,15 +1112,13 @@ class GenomeDatabase(object):
                         "ORDER BY genomes.id ASC", (tuple(genome_id_list),))
 
             # print table
-            table = prettytable.PrettyTable(("genome_id", "name", "description", "owner", "data_added"))
-            table.align = 'l'
-            table.hrules = prettytable.FRAME
-            table.vrules = prettytable.NONE
+            header = ("genome_id", "name", "description", "owner", "data_added")
 
+            rows = []
             for (_genome_id, name, description, owned_by_root, username, external_id, date_added) in cur:
-                tup = map(str, (external_id, name, description, ("root" if owned_by_root else username), date_added))
-                table.add_row(tup)
-            print table.get_string()
+                rows.append((external_id, name, description, ("root" if owned_by_root else username), date_added))
+
+            self.PrintTable(header, rows)
 
             return True
 
@@ -1603,15 +1620,13 @@ class GenomeDatabase(object):
                         "ORDER BY markers.id ASC", (tuple(marker_id_list),))
 
             # print table
-            table = prettytable.PrettyTable(("marker_id", "name", "description", "size (nt)"))
-            table.align = 'l'
-            table.hrules = prettytable.FRAME
-            table.vrules = prettytable.NONE
+            header = ("marker_id", "name", "description", "size (nt)")
 
+            rows = []
             for (_marker_id, name, description, external_id, size) in cur:
-                tup = map(str, (external_id, name, description, size))
-                table.add_row(tup)
-            print table.get_string()
+                rows.append((external_id, name, description, size))
+
+            self.PrintTable(header, rows)
 
             return True
 
@@ -2032,15 +2047,13 @@ class GenomeDatabase(object):
             )
 
             # print table
-            table = prettytable.PrettyTable(("list_id", "name", "description", "owner", "genome_count"))
-            table.align = 'l'
-            table.hrules = prettytable.FRAME
-            table.vrules = prettytable.NONE
+            header = ("list_id", "name", "description", "owner", "genome_count")
 
+            rows = []
             for (list_id, name, description, owned_by_root, username, genome_count) in cur:
-                tup = map(str, (list_id, name, (description if description else ''), ("root" if owned_by_root else username), genome_count))
-                table.add_row(tup)
-            print table.get_string()
+                rows.append((list_id, name, (description if description else ''), ("root" if owned_by_root else username), genome_count))
+
+            self.PrintTable(header, rows)
 
             return True
 
@@ -2439,15 +2452,13 @@ class GenomeDatabase(object):
             )
 
             # print table
-            table = prettytable.PrettyTable(("set_id", "name", "description", "owner", "marker_count"))
-            table.align = 'l'
-            table.hrules = prettytable.FRAME
-            table.vrules = prettytable.NONE
+            header = ("set_id", "name", "description", "owner", "marker_count")
 
+            rows = []
             for (set_id, name, description, owned_by_root, username, marker_count) in cur:
-                tup = map(str, (set_id, name, description, ("root" if owned_by_root else username), marker_count))
-                table.add_row(tup)
-            print table.get_string()
+                rows.append((set_id, name, description, ("root" if owned_by_root else username), marker_count))
+
+            self.PrintTable(header, rows)
 
             return True
 

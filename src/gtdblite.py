@@ -439,66 +439,77 @@ if __name__ == '__main__':
     check_dependencies(['prodigal', 'genometk', 'blastn'])
 
     # create the top-level parser
-    parser = argparse.ArgumentParser(prog='gtdblite.py')
+    parser = argparse.ArgumentParser(prog='gtdblite.py', formatter_class=CustomHelpFormatter)
     parser.add_argument('-r', dest='login_as_root', action='store_true',
-                        help='Login as the root user')
+                        help='Login as the root user.')
     parser.add_argument('-u', dest='logon_as_user',
-                        help='Logon as this user (implies -r)'),
-    parser.add_argument('-t', dest='threads', type=int,
-                        help='Threads to use')
+                        help='Logon as this user (implies -r).'),
+    parser.add_argument('-t', dest='threads', type=int, default=1,
+                        help='Threads to use.')
     parser.add_argument('-f', dest='force', action='store_true',
-                        help='Force the action (required to override warnings for certain actions)')
+                        help='Force the action (required to override warnings for certain actions).')
     parser.add_argument('-y', dest='assume_yes', action='store_true',
-                        help='Assume yes to all confirm prompts (useful for batch processing)')
+                        help='Assume yes to all confirm prompts (useful for batch processing).')
+    parser.add_argument('--tab_table', action='store_true',
+                        help='Write tables as tab-separated.')
     parser.add_argument('--silent', action='store_true',
-                        help='Suppress output to screen')
+                        help='Suppress output to screen.')
     parser.add_argument('--debug', dest='debug', action='store_true',
-                        help='Run in debug mode')
+                        help='Run in debug mode.')
     parser.add_argument('--version', action='version', version=versionInfo(),
-                        help='Show version information')
+                        help='Show version information.')
 
     category_parser = parser.add_subparsers(
-        help='Category Command Help', dest='category_parser_name')
+        dest='category_parser_name')
 
-    user_category_parser = category_parser.add_parser(
-        'users', help='Commands for adding and modifying users')
+    user_category_parser = category_parser.add_parser('users',
+        formatter_class=CustomHelpFormatter,
+        help='Commands for adding and modifying users.')
+
     user_category_subparser = user_category_parser.add_subparsers(
         help='User command help', dest='user_subparser_name')
 
-    genome_category_parser = category_parser.add_parser(
-        'genomes', help='Commands for adding, viewing, and removing genomes')
-    genome_category_subparser = genome_category_parser.add_subparsers(
-        help='Genome command help', dest='genome_subparser_name')
+    genome_category_parser = category_parser.add_parser('genomes',
+                                                        formatter_class=CustomHelpFormatter,
+                                                        help='Commands for adding, viewing, and removing genomes.')
+    genome_category_subparser = genome_category_parser.add_subparsers(help='Genome command help',
+                                                                      dest='genome_subparser_name')
 
-    genome_list_category_parser = category_parser.add_parser(
-        'genome_lists', help='Commands for adding, viewing, and removing lists of genomes')
-    genome_list_category_subparser = genome_list_category_parser.add_subparsers(
-        help='Genome List command help', dest='genome_list_subparser_name')
+    genome_list_category_parser = category_parser.add_parser('genome_lists',
+                                                             formatter_class=CustomHelpFormatter,
+                                                             help='Commands for adding, viewing, and removing lists of genomes.')
+    genome_list_category_subparser = genome_list_category_parser.add_subparsers(help='Genome List command help',
+                                                                                dest='genome_list_subparser_name')
 
-    marker_category_parser = category_parser.add_parser(
-        'markers', help='Commands for adding or viewing marker genes')
-    marker_category_subparser = marker_category_parser.add_subparsers(
-        help='Marker command help', dest='marker_subparser_name')
+    marker_category_parser = category_parser.add_parser('markers',
+                                                        formatter_class=CustomHelpFormatter,
+                                                        help='Commands for adding or viewing marker genes.')
+    marker_category_subparser = marker_category_parser.add_subparsers(help='Marker command help',
+                                                                      dest='marker_subparser_name')
 
-    marker_set_category_parser = category_parser.add_parser(
-        'marker_sets', help='Commands for adding, viewing, and removing sets of markers')
-    marker_set_category_subparser = marker_set_category_parser.add_subparsers(
-        help='Marker Set command help', dest='marker_sets_subparser_name')
+    marker_set_category_parser = category_parser.add_parser('marker_sets',
+                                                            formatter_class=CustomHelpFormatter,
+                                                            help='Commands for adding, viewing, and removing sets of markers.')
+    marker_set_category_subparser = marker_set_category_parser.add_subparsers(help='Marker Set command help',
+                                                                              dest='marker_sets_subparser_name')
 
-    metadata_category_parser = category_parser.add_parser(
-        'metadata', help='Commands for adding, viewing, and removing metadata fields and values')
-    metadata_category_subparser = metadata_category_parser.add_subparsers(
-        help='Metadata command help', dest='metadata_subparser_name')
+    metadata_category_parser = category_parser.add_parser('metadata',
+                                                          formatter_class=CustomHelpFormatter,
+                                                          help='Commands for adding, viewing, and removing metadata fields and values.')
+    metadata_category_subparser = metadata_category_parser.add_subparsers(help='Metadata command help',
+                                                                          dest='metadata_subparser_name')
 
-    tree_category_parser = category_parser.add_parser(
-        'trees', help='Commands for inferring phylogenies')
-    tree_category_subparser = tree_category_parser.add_subparsers(
-        help='Tree command help', dest='tree_subparser_name')
+    tree_category_parser = category_parser.add_parser('trees',
+                                                      formatter_class=CustomHelpFormatter,
+                                                      help='Commands for inferring phylogenies.')
+    tree_category_subparser = tree_category_parser.add_subparsers(help='Tree command help',
+                                                                  dest='tree_subparser_name')
 
-    db_stats_category_parser = category_parser.add_parser(
-        'db_stats', help='Commands for viewing database statistics')
-    db_stats_category_subparser = db_stats_category_parser.add_subparsers(
-        help='Database stats command help', dest='db_stats_subparser_name')
+    db_stats_category_parser = category_parser.add_parser('db_stats',
+                                                          formatter_class=CustomHelpFormatter,
+                                                          help='Commands for viewing database statistics.')
+    db_stats_category_subparser = db_stats_category_parser.add_subparsers(help='Database stats command help',
+                                                                          dest='db_stats_subparser_name')
 
 # -------- User Management subparsers
 
@@ -509,7 +520,7 @@ if __name__ == '__main__':
     parser_user_add.add_argument('--username', dest='username',
                                  required=True, help='Username of the new user.')
     parser_user_add.add_argument('--role', dest='role', choices=('user', 'admin'),
-                                 required=False, help='Role of the new user')
+                                 required=False, help='Role of the new user.')
     parser_user_add.add_argument('--has_root', dest='has_root', action="store_true",
                                  required=False, help='User has permission to become the root user.')
     parser_user_add.set_defaults(func=AddUser)
@@ -537,7 +548,7 @@ if __name__ == '__main__':
     # genome add parser
     parser_genome_add = genome_category_subparser.add_parser('add',
                                                              formatter_class=CustomHelpFormatter,
-                                                             help='Add one or many genomes to the tree.')
+                                                             help='Add one or more genomes to the tree.')
     parser_genome_add.add_argument('--batchfile', dest='batchfile',
                                    required=True, help='Batch file describing the genomes - one genome per line, tab separated in 3-6 columns (bin_filename, bin_name, bin_desc, [gene_filename], [source], [id_at_source])')
     parser_genome_add.add_argument('--checkm_results', dest='checkm_file',
@@ -558,11 +569,11 @@ if __name__ == '__main__':
                                                               formatter_class=CustomHelpFormatter,
                                                               help='View the details of genomes in the database.')
     parser_genome_view.add_argument('--batchfile', dest='batchfile', default=None,
-                                    help='Batchfile of genome ids (one per line) to view')
+                                    help='Batchfile of genome ids (one per line) to view.')
     parser_genome_view.add_argument('--genome_ids', dest='id_list', default=None,
-                                    help='Provide a list of genome ids (comma separated) to view')
+                                    help='Provide a list of genome ids (comma separated) to view.')
     parser_genome_view.add_argument('--all', dest='view_all', action="store_true",
-                                    help='View ALL the genomes in the database. This might take a while...')
+                                    help='View all genomes in the database.')
     parser_genome_view.set_defaults(func=ViewGenomes)
 
     # genome delete parser
@@ -872,10 +883,7 @@ if __name__ == '__main__':
                 'need to specify at least one of --all, --batchfile or --marker_ids')
 
     # Initialise the backend
-    if args.threads:
-        db = GenomeDatabase.GenomeDatabase(args.threads)
-    else:
-        db = GenomeDatabase.GenomeDatabase()
+    db = GenomeDatabase.GenomeDatabase(args.threads, args.tab_table)
 
     db.conn.MakePostgresConnection()
 
