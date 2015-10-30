@@ -134,10 +134,10 @@ def EditUser(db, args):
     return db.EditUser(args.username, args.role, args.has_root)
 
 
-def AddManyFastaGenomes(db, args):
+def AddGenomes(db, args):
     loggerSetup(None, args.silent)
 
-    return db.AddManyFastaGenomes(
+    return db.AddGenomes(
         args.batchfile, args.checkm_file, args.genome_list_id,
         args.genome_list_name, args.force
     )
@@ -436,7 +436,7 @@ def DatabaseStatsData(db, args):
 
 if __name__ == '__main__':
     # make sure all required dependencies are on the system path
-    check_dependencies(['prodigal', 'genometk', 'blastn'])
+    check_dependencies(['prodigal', 'genometk', 'blastn', 'hmmsearch', 'pfam_search.pl'])
 
     # create the top-level parser
     parser = argparse.ArgumentParser(prog='gtdblite.py', formatter_class=CustomHelpFormatter)
@@ -562,7 +562,7 @@ if __name__ == '__main__':
                              help='Create a genome list with the specified name and add all batchfile genomes into it.')
     mutex_group.add_argument('--no_list', dest='no_genome_list', action="store_true",
                              help="Don't add these genomes to a list.")
-    parser_genome_add.set_defaults(func=AddManyFastaGenomes)
+    parser_genome_add.set_defaults(func=AddGenomes)
 
     # genome view parser
     parser_genome_view = genome_category_subparser.add_parser('view',

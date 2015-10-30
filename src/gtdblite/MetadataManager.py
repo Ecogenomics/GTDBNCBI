@@ -1,3 +1,20 @@
+###############################################################################
+#                                                                             #
+#    This program is free software: you can redistribute it and/or modify     #
+#    it under the terms of the GNU General Public License as published by     #
+#    the Free Software Foundation, either version 3 of the License, or        #
+#    (at your option) any later version.                                      #
+#                                                                             #
+#    This program is distributed in the hope that it will be useful,          #
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of           #
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #
+#    GNU General Public License for more details.                             #
+#                                                                             #
+#    You should have received a copy of the GNU General Public License        #
+#    along with this program. If not, see <http://www.gnu.org/licenses/>.     #
+#                                                                             #
+###############################################################################
+
 import os
 import logging
 import psycopg2
@@ -191,12 +208,10 @@ class MetadataManager(object):
             "INSERT INTO metadata_taxonomy (id) VALUES ({0})".format(genome_id))
 
         # nucleotide metadata
-        metadata_nt_path = os.path.join(
-            genome_dir, ConfigMetadata.GTDB_NT_FILE)
+        metadata_nt_path = os.path.join(genome_dir, ConfigMetadata.GTDB_NT_FILE)
         genome_list_nt = [tuple(line.rstrip().split('\t'))
                           for line in open(metadata_nt_path)]
-        query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(
-            genome_id)
+        query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(genome_id)
         cur.executemany(query_nt, [(AsIs(c), v) for (c, v) in genome_list_nt])
 
         try:
