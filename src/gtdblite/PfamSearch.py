@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 ###############################################################################
 #                                                                             #
 #    This program is free software: you can redistribute it and/or modify     #
@@ -17,43 +15,91 @@
 #                                                                             #
 ###############################################################################
 
-__prog_name__ = 'pfam_search.py'
-__prog_desc__ = 'Run the pfam_search.pl script over a set of genomes.'
-
-__author__ = 'Donovan Parks'
-__copyright__ = 'Copyright 2015'
-__credits__ = ['Donovan Parks']
-__license__ = 'GPL3'
-__version__ = '0.0.1'
-__maintainer__ = 'Donovan Parks'
-__email__ = 'donovan.parks@gmail.com'
-__status__ = 'Development'
-
 import os
 import sys
 import multiprocessing as mp
+from collections import defaultdict
 
 from biolib.checksum import sha256
-from biolib.external.execute import check_dependencies
+
+from gtdblite import ConfigMetadata
 
 
 class PfamSearch(object):
     """Runs pfam_search.pl over a set of genomes.
 
-    This is a modified version of the script developped by Donovan
+    This is a modified version of the script developed by Donovan
     Original location:
        /srv/whitlam/bio/db/genome_db/scripts/pfam_search.py
 
     This script takes a list of proteins paths located in the genome directory for users
     """
 
-    def __init__(self):
-        check_dependencies(['hmmsearch'])
+    def __init__(self, threads):
+        """Initialization."""
 
-        self.pfam_hmm_dir = '/srv/db/pfam/27/'
-        self.protein_file_ext = '_proteins.faa'
+        self.threads = threads
 
-    def __workerThread(self, queueIn, queueOut):
+        self.pfam_hmm_dir = ConfigMetadata.PFAM_HMM_DIR
+        self.protein_file_suffix = ConfigMetadata.PROTEIN_FILE_SUFFIX
+        self.pfam_suffix = ConfigMetadata.PFAM_SUFFIX
+        self.pfam_top_hit_suffix = ConfigMetadata.PFAM_TOP_HIT_SUFFIX
+        self.checksum_suffix = ConfigMetadata.CHECKSUM_SUFFIX
+
+    def _topHit(self, pfam_file):
+        """Determine top hits to PFAMs.
+
+        A gene may be assigned to multiple
+        PFAM families from the same clan. The
+        search_pfam.pl script takes care of
+        most of these issues and here the results
+        are simply parsed.
+
+        Parameters
+        ----------
+        tigrfam_file : str
+            Name of file containing hits to TIGRFAM HMMs.
+        """
+
+        assembly_dir, filename = os.path.split(pfam_file)
+        output_tophit_file = os.path.join(assembly_dir, filename.replace(self.pfam_suffix,
+                                                                         self.pfam_top_hit_suffix))
+
+        tophits = defaultdict(dict)
+        for line in open(pfam_file):
+            if line[0] == '#' or not line.strip():
+                continue
+
+            line_split = line.split()
+            gene_id = line_split[0]
+            hmm_id = line_split[5]
+            evalue = float(line_split[12])
+            bitscore = float(line_split[11])
+            if gene_id in tophits:
+                if hmm_id in tophits[gene_id]:
+                    if bitscore > tophits[gene_id][hmm_id][1]:
+                        tophits[gene_id][hmm_id] = (evalue, bitscore)
+                else:
+                    tophits[gene_id][hmm_id] = (evalue, bitscore)
+            else:
+                tophits[gene_id][hmm_id] = (evalue, bitscore)
+
+        fout = open(output_tophit_file, 'w')
+        fout.write('Gene Id\tTop hits (Family id,e-value,bitscore)\n')
+        for gene_id, hits in tophits.iteritems():
+            hit_str = []
+            for hmm_id, stats in hits.iteritems():
+                hit_str.append(hmm_id + ',' + ','.join(map(str, stats)))
+            fout.write('%s\t%s\n' % (gene_id, ';'.join(hit_str)))
+        fout.close()
+
+        # calculate checksum
+        checksum = sha256(output_tophit_file)
+        fout = open(output_tophit_file + self.checksum_suffix, 'w')
+        fout.write(checksum)
+        fout.close()
+
+    def _workerThread(self, queueIn, queueOut):
         """Process each data item in parallel."""
         while True:
             gene_file = queueIn.get(block=True, timeout=None)
@@ -61,19 +107,24 @@ class PfamSearch(object):
                 break
 
             genome_dir, filename = os.path.split(gene_file)
-            output_hit_file = os.path.join(genome_dir, filename.replace(self.protein_file_ext, '_pfam.tsv'))
-            cmd = 'pfam_search.pl -outfile %s -cpu 1 -fasta %s -dir %s' % (output_hit_file, gene_file, self.pfam_hmm_dir)
+            output_hit_file = os.path.join(genome_dir, filename.replace(self.protein_file_suffix,
+                                                                        self.pfam_suffix))
+
+            cmd = 'pfam_search.pl -outfile %s -cpu %d -fasta %s -dir %s' % (output_hit_file,
+                                                                            self.cpus_per_genome,
+                                                                            gene_file,
+                                                                            self.pfam_hmm_dir)
             os.system(cmd)
 
             # calculate checksum
             checksum = sha256(output_hit_file)
-            fout = open(output_hit_file + '.sha256', 'w')
+            fout = open(output_hit_file + self.checksum_suffix, 'w')
             fout.write(checksum)
             fout.close()
 
             queueOut.put(gene_file)
 
-    def __writerThread(self, numDataItems, writerQueue):
+    def _writerThread(self, numDataItems, writerQueue):
         """Store or write results of worker threads in a single thread."""
         processedItems = 0
         while True:
@@ -82,36 +133,24 @@ class PfamSearch(object):
                 break
 
             processedItems += 1
-            statusStr = 'Finished processing %d of %d (%.2f%%) items.' % (processedItems, numDataItems, float(processedItems) * 100 / numDataItems)
+            statusStr = '==> Finished processing %d of %d (%.2f%%) genomes.' % (processedItems,
+                                                                                numDataItems,
+                                                                                float(processedItems) * 100 / numDataItems)
             sys.stdout.write('%s\r' % statusStr)
             sys.stdout.flush()
 
         sys.stdout.write('\n')
 
-    def run(self, genes_path_files, threads):
-        # get path to all protein files for a a user submission
-        # the sha256 test should not be compulsory because each submission is unique
-        print 'Reading genomes.'
-        gene_files = []
-        for gene_path in genes_path_files:
-            genome_dir, filename = os.path.split(gene_path)
-            pfam_file = os.path.join(genome_dir, filename.replace(self.protein_file_ext, '_pfam.tsv'))
-            if os.path.exists(pfam_file):
-                # verify checksum
-                checksum_file = pfam_file + '.sha256'
-                if os.path.exists(checksum_file):
-                    checksum = sha256(pfam_file)
-                    cur_checksum = open(checksum_file).readline().strip()
-                    if checksum == cur_checksum:
-                        continue
-                    else:
-                        os.remove(checksum_file)
-                        os.remove(pfam_file)
+    def run(self, gene_files):
+        """Annotate genes with Pfam HMMs.
 
-            if os.path.exists(gene_path):
-                gene_files.append(gene_path)
+        Parameters
+        ----------
+        gene_files : iterable
+            Gene files in FASTA format to process.
+        """
 
-        print '  Number of unprocessed genomes: %d' % len(gene_files)
+        self.cpus_per_genome = max(1, len(gene_files) / self.threads)
 
         # populate worker queue with data to process
         workerQueue = mp.Queue()
@@ -120,12 +159,12 @@ class PfamSearch(object):
         for f in gene_files:
             workerQueue.put(f)
 
-        for _ in range(threads):
+        for _ in range(self.threads):
             workerQueue.put(None)
 
         try:
-            workerProc = [mp.Process(target=self.__workerThread, args=(workerQueue, writerQueue)) for _ in range(threads)]
-            writeProc = mp.Process(target=self.__writerThread, args=(len(gene_files), writerQueue))
+            workerProc = [mp.Process(target=self._workerThread, args=(workerQueue, writerQueue)) for _ in range(self.threads)]
+            writeProc = mp.Process(target=self._writerThread, args=(len(gene_files), writerQueue))
 
             writeProc.start()
 

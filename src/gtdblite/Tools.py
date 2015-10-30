@@ -1,10 +1,4 @@
 # import prodigal
-import hashlib
-import tempfile
-import os
-import shutil
-import re
-import subprocess
 import multiprocessing
 import math
 import time
@@ -14,44 +8,6 @@ from itertools import islice
 from gtdblite.Exceptions import GenomeDatabaseError
 from gtdblite import MarkerCalculation
 from itertools import islice
-
-##################################################
-##################################################
-############FILE UTILITIES########################
-##################################################
-
-
-def populate_required_headers(checkm_fh):
-    required_headers = {
-        "Bin Id": None,
-        "Completeness": None,
-        "Contamination": None,
-        "Marker lineage": None,
-        "# genomes": None,
-        "# markers": None,
-        "# marker sets": None,
-        "Strain heterogeneity": None
-    }
-
-    # Check the CheckM headers are consistent
-    split_headers = checkm_fh.readline().rstrip().split("\t")
-    for pos in range(0, len(split_headers)):
-        header = split_headers[pos]
-        if header not in required_headers:
-            continue
-
-        if required_headers[header] is not None:
-            raise GenomeDatabaseError(
-                "Seen %s header twice in the CheckM file. Check that the CheckM file is correct: %s." % (header, checkm_fh.name))
-
-        required_headers[header] = pos
-
-    for header, col in required_headers.items():
-        if (header is "Completeness" or header is "Contamination") and col is None:
-            raise GenomeDatabaseError(
-                "Unable to find %s header in the CheckM file. Check that the CheckM file is correct: %s." % (header, checkm_fh.name))
-
-    return required_headers
 
 
 #################################################
