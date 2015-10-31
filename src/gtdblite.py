@@ -137,10 +137,10 @@ def EditUser(db, args):
 def AddGenomes(db, args):
     loggerSetup(None, args.silent)
 
-    return db.AddGenomes(
-        args.batchfile, args.checkm_file, args.genome_list_id,
-        args.genome_list_name, args.force
-    )
+    return db.AddGenomes(args.batchfile,
+                         args.checkm_file,
+                         args.genome_list_id,
+                         args.genome_list_name)
 
 
 def AddMarkers(db, args):
