@@ -18,73 +18,64 @@
 import os
 import sys
 import multiprocessing as mp
-from collections import defaultdict
 
 from biolib.checksum import sha256
 
 from gtdblite import ConfigMetadata
 
 
-class PfamSearch(object):
-    """Runs pfam_search.pl over a set of genomes."""
+class TigrfamSearch(object):
+    """Runs TIGRfam HMMs over a set of genomes."""
 
     def __init__(self, threads):
         """Initialization."""
 
         self.threads = threads
-
-        self.pfam_hmm_dir = ConfigMetadata.PFAM_HMM_DIR
+        self.tigrfam_hmms = ConfigMetadata.TIGRFAM_HMMS
         self.protein_file_suffix = ConfigMetadata.PROTEIN_FILE_SUFFIX
-        self.pfam_suffix = ConfigMetadata.PFAM_SUFFIX
-        self.pfam_top_hit_suffix = ConfigMetadata.PFAM_TOP_HIT_SUFFIX
+        self.tigrfam_suffix = ConfigMetadata.TIGRFAM_SUFFIX
+        self.tigrfam_top_hit_suffix = ConfigMetadata.TIGRFAM_TOP_HIT_SUFFIX
         self.checksum_suffix = ConfigMetadata.CHECKSUM_SUFFIX
 
-    def _topHit(self, pfam_file):
-        """Determine top hits to PFAMs.
+    def _topHit(self, tigrfam_file):
+        """Determine top hits to TIGRFAMs.
 
-        A gene may be assigned to multiple
-        PFAM families from the same clan. The
-        search_pfam.pl script takes care of
-        most of these issues and here the results
-        are simply parsed.
+        A gene is assigned to a single TIGRFAM
+        family. This will be the top hit among
+        all TIGRFAM HMMs and pass the threshold
+        for the HMM.
 
         Parameters
         ----------
         tigrfam_file : str
             Name of file containing hits to TIGRFAM HMMs.
         """
+        assembly_dir, filename = os.path.split(tigrfam_file)
+        output_tophit_file = os.path.join(assembly_dir, filename.replace(self.tigrfam_suffix,
+                                                                         self.tigrfam_top_hit_suffix))
 
-        assembly_dir, filename = os.path.split(pfam_file)
-        output_tophit_file = os.path.join(assembly_dir, filename.replace(self.pfam_suffix,
-                                                                         self.pfam_top_hit_suffix))
-
-        tophits = defaultdict(dict)
-        for line in open(pfam_file):
-            if line[0] == '#' or not line.strip():
+        tophits = {}
+        for line in open(tigrfam_file):
+            if line[0] == '#':
                 continue
 
             line_split = line.split()
             gene_id = line_split[0]
-            hmm_id = line_split[5]
-            evalue = float(line_split[12])
-            bitscore = float(line_split[11])
+            hmm_id = line_split[3]
+            evalue = float(line_split[4])
+            bitscore = float(line_split[5])
             if gene_id in tophits:
-                if hmm_id in tophits[gene_id]:
-                    if bitscore > tophits[gene_id][hmm_id][1]:
-                        tophits[gene_id][hmm_id] = (evalue, bitscore)
-                else:
-                    tophits[gene_id][hmm_id] = (evalue, bitscore)
+                if bitscore > tophits[gene_id][2]:
+                    tophits[gene_id] = (hmm_id, evalue, bitscore)
             else:
-                tophits[gene_id][hmm_id] = (evalue, bitscore)
+                tophits[gene_id] = (hmm_id, evalue, bitscore)
 
-        fout = open(output_tophit_file, 'w')
-        fout.write('Gene Id\tTop hits (Family id,e-value,bitscore)\n')
-        for gene_id, hits in tophits.iteritems():
-            hit_str = []
-            for hmm_id, stats in hits.iteritems():
-                hit_str.append(hmm_id + ',' + ','.join(map(str, stats)))
-            fout.write('%s\t%s\n' % (gene_id, ';'.join(hit_str)))
-        fout.close()
+            fout = open(output_tophit_file, 'w')
+            fout.write('Gene Id\tTop hits (Family id,e-value,bitscore)\n')
+            for gene_id, stats in tophits.iteritems():
+                hit_str = ','.join(map(str, stats))
+                fout.write('%s\t%s\n' % (gene_id, hit_str))
+            fout.close()
 
         # calculate checksum
         checksum = sha256(output_tophit_file)
@@ -99,14 +90,16 @@ class PfamSearch(object):
             if gene_file == None:
                 break
 
-            genome_dir, filename = os.path.split(gene_file)
-            output_hit_file = os.path.join(genome_dir, filename.replace(self.protein_file_suffix,
-                                                                        self.pfam_suffix))
+            assembly_dir, filename = os.path.split(gene_file)
+            output_hit_file = os.path.join(assembly_dir, filename.replace(self.protein_file_suffix,
+                                                                          self.tigrfam_suffix))
 
-            cmd = 'pfam_search.pl -outfile %s -cpu %d -fasta %s -dir %s' % (output_hit_file,
-                                                                            self.cpus_per_genome,
-                                                                            gene_file,
-                                                                            self.pfam_hmm_dir)
+            hmmsearch_out = os.path.join(assembly_dir, filename.replace(self.protein_file_suffix, '_tigrfam.out'))
+            cmd = 'hmmsearch -o %s --tblout %s --noali --notextw --cut_nc --cpu %d %s %s' % (hmmsearch_out,
+                                                                                             output_hit_file,
+                                                                                             self.cpus_per_genome,
+                                                                                             self.tigrfam_hmms,
+                                                                                             gene_file)
             os.system(cmd)
 
             # calculate checksum
@@ -115,6 +108,10 @@ class PfamSearch(object):
             fout.write(checksum)
             fout.close()
 
+            # identify top hit for each gene
+            self._topHit(output_hit_file)
+
+            # allow results to be processed or written to file
             queueOut.put(gene_file)
 
     def _writerThread(self, numDataItems, writerQueue):
@@ -135,7 +132,7 @@ class PfamSearch(object):
         sys.stdout.write('\n')
 
     def run(self, gene_files):
-        """Annotate genes with Pfam HMMs.
+        """Annotate genes with TIGRFAM HMMs.
 
         Parameters
         ----------

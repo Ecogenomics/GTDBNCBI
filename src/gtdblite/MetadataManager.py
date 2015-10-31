@@ -139,19 +139,19 @@ class MetadataManager(object):
             print all_col_dict
             for key, value in data_dict.iteritems():
                 if key in all_col_dict:
-                    if all_col_dict.get(key) == value.get("table"):
+                    if all_col_dict.get(key) == value['table']:
                         query_comment = "COMMENT ON COLUMN {0}.{1} IS '{2}'".format(
-                            value.get("table"), key, value.get("desc"))
+                            value['table'], key, value['desc'])
                         cur.execute(query_comment)
                     else:
                         logging.warning("Column {0} is already presents in the {1} table .".format(
                             key, all_col_dict.get(key)))
                 else:
                     query_add_col = "ALTER TABLE {0} ADD COLUMN {1} {2}".format(
-                        value.get("table"), key, value.get("type"))
+                        value['table'], key, value['type'])
                     cur.execute(query_add_col)
                     query_add_comment = "COMMENT ON COLUMN {0}.{1} IS '{2}'".format(
-                        value.get("table"), key, value.get("desc"))
+                        value['table'], key, value['desc'])
                     cur.execute(query_add_comment)
 
 # ---------- PSQL are not refresh automatically so we need to drop the existing view and recreate it with a new Definition.
@@ -162,13 +162,41 @@ class MetadataManager(object):
         except GenomeDatabaseError as e:
             raise e
 
-    def calculateMetadata(self, genome_file, gff_file, output_dir):
+    def addMetadata(self, cur, db_genome_id, genome_file, gff_file, checkm_results, output_dir):
+        """Calculate and add metadata to DB.
+
+        Parameters
+        ----------
+        cur : psycopg2.cursor
+            Database cursor.
+        db_genome_id : str
+            Unique database identifer of genome.
+        genome_file : str
+            Name of FASTA file containing nucleotide sequences.
+        gff_file : str
+            Name of generic feature file describing genes.
+        checkm_results : dict
+            CheckM metadata.
+        output_dir : str
+            Output directory.
+        """
+
+        # create rows for genome in metadata tables
+        cur.execute("INSERT INTO metadata_nucleotide (id) VALUES ({0})".format(db_genome_id))
+        cur.execute("INSERT INTO metadata_genes (id) VALUES ({0})".format(db_genome_id))
+        cur.execute("INSERT INTO metadata_taxonomy (id) VALUES ({0})".format(db_genome_id))
+
+        self._calculateMetadata(genome_file, gff_file, output_dir)
+        self._storeMetadata(cur, db_genome_id, output_dir)
+        self._storeCheckM(cur, db_genome_id, checkm_results)
+
+    def _calculateMetadata(self, genome_file, gff_file, output_dir):
         """Calculate metadata for new genome.
 
         Parameters
         ----------
         genome_file : str
-            Name of fasta file containing nucleotide sequences.
+            Name of FASTA file containing nucleotide sequences.
         gff_file : str
             Name of generic feature file describing genes.
         output_dir : str
@@ -188,30 +216,24 @@ class MetadataManager(object):
                                                          ConfigMetadata.GTDB_SSU_SILVA_TAXONOMY,
                                                          os.path.join(output_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR)))
 
-    def storeMetadata(self, genome_dir, genome_id=None, cur=None):
+    def _storeMetadata(self, cur, db_genome_id, genome_dir):
         """Parse metadata files for genome and store in database.
 
         Parameters
         ----------
+        cur : psycopg2.cursor
+            Database cursor.
+        db_genome_id : str
+            Unique database identifer of genome.
         genome_dir : str
             Directory containing metadata files to parse.
-        genome_id : str
-            Unique identifer of genome.
-        cur :
-            Database cursor.
         """
-
-# ------We do not need to create a row in metadata_genes table. This row was created when importing the checkm information
-        cur.execute(
-            "INSERT INTO metadata_nucleotide (id) VALUES ({0})".format(genome_id))
-        cur.execute(
-            "INSERT INTO metadata_taxonomy (id) VALUES ({0})".format(genome_id))
 
         # nucleotide metadata
         metadata_nt_path = os.path.join(genome_dir, ConfigMetadata.GTDB_NT_FILE)
         genome_list_nt = [tuple(line.rstrip().split('\t'))
                           for line in open(metadata_nt_path)]
-        query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(genome_id)
+        query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(db_genome_id)
         cur.executemany(query_nt, [(AsIs(c), v) for (c, v) in genome_list_nt])
 
         try:
@@ -220,8 +242,7 @@ class MetadataManager(object):
                 genome_dir, ConfigMetadata.GTDB_GENE_FILE)
             genome_list_gene = [tuple(line.rstrip().split('\t'))
                                 for line in open(metadata_gene_path)]
-            query_gene = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(
-                genome_id)
+            query_gene = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(db_genome_id)
             cur.executemany(query_gene, [(AsIs(c), v)
                                          for (c, v) in genome_list_gene])
 
@@ -230,8 +251,7 @@ class MetadataManager(object):
                 genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
             genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
                 metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX)
-            query_taxonomy = "UPDATE metadata_taxonomy SET %s = %s WHERE id = {0}".format(
-                genome_id)
+            query_taxonomy = "UPDATE metadata_taxonomy SET %s = %s WHERE id = {0}".format(db_genome_id)
             cur.executemany(
                 query_taxonomy, [(AsIs(c), v) for (c, v) in genome_list_taxonomy])
 
@@ -243,7 +263,7 @@ class MetadataManager(object):
             cur.executemany(
                 query_taxonomy, [(AsIs(c), v) for (c, v) in genome_list_taxonomy])
             query_gene_ssu = "UPDATE metadata_genes SET ssu_count = %s WHERE id = {0}".format(
-                genome_id)
+                db_genome_id)
             cur.execute(query_gene_ssu, (ssu_count,))
         except psycopg2.Error as e:
             raise GenomeDatabaseError(e.pgerror)
@@ -294,3 +314,27 @@ class MetadataManager(object):
                             for i, value in enumerate(line_split)]
 
         return metadata, ssu_count
+
+    def _storeCheckM(self, cur, db_genome_id, checkm_results):
+        """Store CheckM results for genome.
+
+        Parameters
+        ----------
+        cur : psycopg2.cursor
+            Database cursor.
+        db_genome_id : str
+            Unique database identifer of genome.
+        checkm_results : dict
+            CheckM metadata.
+        """
+
+        checkm_data = [('checkm_completeness', checkm_results['completeness']),
+                            ('checkm_contamination', checkm_results['contamination']),
+                            ('checkm_marker_count', checkm_results['marker_count']),
+                            ('checkm_marker_lineage', checkm_results['lineage']),
+                            ('checkm_genome_count', checkm_results['genome_count']),
+                            ('checkm_marker_set_count', checkm_results['set_count']),
+                            ('checkm_strain_heterogeneity', checkm_results['heterogeneity'])]
+
+        query = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(db_genome_id)
+        cur.executemany(query, [(AsIs(c), v) for (c, v) in checkm_data])

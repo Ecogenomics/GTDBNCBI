@@ -353,7 +353,7 @@ class GenomeDatabase(object):
             return None
 
     def AddGenomes(self, batchfile, checkm_file, modify_genome_list_id=None,
-                            new_genome_list_name=None, force_overwrite=False):
+                            new_genome_list_name=None):
         """Add genomes to database.
 
         Parameters
@@ -394,12 +394,11 @@ class GenomeDatabase(object):
                 genome_list_mngr = GenomeListManager(self.currentUser)
                 modify_genome_list_id = genome_list_mngr.addGenomeList(cur, [], new_genome_list_name, "", owner_id)
                 if modify_genome_list_id is None:
-                    raise GenomeDatabaseError(
-                        "Unable to create the new genome list.")
+                    raise GenomeDatabaseError("Unable to create the new genome list.")
 
             # add genomes to database
             genome_mngr = GenomeManager(self.currentUser, self.threads)
-            genome_ids = genome_mngr.addGenomes(cur, checkm_file, batchfile, force_overwrite)
+            genome_ids = genome_mngr.addGenomes(cur, checkm_file, batchfile)
 
             if modify_genome_list_id is not None:
                 genome_list_mngr = GenomeListManager(self.currentUser)
