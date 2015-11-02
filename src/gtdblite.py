@@ -550,14 +550,13 @@ if __name__ == '__main__':
                                                              formatter_class=CustomHelpFormatter,
                                                              help='Add one or more genomes to the tree.')
     parser_genome_add.add_argument('--batchfile', dest='batchfile',
-                                   required=True, help='Batch file describing the genomes - one genome per line, tab separated in 3-6 columns (bin_filename, bin_name, bin_desc, [gene_filename], [source], [id_at_source])')
+                                   required=True, help='Batch file describing genomes - one per line, tab separated in 3-6 columns (bin_filename, bin_name, bin_desc, [gene_filename], [source], [id_at_source])')
     parser_genome_add.add_argument('--checkm_results', dest='checkm_file',
                                    required=True, help='Provide a CheckM results file. MUST BE A TAB TABLE! e.g. "checkm taxonomy_wf -f CHECKM_FILE --tab_table domain Bacteria bins/ output"')
 
     mutex_group = parser_genome_add.add_mutually_exclusive_group(required=True)
     mutex_group.add_argument('--modify_list', dest='genome_list_id',
-                             help='Modify a genome list with the \
-                             specified id and add all batchfile genomes into it.')
+                             help='Modify a genome list with the specified id and add all batchfile genomes into it.')
     mutex_group.add_argument('--create_list', dest='genome_list_name',
                              help='Create a genome list with the specified name and add all batchfile genomes into it.')
     mutex_group.add_argument('--no_list', dest='no_genome_list', action="store_true",
@@ -665,8 +664,7 @@ if __name__ == '__main__':
                                    help='Batchfile describing the markers - one HMM file per line (one model per file), tab separated in 3-5 columns (filename, name, desc, [database], [database_specific_id]')
     mutex_group = parser_marker_add.add_mutually_exclusive_group(required=True)
     mutex_group.add_argument('--modify_set', dest='marker_set_id',
-                             help='Modify a marker set with the \
-                            specified id and add all markers to it.')
+                             help='Modify a marker set with the specified id and add all markers to it.')
     mutex_group.add_argument('--create_set', dest='marker_set_name',
                              help='Create a marker set with the specified name and add these markers to it.')
     mutex_group.add_argument('--no_set', dest='no_marker_set', action="store_true",
