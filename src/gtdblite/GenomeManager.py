@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-###############################################################################
 #                                                                             #
 #    This program is free software: you can redistribute it and/or modify     #
 #    it under the terms of the GNU General Public License as published by     #
@@ -74,7 +72,7 @@ class GenomeManager(object):
         self.genomeCopyDir = Config.GTDB_GENOME_COPY_DIR
         self.deprecatedUserDir = Config.GTDB_DPRCTD_USR_DIR
         self.deprecatedNCBIDir = Config.GTDB_DPRCTD_NCBI_DIR
-        
+
     def _loggerSetup(self, silent=False):
         """Set logging for application.
 
@@ -96,7 +94,6 @@ class GenomeManager(object):
             os.path.realpath(__file__), '..', '..', '..', 'logs', 'genome_manager.log'), 'a')
         file_logger.setFormatter(log_format)
         logger.addHandler(file_logger)
-
 
     def addGenomes(self, cur, checkm_file, batchfile):
         """Add new genomes to DB.
@@ -122,21 +119,25 @@ class GenomeManager(object):
             self.logger.info("Reading CheckM file.")
             checkm_results_dict = self._processCheckM(checkm_file)
 
-            genomic_files = self._addGenomeBatch(cur, batchfile, tmp_output_dir)
+            genomic_files = self._addGenomeBatch(
+                cur, batchfile, tmp_output_dir)
 
             self.logger.info("Running Prodigal to identify genes.")
             prodigal = Prodigal(self.threads)
             file_paths = prodigal.run(genomic_files)
 
-            self.logger.info("Calculating and storing metadata for each genomes.")
+            self.logger.info(
+                "Calculating and storing metadata for each genomes.")
             metadata_mngr = MetadataManager()
             for db_genome_id, values in genomic_files.iteritems():
                 genome_file_paths = file_paths[db_genome_id]
-                output_dir, _file = os.path.split(genome_file_paths["aa_gene_path"])
+                output_dir, _file = os.path.split(
+                    genome_file_paths["aa_gene_path"])
 
                 bin_id = values['checkm_bin_id']
                 if bin_id not in checkm_results_dict:
-                    raise GenomeDatabaseError("Couldn't find CheckM result for bin  %s." % bin_id)
+                    raise GenomeDatabaseError(
+                        "Couldn't find CheckM result for bin  %s." % bin_id)
 
                 metadata_mngr.addMetadata(cur,
                                           db_genome_id,
@@ -146,7 +147,8 @@ class GenomeManager(object):
                                           output_dir)
 
             self.logger.info("Identifying TIGRfam protein families.")
-            gene_files = [file_paths[db_genome_id]['aa_gene_path'] for db_genome_id in genomic_files]
+            gene_files = [file_paths[db_genome_id]['aa_gene_path']
+                          for db_genome_id in genomic_files]
             tigr_search = TigrfamSearch(self.threads)
             tigr_search.run(gene_files)
 
@@ -197,7 +199,8 @@ class GenomeManager(object):
                 username = self.currentUser.getUsername()
 
             if username is None:
-                raise GenomeDatabaseError("Unable to determine user to add genomes under.")
+                raise GenomeDatabaseError(
+                    "Unable to determine user to add genomes under.")
 
         gtdb_target_dir = os.path.join(self.genomeCopyDir, username)
         for db_genome_id, external_id in external_id_dict.items():
@@ -205,14 +208,17 @@ class GenomeManager(object):
 
             genome_target_dir = os.path.join(gtdb_target_dir, external_id)
             if os.path.exists(genome_target_dir):
-                raise GenomeDatabaseError("Genome directory already exists: %s" % genome_target_dir)
+                raise GenomeDatabaseError(
+                    "Genome directory already exists: %s" % genome_target_dir)
 
             shutil.move(tmp_genome_dir, gtdb_target_dir)
 
             cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (
-                    os.path.join(genome_target_dir, external_id + self.genomeFileSuffix),
-                    os.path.join(genome_target_dir, external_id + self.proteinFileSuffix),
-                    db_genome_id))
+                os.path.join(
+                    genome_target_dir, external_id + self.genomeFileSuffix),
+                os.path.join(
+                    genome_target_dir, external_id + self.proteinFileSuffix),
+                db_genome_id))
 
         shutil.rmtree(tmp_output_dir)
 
@@ -248,7 +254,8 @@ class GenomeManager(object):
             if len(splitline) < 6:
                 splitline += [None] * (6 - len(splitline))
 
-            (fasta_path, name, desc, gene_path, source_name, id_at_source) = splitline
+            (fasta_path, name, desc, gene_path,
+             source_name, id_at_source) = splitline
 
             if fasta_path is None or fasta_path == '':
                 raise GenomeDatabaseError(
@@ -264,14 +271,16 @@ class GenomeManager(object):
             if gene_path is not None and gene_path != '':
                 abs_gene_path = os.path.abspath(gene_path)
 
-            genome_id = self._addGenomeToDB(cur, abs_fasta_path, name, desc, source_name, id_at_source, abs_gene_path)
+            genome_id = self._addGenomeToDB(
+                cur, abs_fasta_path, name, desc, source_name, id_at_source, abs_gene_path)
             if not (genome_id):
-                raise GenomeDatabaseError("Failed to add genome: %s" % abs_fasta_path)
+                raise GenomeDatabaseError(
+                    "Failed to add genome: %s" % abs_fasta_path)
 
             cur.execute("SELECT external_id_prefix || '_' || id_at_source as external_id " +
-                "FROM genomes, genome_sources " +
-                "WHERE genome_source_id = genome_sources.id " +
-                "AND genomes.id = %s", (genome_id,))
+                        "FROM genomes, genome_sources " +
+                        "WHERE genome_source_id = genome_sources.id " +
+                        "AND genomes.id = %s", (genome_id,))
 
             external_genome_id = cur.fetchone()[0]
 
@@ -279,21 +288,23 @@ class GenomeManager(object):
             if not os.path.exists(genome_output_dir):
                 os.makedirs(genome_output_dir)
 
-            fasta_target_file = os.path.join(genome_output_dir, external_genome_id + self.genomeFileSuffix)
+            fasta_target_file = os.path.join(
+                genome_output_dir, external_genome_id + self.genomeFileSuffix)
             shutil.copy(abs_fasta_path, fasta_target_file)
 
             genes_target_file = None
             if abs_gene_path:
-                genes_target_file = os.path.join(output_dir, external_genome_id, external_genome_id + self.proteinFileSuffix)
+                genes_target_file = os.path.join(
+                    output_dir, external_genome_id, external_genome_id + self.proteinFileSuffix)
                 shutil.copy(abs_gene_path, genes_target_file)
 
             genomic_files[genome_id] = {"checkm_bin_id": os.path.splitext(os.path.basename(abs_fasta_path))[0],
-                                            "aa_gene_path": genes_target_file,
-                                            "fasta_path": fasta_target_file}
+                                        "aa_gene_path": genes_target_file,
+                                        "fasta_path": fasta_target_file}
         return genomic_files
 
     def _addGenomeToDB(self, cur, fasta_file_path, name, desc,
-                              source, id_at_source, gene_path):
+                       source, id_at_source, gene_path):
         """Add genome to database.
 
         Parameters
@@ -327,7 +338,8 @@ class GenomeManager(object):
             if source is None:
                 source = self.defaultGenomeSourceName
 
-            cur.execute("SELECT id, external_id_prefix, user_editable FROM genome_sources WHERE name = %s", (source,))
+            cur.execute(
+                "SELECT id, external_id_prefix, user_editable FROM genome_sources WHERE name = %s", (source,))
             source_id = None
 
             for (db_id, _external_id_prefix, user_editable) in cur:
@@ -493,7 +505,6 @@ class GenomeManager(object):
         checkm_fh.close()
 
         return checkm_results_dict
-
 
     # TODO: This should not be here, techincally the backend is agnostic so
     # shouldn't assume command line.
@@ -502,7 +513,6 @@ class GenomeManager(object):
         if raw.upper() == "Y":
             return True
         return False
-
 
     def deleteGenomes(self, batchfile=None, external_ids=None, reason=None):
         self.loggerSetup()
@@ -712,8 +722,8 @@ class GenomeManager(object):
         Return a tuple containing:
         - Boolean returning the state of the function
         - The username currently running the delete function
-        -a Dictionary listing the list of genomes and where each genome has saved 
-            the owner,the Prefix (U or NCBI) , the relative path 
+        -a Dictionary listing the list of genomes and where each genome has saved
+            the owner,the Prefix (U or NCBI) , the relative path
 
         '''
         try:
