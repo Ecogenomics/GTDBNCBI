@@ -15,15 +15,14 @@
 #                                                                             #
 ###############################################################################
 
-import os
 import logging
 
 import psycopg2
 from psycopg2.extensions import AsIs
 
-from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
-from gtdblite.Exceptions import GenomeDatabaseError
-from gtdblite import Tools
+import Tools
+from GenomeDatabaseConnection import GenomeDatabaseConnection
+from Exceptions import GenomeDatabaseError
 
 
 class GenomeListManager(object):
@@ -68,23 +67,21 @@ class GenomeListManager(object):
             query = "INSERT INTO genome_list_contents (list_id, genome_id) VALUES (%s, %s)"
             cur.executemany(query, [(genome_list_id, x)
                                     for x in genome_id_list])
-
-            return genome_list_id
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return False
+            raise e
+
+        return genome_list_id
 
     # True on success, false on failure/error.
     def editGenomeList(self, cur, genome_list_id, genome_ids=None, operation=None, name=None, description=None, private=None):
         try:
-            edit_permission = self.HasPermissionToEditGenomeList(
-                genome_list_id)
+            edit_permission = self.permissionToModify(genome_list_id)
             if edit_permission is None:
                 raise GenomeDatabaseError(
                     "Unable to retrieve genome list id for editing. Offending list id: %s" % genome_list_id)
             if edit_permission is False:
                 raise GenomeDatabaseError(
-                    "Insufficient permissions to edit this genome list. Offending list id: %s" % genome_list_id)
+                    "Insufficient pesrmissions to edit this genome list. Offending list id: %s" % genome_list_id)
 
             update_query = ""
             params = []
@@ -136,9 +133,44 @@ class GenomeListManager(object):
                 else:
                     raise GenomeDatabaseError(
                         "Unknown genome list edit operation: %s" % operation)
-
-            return True
-
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return False
+            raise e
+
+        return True
+
+    def permissionToModify(self, genome_list_id):
+        """Check if user has permission to modify genome list.
+
+        Parameters
+        ----------
+        genome_list_id : int
+            Unique identifier of genome list in database.
+        """
+
+        try:
+            cur = self.conn.cursor()
+
+            cur.execute("SELECT owner_id, owned_by_root " +
+                        "FROM genome_lists " +
+                        "WHERE id = %s ", (genome_list_id,))
+
+            result = cur.fetchone()
+
+            if not result:
+                raise GenomeDatabaseError(
+                    "No genome list with id: %s" % str(genome_list_id))
+
+            (owner_id, owned_by_root) = result
+
+            if not self.currentUser.isRootUser():
+                if owned_by_root or owner_id != self.currentUser.getUserId():
+                    return False
+            else:
+                if not owned_by_root:
+                    raise GenomeDatabaseError(
+                        "Root user editing of other users lists not yet implemented.")
+        except GenomeDatabaseError as e:
+            self.conn.rollback()
+            raise e
+
+        return True
