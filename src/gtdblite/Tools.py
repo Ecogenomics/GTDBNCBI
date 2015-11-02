@@ -2,16 +2,18 @@
 import math
 import time
 import random
+import os
 
 from itertools import islice
 from gtdblite.Exceptions import GenomeDatabaseError
 from gtdblite import MarkerCalculation
 from gtdblite import Config
 
-
 ##################################################
 ############MISC UTILITIES########################
 ##################################################
+
+
 def splitchunks(d, n):
     chunksize = int(math.ceil(len(d) / float(n)))
     it = iter(d)
