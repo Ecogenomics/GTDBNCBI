@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 
 #Config file
-#src/gtdblite/Config.py
+src/gtdblite/Config.py
 
 # C extensions
 *.so

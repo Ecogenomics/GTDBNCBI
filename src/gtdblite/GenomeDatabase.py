@@ -353,7 +353,6 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return None
 
-<<<<<<< Updated upstream
     def AddGenomes(self, batchfile, checkm_file, modify_genome_list_id=None,
                    new_genome_list_name=None):
         """Add genomes to database.
@@ -415,61 +414,10 @@ class GenomeDatabase(object):
             self.conn.commit()
             self.logger.info('Done.')
 
-=======
-    def CopyFastaToCopyDir(self, fasta_file, genome_id):
-        try:
-            cur = self.conn.cursor()
-            if self.genomeCopyUserDir is None:
-                raise GenomeDatabaseError(
-                    "Need to set the genome storage directory.")
-
-            if not os.path.isdir(self.genomeCopyUserDir):
-                raise GenomeDatabaseError(
-                    "Genome storage directory is not a directory.")
-
-            cur.execute("SELECT genome_source_id, id_at_source, external_id_prefix " +
-                        "FROM genomes, genome_sources " +
-                        "WHERE id = %s " +
-                        "AND genome_source_id = genome_sources.id", (genome_id,))
-
-            result = cur.fetchall()
-            if len(result) == 0:
-                raise GenomeDatabaseError(
-                    "Genome id not found: %s." % genome_id)
-
-            (_genome_source_id, id_at_source, external_id_prefix) = result[0]
-
-            target_file_name = external_id_prefix + "_" + str(id_at_source)
-            target_file_path = os.path.join(
-                self.genomeCopyUserDir, target_file_name)
-            try:
-                shutil.copy(fasta_file, target_file_path)
-                os.chmod(
-                    target_file_path, stat.S_IROTH | stat.S_IRGRP | stat.S_IRUSR)
-            except:
-                raise GenomeDatabaseError("Copy to genome storage dir failed.")
-
-            return target_file_name
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return False
-
-    def AddManyFastaGenomes(self, batchfile, checkm_file, modify_genome_list_id=None,
-                            new_genome_list_name=None, force_overwrite=False):
-        try:
-            genome_mngr = GenomeManager(self.currentUser)
-            genome_mngr.AddManyFastaGenomes(self, batchfile, checkm_file, modify_genome_list_id,
-                                            new_genome_list_name, force_overwrite)
->>>>>>> Stashed changes
             return True
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-<<<<<<< Updated upstream
-        except:
-            self.conn.rollback()
-            raise
 
     def list_markers(self, cur=None, library=None):
         cur.execute("SELECT id_in_database FROM markers m " +
@@ -477,8 +425,6 @@ class GenomeDatabase(object):
                     "WHERE md.name like '{0}'".format(library))
         listmarkers = [hmm_id for (hmm_id,) in cur.fetchall()]
         return listmarkers
-=======
->>>>>>> Stashed changes
 
     # True if has permission. False if doesn't. None on error.
     def DeleteGenomes(self, batchfile=None, external_ids=None, reason=None):
