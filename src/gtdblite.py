@@ -282,7 +282,8 @@ def ViewGenomeLists(db, args):
     if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
         genome_lists = db.GetVisibleGenomeListsByOwner(include_private=False)
     elif args.self_owned:
-        genome_lists = db.GetVisibleGenomeListsByOwner(db.currentUser.getUserId(), include_private=False)
+        genome_lists = db.GetVisibleGenomeListsByOwner(
+            db.currentUser.getUserId(), include_private=False)
     elif args.all_owners:
         genome_lists = db.GetAllVisibleGenomeListIds(include_private=False)
     elif args.view_all:
@@ -436,10 +437,12 @@ def DatabaseStatsData(db, args):
 
 if __name__ == '__main__':
     # make sure all required dependencies are on the system path
-    check_dependencies(['prodigal', 'genometk', 'blastn', 'hmmsearch', 'pfam_search.pl'])
+    check_dependencies(
+        ['prodigal', 'genometk', 'blastn', 'hmmsearch', 'pfam_search.pl'])
 
     # create the top-level parser
-    parser = argparse.ArgumentParser(prog='gtdblite.py', formatter_class=CustomHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog='gtdblite.py', formatter_class=CustomHelpFormatter)
     parser.add_argument('-r', dest='login_as_root', action='store_true',
                         help='Login as the root user.')
     parser.add_argument('-u', dest='logon_as_user',
@@ -463,8 +466,8 @@ if __name__ == '__main__':
         dest='category_parser_name')
 
     user_category_parser = category_parser.add_parser('users',
-        formatter_class=CustomHelpFormatter,
-        help='Commands for adding and modifying users.')
+                                                      formatter_class=CustomHelpFormatter,
+                                                      help='Commands for adding and modifying users.')
 
     user_category_subparser = user_category_parser.add_subparsers(
         help='User command help', dest='user_subparser_name')
@@ -611,15 +614,18 @@ if __name__ == '__main__':
                                                                          formatter_class=CustomHelpFormatter,
                                                                          help='View genome lists.')
 
-    mutex_group = parser_genome_lists_view.add_mutually_exclusive_group(required=True)
+    mutex_group = parser_genome_lists_view.add_mutually_exclusive_group(
+        required=True)
     mutex_group.add_argument('--root', dest='root_owned', default=False,
                              action='store_true', help='Show genome lists owned by the root user.')
     mutex_group.add_argument('--self', dest='self_owned', default=False,
                              action='store_true', help='Show genome lists owned by you.')
-    mutex_group.add_argument('--owner', dest='owner_name', help='Show genome lists owned by a specific user.')
+    mutex_group.add_argument(
+        '--owner', dest='owner_name', help='Show genome lists owned by a specific user.')
     mutex_group.add_argument('--all_public', dest='all_owners', default=False,
                              action='store_true', help='Show public genome lists from all users.')
-    mutex_group.add_argument('--all', dest='view_all', default=False, action='store_true', help='View all genome lists.')
+    mutex_group.add_argument(
+        '--all', dest='view_all', default=False, action='store_true', help='View all genome lists.')
 
     parser_genome_lists_view.set_defaults(func=ViewGenomeLists)
 
@@ -648,7 +654,8 @@ if __name__ == '__main__':
     parser_genome_lists_edit.add_argument('--description', dest='description',
                                           help='Change the brief description of the genome list to this.')
 
-    mutex_group = parser_genome_lists_edit.add_mutually_exclusive_group(required=False)
+    mutex_group = parser_genome_lists_edit.add_mutually_exclusive_group(
+        required=False)
     mutex_group.add_argument('--set_private', dest='private', action="store_true", default=False,
                              help='Make this genome list private (only you can see).')
     mutex_group.add_argument('--set_public', dest='public', action="store_true", default=False,
@@ -842,8 +849,8 @@ if __name__ == '__main__':
 
 # -------- Generate Tree Data
     parser_db_stats_view = db_stats_category_subparser.add_parser('view',
-                                                            formatter_class=CustomHelpFormatter,
-                                                            help='View database statistics')
+                                                                  formatter_class=CustomHelpFormatter,
+                                                                  help='View database statistics')
 
     parser_db_stats_view.set_defaults(func=DatabaseStatsData)
 
