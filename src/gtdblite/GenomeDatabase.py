@@ -6,6 +6,7 @@ from multiprocessing import Pool
 
 import prettytable
 
+
 import Config
 import Tools
 import MarkerCalculation
@@ -16,6 +17,9 @@ from GenomeListManager import GenomeListManager
 from MetadataManager import MetadataManager
 from GenomeFilter import GenomeFilter
 from Exceptions import GenomeDatabaseError
+from AlignedMarkerManager import AlignedMarkerManager
+
+from biolib.checksum import sha256
 
 
 class GenomeDatabase(object):
@@ -389,7 +393,8 @@ class GenomeDatabase(object):
                         "Unable to both modify and create genome lists at the same time.")
 
                 genome_list_mngr = GenomeListManager(cur, self.currentUser)
-                has_permission = genome_list_mngr.permissionToModify(modify_genome_list_id)
+                has_permission = genome_list_mngr.permissionToModify(
+                    modify_genome_list_id)
                 if has_permission is None:
                     raise GenomeDatabaseError(
                         "Unable to add genomes to list %s." % modify_genome_list_id)
@@ -422,19 +427,23 @@ class GenomeDatabase(object):
                                                            genome_ids=genome_ids,
                                                            operation='add')
                 if not bSuccess:
-                    raise GenomeDatabaseError("Unable to add genomes to genome list.")
+                    raise GenomeDatabaseError(
+                        "Unable to add genomes to genome list.")
 
-            # all genomes were process successfully so move them into the GTDB directory structure
+            # all genomes were process successfully so move them into the GTDB
+            # directory structure
             self.logger.info("Moving files to GTDB directory structure.")
             genome_mngr.moveGenomes(genome_ids)
 
             self.conn.commit()
             self.logger.info('Done.')
+            return True
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-
-        return True
+        except:
+            self.conn.rollback()
+            raise
 
     def list_markers(self, cur=None, library=None):
         cur.execute("SELECT id_in_database FROM markers m " +
@@ -653,7 +662,8 @@ class GenomeDatabase(object):
                         "ORDER BY genomes.id ASC", (tuple(genome_id_list),))
 
             # print table
-            header = ("genome_id", "name", "description", "owner", "data_added")
+            header = (
+                "genome_id", "name", "description", "owner", "data_added")
 
             rows = []
             for (_genome_id, name, description, owned_by_root, username, external_id, date_added) in cur:
@@ -917,11 +927,12 @@ class GenomeDatabase(object):
             (marker_id,) = cur.fetchone()
 
             # TODO: Add to marker set if needed
-            return marker_id
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+        return marker_id
 
     def DeleteMarkers(self, batchfile=None, external_ids=None):
         try:
@@ -1246,12 +1257,18 @@ class GenomeDatabase(object):
 
         try:
             gf = GenomeFilter()
-            gf.FilterTreeData(self, marker_ids, genome_ids,
-                              comp_threshold, cont_threshold,
-                              taxa_filter,
-                              guaranteed_genome_list_ids, guaranteed_genome_ids,
-                              alignment, individual,
-                              directory, prefix)
+            genomes_to_retain, chosen_markers_order, chosen_markers = gf.FilterTreeData(self, marker_ids, genome_ids,
+                                                                                        comp_threshold, cont_threshold,
+                                                                                        taxa_filter,
+                                                                                        guaranteed_genome_list_ids, guaranteed_genome_ids,
+                                                                                        directory)
+
+            aligned_mngr = AlignedMarkerManager(self.threads)
+            aligned_mngr.calculateAlignedMarkerSets(
+                genomes_to_retain, marker_ids)
+
+            gf.writeTreeFiles(
+                self, marker_ids, genomes_to_retain, directory, prefix, chosen_markers_order, chosen_markers, alignment, individual)
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
@@ -1288,25 +1305,6 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
-    def RunProdigalOnGenomeIdAsync(self, genome_id):
-        try:
-            cur = self.conn.cursor()
-
-            cur.execute("SELECT fasta_file_location " +
-                        "FROM genomes " +
-                        "WHERE id = %s", (genome_id,))
-
-            (fasta_path,) = cur.fetchone()
-
-            return self.pool.apply_async(
-                MarkerCalculation.RunProdigalOnGenomeFasta,
-                [fasta_path]
-            )
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return False
-
     def GetAlignedMarkersCountForGenomes(self, genome_ids, marker_ids):
 
         cur = self.conn.cursor()
@@ -1332,8 +1330,9 @@ class GenomeDatabase(object):
             if batchfile:
                 fh = open(batchfile, "rb")
                 for line in fh:
-                    line = line.rstrip()
-                    external_ids.append(line)
+                    if line[0] != '#':
+                        external_id = line.rstrip().split('\t')[0]
+                        external_ids.append(external_id)
 
             if not external_ids:
                 raise GenomeDatabaseError(
@@ -1350,22 +1349,20 @@ class GenomeDatabase(object):
 
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
             genome_list_id = genome_list_mngr.addGenomeList(genome_id_list,
-                                                                      name,
-                                                                      description,
-                                                                      owner_id,
-                                                                      private)
+                                                            name,
+                                                            description,
+                                                            owner_id,
+                                                            private)
             if genome_list_id is False:
                 raise GenomeDatabaseError("Unable to create new genome list.")
 
-
-
             self.conn.commit()
-
-            return genome_list_id
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+        return genome_list_id
 
     # Function: GetGenomeIdListFromGenomeListId
     # Given a genome list id, return all the ids of the genomes contained within that genome list.
@@ -1589,7 +1586,8 @@ class GenomeDatabase(object):
 
             rows = []
             for (list_id, name, owned_by_root, username, genome_count) in cur:
-                rows.append((list_id, name, ("root" if owned_by_root else username), genome_count))
+                rows.append(
+                    (list_id, name, ("root" if owned_by_root else username), genome_count))
 
             self.PrintTable(header, rows)
 
