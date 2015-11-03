@@ -103,6 +103,19 @@ class GenomeFilter(object):
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 
     def writeTreeFiles(self, GenomeDatabase, marker_ids, genomes_to_retain, directory, prefix, chosen_markers_order, chosen_markers, alignment, individual):
+        '''
+        Write summary files and arb files
+
+        :param GenomeDatabase:
+        :param marker_ids:
+        :param genomes_to_retain:
+        :param directory:
+        :param prefix:
+        :param chosen_markers_order:
+        :param chosen_markers:
+        :param alignment:
+        :param individual:
+        '''
 
         cur = GenomeDatabase.conn.cursor()
 

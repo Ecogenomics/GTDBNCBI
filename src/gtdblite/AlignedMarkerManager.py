@@ -93,6 +93,14 @@ class AlignedMarkerManager(object):
         return True
 
     def _hmmWorker(self, subdict_genomes, marker_ids, out_q):
+        '''
+        The worker function, invoked in a process.
+
+        :param subdict_genomes: sub dictionary of genomes
+        :param marker_ids: list of marker ids for one or many marker sets
+        :param out_q: manager.Queue()
+
+        '''
 
         for db_genome_id, path in subdict_genomes.items():
             self._runHmmMultiAlign(db_genome_id, path, marker_ids)
@@ -100,6 +108,13 @@ class AlignedMarkerManager(object):
         return True
 
     def _runHmmMultiAlign(self, db_genome_id, path, marker_ids):
+        '''
+        Selects Markers that are not aligned for a specific genome.
+
+        :param db_genome_id: Selected genome
+        :param path: Path to the genomic fasta file for the genome
+        :param marker_ids: list of marker ids for the selected sets
+        '''
         temp_con = GenomeDatabaseConnection()
         temp_con.MakePostgresConnection()
         temp_cur = temp_con.cursor()
@@ -176,22 +191,21 @@ class AlignedMarkerManager(object):
         temp_con.ClosePostgresConnection()
         return True
 
+    def _runHmmAlign(self, marker_dict, genome):
+        '''
+        Run hmmalign for a set of genes for a specific genome. This is run in a temp folder.
 
-# Function : runHmmAlign
-# Run hmm align for a specific gene of interest against a HMM Marker. This is run in a temp folder.
-#
-# Parameters:
-#       gene_name : String - Name of gene of interest
-#       gene_info : Dictionary - Provide information about the Gene sequence and the path to the matching HMM Marker.
-#       hmmalign_dir : String - Path to the Temporary folder
-#       input_count : Integer - Counter keeping track of the Number of genes aligned
-# Returns:
-#       Tuple containing a Dictionary (Storing the alignement) and the Counter
-    def _runHmmAlign(self, gene_dict, genome):
+        :param marker_dict: list of markers that need to be aligned
+        :param genome: specific genome id
+
+        Returns
+        --------------
+        List of tuple to be inserted in aligned_markers table
+        '''
         result_genomes_dict = []
         hmmalign_dir = tempfile.mkdtemp()
         input_count = 0
-        for markerid, marker_info in gene_dict.iteritems():
+        for markerid, marker_info in marker_dict.iteritems():
             hmmalign_gene_input = os.path.join(
                 hmmalign_dir, "input_gene{0}.fa".format(input_count))
             input_count += 1
@@ -215,16 +229,13 @@ class AlignedMarkerManager(object):
         shutil.rmtree(hmmalign_dir)
         return result_genomes_dict
 
-
-# Function: GetAlignedMarker
-#
-# Parameters:
-#       hit_name: String - gene name
-#       result_file: String - File saved in memory, Output of Hmmalign
-#
-# Results:
-#       Aligned Sequence
     def _getAlignedMarker(self, hit_name, result_file):
+        '''
+        Parse the output of Hmmalign
+
+        :param hit_name: gene name
+        :param result_file: output file from Hmmalign
+        '''
         hit_seq = None
         mask_seq = None
 
