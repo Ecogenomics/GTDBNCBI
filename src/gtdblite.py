@@ -144,6 +144,8 @@ def AddGenomes(db, args):
 
 
 def AddMarkers(db, args):
+    loggerSetup(None, args.silent)
+
     return db.AddMarkers(
         args.batchfile, args.marker_set_id,
         args.marker_set_name, args.force
