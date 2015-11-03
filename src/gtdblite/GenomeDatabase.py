@@ -917,11 +917,12 @@ class GenomeDatabase(object):
             (marker_id,) = cur.fetchone()
 
             # TODO: Add to marker set if needed
-            return marker_id
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+        return marker_id
 
     def DeleteMarkers(self, batchfile=None, external_ids=None):
         try:
@@ -1288,25 +1289,6 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
-    def RunProdigalOnGenomeIdAsync(self, genome_id):
-        try:
-            cur = self.conn.cursor()
-
-            cur.execute("SELECT fasta_file_location " +
-                        "FROM genomes " +
-                        "WHERE id = %s", (genome_id,))
-
-            (fasta_path,) = cur.fetchone()
-
-            return self.pool.apply_async(
-                MarkerCalculation.RunProdigalOnGenomeFasta,
-                [fasta_path]
-            )
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return False
-
     def GetAlignedMarkersCountForGenomes(self, genome_ids, marker_ids):
 
         cur = self.conn.cursor()
@@ -1332,8 +1314,9 @@ class GenomeDatabase(object):
             if batchfile:
                 fh = open(batchfile, "rb")
                 for line in fh:
-                    line = line.rstrip()
-                    external_ids.append(line)
+                    if line[0] != '#':
+                        external_id = line.rstrip().split('\t')[0]
+                        external_ids.append(external_id)
 
             if not external_ids:
                 raise GenomeDatabaseError(
@@ -1357,15 +1340,13 @@ class GenomeDatabase(object):
             if genome_list_id is False:
                 raise GenomeDatabaseError("Unable to create new genome list.")
 
-
-
             self.conn.commit()
-
-            return genome_list_id
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+        return genome_list_id
 
     # Function: GetGenomeIdListFromGenomeListId
     # Given a genome list id, return all the ids of the genomes contained within that genome list.
