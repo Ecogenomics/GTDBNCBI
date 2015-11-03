@@ -26,7 +26,6 @@ from psycopg2.extensions import AsIs
 import Config
 import ConfigMetadata
 import Tools
-from GenomeDatabaseConnection import GenomeDatabaseConnection
 from Exceptions import GenomeDatabaseError
 from MetadataManager import MetadataManager
 from Prodigal import Prodigal
@@ -40,11 +39,13 @@ from biolib.common import make_sure_path_exists
 class GenomeManager(object):
     """Manage the processing of new genomes and querying genome information."""
 
-    def __init__(self, currentUser, threads):
+    def __init__(self, cur, currentUser, threads):
         """Initialize.
 
         Parameters
         ----------
+        cur : psycopg2.cursor
+            Database cursor.
         currentUser : User
             Current user of database.
         threads : int
@@ -53,11 +54,9 @@ class GenomeManager(object):
 
         self.logger = logging.getLogger()
 
+        self.cur = cur
         self.currentUser = currentUser
         self.threads = threads
-
-        self.conn = GenomeDatabaseConnection()
-        self.conn.MakePostgresConnection()
 
         self.defaultGenomeSourceName = 'user'
 
@@ -94,13 +93,11 @@ class GenomeManager(object):
         file_logger.setFormatter(log_format)
         logger.addHandler(file_logger)
 
-    def addGenomes(self, cur, checkm_file, batchfile):
+    def addGenomes(self, checkm_file, batchfile):
         """Add new genomes to DB.
 
         Parameters
         ----------
-        cur : psycopg2.cursor
-            Database cursor.
         checkm_file : str
             Name of file containing CheckM results.
         batchfile : str
@@ -113,13 +110,12 @@ class GenomeManager(object):
         """
 
         try:
-            tmp_output_dir = tempfile.mkdtemp()
+            self.tmp_output_dir = tempfile.mkdtemp()
 
             self.logger.info("Reading CheckM file.")
             checkm_results_dict = self._processCheckM(checkm_file)
 
-            genomic_files = self._addGenomeBatch(
-                cur, batchfile, tmp_output_dir)
+            genomic_files = self._addGenomeBatch(batchfile, self.tmp_output_dir)
 
             self.logger.info("Running Prodigal to identify genes.")
             prodigal = Prodigal(self.threads)
@@ -138,7 +134,7 @@ class GenomeManager(object):
                     raise GenomeDatabaseError(
                         "Couldn't find CheckM result for bin  %s." % bin_id)
 
-                metadata_mngr.addMetadata(cur,
+                metadata_mngr.addMetadata(self.cur,
                                           db_genome_id,
                                           genome_file_paths["fasta_path"],
                                           genome_file_paths["gff_path"],
@@ -154,39 +150,36 @@ class GenomeManager(object):
             self.logger.info("Identifying Pfam protein families.")
             pfam_search = PfamSearch(self.threads)
             pfam_search.run(gene_files)
-
-            # all genomes were process successfully so move them
-            # into the GTDB directory structure
-            self.logger.info("Moving files to GTDB directory structure.")
-            self._moveGenomes(cur, genomic_files.keys(), tmp_output_dir)
         except:
-            if os.path.exists(tmp_output_dir):
-                shutil.rmtree(tmp_output_dir)
+            if os.path.exists(self.tmp_output_dir):
+                shutil.rmtree(self.tmp_output_dir)
             raise
 
         return genomic_files.keys()
 
-    def _moveGenomes(self, cur, db_genome_ids, tmp_output_dir):
+    def moveGenomes(self, db_genome_ids):
         """Move genome files into database directory structure.
+
+        This function assumes addGenomes() has been called. It is
+        not directly called by addGenomes() as all database
+        queries are performed before moving genomes.
 
         Parameters
         ----------
-        cur : psycopg2.cursor
-            Database cursor.
         db_genome_ids : list
             Unique database identifiers for genomes.
-        tmp_output_dir : str
-            Temporary directory with genome data to move into database directory structure.
         """
 
+        assert(self.tmp_output_dir)
+
         # get database genome identifiers
-        cur.execute("SELECT genomes.id,user_editable, external_id_prefix || '_' || id_at_source as external_id " +
+        self.cur.execute("SELECT genomes.id,user_editable, external_id_prefix || '_' || id_at_source as external_id " +
                     "FROM genomes, genome_sources " +
                     "WHERE genome_source_id = genome_sources.id " +
                     "AND genomes.id in %s", (tuple(db_genome_ids),))
 
         external_id_dict = {}
-        for (genome_id, user_editable, external_id) in cur:
+        for (genome_id, user_editable, external_id) in self.cur:
             if user_editable:
                 external_id_dict[genome_id] = external_id
 
@@ -203,7 +196,7 @@ class GenomeManager(object):
 
         gtdb_target_dir = os.path.join(self.genomeCopyDir, username)
         for db_genome_id, external_id in external_id_dict.items():
-            tmp_genome_dir = os.path.join(tmp_output_dir, external_id)
+            tmp_genome_dir = os.path.join(self.tmp_output_dir, external_id)
 
             genome_target_dir = os.path.join(gtdb_target_dir, external_id)
             if os.path.exists(genome_target_dir):
@@ -212,22 +205,20 @@ class GenomeManager(object):
 
             shutil.move(tmp_genome_dir, gtdb_target_dir)
 
-            cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (
+            self.cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (
                 os.path.join(
                     genome_target_dir, external_id + self.genomeFileSuffix),
                 os.path.join(
                     genome_target_dir, external_id + self.proteinFileSuffix),
                 db_genome_id))
 
-        shutil.rmtree(tmp_output_dir)
+        shutil.rmtree(self.tmp_output_dir)
 
-    def _addGenomeBatch(self, cur, batchfile, output_dir):
+    def _addGenomeBatch(self, batchfile, output_dir):
         """Add genomes specific in batch file to DB.
 
         Parameters
         ----------
-        cur : psycopg2.cursor
-            Database cursor.
         batchfile : str
             Name of file describing genomes to add.
         output_dir : str
@@ -270,18 +261,17 @@ class GenomeManager(object):
             if gene_path is not None and gene_path != '':
                 abs_gene_path = os.path.abspath(gene_path)
 
-            genome_id = self._addGenomeToDB(
-                cur, abs_fasta_path, name, desc, source_name, id_at_source, abs_gene_path)
+            genome_id = self._addGenomeToDB(abs_fasta_path, name, desc, source_name, id_at_source, abs_gene_path)
             if not (genome_id):
                 raise GenomeDatabaseError(
                     "Failed to add genome: %s" % abs_fasta_path)
 
-            cur.execute("SELECT external_id_prefix || '_' || id_at_source as external_id " +
-                        "FROM genomes, genome_sources " +
-                        "WHERE genome_source_id = genome_sources.id " +
-                        "AND genomes.id = %s", (genome_id,))
+            self.cur.execute("SELECT external_id_prefix || '_' || id_at_source as external_id " +
+                                "FROM genomes, genome_sources " +
+                                "WHERE genome_source_id = genome_sources.id " +
+                                "AND genomes.id = %s", (genome_id,))
 
-            external_genome_id = cur.fetchone()[0]
+            external_genome_id = self.cur.fetchone()[0]
 
             genome_output_dir = os.path.join(output_dir, external_genome_id)
             if not os.path.exists(genome_output_dir):
@@ -302,14 +292,12 @@ class GenomeManager(object):
                                         "fasta_path": fasta_target_file}
         return genomic_files
 
-    def _addGenomeToDB(self, cur, fasta_file_path, name, desc,
+    def _addGenomeToDB(self, fasta_file_path, name, desc,
                        source, id_at_source, gene_path):
         """Add genome to database.
 
         Parameters
         ----------
-        cur : psycopg2.cursor
-            Database cursor.
         fasta_file_path : str
             Path to genome FASTA file with nucleotide sequences.
         name : str
@@ -337,11 +325,11 @@ class GenomeManager(object):
             if source is None:
                 source = self.defaultGenomeSourceName
 
-            cur.execute(
+            self.cur.execute(
                 "SELECT id, external_id_prefix, user_editable FROM genome_sources WHERE name = %s", (source,))
             source_id = None
 
-            for (db_id, _external_id_prefix, user_editable) in cur:
+            for (db_id, _external_id_prefix, user_editable) in self.cur:
                 if (not user_editable):
                     if id_at_source is None:
                         raise GenomeDatabaseError(
@@ -357,16 +345,16 @@ class GenomeManager(object):
                     "Could not find the %s genome source." % source)
 
             if id_at_source is None:
-                cur.execute(
+                self.cur.execute(
                     "SELECT id_at_source FROM genomes WHERE genome_source_id = %s order by id_at_source::int desc", (source_id,))
                 last_id = None
-                for (last_id_at_source,) in cur:
+                for (last_id_at_source,) in self.cur:
                     last_id = last_id_at_source
                     break
 
-                cur.execute(
+                self.cur.execute(
                     "SELECT last_auto_id FROM genome_sources WHERE id = %s ", (source_id,))
-                for (last_auto_id,) in cur:
+                for (last_auto_id,) in self.cur:
                     if last_id is None:
                         last_id = last_auto_id
                     else:
@@ -382,7 +370,7 @@ class GenomeManager(object):
                 if id_at_source is None:
                     id_at_source = str(new_id)
 
-                cur.execute(
+                self.cur.execute(
                     "UPDATE genome_sources set last_auto_id = %s where id = %s", (new_id, source_id))
 
             added = datetime.datetime.now()
@@ -391,10 +379,10 @@ class GenomeManager(object):
             if not self.currentUser.isRootUser():
                 owner_id = self.currentUser.getUserId()
 
-            cur.execute(
+            self.cur.execute(
                 "SELECT id FROM genomes WHERE genome_source_id = %s AND id_at_source = %s", (source_id, id_at_source))
 
-            result = cur.fetchall()
+            result = self.cur.fetchall()
 
             columns = "(name, description, owned_by_root, owner_id, fasta_file_location, " + \
                 "fasta_file_sha256, genes_file_location, genes_file_sha256,genome_source_id, id_at_source, date_added)"
@@ -403,11 +391,11 @@ class GenomeManager(object):
                 raise GenomeDatabaseError(
                     "Genome source '%s' already contains id '%s'. Use -f to force an overwrite." % (source, id_at_source))
 
-            cur.execute("INSERT INTO genomes " + columns + " "
+            self.cur.execute("INSERT INTO genomes " + columns + " "
                         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) " +
                         "RETURNING id",
                         (name, desc, self.currentUser.isRootUser(), owner_id, fasta_file_path, fasta_sha256_checksum, gene_path, gene_sha256_checksum, source_id, id_at_source, added))
-            (db_genome_id,) = cur.fetchone()
+            (db_genome_id,) = self.cur.fetchone()
 
             return db_genome_id
 
@@ -524,14 +512,11 @@ class GenomeManager(object):
         :param db_genome_ids: a list of ids can be written directly in the command line
         '''
         try:
-            cur = self.conn.cursor()
-
             if db_genome_ids is False:
                 raise GenomeDatabaseError(
                     "Unable to delete genomes. Unable to retrieve genome ids.")
 
-            has_permission, username, genomes_owners = self._hasPermissionToEditGenomes(
-                db_genome_ids)
+            has_permission, username, genomes_owners = self._hasPermissionToEditGenomes(db_genome_ids)
 
             if has_permission is None:
                 raise GenomeDatabaseError(
@@ -544,24 +529,24 @@ class GenomeManager(object):
             if not self._confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(db_genome_ids)):
                 raise GenomeDatabaseError("User aborted database action.")
 
-            cur.execute("DELETE FROM aligned_markers " +
+            self.cur.execute("DELETE FROM aligned_markers " +
                         "WHERE genome_id in %s ", (tuple(db_genome_ids),))
 
-            cur.execute("DELETE FROM genome_list_contents " +
+            self.cur.execute("DELETE FROM genome_list_contents " +
                         "WHERE genome_id in %s", (tuple(db_genome_ids),))
 
             # Deletion of metadata
 
-            cur.execute("DELETE FROM metadata_genes " +
+            self.cur.execute("DELETE FROM metadata_genes " +
                         "WHERE id in %s", (tuple(db_genome_ids),))
-            cur.execute("DELETE FROM metadata_ncbi " +
+            self.cur.execute("DELETE FROM metadata_ncbi " +
                         "WHERE id in %s", (tuple(db_genome_ids),))
-            cur.execute("DELETE FROM metadata_nucleotide " +
+            self.cur.execute("DELETE FROM metadata_nucleotide " +
                         "WHERE id in %s", (tuple(db_genome_ids),))
-            cur.execute("DELETE FROM metadata_taxonomy " +
+            self.cur.execute("DELETE FROM metadata_taxonomy " +
                         "WHERE id in %s", (tuple(db_genome_ids),))
 
-            cur.execute("DELETE FROM genomes " +
+            self.cur.execute("DELETE FROM genomes " +
                         "WHERE id in %s", (tuple(db_genome_ids),))
 
             for genome, info in genomes_owners.iteritems():
@@ -581,13 +566,11 @@ class GenomeManager(object):
                         os.path.dirname(Tools.fastaPathGenerator(info.get("relative_path"), info.get("prefix"))), target)
                     logging.info("Genome {0} has been deleted by {1} for the following reason '{2}'".format(
                         genome, username, reason))
-
-            self.conn.commit()
-            return True
-
         except GenomeDatabaseError as e:
             self.conn.rollback()
             raise e
+
+        return True
 
     def _hasPermissionToEditGenomes(self, db_genome_ids):
         '''
@@ -605,20 +588,18 @@ class GenomeManager(object):
 
         '''
         try:
-            cur = self.conn.cursor()
-
             if not db_genome_ids:
                 raise GenomeDatabaseError(
                     "Unable to retrieve genome permissions, no genomes given: %s" % str(db_genome_ids))
 
-            cur.execute("SELECT gs.external_id_prefix,gs.external_id_prefix || '_'|| genomes.id_at_source, owner_id, username, owned_by_root,fasta_file_location "
+            self.cur.execute("SELECT gs.external_id_prefix,gs.external_id_prefix || '_'|| genomes.id_at_source, owner_id, username, owned_by_root,fasta_file_location "
                         "FROM genomes " +
                         "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
                         "LEFT JOIN genome_sources gs ON gs.id = genomes.genome_source_id " +
                         "WHERE genomes.id in %s", (tuple(db_genome_ids),))
 
             dict_genomes_user = {}
-            for (prefix, public_id, owner_id, username, owned_by_root, fasta_path) in cur:
+            for (prefix, public_id, owner_id, username, owned_by_root, fasta_path) in self.cur:
 
                 if not self.currentUser.isRootUser():
                     if (owned_by_root or owner_id != self.currentUser.getUserId()):
@@ -633,8 +614,7 @@ class GenomeManager(object):
                 current_username = self.currentUser.getElevatedFromUsername()
             else:
                 current_username = self.currentUser.getUsername()
-
-            return (True, current_username, dict_genomes_user)
-
         except GenomeDatabaseError as e:
             raise e
+
+        return (True, current_username, dict_genomes_user)

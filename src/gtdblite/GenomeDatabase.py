@@ -74,7 +74,19 @@ class GenomeDatabase(object):
         self.warningMessages = []
 
     def PrintTable(self, header, rows):
-        """Print table."""
+        """Print table.
+
+        Prints table information as either
+        a tab-separated columns or as a
+        prettytable.
+
+        Parameters
+        ----------
+        header : iterable
+            Column headers.
+        rows : iterable
+            Values for each column header.
+        """
 
         if self.tab_table:
             print '\t'.join(header)
@@ -369,12 +381,14 @@ class GenomeDatabase(object):
         try:
             self.logger.info('Adding genomes to database.')
 
+            cur = self.conn.cursor()
+
             if modify_genome_list_id is not None:
                 if new_genome_list_name is not None:
                     raise GenomeDatabaseError(
                         "Unable to both modify and create genome lists at the same time.")
 
-                genome_list_mngr = GenomeListManager(self.currentUser)
+                genome_list_mngr = GenomeListManager(cur, self.currentUser)
                 has_permission = genome_list_mngr.permissionToModify(modify_genome_list_id)
                 if has_permission is None:
                     raise GenomeDatabaseError(
@@ -383,38 +397,44 @@ class GenomeDatabase(object):
                     raise GenomeDatabaseError(
                         "Insufficient permissions to add genomes to list %s." % modify_genome_list_id)
 
-            cur = self.conn.cursor()
             if new_genome_list_name is not None:
                 owner_id = None
                 if not self.currentUser.isRootUser():
                     owner_id = self.currentUser.getUserId()
 
-                genome_list_mngr = GenomeListManager(self.currentUser)
-                modify_genome_list_id = genome_list_mngr.addGenomeList(
-                    cur, [], new_genome_list_name, "", owner_id)
+                genome_list_mngr = GenomeListManager(cur, self.currentUser)
+                modify_genome_list_id = genome_list_mngr.addGenomeList([],
+                                                                       new_genome_list_name,
+                                                                       "",
+                                                                       owner_id,
+                                                                       True)
                 if modify_genome_list_id is None:
                     raise GenomeDatabaseError(
                         "Unable to create the new genome list.")
 
             # add genomes to database
-            genome_mngr = GenomeManager(self.currentUser, self.threads)
-            genome_ids = genome_mngr.addGenomes(cur, checkm_file, batchfile)
+            genome_mngr = GenomeManager(cur, self.currentUser, self.threads)
+            genome_ids = genome_mngr.addGenomes(checkm_file, batchfile)
 
             if modify_genome_list_id is not None:
-                genome_list_mngr = GenomeListManager(self.currentUser)
-                bSuccess = genome_list_mngr.editGenomeList(
-                    cur, modify_genome_list_id, genome_ids=genome_ids, operation='add')
+                genome_list_mngr = GenomeListManager(cur, self.currentUser)
+                bSuccess = genome_list_mngr.editGenomeList(modify_genome_list_id,
+                                                           genome_ids=genome_ids,
+                                                           operation='add')
                 if not bSuccess:
-                    raise GenomeDatabaseError(
-                        "Unable to add genomes to genome list.")
+                    raise GenomeDatabaseError("Unable to add genomes to genome list.")
+
+            # all genomes were process successfully so move them into the GTDB directory structure
+            self.logger.info("Moving files to GTDB directory structure.")
+            genome_mngr.moveGenomes(genome_ids)
 
             self.conn.commit()
             self.logger.info('Done.')
-
-            return True
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+        return True
 
     def list_markers(self, cur=None, library=None):
         cur.execute("SELECT id_in_database FROM markers m " +
@@ -438,6 +458,8 @@ class GenomeDatabase(object):
 
             genome_mngr = GenomeManager(self.currentUser)
             genome_mngr.deleteGenomes(batchfile, genome_ids, reason)
+
+            self.conn.commit()
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
@@ -600,9 +622,20 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             raise e
 
-
-    # True if success. False on failure/error.
     def PrintGenomesDetails(self, genome_id_list):
+        """Print genome details.
+
+        Parameters
+        ----------
+        genome_id_list : iterable
+            Unique identifier of genomes in database.
+
+        Returns
+        -------
+        bool
+            True if successful, else False.
+        """
+
         try:
             if not genome_id_list:
                 raise GenomeDatabaseError(
@@ -620,8 +653,7 @@ class GenomeDatabase(object):
                         "ORDER BY genomes.id ASC", (tuple(genome_id_list),))
 
             # print table
-            header = (
-                "genome_id", "name", "description", "owner", "data_added")
+            header = ("genome_id", "name", "description", "owner", "data_added")
 
             rows = []
             for (_genome_id, name, description, owned_by_root, username, external_id, date_added) in cur:
@@ -1113,6 +1145,19 @@ class GenomeDatabase(object):
             return False
 
     def PrintMarkerDetails(self, marker_id_list):
+        """Print marker gene details.
+
+        Parameters
+        ----------
+        marker_id_list : iterable
+            Unique identifier of markers in database.
+
+        Returns
+        -------
+        bool
+            True if successful, else False.
+        """
+
         try:
             if not marker_id_list:
                 raise GenomeDatabaseError(
@@ -1303,15 +1348,16 @@ class GenomeDatabase(object):
             if not self.currentUser.isRootUser():
                 owner_id = self.currentUser.getUserId()
 
-            genome_list_mngr = GenomeListManager(self.currentUser)
-            genome_list_id = genome_list_mngr.CreateGenomeListWorking(cur,
-                                                                      genome_id_list,
+            genome_list_mngr = GenomeListManager(cur, self.currentUser)
+            genome_list_id = genome_list_mngr.addGenomeList(genome_id_list,
                                                                       name,
                                                                       description,
                                                                       owner_id,
                                                                       private)
             if genome_list_id is False:
                 raise GenomeDatabaseError("Unable to create new genome list.")
+
+
 
             self.conn.commit()
 
@@ -1507,6 +1553,19 @@ class GenomeDatabase(object):
             return False
 
     def PrintGenomeListsDetails(self, genome_list_ids):
+        """Print genome list details.
+
+        Parameters
+        ----------
+        genome_list_ids : iterable
+            Unique identifier of genome lists in database.
+
+        Returns
+        -------
+        bool
+            True if successful, else False.
+        """
+
         try:
             cur = self.conn.cursor()
 
@@ -1515,7 +1574,7 @@ class GenomeDatabase(object):
                     "Unable to print genome details: No genomes given.")
 
             cur.execute(
-                "SELECT lists.id, lists.name, lists.description, lists.owned_by_root, users.username, count(contents.list_id) " +
+                "SELECT lists.id, lists.name, lists.owned_by_root, users.username, count(contents.list_id) " +
                 "FROM genome_lists as lists " +
                 "LEFT OUTER JOIN users ON lists.owner_id = users.id " +
                 "JOIN genome_list_contents as contents ON contents.list_id = lists.id " +
@@ -1526,12 +1585,11 @@ class GenomeDatabase(object):
 
             # print table
             header = (
-                "list_id", "name", "description", "owner", "genome_count")
+                "list_id", "name", "owner", "genome_count")
 
             rows = []
-            for (list_id, name, description, owned_by_root, username, genome_count) in cur:
-                rows.append((list_id, name, (description if description else ''),
-                             ("root" if owned_by_root else username), genome_count))
+            for (list_id, name, owned_by_root, username, genome_count) in cur:
+                rows.append((list_id, name, ("root" if owned_by_root else username), genome_count))
 
             self.PrintTable(header, rows)
 
@@ -1571,6 +1629,30 @@ class GenomeDatabase(object):
 
     # True on success, false on failure.
     def EditGenomeList(self, genome_list_id, batchfile=None, genomes_external_ids=None, operation=None, name=None, description=None, private=None):
+        """Edit an existing genome list in the database.
+
+        Parameters
+        ----------
+        genome_list_id : int
+            Identifier of genome list in database.
+        batchfile : str
+            Filename of batch file describing genomes to modify.
+        genomes_external_ids : list
+            List of genomes to modify.
+        operation : str
+            Operation to perform on genome list (add or remove).
+        name : str
+            Name of the newly created list.
+        description : str
+            Description of the newly created list.
+        private : bool
+            Denotes whether this list is public or private.
+
+        Returns
+        -------
+        bool
+            True if successful, else False
+        """
 
         try:
             cur = self.conn.cursor()
@@ -1593,17 +1675,18 @@ class GenomeDatabase(object):
                 raise GenomeDatabaseError(
                     "Unable to retrive information for all genome ids.")
 
-            if not self.EditGenomeListWorking(cur, genome_list_id, genome_ids, operation, name, description, private):
+            genome_list_mngr = GenomeListManager(cur, self.currentUser)
+            if not genome_list_mngr.editGenomeList(genome_list_id, genome_ids, operation, name, description, private):
                 raise GenomeDatabaseError(
                     "Unable to edit genome list: %s" % genome_list_id)
 
             self.conn.commit()
-            return True
-
         except GenomeDatabaseError as e:
             self.conn.rollback()
             self.ReportError(e.message)
             return False
+
+        return True
 
     def CreateMarkerSet(self, batchfile, external_ids, name, description, private=None):
         try:
