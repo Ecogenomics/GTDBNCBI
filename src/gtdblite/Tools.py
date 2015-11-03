@@ -8,6 +8,7 @@ from itertools import islice
 from gtdblite.Exceptions import GenomeDatabaseError
 from gtdblite import MarkerCalculation
 from gtdblite import Config
+from mhlib import PATH
 
 ##################################################
 ############MISC UTILITIES########################
@@ -31,7 +32,6 @@ def generateTempTableName():
 
 
 def fastaPathGenerator(path=None, prefix=None):
-
     genomeUserDir = None
     if Config.GTDB_GENOME_USR_DIR:
         genomeUserDir = Config.GTDB_GENOME_USR_DIR
@@ -40,7 +40,9 @@ def fastaPathGenerator(path=None, prefix=None):
     if Config.GTDB_GENOME_NCBI_DIR:
         genomeNCBIDir = Config.GTDB_GENOME_NCBI_DIR
 
-    if prefix is 'U':
+    if prefix == 'U':
         return os.path.join(genomeUserDir, path)
-    elif prefix is 'NCBI':
+    elif prefix == "NCBI":
         return os.path.join(genomeNCBIDir, path)
+    else:
+        print "prefix {0} is not existing".format(prefix)
