@@ -61,7 +61,8 @@ class GenomeDatabase(object):
         """Login to database."""
 
         if not self.conn.IsPostgresConnectionActive():
-            raise GenomeDatabaseError("Unable to establish database connection")
+            raise GenomeDatabaseError(
+                "Unable to establish database connection")
 
         cur = self.conn.cursor()
         user_mngr = UserManager(cur)
@@ -185,7 +186,8 @@ class GenomeDatabase(object):
                     raise GenomeDatabaseError(
                         "Unable to both modify and create genome lists at the same time.")
 
-                has_permission = genome_list_mngr.permissionToModify(modify_genome_list_id)
+                has_permission = genome_list_mngr.permissionToModify(
+                    modify_genome_list_id)
                 if has_permission is None:
                     raise GenomeDatabaseError(
                         "Unable to add genomes to list %s." % modify_genome_list_id)
@@ -209,7 +211,8 @@ class GenomeDatabase(object):
 
             # add genomes to database
             genome_mngr = GenomeManager(cur, self.currentUser, self.threads)
-            genome_ids = genome_mngr.addGenomes(checkm_file, batchfile, study_file)
+            genome_ids = genome_mngr.addGenomes(
+                checkm_file, batchfile, study_file)
 
             if modify_genome_list_id is not None:
                 genome_list_mngr = GenomeListManager(cur, self.currentUser)
@@ -217,7 +220,8 @@ class GenomeDatabase(object):
                                                            genome_ids=genome_ids,
                                                            operation='add')
                 if not bSuccess:
-                    raise GenomeDatabaseError("Unable to add genomes to genome list.")
+                    raise GenomeDatabaseError(
+                        "Unable to add genomes to genome list.")
 
             # all genomes were process successfully so move them into the GTDB
             # directory structure
@@ -238,6 +242,18 @@ class GenomeDatabase(object):
 
     # True if has permission. False if doesn't. None on error.
     def DeleteGenomes(self, batchfile=None, external_ids=None, reason=None):
+        '''
+        Delete genomes from database.
+
+        :param batchfile:Name of file describing genomes to delete.
+        :param external_ids: List of ids describing genomes to delete
+        :param reason: Reason of deletion for the listed genomes
+
+        Returns
+        -------
+        bool
+            True if genomes deleted without error.
+        '''
         try:
             cur = self.conn.cursor()
 
@@ -268,7 +284,6 @@ class GenomeDatabase(object):
         list
             Database identifiers for all user genomes.
         """
-
         try:
             cur = self.conn.cursor()
 
@@ -315,7 +330,8 @@ class GenomeDatabase(object):
                         line = line.rstrip()
                         external_ids.append(line)
 
-                genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(external_ids)
+                genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(
+                    external_ids)
                 if genome_ids is None:
                     raise GenomeDatabaseError("Can not retrieve genome ids.")
 
@@ -352,7 +368,8 @@ class GenomeDatabase(object):
                         external_ids.append(line)
 
                 marker_mngr = MarkerManager(cur, self.currentUser)
-                marker_ids = marker_mngr.externalMarkerIdsToMarkerIds(external_ids)
+                marker_ids = marker_mngr.externalMarkerIdsToMarkerIds(
+                    external_ids)
                 if marker_ids is False:
                     raise GenomeDatabaseError("Can not retrieve marker ids.")
 
@@ -381,16 +398,18 @@ class GenomeDatabase(object):
 
             tree_mngr = TreeManager(cur, self.currentUser)
             genomes_to_retain, chosen_markers_order, chosen_markers = tree_mngr.filterGenomes(marker_ids, genome_ids,
-                                                                                                quality_threshold, comp_threshold, cont_threshold,
-                                                                                                taxa_filter,
-                                                                                                excluded_genome_list_ids,
-                                                                                                guaranteed_genome_list_ids,
-                                                                                                guaranteed_genome_ids)
+                                                                                              quality_threshold, comp_threshold, cont_threshold,
+                                                                                              taxa_filter,
+                                                                                              excluded_genome_list_ids,
+                                                                                              guaranteed_genome_list_ids,
+                                                                                              guaranteed_genome_ids)
 
             aligned_mngr = AlignedMarkerManager(self.threads)
-            aligned_mngr.calculateAlignedMarkerSets(genomes_to_retain, marker_ids)
+            aligned_mngr.calculateAlignedMarkerSets(
+                genomes_to_retain, marker_ids)
 
-            tree_mngr.writeFiles(marker_ids, genomes_to_retain, directory, prefix, chosen_markers_order, chosen_markers, alignment, individual)
+            tree_mngr.writeFiles(marker_ids, genomes_to_retain, directory,
+                                 prefix, chosen_markers_order, chosen_markers, alignment, individual)
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
@@ -425,7 +444,8 @@ class GenomeDatabase(object):
                     "No genomes provided to create a genome list.")
 
             genome_mngr = GenomeManager(cur, self.currentUser)
-            genome_id_list = genome_mngr.externalGenomeIdsToGenomeIds(external_ids)
+            genome_id_list = genome_mngr.externalGenomeIdsToGenomeIds(
+                external_ids)
             if genome_id_list is False:
                 raise GenomeDatabaseError(
                     "Unable to retreive genome ids for provided genomes.")
@@ -521,7 +541,8 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
-            genome_id_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(list_ids)
+            genome_id_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(
+                list_ids)
 
             if not genome_id_list:
                 raise GenomeDatabaseError(
@@ -554,7 +575,8 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
-            header, rows = genome_list_mngr.printGenomeListsDetails(genome_list_ids)
+            header, rows = genome_list_mngr.printGenomeListsDetails(
+                genome_list_ids)
 
             self.PrintTable(header, rows)
 
@@ -582,7 +604,8 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             marker_set_mngr = MarkerSetManager(cur, self.currentUser)
-            header, rows = marker_set_mngr.printMarkerSetsDetails(marker_set_ids)
+            header, rows = marker_set_mngr.printMarkerSetsDetails(
+                marker_set_ids)
 
             self.PrintTable(header, rows)
 
@@ -633,7 +656,8 @@ class GenomeDatabase(object):
             genome_ids = []
             if genomes_external_ids is not None:
                 genome_mngr = GenomeManager(cur, self.currentUser)
-                genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(genomes_external_ids)
+                genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(
+                    genomes_external_ids)
 
             if genome_ids is False:
                 raise GenomeDatabaseError(
@@ -694,7 +718,8 @@ class GenomeDatabase(object):
                     "No markers provided to create a marker set.")
 
             marker_mngr = MarkerManager(cur, self.currentUser)
-            marker_id_list = marker_mngr.externalMarkerIdsToMarkerIds(external_ids)
+            marker_id_list = marker_mngr.externalMarkerIdsToMarkerIds(
+                external_ids)
             if marker_id_list is False:
                 raise GenomeDatabaseError(
                     "Unable to retreive marker ids for provided markers.")
@@ -756,11 +781,13 @@ class GenomeDatabase(object):
 
             if marker_external_ids is not None:
                 marker_set_mngr = MarkerManager(cur, self.currentUser)
-                marker_external_ids = marker_set_mngr.externalMarkerIdsToMarkerIds(marker_external_ids)
+                marker_external_ids = marker_set_mngr.externalMarkerIdsToMarkerIds(
+                    marker_external_ids)
 
             marker_set_mngr = MarkerSetManager(cur, self.currentUser)
             if not marker_set_mngr.editMarkerSet(marker_set_id, marker_external_ids, operation, name, description, private):
-                raise GenomeDatabaseError("Unable to edit marker set: %s" % marker_set_id)
+                raise GenomeDatabaseError(
+                    "Unable to edit marker set: %s" % marker_set_id)
 
             self.conn.commit()
         except GenomeDatabaseError as e:
@@ -832,7 +859,8 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             marker_set_mngr = MarkerSetManager(cur, self.currentUser)
-            marker_ids = marker_set_mngr.getMarkerIdListFromMarkerSetId(marker_set_ids)
+            marker_ids = marker_set_mngr.getMarkerIdListFromMarkerSetId(
+                marker_set_ids)
 
             if marker_ids is None:
                 raise GenomeDatabaseError(
