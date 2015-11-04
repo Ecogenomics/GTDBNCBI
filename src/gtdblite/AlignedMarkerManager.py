@@ -54,7 +54,7 @@ class AlignedMarkerManager(object):
         '''
         Run Hmmalign for PFAM and TIGRFAM missing markers
 
-        :param genome_ids: list of genome ids that are used for the tree step 
+        :param genome_ids: list of genome ids that are used for the tree step
         :param marker_ids: list of marker ids used for the tree building step
         '''
         cur = self.conn.cursor()
