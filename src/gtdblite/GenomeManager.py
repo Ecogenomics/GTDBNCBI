@@ -122,7 +122,8 @@ class GenomeManager(object):
             self.logger.info("Reading CheckM file.")
             checkm_results_dict = self._processCheckM(checkm_file)
 
-            genomic_files = self._addGenomeBatch(batchfile, self.tmp_output_dir)
+            genomic_files = self._addGenomeBatch(
+                batchfile, self.tmp_output_dir)
 
             self.logger.info("Running Prodigal to identify genes.")
             prodigal = Prodigal(self.threads)

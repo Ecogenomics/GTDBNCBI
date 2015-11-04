@@ -159,7 +159,7 @@ def CreateTreeData(db, args):
     genome_id_list = []
 
     if args.all_genomes:
-        genome_id_list = db.GetAllGenomeIds()
+        genome_id_list = db.getAllGenomeIds()
         if genome_id_list is False:
             return False
     else:
