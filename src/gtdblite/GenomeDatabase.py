@@ -19,8 +19,6 @@ from GenomeFilter import GenomeFilter
 from Exceptions import GenomeDatabaseError
 from AlignedMarkerManager import AlignedMarkerManager
 
-from biolib.checksum import sha256
-
 
 class GenomeDatabase(object):
 
@@ -41,10 +39,6 @@ class GenomeDatabase(object):
         self.genomeCopyUserDir = None
         if Config.GTDB_GENOME_USR_DIR:
             self.genomeCopyUserDir = Config.GTDB_GENOME_USR_DIR
-
-        self.markerCopyDir = None
-        if Config.GTDB_MARKER_COPY_DIR:
-            self.markerCopyDir = Config.GTDB_MARKER_COPY_DIR
 
         self.defaultMarkerDatabaseName = 'user'
 
@@ -463,9 +457,10 @@ class GenomeDatabase(object):
                 external_ids.extend([line.rstrip('\n') for line in fh])
                 fh.close()
 
-            genome_ids = self._externalGenomeIdsToGenomeIds(external_ids)
+            genome_ids = self.ExternalGenomeIdsToGenomeIds(external_ids)
 
-            genome_mngr = GenomeManager(self.currentUser)
+            cur = self.conn.cursor()
+            genome_mngr = GenomeManager(cur, self.currentUser, 1)
             genome_mngr.deleteGenomes(batchfile, genome_ids, reason)
 
             self.conn.commit()
@@ -671,129 +666,11 @@ class GenomeDatabase(object):
                              ("root" if owned_by_root else username), date_added))
 
             self.PrintTable(header, rows)
-
-            return True
-
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
 
-    # True if success. False on failure/error.
-    def AddMarkers(self, batchfile, modify_marker_set_id=None, new_marker_set_name=None,
-                   force_overwrite=False):
-        try:
-            cur = self.conn.cursor()
-
-            if modify_marker_set_id is not None:
-                if new_marker_set_name is not None:
-                    raise GenomeDatabaseError(
-                        "Unable to both modify and create marker sets at the same time.")
-                has_permission = self.HasPermissionToEditMarkerSet(
-                    modify_marker_set_id)
-                if has_permission is None:
-                    raise GenomeDatabaseError(
-                        "Unable to add markers to set %s." % modify_marker_set_id)
-                elif not has_permission:
-                    raise GenomeDatabaseError(
-                        "Insufficient permissions to add markers to set %s." % modify_marker_set_id)
-
-            if new_marker_set_name is not None:
-                owner_id = None
-                if not self.currentUser.isRootUser():
-                    owner_id = self.currentUser.getUserId()
-                modify_marker_set_id = self.CreateMarkerSetWorking(
-                    cur, [], new_marker_set_name, "", owner_id)
-                if modify_marker_set_id is False:
-                    raise GenomeDatabaseError(
-                        "Unable to create the new marker set.")
-
-            added_marker_ids = []
-
-            fh = open(batchfile, "rb")
-            for line in fh:
-                line = line.rstrip()
-                splitline = line.split("\t")
-                if len(splitline) < 5:
-                    splitline += [None] * (5 - len(splitline))
-                (marker_path, name, desc, database_name,
-                 id_in_database) = splitline
-
-                abs_path = os.path.abspath(marker_path)
-
-                marker_id = self.AddMarkerWorking(cur, abs_path, name, desc, None,
-                                                  force_overwrite, database_name, id_in_database)
-
-                if not (marker_id):
-                    raise GenomeDatabaseError(
-                        "Failed to add marker: %s" % abs_path)
-
-                added_marker_ids.append(marker_id)
-
-            if not self.EditMarkerSetWorking(cur, modify_marker_set_id, marker_ids=added_marker_ids, operation='add'):
-                raise GenomeDatabaseError(
-                    "Unable to add markers to marker set.")
-
-            copied_hmm_paths = []
-            hmm_paths_to_copy = {}
-
-            cur.execute("SELECT markers.id, marker_file_location, user_editable, external_id_prefix || '_' || id_in_database as external_id " +
-                        "FROM markers, marker_databases " +
-                        "WHERE marker_database_id = marker_databases.id " +
-                        "AND markers.id in %s", (tuple(added_marker_ids),))
-
-            for (marker_id, abs_path, user_editable, external_id) in cur:
-                if user_editable:
-                    hmm_paths_to_copy[marker_id] = {'src_path': abs_path,
-                                                    'external_id': external_id}
-
-            if len(hmm_paths_to_copy.keys()) > 0:
-                username = None
-                if self.currentUser.isRootUser():
-                    username = self.currentUser.getElevatedFromUsername()
-                else:
-                    username = self.currentUser.getUsername()
-
-                if not username:
-                    raise GenomeDatabaseError(
-                        "Unable to determine user to add markers under.")
-
-                target_dir = os.path.join(self.markerCopyDir, username)
-                if os.path.exists(target_dir):
-                    if not os.path.isdir(target_dir):
-                        raise GenomeDatabaseError(
-                            "Marker copy directory exists, but isn't a directory: %s" % (target_dir,))
-                else:
-                    os.mkdir(target_dir)
-
-                try:
-                    for (marker_id, details) in hmm_paths_to_copy.items():
-                        target_file = os.path.join(
-                            target_dir, details['external_id'] + ".hmm")
-                        shutil.copy(details['src_path'], target_file)
-                        copied_hmm_paths.append(target_file)
-
-                        cur.execute(
-                            "UPDATE markers SET marker_file_location = %s WHERE id = %s", (target_file, marker_id))
-
-                except Exception as e:
-                    try:
-                        for copied_path in copied_hmm_paths:
-                            os.unlink(copied_path)
-                    except:
-                        self.ReportWarning(
-                            "Cleaning temporary copied files failed. May have orphan hmms in the marker copy directory.")
-                    raise
-
-            self.conn.commit()
-            return True
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            self.conn.rollback()
-            return False
-        except:
-            self.conn.rollback()
-            raise
+        return True
 
     def AddMarkerWorking(self, cur, marker_file_path, name, desc, marker_set_id=None, force_overwrite=False,
                          database=None, id_in_database=None):
@@ -884,7 +761,7 @@ class GenomeDatabase(object):
                     if last_id is None:
                         last_id = last_auto_id
                     else:
-                        last_id = max(last_id, last_auto_id)
+                        last_id = max(int(last_id), int(last_auto_id))
                     break
 
                 # Generate a new id (for user editable lists only)
@@ -933,76 +810,6 @@ class GenomeDatabase(object):
             return False
 
         return marker_id
-
-    def DeleteMarkers(self, batchfile=None, external_ids=None):
-        try:
-            cur = self.conn.cursor()
-
-            if external_ids is None:
-                external_ids = []
-
-            if batchfile:
-                fh = open(batchfile, "rb")
-                for line in fh:
-                    line = line.rstrip()
-                    external_ids.append(line)
-
-            marker_ids = self.ExternalMarkerIdsToMarkerIds(external_ids)
-            if marker_ids is False:
-                raise GenomeDatabaseError(
-                    "Unable to delete markers. Unable to find markers.")
-
-            has_permission = self.HasPermissionToEditMarkers(marker_ids)
-
-            if has_permission is None:
-                raise GenomeDatabaseError(
-                    "Unable to delete markers. Unable to retrieve permissions for markers.")
-
-            if has_permission is False:
-                raise GenomeDatabaseError(
-                    "Unable to delete markers. Insufficient permissions.")
-
-            if not self.Confirm("Are you sure you want to delete %i markers (this action cannot be undone)" % len(marker_ids)):
-                raise GenomeDatabaseError("User aborted database action.")
-
-            paths_to_delete = []
-
-            if self.genomeCopyUserDir is not None:
-                cur.execute("SELECT marker_file_location " +
-                            "FROM markers " +
-                            "WHERE id in %s", (tuple(marker_ids),))
-
-                for (hmm_path,) in cur:
-                    # Check if path is a subdir of the copy dir
-                    abs_dir = os.path.abspath(self.markerCopyDir)
-                    abs_file = os.path.abspath(hmm_path)
-
-                    if abs_file.startswith(abs_dir):
-                        paths_to_delete.append(hmm_path)
-
-            cur.execute("DELETE FROM marker_set_contents " +
-                        "WHERE marker_id in %s", (tuple(marker_ids),))
-
-            cur.execute("DELETE FROM markers " +
-                        "WHERE id in %s", (tuple(marker_ids),))
-
-            try:
-                for path_to_delete in paths_to_delete:
-                    os.unlink(path_to_delete)
-            except Exception as e:
-                self.ReportWarning(
-                    "Exception was raised when deleting markers. Some orphans may remain. Exception message: %s" % e.message)
-
-            self.conn.commit()
-            return True
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            self.conn.rollback()
-            return False
-        except:
-            self.conn.rollback()
-            raise
 
     def GetAllMarkerIds(self):
         try:
@@ -1215,7 +1022,7 @@ class GenomeDatabase(object):
 
         cur.execute("SELECT id, owner_id, owned_by_root, private " +
                     "FROM marker_sets " +
-                    "WHERE id = %s ", (marker_set_id,))
+                    "WHERE id = %s ", (tuple(marker_set_id),))
 
         result = cur.fetchone()
 
@@ -1231,7 +1038,7 @@ class GenomeDatabase(object):
 
         cur.execute("SELECT marker_id " +
                     "FROM marker_set_contents " +
-                    "WHERE set_id = %s ", (marker_set_id,))
+                    "WHERE set_id = %s ", (tuple(marker_set_id),))
 
         return [marker_id for (marker_id,) in cur.fetchall()]
 
@@ -1425,7 +1232,7 @@ class GenomeDatabase(object):
                 cur.executemany(query, [(x,) for x in genome_list_ids])
             else:
                 raise GenomeDatabaseError(
-                    "No genome lists given. Can not retrieve IDs")
+                    "No genome lists given. Cannot retrieve IDs")
 
             # Find any ids that don't have genome lists
             query = ("SELECT id FROM {0} " +
@@ -1535,13 +1342,13 @@ class GenomeDatabase(object):
         try:
             genome_id_list = self.GetGenomeIdListFromGenomeListIds(list_ids)
 
-            if genome_id_list is False:
+            if not genome_id_list:
                 raise GenomeDatabaseError(
-                    "Unable to view genome list. Can not retrieve genomes IDs for lists: %s" % str(list_ids))
+                    "Unable to view genome list. Cannot retrieve genomes IDs for lists: %s" % str(list_ids))
 
             if not self.PrintGenomesDetails(genome_id_list):
                 raise GenomeDatabaseError(
-                    "Unable to view genome list. Printing to screen failed of genome ids. %s" % str(genome_id_list))
+                    "Unable to view genome list. Printing to screen failed on genome ids: %s" % str(genome_id_list))
 
             return True
 
@@ -1987,13 +1794,13 @@ class GenomeDatabase(object):
     # Returns list of marker set id. False on failure/error.
     def ViewMarkerSetsContents(self, marker_set_ids):
         try:
-            marker_ids = self.GetMarkerIdListFromMarkerListIds(marker_set_ids)
+            marker_ids = self.GetMarkerIdListFromMarkerSetId(marker_set_ids)
 
             if marker_ids is None:
                 raise GenomeDatabaseError(
                     "Unable to view marker set. Can not retrieve marker IDs for sets: %s" % str(marker_set_ids))
 
-            if not self.PrintMarkersDetails(marker_ids):
+            if not self.PrintMarkerDetails(marker_ids):
                 raise GenomeDatabaseError(
                     "Unable to view marker set. Printing to screen failed of marker ids. %s" % str(marker_ids))
 

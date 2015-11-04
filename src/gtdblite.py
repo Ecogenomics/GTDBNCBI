@@ -135,7 +135,6 @@ def EditUser(db, args):
 
 
 def AddGenomes(db, args):
-    loggerSetup(None, args.silent)
 
     return db.AddGenomes(args.batchfile,
                          args.checkm_file,
@@ -144,7 +143,6 @@ def AddGenomes(db, args):
 
 
 def AddMarkers(db, args):
-    loggerSetup(None, args.silent)
 
     return db.AddMarkers(
         args.batchfile, args.marker_set_id,
@@ -153,7 +151,6 @@ def AddMarkers(db, args):
 
 
 def CreateTreeData(db, args):
-    loggerSetup(args.out_dir, args.silent)
 
     genome_id_list = []
 
@@ -235,7 +232,6 @@ def CreateTreeData(db, args):
 
 
 def ViewGenomes(db, args):
-
     if args.view_all:
         return db.ViewGenomes()
     else:
@@ -260,8 +256,11 @@ def CreateGenomeList(db, args):
 
     if args.genome_ids:
         external_ids = args.genome_ids.split(",")
-    genome_list_id = db.CreateGenomeList(
-        args.batchfile, external_ids, args.name, args.description, (not args.public))
+    genome_list_id = db.CreateGenomeList(args.batchfile,
+                                         external_ids,
+                                         args.name,
+                                         args.description,
+                                         (not args.public))
 
     if not genome_list_id:
         return False
@@ -306,7 +305,6 @@ def ViewGenomeLists(db, args):
 def ContentsGenomeLists(db, args):
 
     list_ids = []
-
     if args.list_ids:
         list_ids = args.list_ids.split(",")
 
@@ -409,8 +407,8 @@ def EditMarkerSet(db, args):
 
 
 def MarkerSetsContents(db, args):
-    set_ids = []
 
+    set_ids = []
     if args.set_ids:
         set_ids = args.set_ids.split(",")
 
@@ -858,6 +856,12 @@ if __name__ == '__main__':
 
     # Do the parsing
     args = parser.parse_args()
+
+    # setup logger
+    if hasattr(args, 'out_dir'):
+        loggerSetup(args.out_dir, args.silent)
+    else:
+        loggerSetup(None, args.silent)
 
     # Special parser checks
     if (args.category_parser_name == 'trees' and args.tree_subparser_name == 'create'):
