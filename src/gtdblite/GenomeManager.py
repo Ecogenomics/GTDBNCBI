@@ -67,7 +67,7 @@ class GenomeManager(object):
         self.tranTableFileSuffix = ConfigMetadata.TRANSLATION_TABLE_SUFFIX
         self.checksumSuffix = ConfigMetadata.CHECKSUM_SUFFIX
 
-        self.genomeCopyDir = Config.GTDB_GENOME_COPY_DIR
+        self.genomeCopyDir = Config.GTDB_GENOME_USR_DIR
         self.deprecatedUserDir = Config.GTDB_DPRCTD_USR_DIR
         self.deprecatedNCBIDir = Config.GTDB_DPRCTD_NCBI_DIR
 
@@ -115,7 +115,8 @@ class GenomeManager(object):
             self.logger.info("Reading CheckM file.")
             checkm_results_dict = self._processCheckM(checkm_file)
 
-            genomic_files = self._addGenomeBatch(batchfile, self.tmp_output_dir)
+            genomic_files = self._addGenomeBatch(
+                batchfile, self.tmp_output_dir)
 
             self.logger.info("Running Prodigal to identify genes.")
             prodigal = Prodigal(self.threads)
@@ -174,9 +175,9 @@ class GenomeManager(object):
 
         # get database genome identifiers
         self.cur.execute("SELECT genomes.id,user_editable, external_id_prefix || '_' || id_at_source as external_id " +
-                    "FROM genomes, genome_sources " +
-                    "WHERE genome_source_id = genome_sources.id " +
-                    "AND genomes.id in %s", (tuple(db_genome_ids),))
+                         "FROM genomes, genome_sources " +
+                         "WHERE genome_source_id = genome_sources.id " +
+                         "AND genomes.id in %s", (tuple(db_genome_ids),))
 
         external_id_dict = {}
         for (genome_id, user_editable, external_id) in self.cur:
@@ -207,9 +208,9 @@ class GenomeManager(object):
 
             self.cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (
                 os.path.join(
-                    genome_target_dir, external_id + self.genomeFileSuffix),
+                    username, external_id, external_id + self.genomeFileSuffix),
                 os.path.join(
-                    genome_target_dir, external_id + self.proteinFileSuffix),
+                    username, external_id, external_id + self.proteinFileSuffix),
                 db_genome_id))
 
         shutil.rmtree(self.tmp_output_dir)
@@ -261,15 +262,16 @@ class GenomeManager(object):
             if gene_path is not None and gene_path != '':
                 abs_gene_path = os.path.abspath(gene_path)
 
-            genome_id = self._addGenomeToDB(abs_fasta_path, name, desc, source_name, id_at_source, abs_gene_path)
+            genome_id = self._addGenomeToDB(
+                abs_fasta_path, name, desc, source_name, id_at_source, abs_gene_path)
             if not (genome_id):
                 raise GenomeDatabaseError(
                     "Failed to add genome: %s" % abs_fasta_path)
 
             self.cur.execute("SELECT external_id_prefix || '_' || id_at_source as external_id " +
-                                "FROM genomes, genome_sources " +
-                                "WHERE genome_source_id = genome_sources.id " +
-                                "AND genomes.id = %s", (genome_id,))
+                             "FROM genomes, genome_sources " +
+                             "WHERE genome_source_id = genome_sources.id " +
+                             "AND genomes.id = %s", (genome_id,))
 
             external_genome_id = self.cur.fetchone()[0]
 
@@ -392,9 +394,9 @@ class GenomeManager(object):
                     "Genome source '%s' already contains id '%s'. Use -f to force an overwrite." % (source, id_at_source))
 
             self.cur.execute("INSERT INTO genomes " + columns + " "
-                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) " +
-                        "RETURNING id",
-                        (name, desc, self.currentUser.isRootUser(), owner_id, fasta_file_path, fasta_sha256_checksum, gene_path, gene_sha256_checksum, source_id, id_at_source, added))
+                             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) " +
+                             "RETURNING id",
+                             (name, desc, self.currentUser.isRootUser(), owner_id, fasta_file_path, fasta_sha256_checksum, gene_path, gene_sha256_checksum, source_id, id_at_source, added))
             (db_genome_id,) = self.cur.fetchone()
 
             return db_genome_id
@@ -516,7 +518,8 @@ class GenomeManager(object):
                 raise GenomeDatabaseError(
                     "Unable to delete genomes. Unable to retrieve genome ids.")
 
-            has_permission, username, genomes_owners = self._hasPermissionToEditGenomes(db_genome_ids)
+            has_permission, username, genomes_owners = self._hasPermissionToEditGenomes(
+                db_genome_ids)
 
             if has_permission is None:
                 raise GenomeDatabaseError(
@@ -530,24 +533,24 @@ class GenomeManager(object):
                 raise GenomeDatabaseError("User aborted database action.")
 
             self.cur.execute("DELETE FROM aligned_markers " +
-                        "WHERE genome_id in %s ", (tuple(db_genome_ids),))
+                             "WHERE genome_id in %s ", (tuple(db_genome_ids),))
 
             self.cur.execute("DELETE FROM genome_list_contents " +
-                        "WHERE genome_id in %s", (tuple(db_genome_ids),))
+                             "WHERE genome_id in %s", (tuple(db_genome_ids),))
 
             # Deletion of metadata
 
             self.cur.execute("DELETE FROM metadata_genes " +
-                        "WHERE id in %s", (tuple(db_genome_ids),))
+                             "WHERE id in %s", (tuple(db_genome_ids),))
             self.cur.execute("DELETE FROM metadata_ncbi " +
-                        "WHERE id in %s", (tuple(db_genome_ids),))
+                             "WHERE id in %s", (tuple(db_genome_ids),))
             self.cur.execute("DELETE FROM metadata_nucleotide " +
-                        "WHERE id in %s", (tuple(db_genome_ids),))
+                             "WHERE id in %s", (tuple(db_genome_ids),))
             self.cur.execute("DELETE FROM metadata_taxonomy " +
-                        "WHERE id in %s", (tuple(db_genome_ids),))
+                             "WHERE id in %s", (tuple(db_genome_ids),))
 
             self.cur.execute("DELETE FROM genomes " +
-                        "WHERE id in %s", (tuple(db_genome_ids),))
+                             "WHERE id in %s", (tuple(db_genome_ids),))
 
             for genome, info in genomes_owners.iteritems():
                 if str(username) != str(info.get("owner")):
@@ -593,10 +596,10 @@ class GenomeManager(object):
                     "Unable to retrieve genome permissions, no genomes given: %s" % str(db_genome_ids))
 
             self.cur.execute("SELECT gs.external_id_prefix,gs.external_id_prefix || '_'|| genomes.id_at_source, owner_id, username, owned_by_root,fasta_file_location "
-                        "FROM genomes " +
-                        "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
-                        "LEFT JOIN genome_sources gs ON gs.id = genomes.genome_source_id " +
-                        "WHERE genomes.id in %s", (tuple(db_genome_ids),))
+                             "FROM genomes " +
+                             "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
+                             "LEFT JOIN genome_sources gs ON gs.id = genomes.genome_source_id " +
+                             "WHERE genomes.id in %s", (tuple(db_genome_ids),))
 
             dict_genomes_user = {}
             for (prefix, public_id, owner_id, username, owned_by_root, fasta_path) in self.cur:
