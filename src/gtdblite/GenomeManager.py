@@ -67,7 +67,7 @@ class GenomeManager(object):
         self.tranTableFileSuffix = ConfigMetadata.TRANSLATION_TABLE_SUFFIX
         self.checksumSuffix = ConfigMetadata.CHECKSUM_SUFFIX
 
-        self.genomeCopyDir = Config.GTDB_GENOME_COPY_DIR
+        self.genomeCopyDir = Config.GTDB_GENOME_USR_DIR
         self.deprecatedUserDir = Config.GTDB_DPRCTD_USR_DIR
         self.deprecatedNCBIDir = Config.GTDB_DPRCTD_NCBI_DIR
 
@@ -203,13 +203,13 @@ class GenomeManager(object):
                 raise GenomeDatabaseError(
                     "Genome directory already exists: %s" % genome_target_dir)
 
-            shutil.move(tmp_genome_dir, gtdb_target_dir)
+            shutil.move(tmp_genome_dir, genome_target_dir)
 
             self.cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (
                 os.path.join(
-                    genome_target_dir, external_id + self.genomeFileSuffix),
+                    username, external_id, external_id + self.genomeFileSuffix),
                 os.path.join(
-                    genome_target_dir, external_id + self.proteinFileSuffix),
+                    username, external_id, external_id + self.proteinFileSuffix),
                 db_genome_id))
 
         shutil.rmtree(self.tmp_output_dir)
@@ -358,7 +358,7 @@ class GenomeManager(object):
                     if last_id is None:
                         last_id = last_auto_id
                     else:
-                        last_id = max(last_id, last_auto_id)
+                        last_id = max(int(last_id), int(last_auto_id))
                     break
 
                 # Generate a new id (for user editable lists only)
@@ -502,7 +502,6 @@ class GenomeManager(object):
         return False
 
     def deleteGenomes(self, batchfile=None, db_genome_ids=None, reason=None):
-        self.loggerSetup()
         '''
         Delete Genomes
         Returns True for success or False for fail
@@ -511,6 +510,9 @@ class GenomeManager(object):
         :param batchfile: text file listing a range of ids to delete
         :param db_genome_ids: a list of ids can be written directly in the command line
         '''
+
+        self._loggerSetup()
+
         try:
             if db_genome_ids is False:
                 raise GenomeDatabaseError(
