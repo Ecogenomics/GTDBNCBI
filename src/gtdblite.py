@@ -159,6 +159,10 @@ def CreateTreeData(db, args):
         if genome_id_list is False:
             return False
     else:
+        if args.all_user_genomes:
+            genome_id_list = db.GetAllUserGenomeIds()
+            if genome_id_list is False:
+                return False
         if args.genome_ids:
             temp_list = db.ExternalGenomeIdsToGenomeIds(
                 args.genome_ids.split(","))
@@ -813,8 +817,10 @@ if __name__ == '__main__':
                                     help='Provide a list of genome ids (comma separated), whose genomes should be included in the tree')
     parser_tree_create.add_argument('--genome_list_ids', dest='genome_list_ids', default=None,
                                     help='Provide a list of genome list ids (comma separated), whose genomes should be included in the tree')
-    parser_tree_create.add_argument('--all_genomes', dest='all_genomes', default=False, action='store_true',
-                                    help='Included ALL genomes in the database in the created tree')
+    parser_tree_create.add_argument('--all_user_genomes', default=False, action='store_true',
+                                    help='Included all user genomes in the tree, subject to filtering')
+    parser_tree_create.add_argument('--all_genomes', default=False, action='store_true',
+                                    help='Included all genomes in the tree, subject to filtering')
 
     parser_tree_create.add_argument('--marker_batchfile', dest='marker_batchfile', default=None,
                                     help='Provide a file of marker IDs, one per line, to build the tree')
