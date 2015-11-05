@@ -470,8 +470,47 @@ class GenomeDatabase(object):
 
         return True
 
-    # List of genome ids on success. False on error.
+    def GetAllUserGenomeIds(self):
+        """Get genome identifiers for all user genomes.
+
+        Returns
+        -------
+        list
+            Database identifiers for all user genomes.
+        """
+
+        try:
+            cur = self.conn.cursor()
+
+            cur.execute("SELECT id " +
+                        "FROM genome_sources " +
+                        "WHERE name = %s", (self.defaultMarkerDatabaseName,))
+
+            user_source_id = cur.fetchone()[0]
+
+            cur.execute("SELECT id " +
+                        "FROM genomes " +
+                        "WHERE genome_source_id = %s", (user_source_id,))
+
+            result_ids = []
+            for (genome_id,) in cur:
+                result_ids.append(genome_id)
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return result_ids
+
     def GetAllGenomeIds(self):
+        """Get genome identifiers for all genomes.
+
+        Returns
+        -------
+        list
+            Database identifiers for all genomes.
+        """
+
         try:
             cur = self.conn.cursor()
 
@@ -482,11 +521,11 @@ class GenomeDatabase(object):
             for (genome_id,) in cur:
                 result_ids.append(genome_id)
 
-            return result_ids
-
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+        return result_ids
 
     # True on success. False on failure/error.
     def ViewGenomes(self, batchfile=None, external_ids=None):
