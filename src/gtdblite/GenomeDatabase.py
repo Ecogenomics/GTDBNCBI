@@ -702,7 +702,8 @@ class GenomeDatabase(object):
             rows = []
             for (_genome_id, name, description, owned_by_root, username, external_id, date_added) in cur:
                 rows.append((external_id, name, description,
-                             ("root" if owned_by_root else username), date_added))
+                             ("root" if owned_by_root else username),
+                             date_added.date()))
 
             self.PrintTable(header, rows)
         except GenomeDatabaseError as e:
@@ -1101,6 +1102,8 @@ class GenomeDatabase(object):
                      alignment, individual,
                      build_tree=True):
 
+        self.logger.info('Making tree for %d genomes using %d marker genes.' % (len(genome_ids), len(marker_ids)))
+
         try:
             gf = GenomeFilter()
             genomes_to_retain, chosen_markers_order, chosen_markers = gf.FilterTreeData(self, marker_ids, genome_ids,
@@ -1127,29 +1130,6 @@ class GenomeDatabase(object):
         self.logger.info('Done.')
 
         return True
-
-    def CalculateMarkersOnProdigalDirAsync(self, marker_ids, prodigal_dir):
-        try:
-
-            cur = self.conn.cursor()
-
-            cur.execute("SELECT id, marker_file_location " +
-                        "FROM markers " +
-                        "WHERE id in %s", (tuple(marker_ids),))
-
-            async_results = {}
-
-            for (marker_id, marker_path) in cur:
-                async_results[marker_id] = self.pool.apply_async(
-                    MarkerCalculation.CalculateBestMarkerOnProdigalDir,
-                    [str(marker_id), marker_path, prodigal_dir]
-                )
-
-            return async_results
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return False
 
     def GetAlignedMarkersCountForGenomes(self, genome_ids, marker_ids):
 
@@ -1423,7 +1403,7 @@ class GenomeDatabase(object):
                 "JOIN genome_list_contents as contents ON contents.list_id = lists.id " +
                 "WHERE lists.id in %s " +
                 "GROUP by lists.id, users.username " +
-                "ORDER by lists.id asc ", (tuple(genome_list_ids),)
+                "ORDER by lists.display_order asc, lists.id", (tuple(genome_list_ids),)
             )
 
             # print table
