@@ -60,26 +60,10 @@ class Prodigal(object):
         nt_gene_file = os.path.join(output_dir, genome_id + ConfigMetadata.NT_GENE_FILE_SUFFIX)
         shutil.move(summary_stats.nt_gene_file, nt_gene_file)
 
-        gff_file = os.path.join(output_dir, genome_id + ConfigMetadata.NT_GENE_FILE_SUFFIX)
+        gff_file = os.path.join(output_dir, genome_id + ConfigMetadata.GFF_FILE_SUFFIX)
         shutil.move(summary_stats.gff_file, gff_file)
 
-        # Rename the genes.faa fasta entries to remove the chance id parsing mixups, etc....
-        modified_genes_filepath = os.path.join(output_dir, 'genes_id_modified.faa')
-
-        out_fh = open(modified_genes_filepath, 'wb')
-        genes_fh = open(os.path.join(output_dir, aa_gene_file), 'rb')
-
-        count = 1
-        for line in genes_fh:
-            if line[0] == ">":
-                out_fh.write(">%i\n" % count)
-                count += 1
-                continue
-            out_fh.write(line)
-
-        out_fh.close()
-        genes_fh.close()
-
+        # save translation table information
         translation_table_file = os.path.join(output_dir, 'prodigal_translation_table.tsv')
         fout = open(translation_table_file, 'w')
         fout.write('%s\t%d\n' % ('best_translation_table', summary_stats.best_translation_table))

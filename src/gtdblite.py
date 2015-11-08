@@ -163,6 +163,7 @@ def CreateTreeData(db, args):
             genome_id_list = db.GetAllUserGenomeIds()
             if genome_id_list is False:
                 return False
+
         if args.genome_ids:
             temp_list = db.ExternalGenomeIdsToGenomeIds(
                 args.genome_ids.split(","))
@@ -193,7 +194,6 @@ def CreateTreeData(db, args):
         return False
 
     marker_id_list = []
-
     if args.marker_ids:
         temp_list = db.ExternalMarkerIdsToMarkerIds(args.marker_ids.split(","))
         if temp_list is None:
