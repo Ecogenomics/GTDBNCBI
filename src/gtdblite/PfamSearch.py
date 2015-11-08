@@ -115,6 +115,9 @@ class PfamSearch(object):
             fout.write(checksum)
             fout.close()
 
+            # identify top hit for each gene
+            self._topHit(output_hit_file)
+
             queueOut.put(gene_file)
 
     def _writerThread(self, numDataItems, writerQueue):
