@@ -82,7 +82,6 @@ class AlignedMarkerManager(object):
 
         # Collect all results into a single result dict. We know how many dicts
         # with results to expect.
-        list_genomes = []
         while out_q.empty():
             time.sleep(1)
 
@@ -144,6 +143,7 @@ class AlignedMarkerManager(object):
             # we load the list of all the genes detected in the genome
             protein_file = tophit_path.replace(
                 marker_suffix, self.protein_file_suffix)
+
             all_genes_dict = read_fasta(protein_file, False)
             # we store the the tophit file line by line and store the
             # information in a dictionary
@@ -205,7 +205,7 @@ class AlignedMarkerManager(object):
         result_genomes_dict = []
         hmmalign_dir = tempfile.mkdtemp()
         input_count = 0
-        for markerid, marker_info in marker_dict.iteritems():
+        for _markerid, marker_info in marker_dict.iteritems():
             hmmalign_gene_input = os.path.join(
                 hmmalign_dir, "input_gene{0}.fa".format(input_count))
             input_count += 1
