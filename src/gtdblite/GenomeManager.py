@@ -360,7 +360,7 @@ class GenomeManager(object):
                     if last_id is None:
                         last_id = last_auto_id
                     else:
-                        last_id = max(last_id, last_auto_id)
+                        last_id = max(int(last_id), int(last_auto_id))
                     break
 
                 # Generate a new id (for user editable lists only)
