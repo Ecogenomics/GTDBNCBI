@@ -1,15 +1,28 @@
-import shutil
-import os
+###############################################################################
+#                                                                             #
+#    This program is free software: you can redistribute it and/or modify     #
+#    it under the terms of the GNU General Public License as published by     #
+#    the Free Software Foundation, either version 3 of the License, or        #
+#    (at your option) any later version.                                      #
+#                                                                             #
+#    This program is distributed in the hope that it will be useful,          #
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of           #
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #
+#    GNU General Public License for more details.                             #
+#                                                                             #
+#    You should have received a copy of the GNU General Public License        #
+#    along with this program. If not, see <http://www.gnu.org/licenses/>.     #
+#                                                                             #
+###############################################################################
+
 import hashlib
 import logging
 from multiprocessing import Pool
 
 import prettytable
 
-
 import Config
 import Tools
-import MarkerCalculation
 from User import User
 from GenomeDatabaseConnection import GenomeDatabaseConnection
 from GenomeManager import GenomeManager
@@ -454,7 +467,7 @@ class GenomeDatabase(object):
 
             if batchfile:
                 fh = open(batchfile, "rb")
-                external_ids.extend([line.rstrip('\n') for line in fh])
+                external_ids.extend([line.rstrip().split('\t')[0] for line in fh])
                 fh.close()
 
             genome_ids = self.ExternalGenomeIdsToGenomeIds(external_ids)
@@ -1753,7 +1766,7 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
-    def GetVisibleMarkerSetsByOwner(self, owner_id=None, all_non_private=False):
+    def GetVisibleMarkerSetsByOwner(self, owner_id=None, include_private=False):
         """
         Get all marker sets owned by owner_id which the current user is allowed
         to see. If owner_id is None, return all visible marker sets for the
@@ -1773,8 +1786,8 @@ class GenomeDatabase(object):
 
         if not self.currentUser.isRootUser():
             privacy_condition = "private = False"
-            if all_non_private:
-                privacy_condition = "(private = False OR private is NULL)"
+            if include_private:
+                privacy_condition = "(private = False OR private = True)"
 
             conditional_query += "AND (" + \
                 privacy_condition + " OR owner_id = %s)"
@@ -1788,7 +1801,7 @@ class GenomeDatabase(object):
         return [set_id for (set_id,) in cur]
 
     # Returns list of marker set id. False on failure/error.
-    def GetAllVisibleMarkerSetIds(self, all_non_private=False):
+    def GetAllVisibleMarkerSetIds(self, include_private=False):
         cur = self.conn.cursor()
 
         conditional_query = ""
@@ -1796,8 +1809,8 @@ class GenomeDatabase(object):
 
         if not self.currentUser.isRootUser():
             privacy_condition = "private = False"
-            if all_non_private:
-                privacy_condition = "(private = False OR private is NULL)"
+            if include_private:
+                privacy_condition = "(private = False OR private = True)"
 
             conditional_query += "AND (" + \
                 privacy_condition + " OR owner_id = %s)"

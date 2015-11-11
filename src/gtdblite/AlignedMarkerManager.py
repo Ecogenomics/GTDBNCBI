@@ -17,20 +17,18 @@
 
 import os
 import logging
-import psycopg2
-import sys
 import multiprocessing
 import tempfile
 import subprocess
 import shutil
 import time
 
+import psycopg2
 
-from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
-from gtdblite.Exceptions import GenomeDatabaseError
-
-from gtdblite import ConfigMetadata
+import ConfigMetadata
+from GenomeDatabaseConnection import GenomeDatabaseConnection
 from Tools import fastaPathGenerator, splitchunks
+
 from biolib.seq_io import read_fasta
 
 
@@ -38,10 +36,13 @@ class AlignedMarkerManager(object):
     ''''Manage the processing of Aligned Markers and querying marker information.'''
 
     def __init__(self, threads):
+        """Initialize."""
+
+        self.logger = logging.getLogger()
+        self.threads = threads
+
         self.conn = GenomeDatabaseConnection()
         self.conn.MakePostgresConnection()
-
-        self.threads = threads
 
         self.tigrfam_suffix = ConfigMetadata.TIGRFAM_SUFFIX
         self.tigrfam_top_hit_suffix = ConfigMetadata.TIGRFAM_TOP_HIT_SUFFIX
@@ -57,6 +58,9 @@ class AlignedMarkerManager(object):
         :param genome_ids: list of genome ids that are used for the tree step
         :param marker_ids: list of marker ids used for the tree building step
         '''
+
+        self.logger.info('Aligning marker genes not already in the database.')
+
         cur = self.conn.cursor()
 
         # We need to rebuild the path to each

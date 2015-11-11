@@ -5,9 +5,9 @@ import random
 import os
 
 from itertools import islice
-from gtdblite.Exceptions import GenomeDatabaseError
-from gtdblite import MarkerCalculation
-from gtdblite import Config
+
+import Config
+
 
 ##################################################
 ############MISC UTILITIES########################
