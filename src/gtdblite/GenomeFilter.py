@@ -1,11 +1,26 @@
+###############################################################################
+#                                                                             #
+#    This program is free software: you can redistribute it and/or modify     #
+#    it under the terms of the GNU General Public License as published by     #
+#    the Free Software Foundation, either version 3 of the License, or        #
+#    (at your option) any later version.                                      #
+#                                                                             #
+#    This program is distributed in the hope that it will be useful,          #
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of           #
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #
+#    GNU General Public License for more details.                             #
+#                                                                             #
+#    You should have received a copy of the GNU General Public License        #
+#    along with this program. If not, see <http://www.gnu.org/licenses/>.     #
+#                                                                             #
+###############################################################################
+
 import os
 import sys
 import logging
 from collections import defaultdict
 
 import psycopg2 as pg
-
-from gtdblite import Tools
 
 from biolib.taxonomy import Taxonomy
 
@@ -150,9 +165,9 @@ class GenomeFilter(object):
         individual_marker_fasta = dict()
         single_copy = defaultdict(int)
         ubiquitous = defaultdict(int)
-        for tup in metadata:
-            db_genome_id = tup[0]
-            external_genome_id = tup[1]
+        for genome_metadata in metadata:
+            db_genome_id = genome_metadata[0]
+            external_genome_id = genome_metadata[1]
 
             # For each genome, we calculate the aligned markers that are not
             # present in the aligned marker table
@@ -217,9 +232,12 @@ class GenomeFilter(object):
                 [1 if x == "Multiple" else 0 for x in multi_hits_details])
             if not alignment:
                 aligned_seq = ''
-            self._arbRecord(arb_metadata_fh, external_genome_id,
-                            col_headers[2:], tup[2:],
-                            multiple_hit_count, len(chosen_markers_order),
+            self._arbRecord(arb_metadata_fh,
+                            external_genome_id,
+                            col_headers[2:],
+                            genome_metadata[2:],
+                            multiple_hit_count,
+                            len(chosen_markers_order),
                             aligned_seq)
 
         arb_metadata_fh.close()
@@ -373,6 +391,13 @@ class GenomeFilter(object):
                    multiple_hit_count, num_marker_genes,
                    aligned_seq):
         """Write out ARB record for genome."""
+
+        # customize output relative to raw database table
+        if external_genome_id.startswith('NCBI'):
+            metadata_values = list(metadata_values)
+            organism_name_index = metadata_fields.index('organism_name')
+            ncbi_organism_name_index = metadata_fields.index('ncbi_organism_name')
+            metadata_values[organism_name_index] = metadata_values[ncbi_organism_name_index]
 
         fout.write("BEGIN\n")
         fout.write("db_name=%s\n" % external_genome_id)
