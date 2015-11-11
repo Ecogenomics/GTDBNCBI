@@ -135,7 +135,6 @@ def EditUser(db, args):
 
 
 def AddGenomes(db, args):
-    loggerSetup(None, args.silent)
 
     return db.AddGenomes(args.batchfile,
                          args.checkm_file,
@@ -144,6 +143,7 @@ def AddGenomes(db, args):
 
 
 def AddMarkers(db, args):
+
     return db.AddMarkers(
         args.batchfile, args.marker_set_id,
         args.marker_set_name, args.force
@@ -151,7 +151,6 @@ def AddMarkers(db, args):
 
 
 def CreateTreeData(db, args):
-    loggerSetup(args.out_dir, args.silent)
 
     genome_id_list = []
 
@@ -160,6 +159,11 @@ def CreateTreeData(db, args):
         if genome_id_list is False:
             return False
     else:
+        if args.all_user_genomes:
+            genome_id_list = db.GetAllUserGenomeIds()
+            if genome_id_list is False:
+                return False
+
         if args.genome_ids:
             temp_list = db.ExternalGenomeIdsToGenomeIds(
                 args.genome_ids.split(","))
@@ -190,7 +194,6 @@ def CreateTreeData(db, args):
         return False
 
     marker_id_list = []
-
     if args.marker_ids:
         temp_list = db.ExternalMarkerIdsToMarkerIds(args.marker_ids.split(","))
         if temp_list is None:
@@ -227,13 +230,12 @@ def CreateTreeData(db, args):
                            args.comp_threshold, args.cont_threshold,
                            args.taxa_filter,
                            args.guaranteed_genome_list_ids, args.guaranteed_genome_ids,
-                           args.alignment,
+                           not args.no_alignment,
                            args.individual,
-                           not(args.no_tree))
+                           not args.no_tree)
 
 
 def ViewGenomes(db, args):
-
     if args.view_all:
         return db.ViewGenomes()
     else:
@@ -258,8 +260,11 @@ def CreateGenomeList(db, args):
 
     if args.genome_ids:
         external_ids = args.genome_ids.split(",")
-    genome_list_id = db.CreateGenomeList(
-        args.batchfile, external_ids, args.name, args.description, (not args.public))
+    genome_list_id = db.CreateGenomeList(args.batchfile,
+                                         external_ids,
+                                         args.name,
+                                         args.description,
+                                         (not args.public))
 
     if not genome_list_id:
         return False
@@ -284,9 +289,9 @@ def ViewGenomeLists(db, args):
     elif args.self_owned:
         genome_lists = db.GetVisibleGenomeListsByOwner(
             db.currentUser.getUserId(), include_private=False)
-    elif args.all_owners:
+    elif args.all_public:
         genome_lists = db.GetAllVisibleGenomeListIds(include_private=False)
-    elif args.view_all:
+    elif args.all:
         genome_lists = db.GetAllVisibleGenomeListIds(include_private=True)
     else:
         # TODO: this
@@ -304,7 +309,6 @@ def ViewGenomeLists(db, args):
 def ContentsGenomeLists(db, args):
 
     list_ids = []
-
     if args.list_ids:
         list_ids = args.list_ids.split(",")
 
@@ -367,18 +371,15 @@ def CreateMarkerSet(db, args):
 def ViewMarkerSets(db, args):
 
     marker_sets = []
-
-    view_all = False
-    if args.view_all:
-        view_all = True
-
     if args.root_owned or (args.self_owned and db.currentUser.isRootUser()):
-        marker_sets = db.GetVisibleMarkerSetsByOwner(all_non_private=view_all)
+        marker_sets = db.GetVisibleMarkerSetsByOwner(include_private=False)
     elif args.self_owned:
         marker_sets = db.GetVisibleMarkerSetsByOwner(
-            db.currentUser.getUserId(), all_non_private=view_all)
-    elif args.all_owners:
-        marker_sets = db.GetAllVisibleMarkerSetIds(all_non_private=view_all)
+            db.currentUser.getUserId(), include_private=False)
+    elif args.all_public:
+        marker_sets = db.GetAllVisibleMarkerSetIds(include_private=False)
+    elif args.all:
+        marker_sets = db.GetAllVisibleMarkerSetIds(include_private=True)
     else:
         # TODO: this
         db.ReportError(
@@ -388,6 +389,7 @@ def ViewMarkerSets(db, args):
     if len(marker_sets) == 0:
         print "No marker sets found."
         return True
+
     return db.PrintMarkerSetsDetails(marker_sets)
 
 
@@ -407,8 +409,8 @@ def EditMarkerSet(db, args):
 
 
 def MarkerSetsContents(db, args):
-    set_ids = []
 
+    set_ids = []
     if args.set_ids:
         set_ids = args.set_ids.split(",")
 
@@ -583,7 +585,7 @@ if __name__ == '__main__':
                                                                 formatter_class=CustomHelpFormatter,
                                                                 help='Delete genomes in the database.')
     parser_genome_delete.add_argument('--batchfile', dest='batchfile', default=None,
-                                      help='Batchfile of genome ids (one per line) to view')
+                                      help='Batchfile of genome ids (one per line) to delete')
     parser_genome_delete.add_argument('--genome_ids', dest='id_list', default=None,
                                       help='Provide a list of genome ids (comma separated) to view')
     parser_genome_delete.add_argument('--reason', dest='reason', required=True,
@@ -622,10 +624,8 @@ if __name__ == '__main__':
                              action='store_true', help='Show genome lists owned by you.')
     mutex_group.add_argument(
         '--owner', dest='owner_name', help='Show genome lists owned by a specific user.')
-    mutex_group.add_argument('--all_public', dest='all_owners', default=False,
-                             action='store_true', help='Show public genome lists from all users.')
-    mutex_group.add_argument(
-        '--all', dest='view_all', default=False, action='store_true', help='View all genome lists.')
+    mutex_group.add_argument('--all_public', default=False, action='store_true', help='Show public genome lists from all users.')
+    mutex_group.add_argument('--all', default=False, action='store_true', help='View all genome lists.')
 
     parser_genome_lists_view.set_defaults(func=ViewGenomeLists)
 
@@ -715,17 +715,11 @@ if __name__ == '__main__':
 
     mutex_group = parser_marker_sets_view.add_mutually_exclusive_group(
         required=True)
-    mutex_group.add_argument('--root', dest='root_owned', default=False,
-                             action='store_true', help='Only show marker sets owned by the root user.')
-    mutex_group.add_argument('--self', dest='self_owned', default=False,
-                             action='store_true', help='Only show marker sets owned by you.')
-    mutex_group.add_argument(
-        '--owner', dest='owner_name', help='Only show marker sets owned by a specific user.')
-    mutex_group.add_argument('--everyone', dest='all_owners', default=False,
-                             action='store_true', help='Show marker sets of all users.')
-
-    parser_marker_sets_view.add_argument('--all_accessible', dest='view_all', default=False, action='store_true',
-                                         help='View EVERY marker set that you can access (the default is to show only public and your own sets).')
+    mutex_group.add_argument('--root', dest='root_owned', default=False, action='store_true', help='Only show marker sets owned by the root user.')
+    mutex_group.add_argument('--self', dest='self_owned', default=False, action='store_true', help='Only show marker sets owned by you.')
+    mutex_group.add_argument('--owner', dest='owner_name', help='Only show marker sets owned by a specific user.')
+    mutex_group.add_argument('--all_public', default=False, action='store_true', help='Show public marker sets from all users.')
+    mutex_group.add_argument('--all', default=False, action='store_true', help='View all marker sets.')
 
     parser_marker_sets_view.set_defaults(func=ViewMarkerSets)
 
@@ -813,8 +807,10 @@ if __name__ == '__main__':
                                     help='Provide a list of genome ids (comma separated), whose genomes should be included in the tree')
     parser_tree_create.add_argument('--genome_list_ids', dest='genome_list_ids', default=None,
                                     help='Provide a list of genome list ids (comma separated), whose genomes should be included in the tree')
-    parser_tree_create.add_argument('--all_genomes', dest='all_genomes', default=False, action='store_true',
-                                    help='Included ALL genomes in the database in the created tree')
+    parser_tree_create.add_argument('--all_user_genomes', default=False, action='store_true',
+                                    help='Included all user genomes in the tree, subject to filtering')
+    parser_tree_create.add_argument('--all_genomes', default=False, action='store_true',
+                                    help='Included all genomes in the tree, subject to filtering')
 
     parser_tree_create.add_argument('--marker_batchfile', dest='marker_batchfile', default=None,
                                     help='Provide a file of marker IDs, one per line, to build the tree')
@@ -836,8 +832,8 @@ if __name__ == '__main__':
 
     parser_tree_create.add_argument('--prefix', required=False, default='gtdb',
                                     help='Desired prefix for output files')
-    parser_tree_create.add_argument('--alignment', action='store_true',
-                                    help='Include concatenated alignment in ARB metadata file')
+    parser_tree_create.add_argument('--no_alignment', action='store_true',
+                                    help='Do not include concatenated alignment in ARB metadata file')
     parser_tree_create.add_argument(
         '--individual', action='store_true', help='Create individual FASTA files for each marker')
     parser_tree_create.add_argument('--output', dest='out_dir', required=True,
@@ -856,6 +852,12 @@ if __name__ == '__main__':
 
     # Do the parsing
     args = parser.parse_args()
+
+    # setup logger
+    if hasattr(args, 'out_dir'):
+        loggerSetup(args.out_dir, args.silent)
+    else:
+        loggerSetup(None, args.silent)
 
     # Special parser checks
     if (args.category_parser_name == 'trees' and args.tree_subparser_name == 'create'):

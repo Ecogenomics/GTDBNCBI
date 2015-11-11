@@ -204,7 +204,7 @@ class GenomeManager(object):
                 raise GenomeDatabaseError(
                     "Genome directory already exists: %s" % genome_target_dir)
 
-            shutil.move(tmp_genome_dir, gtdb_target_dir)
+            shutil.move(tmp_genome_dir, genome_target_dir)
 
             self.cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (
                 os.path.join(
@@ -504,7 +504,6 @@ class GenomeManager(object):
         return False
 
     def deleteGenomes(self, batchfile=None, db_genome_ids=None, reason=None):
-        self.loggerSetup()
         '''
         Delete Genomes
         Returns True for success or False for fail
@@ -513,6 +512,9 @@ class GenomeManager(object):
         :param batchfile: text file listing a range of ids to delete
         :param db_genome_ids: a list of ids can be written directly in the command line
         '''
+
+        self._loggerSetup()
+
         try:
             if db_genome_ids is False:
                 raise GenomeDatabaseError(
