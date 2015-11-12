@@ -467,7 +467,8 @@ class GenomeDatabase(object):
 
             if batchfile:
                 fh = open(batchfile, "rb")
-                external_ids.extend([line.rstrip().split('\t')[0] for line in fh if line[0] != '#'])
+                external_ids.extend(
+                    [line.rstrip().split('\t')[0] for line in fh])
                 fh.close()
 
             genome_ids = self.ExternalGenomeIdsToGenomeIds(external_ids)
@@ -1115,7 +1116,8 @@ class GenomeDatabase(object):
                      alignment, individual,
                      build_tree=True):
 
-        self.logger.info('Making tree for %d genomes using %d marker genes.' % (len(genome_ids), len(marker_ids)))
+        self.logger.info('Making tree for %d genomes using %d marker genes.' % (
+            len(genome_ids), len(marker_ids)))
 
         try:
             gf = GenomeFilter()
@@ -1203,109 +1205,6 @@ class GenomeDatabase(object):
 
         return genome_list_id
 
-    # Function: GetGenomeIdListFromGenomeListId
-    # Given a genome list id, return all the ids of the genomes contained within that genome list.
-    #
-    # Parameters:
-    # genome_list_id - The genome list id of the genome list whose contents needs to be retrieved.
-    #
-    # Returns:
-    # A list of all the genome ids contained within the specified genome list,
-    # False on failure.
-    def GetGenomeIdListFromGenomeListId(self, genome_list_id):
-        try:
-            cur = self.conn.cursor()
-
-            cur.execute("SELECT id, owner_id, owned_by_root, private " +
-                        "FROM genome_lists " +
-                        "WHERE id = %s ", (genome_list_id,))
-            result = cur.fetchone()
-
-            if not result:
-                raise GenomeDatabaseError(
-                    "No genome list with id: %s" % str(genome_list_id))
-            else:
-                (_list_id, owner_id, owned_by_root, private) = result
-                if private and (not self.currentUser.isRootUser()) and (owned_by_root or owner_id != self.currentUser.getUserId()):
-                    raise GenomeDatabaseError(
-                        "Insufficient permission to view genome list: %s" % str(genome_list_id))
-
-            cur.execute("SELECT genome_id " +
-                        "FROM genome_list_contents " +
-                        "WHERE list_id = %s", (genome_list_id,))
-
-            return [genome_id for (genome_id,) in cur.fetchall()]
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return False
-
-    # Function: GetGenomeIdListFromGenomeListIds
-    # Given a list of ids, return all the ids of the genomes contained
-    # within that genome list.
-    #
-    # Parameters:
-    #     genome_list_ids - A list of genome list ids whose contents needs to be retrieved.
-    #
-    # Returns:
-    # A list of all the genome ids contained within the specified genome
-    # list(s), False on failure.
-    def GetGenomeIdListFromGenomeListIds(self, genome_list_ids):
-        try:
-            cur = self.conn.cursor()
-
-            temp_table_name = Tools.generateTempTableName()
-
-            if genome_list_ids:
-                cur.execute("CREATE TEMP TABLE %s (id integer)" %
-                            (temp_table_name,))
-                query = "INSERT INTO {0} (id) VALUES (%s)".format(
-                    temp_table_name)
-                cur.executemany(query, [(x,) for x in genome_list_ids])
-            else:
-                raise GenomeDatabaseError(
-                    "No genome lists given. Cannot retrieve IDs")
-
-            # Find any ids that don't have genome lists
-            query = ("SELECT id FROM {0} " +
-                     "WHERE id NOT IN ( " +
-                     "SELECT id " +
-                     "FROM genome_lists)").format(temp_table_name)
-
-            cur.execute(query)
-
-            missing_list_ids = []
-            for (list_id,) in cur:
-                missing_list_ids.append(list_id)
-
-            if missing_list_ids:
-                raise GenomeDatabaseError(
-                    "Unknown genome list id(s) given. %s" % str(missing_list_ids))
-
-            # Find any genome list ids that we dont have permission to view
-            cur.execute("SELECT id, owner_id, owned_by_root, private " +
-                        "FROM genome_lists " +
-                        "WHERE id in %s ", (tuple(genome_list_ids),))
-
-            no_permission_list_ids = []
-            for (list_id, owner_id, owned_by_root, private) in cur:
-                if private and (not self.currentUser.isRootUser()) and (owned_by_root or owner_id != self.currentUser.getUserId()):
-                    no_permission_list_ids.append(list_id)
-
-            if no_permission_list_ids:
-                raise GenomeDatabaseError(
-                    "Insufficient permission to view genome lists: %s" % str(no_permission_list_ids))
-
-            cur.execute("SELECT genome_id " +
-                        "FROM genome_list_contents " +
-                        "WHERE list_id in %s", (tuple(genome_list_ids),))
-
-            return [genome_id for (genome_id,) in cur.fetchall()]
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return False
-
     # Function: GetVisibleGenomeLists
     # Get all the genome lists that the current user can see.
     #
@@ -1316,6 +1215,7 @@ class GenomeDatabase(object):
     # Returns:
     #   A list containing a tuple for each visible genome list. The tuple contains the genome list id, genome list name, genome list description,
     # and username of the owner of the list (id, name, description, username).
+
     def GetVisibleGenomeListsByOwner(self, owner_id=None, include_private=False):
         """
         Get all genome list owned by owner_id which the current user is allowed
@@ -1372,97 +1272,20 @@ class GenomeDatabase(object):
 
     def ViewGenomeListsContents(self, list_ids):
         try:
-            genome_id_list = self.GetGenomeIdListFromGenomeListIds(list_ids)
-
-            if not genome_id_list:
+            cur = self.conn.cursor()
+            genome_list_mngr = GenomeListManager(cur, self.currentUser)
+            header, rows = genome_list_mngr.viewGenomeListsContents(list_ids)
+            if not header:
                 raise GenomeDatabaseError(
-                    "Unable to view genome list. Cannot retrieve genomes IDs for lists: %s" % str(list_ids))
-
-            if not self.PrintGenomesDetails(genome_id_list):
-                raise GenomeDatabaseError(
-                    "Unable to view genome list. Printing to screen failed on genome ids: %s" % str(genome_id_list))
+                    "Unable to view genome lists")
+            else:
+                self.PrintTable(header, rows)
 
             return True
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-
-    def PrintGenomeListsDetails(self, genome_list_ids):
-        """Print genome list details.
-
-        Parameters
-        ----------
-        genome_list_ids : iterable
-            Unique identifier of genome lists in database.
-
-        Returns
-        -------
-        bool
-            True if successful, else False.
-        """
-
-        try:
-            cur = self.conn.cursor()
-
-            if not genome_list_ids:
-                raise GenomeDatabaseError(
-                    "Unable to print genome details: No genomes given.")
-
-            cur.execute(
-                "SELECT lists.id, lists.name, lists.owned_by_root, users.username, count(contents.list_id) " +
-                "FROM genome_lists as lists " +
-                "LEFT OUTER JOIN users ON lists.owner_id = users.id " +
-                "JOIN genome_list_contents as contents ON contents.list_id = lists.id " +
-                "WHERE lists.id in %s " +
-                "GROUP by lists.id, users.username " +
-                "ORDER by lists.display_order asc, lists.id", (tuple(genome_list_ids),)
-            )
-
-            # print table
-            header = (
-                "list_id", "name", "owner", "genome_count")
-
-            rows = []
-            for (list_id, name, owned_by_root, username, genome_count) in cur:
-                rows.append(
-                    (list_id, name, ("root" if owned_by_root else username), genome_count))
-
-            self.PrintTable(header, rows)
-
-            return True
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return False
-
-    # True if has permission, False if not. None on error.
-    def HasPermissionToViewGenomeList(self, genome_list_id):
-        try:
-            cur = self.conn.cursor()
-
-            cur.execute("SELECT owner_id, owned_by_root, private " +
-                        "FROM genome_lists " +
-                        "WHERE id = %s ", (genome_list_id,))
-
-            result = cur.fetchone()
-
-            if not result:
-                raise GenomeDatabaseError(
-                    "No genome list with id: %s" % str(genome_list_id))
-
-            (owner_id, owned_by_root, private) = result
-
-            if not self.currentUser.isRootUser():
-                if private and (owned_by_root or owner_id != self.currentUser.getUserId()):
-                    return False
-
-            return True
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            self.conn.rollback()
-            return None
 
     # True on success, false on failure.
     def EditGenomeList(self, genome_list_id, batchfile=None, genomes_external_ids=None, operation=None, name=None, description=None, private=None):
@@ -1523,6 +1346,26 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
+        return True
+
+    def deleteGenomeLists(self, list_ids=None):
+        '''
+        Delete a list of genome lists
+
+        :param list_ids: List of list IDs to delete 
+        '''
+        try:
+            cur = self.conn.cursor()
+            genome_list_mngr = GenomeListManager(cur, self.currentUser)
+            if not genome_list_mngr.deleteGenomeList(list_ids):
+                raise GenomeDatabaseError(
+                    "Unable to edit genome lists")
+
+            self.conn.commit()
+        except GenomeDatabaseError as e:
+            self.conn.rollback()
+            self.ReportError(e.message)
+            return False
         return True
 
     def CreateMarkerSet(self, batchfile, external_ids, name, description, private=None):
@@ -1892,14 +1735,12 @@ class GenomeDatabase(object):
                         "ORDER BY id")
             genome_counts = cur.fetchall()
 
-            # print table
-            header = ('Genome Source', 'Prefix', 'Genome Count')
-
-            rows = []
+            print '\t'.join(('Genome Source', 'Prefix', 'Genome Count'))
             for tup in genome_counts:
-                rows.append(tup)
+                print '\t'.join(map(str, list(tup)))
 
-            self.PrintTable(header, rows)
+            print ''
+            print 'Total genomes: %d' % (sum([x[2] for x in genome_counts]))
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
