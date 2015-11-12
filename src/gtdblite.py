@@ -330,6 +330,13 @@ def EditGenomeLists(db, args):
     return db.EditGenomeList(args.list_id, args.batchfile, genome_ids, args.operation, args.name, args.description, private)
 
 
+def DeleteGenomeLists(db, args):
+    list_ids = None
+    if args.list_ids:
+        list_ids = args.list_ids.split(",")
+    return db.deleteGenomeLists(list_ids)
+
+
 def ViewMarkers(db, args):
 
     if args.view_all:
@@ -624,8 +631,10 @@ if __name__ == '__main__':
                              action='store_true', help='Show genome lists owned by you.')
     mutex_group.add_argument(
         '--owner', dest='owner_name', help='Show genome lists owned by a specific user.')
-    mutex_group.add_argument('--all_public', default=False, action='store_true', help='Show public genome lists from all users.')
-    mutex_group.add_argument('--all', default=False, action='store_true', help='View all genome lists.')
+    mutex_group.add_argument(
+        '--all_public', default=False, action='store_true', help='Show public genome lists from all users.')
+    mutex_group.add_argument(
+        '--all', default=False, action='store_true', help='View all genome lists.')
 
     parser_genome_lists_view.set_defaults(func=ViewGenomeLists)
 
@@ -648,7 +657,7 @@ if __name__ == '__main__':
     parser_genome_lists_edit.add_argument('--genome_ids', dest='genome_ids',
                                           help='List of genome IDs to add/remove from list')
     parser_genome_lists_edit.add_argument('--operation', dest='operation', choices=('add', 'remove'),
-                                          help='What to do with the tree_ids with regards to the genome list.')
+                                          help='What to do with the tree_ids with regards to the genome list.WARNING: If all genomes are removed from a list, The list will be deleted.')
     parser_genome_lists_edit.add_argument('--name', dest='name',
                                           help='Modify the name of the list to this.')
     parser_genome_lists_edit.add_argument('--description', dest='description',
@@ -661,6 +670,15 @@ if __name__ == '__main__':
     mutex_group.add_argument('--set_public', dest='public', action="store_true", default=False,
                              help='Make this genome list public (all users can see).')
     parser_genome_lists_edit.set_defaults(func=EditGenomeLists)
+
+    # Delete genome list
+    parser_genome_lists_delete = genome_list_category_subparser.add_parser('delete',
+                                                                           formatter_class=CustomHelpFormatter,
+                                                                           help='Delete a genome list')
+    parser_genome_lists_delete.add_argument('--list_ids', dest='list_ids',
+                                            required=True, help='The id of the genome lists to delete')
+    parser_genome_lists_delete.set_defaults(func=DeleteGenomeLists)
+
 
 # --------- Marker Management Subparsers
 
@@ -715,11 +733,16 @@ if __name__ == '__main__':
 
     mutex_group = parser_marker_sets_view.add_mutually_exclusive_group(
         required=True)
-    mutex_group.add_argument('--root', dest='root_owned', default=False, action='store_true', help='Only show marker sets owned by the root user.')
-    mutex_group.add_argument('--self', dest='self_owned', default=False, action='store_true', help='Only show marker sets owned by you.')
-    mutex_group.add_argument('--owner', dest='owner_name', help='Only show marker sets owned by a specific user.')
-    mutex_group.add_argument('--all_public', default=False, action='store_true', help='Show public marker sets from all users.')
-    mutex_group.add_argument('--all', default=False, action='store_true', help='View all marker sets.')
+    mutex_group.add_argument('--root', dest='root_owned', default=False,
+                             action='store_true', help='Only show marker sets owned by the root user.')
+    mutex_group.add_argument('--self', dest='self_owned', default=False,
+                             action='store_true', help='Only show marker sets owned by you.')
+    mutex_group.add_argument(
+        '--owner', dest='owner_name', help='Only show marker sets owned by a specific user.')
+    mutex_group.add_argument(
+        '--all_public', default=False, action='store_true', help='Show public marker sets from all users.')
+    mutex_group.add_argument(
+        '--all', default=False, action='store_true', help='View all marker sets.')
 
     parser_marker_sets_view.set_defaults(func=ViewMarkerSets)
 
