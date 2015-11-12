@@ -467,7 +467,7 @@ class GenomeDatabase(object):
 
             if batchfile:
                 fh = open(batchfile, "rb")
-                external_ids.extend([line.rstrip().split('\t')[0] for line in fh])
+                external_ids.extend([line.rstrip().split('\t')[0] for line in fh if line[0] != '#'])
                 fh.close()
 
             genome_ids = self.ExternalGenomeIdsToGenomeIds(external_ids)
@@ -1892,12 +1892,14 @@ class GenomeDatabase(object):
                         "ORDER BY id")
             genome_counts = cur.fetchall()
 
-            print '\t'.join(('Genome Source', 'Prefix', 'Genome Count'))
-            for tup in genome_counts:
-                print '\t'.join(map(str, list(tup)))
+            # print table
+            header = ('Genome Source', 'Prefix', 'Genome Count')
 
-            print ''
-            print 'Total genomes: %d' % (sum([x[2] for x in genome_counts]))
+            rows = []
+            for tup in genome_counts:
+                rows.append(tup)
+
+            self.PrintTable(header, rows)
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
