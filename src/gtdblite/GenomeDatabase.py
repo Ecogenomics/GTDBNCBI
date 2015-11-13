@@ -1273,13 +1273,60 @@ class GenomeDatabase(object):
     def ViewGenomeListsContents(self, list_ids):
         try:
             cur = self.conn.cursor()
+
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
-            header, rows = genome_list_mngr.viewGenomeListsContents(list_ids)
-            if not header:
+            genome_id_list = genome_list_mngr.GetGenomeIdListFromGenomeListId(list_ids)
+
+            if not genome_id_list:
                 raise GenomeDatabaseError(
-                    "Unable to view genome lists")
-            else:
-                self.PrintTable(header, rows)
+                    "Unable to view genome list. Cannot retrieve genomes IDs for lists: %s" % str(list_ids))
+
+            self.PrintGenomesDetails(genome_id_list)
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+
+        return True
+
+    def PrintGenomeListsDetails(self, genome_list_ids):
+        """Print genome list details.
+        Parameters
+        ----------
+        genome_list_ids : iterable
+            Unique identifier of genome lists in database.
+        Returns
+        -------
+        bool
+            True if successful, else False.
+        """
+
+        try:
+            cur = self.conn.cursor()
+
+            if not genome_list_ids:
+                raise GenomeDatabaseError(
+                    "Unable to print genome details: No genomes given.")
+
+            cur.execute(
+                "SELECT lists.id, lists.name, lists.owned_by_root, users.username, count(contents.list_id) " +
+                "FROM genome_lists as lists " +
+                "LEFT OUTER JOIN users ON lists.owner_id = users.id " +
+                "JOIN genome_list_contents as contents ON contents.list_id = lists.id " +
+                "WHERE lists.id in %s " +
+                "GROUP by lists.id, users.username " +
+                "ORDER by lists.display_order asc, lists.id", (tuple(genome_list_ids),)
+            )
+
+            # print table
+            header = (
+                "list_id", "name", "owner", "genome_count")
+
+            rows = []
+            for (list_id, name, owned_by_root, username, genome_count) in cur:
+                rows.append(
+                    (list_id, name, ("root" if owned_by_root else username), genome_count))
+
+            self.PrintTable(header, rows)
 
             return True
 
@@ -1352,7 +1399,7 @@ class GenomeDatabase(object):
         '''
         Delete a list of genome lists
 
-        :param list_ids: List of list IDs to delete 
+        :param list_ids: List of list IDs to delete
         '''
         try:
             cur = self.conn.cursor()
