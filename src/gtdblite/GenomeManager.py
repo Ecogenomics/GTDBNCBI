@@ -31,6 +31,8 @@ from MetadataManager import MetadataManager
 from Prodigal import Prodigal
 from TigrfamSearch import TigrfamSearch
 from PfamSearch import PfamSearch
+from AlignedMarkerManager import AlignedMarkerManager
+from MarkerSetManager import MarkerSetManager
 
 from biolib.checksum import sha256
 from biolib.common import make_sure_path_exists
@@ -39,7 +41,7 @@ from biolib.common import make_sure_path_exists
 class GenomeManager(object):
     """Manage the processing of new genomes and querying genome information."""
 
-    def __init__(self, cur, currentUser, threads):
+    def __init__(self, cur, currentUser, threads=1):
         """Initialize.
 
         Parameters
@@ -151,6 +153,16 @@ class GenomeManager(object):
             self.logger.info("Identifying Pfam protein families.")
             pfam_search = PfamSearch(self.threads)
             pfam_search.run(gene_files)
+
+            # identify an align canonical bacterial and archaeal markers
+            marker_set_mngr = MarkerSetManager(self.cur, self.currentUser)
+            bac_marker_ids = marker_set_mngr.GetCanonicalBacterialMarkers()
+            ar_marker_ids = marker_set_mngr.GetCanonicalArchaealMarkers()
+
+            aligned_marker_mngr = AlignedMarkerManager(self.threads)
+            aligned_marker_mngr.calculateAlignedMarkerSets(genomes_to_retain, marker_ids)
+
+            # determine if genomes should be assigned to a representatives
         except:
             if os.path.exists(self.tmp_output_dir):
                 shutil.rmtree(self.tmp_output_dir)
@@ -623,3 +635,179 @@ class GenomeManager(object):
             raise e
 
         return (True, current_username, dict_genomes_user)
+
+    def externalGenomeIdsToGenomeIds(self, external_ids):
+        """Get database genome identifiers from external identifiers.
+
+        Parameters
+        ----------
+        external_ids : list
+            List of external genome ids.
+
+        Returns
+        -------
+        list
+            List of database genome ids.
+        """
+
+        try:
+
+            map_sources_to_ids = {}
+            for external_id in external_ids:
+                try:
+                    (source_prefix, id_at_source) = external_id.split("_", 1)
+                except ValueError:
+                    raise GenomeDatabaseError(
+                        "All genome ids must have the form <prefix>_<id>. Offending id: %s" % str(external_id))
+
+                if source_prefix not in map_sources_to_ids:
+                    map_sources_to_ids[source_prefix] = {}
+                map_sources_to_ids[source_prefix][id_at_source] = external_id
+
+            temp_table_name = Tools.generateTempTableName()
+
+            if len(map_sources_to_ids.keys()):
+                self.cur.execute("CREATE TEMP TABLE %s (prefix text)" %
+                            (temp_table_name,))
+                query = "INSERT INTO {0} (prefix) VALUES (%s)".format(
+                    temp_table_name)
+                self.cur.executemany(query, [(x,)
+                                        for x in map_sources_to_ids.keys()])
+            else:
+                raise GenomeDatabaseError(
+                    "No genome sources found for these ids. %s" % str(external_ids))
+
+            # Find any given tree prefixes that arent in the genome sources
+            query = ("SELECT prefix FROM {0} " +
+                     "WHERE prefix NOT IN ( " +
+                     "SELECT external_id_prefix " +
+                     "FROM genome_sources)").format(temp_table_name)
+
+            self.cur.execute(query)
+
+            missing_genome_sources = {}
+            for (query_prefix,) in self.cur:
+                missing_genome_sources[query_prefix] = map_sources_to_ids[
+                    query_prefix].values()
+
+            if len(missing_genome_sources.keys()):
+                errors = []
+                for (source_prefix, offending_ids) in missing_genome_sources.items():
+                    errors.append("(%s) %s" %
+                                  (source_prefix, str(offending_ids)))
+                raise GenomeDatabaseError("Cannot find the relevant genome source id for the following ids, check the IDs are correct: " +
+                                          ", ".join(errors))
+
+            # All genome sources should be good, find ids
+            result_ids = []
+            for source_prefix in map_sources_to_ids.keys():
+
+                # Create a table of requested external ids from this genome
+                # source
+                temp_table_name = Tools.generateTempTableName()
+                self.cur.execute(
+                    "CREATE TEMP TABLE %s (id_at_source text)" % (temp_table_name,))
+                query = "INSERT INTO {0} (id_at_source) VALUES (%s)".format(
+                    temp_table_name)
+                self.cur.executemany(
+                    query, [(x,) for x in map_sources_to_ids[source_prefix].keys()])
+
+                # Check to see if there are any that don't exist
+                query = ("SELECT id_at_source FROM {0} " +
+                         "WHERE id_at_source NOT IN ( " +
+                         "SELECT id_at_source " +
+                         "FROM genomes, genome_sources " +
+                         "WHERE genome_source_id = genome_sources.id " +
+                         "AND external_id_prefix = %s)").format(temp_table_name)
+
+                self.cur.execute(query, (source_prefix,))
+
+                missing_ids = []
+                for (id_at_source,) in self.cur:
+                    missing_ids.append(source_prefix + "_" + id_at_source)
+
+                if missing_ids:
+                    raise GenomeDatabaseError(
+                        "Cannot find the the following genome ids, check the IDs are correct: %s" % str(missing_ids))
+
+                # All exist, so get their ids.
+                query = ("SELECT genomes.id FROM genomes, genome_sources " +
+                         "WHERE genome_source_id = genome_sources.id " +
+                         "AND id_at_source IN ( " +
+                         "SELECT id_at_source " +
+                         "FROM {0} )" +
+                         "AND external_id_prefix = %s").format(temp_table_name)
+
+                self.cur.execute(query, (source_prefix,))
+
+                for (genome_id,) in self.cur:
+                    result_ids.append(genome_id)
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return result_ids
+
+    def getAllGenomeIds(self):
+        """Get genome identifiers for all genomes.
+
+        Returns
+        -------
+        list
+            Database identifiers for all genomes.
+        """
+
+        try:
+            query = "SELECT id FROM genomes"
+            self.cur.execute(query)
+
+            result_ids = []
+            for (genome_id,) in self.cur:
+                result_ids.append(genome_id)
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return result_ids
+
+    def printGenomeDetails(self, genome_id_list):
+        """Print genome details.
+
+        Parameters
+        ----------
+        genome_id_list : iterable
+            Unique identifier of genomes in database.
+
+        Returns
+        -------
+        list
+            Column headers.
+        list
+            Content for each row.
+        """
+
+        try:
+            if not genome_id_list:
+                raise GenomeDatabaseError("Unable to print genomes. No genomes found.")
+
+            columns = "genomes.id, genomes.name, description, owned_by_root, username, " + \
+                "external_id_prefix || '_' || id_at_source as external_id, date_added"
+
+            self.cur.execute("SELECT " + columns + " FROM genomes " +
+                        "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
+                        "JOIN genome_sources AS sources ON genome_source_id = sources.id " +
+                        "AND genomes.id in %s " +
+                        "ORDER BY genomes.id ASC", (tuple(genome_id_list),))
+
+            header = ("genome_id", "name", "description", "owner", "data_added")
+
+            rows = []
+            for (_genome_id, name, description, owned_by_root, username, external_id, date_added) in self.cur:
+                rows.append((external_id, name, description,
+                             ("root" if owned_by_root else username),
+                             date_added.date()))
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return header, rows
