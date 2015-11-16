@@ -24,6 +24,7 @@ import psycopg2 as pg
 
 from biolib.taxonomy import Taxonomy
 
+from GenomeManager import GenomeManager
 from GenomeListManager import GenomeListManager
 
 
@@ -90,10 +91,11 @@ class GenomeFilter(object):
         self.logger.info('Identifying genomes to be excluded from filtering.')
         guaranteed_genomes = set()
         if guaranteed_genome_ids:
+            genome_mngr = GenomeManager(self.cur, self.currentUser)
             guaranteed_genome_ids = [x.strip()
                                      for x in guaranteed_genome_ids.split(",")]
             guaranteed_genomes.update(
-                GenomeDatabase.ExternalGenomeIdsToGenomeIds(guaranteed_genome_ids))
+                genome_mngr.externalGenomeIdsToGenomeIds(guaranteed_genome_ids))
 
         if guaranteed_genome_list_ids:
             guaranteed_genome_list_ids = [x.strip() for x in guaranteed_genome_list_ids.split(",")]
