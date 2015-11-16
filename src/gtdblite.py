@@ -20,7 +20,6 @@
 import argparse
 import sys
 import os
-import pwd
 import ntpath
 import logging
 
@@ -32,7 +31,11 @@ from gtdblite.Exceptions import GenomeDatabaseError
 from biolib.external.execute import check_dependencies
 from biolib.misc.custom_help_formatter import CustomHelpFormatter
 
+from gtdblite.UserManager import UserManager
+from gtdblite.GenomeManager import GenomeManager
 from gtdblite.GenomeListManager import GenomeListManager
+from gtdblite.MarkerManager import MarkerManager
+from gtdblite.MarkerSetManager import MarkerSetManager
 
 
 def version():
@@ -105,10 +108,6 @@ def loggerSetup(output_dir, silent=False):
     logger.info(ntpath.basename(sys.argv[0]) + ' ' + ' '.join(sys.argv[1:]))
 
 
-def GetLinuxUsername():
-    return pwd.getpwuid(os.getuid())[0]
-
-
 def DumpDBErrors(db):
     ErrorReport("\n".join(["\t" + x for x in db.GetErrors()]) + "\n")
     db.ClearErrors()
@@ -129,11 +128,13 @@ def AddUser(db, args):
     if args.has_root:
         has_root = True
 
-    return db.AddUser(args.username, args.role, has_root)
+    user_mngr = UserManager(db.conn.cursor())
+    return user_mngr.addUser(args.username, args.role, has_root)
 
 
 def EditUser(db, args):
-    return db.EditUser(args.username, args.role, args.has_root)
+    user_mngr = UserManager(db.conn.cursor())
+    return user_mngr.editUser(args.username, args.role, args.has_root)
 
 
 def AddGenomes(db, args):
@@ -167,8 +168,8 @@ def CreateTreeData(db, args):
                 return False
 
         if args.genome_ids:
-            temp_list = db.ExternalGenomeIdsToGenomeIds(
-                args.genome_ids.split(","))
+            genome_mngr = GenomeManager(db.conn.cursor(), db.currentUser)
+            temp_list = genome_mngr.externalGenomeIdsToGenomeIds(args.genome_ids.split(","))
             if temp_list is False:
                 return False
             genome_id_list += temp_list
@@ -197,7 +198,8 @@ def CreateTreeData(db, args):
 
     marker_id_list = []
     if args.marker_ids:
-        temp_list = db.ExternalMarkerIdsToMarkerIds(args.marker_ids.split(","))
+        marker_mngr = MarkerManager(db.conn.cursor(), db.currentUser)
+        temp_list = marker_mngr.externalMarkerIdsToMarkerIds(args.marker_ids.split(","))
         if temp_list is None:
             return False
         marker_id_list += temp_list
@@ -206,7 +208,8 @@ def CreateTreeData(db, args):
     if args.marker_set_ids:
         marker_set_ids = args.marker_set_ids.split(",")
         for set_id in marker_set_ids:
-            temp_marker_list = db.GetMarkerIdListFromMarkerSetId(set_id)
+            marker_set_mngr = MarkerSetManager(db.conn.cursor(), db.currentUser)
+            temp_marker_list = marker_set_mngr.getMarkerIdListFromMarkerSetId(set_id)
             if temp_marker_list:
                 marker_id_list += temp_marker_list
 
@@ -218,7 +221,8 @@ def CreateTreeData(db, args):
             marker_batchfile_ids.append(line)
 
     if marker_batchfile_ids:
-        temp_list = db.ExternalMarkerIdsToMarkerIds(marker_batchfile_ids)
+        marker_mngr = MarkerManager(db.conn.cursor(), db.currentUser)
+        temp_list = marker_mngr.externalMarkerIdsToMarkerIds(marker_batchfile_ids)
         if temp_list is None:
             return False
         marker_id_list += temp_list
@@ -270,15 +274,6 @@ def CreateGenomeList(db, args):
 
     if not genome_list_id:
         return False
-
-    try:
-        print_success = db.PrintGenomeListsDetails([genome_list_id])
-    except:
-        print_success = False
-
-    if not print_success:
-        db.ReportWarning(
-            "New genome list was created, but failed to print details to screen.")
 
     return genome_list_id
 
@@ -336,7 +331,7 @@ def DeleteGenomeLists(db, args):
     list_ids = None
     if args.list_ids:
         list_ids = args.list_ids.split(",")
-    return db.deleteGenomeLists(list_ids)
+    return db.DeleteGenomeLists(list_ids)
 
 
 def ViewMarkers(db, args):
@@ -361,18 +356,6 @@ def CreateMarkerSet(db, args):
                                        args.name,
                                        args.description,
                                        (not args.public))
-
-    if marker_set_id is False:
-        return False
-
-    try:
-        print_success = db.PrintMarkerSetsDetails([marker_set_id])
-    except:
-        print_success = False
-
-    if not print_success:
-        db.ReportWarning(
-            "New marker set was created, but failed to print details to screen.")
 
     return marker_set_id
 
@@ -427,23 +410,23 @@ def MarkerSetsContents(db, args):
 
 
 def viewMetadata(db, args):
-    return db.viewMetadata()
+    return db.ViewMetadata()
 
 
 def exportMetadata(db, args):
-    return db.exportMetadata(args.outfile)
+    return db.ExportMetadata(args.outfile)
 
 
 def importMetadata(db, args):
-    return db.importMetadata(args.table, args.field, args.typemeta, args.metadatafile)
+    return db.ImportMetadata(args.table, args.field, args.typemeta, args.metadatafile)
 
 
 def createMetadata(db, args):
-    return db.createMetadata(args.metadatafile)
+    return db.CreateMetadata(args.metadatafile)
 
 
 def DatabaseStatsData(db, args):
-    return db.reportStats()
+    return db.ReportStats()
 
 
 if __name__ == '__main__':
@@ -926,22 +909,7 @@ if __name__ == '__main__':
 
     # Login
     try:
-        if args.logon_as_user:
-            if not db.RootLogin(GetLinuxUsername()):
-                raise GenomeDatabaseError(
-                    "Unable to impersonate user %s." % args.logon_as_user)
-
-            if not db.UserLogin(args.logon_as_user):
-                raise GenomeDatabaseError(
-                    "Unable to impersonate user %s." % args.logon_as_user)
-
-        elif args.login_as_root:
-            if not db.RootLogin(GetLinuxUsername()):
-                raise GenomeDatabaseError("Unable to become root user.")
-        else:
-            if not db.UserLogin(GetLinuxUsername()):
-                raise GenomeDatabaseError("Database login failed.")
-
+        db.Login(args.logon_as_user, args.login_as_root)
     except GenomeDatabaseError as e:
         ErrorReport(e.message + " The following error(s) were reported:\n")
         DumpDBErrors(db)
