@@ -24,12 +24,26 @@ import psycopg2 as pg
 
 from biolib.taxonomy import Taxonomy
 
+from GenomeListManager import GenomeListManager
+
 
 class GenomeFilter(object):
 
-    def __init__(self):
-        """Initialization."""
+    def __init__(self, cur, currentUser):
+        """Initialize.
+
+        Parameters
+        ----------
+        cur : psycopg2.cursor
+            Database cursor.
+        currentUser : User
+            Current user of database.
+        """
+
         self.logger = logging.getLogger()
+
+        self.cur = cur
+        self.currentUser = currentUser
 
     def FilterTreeData(self, GenomeDatabase, marker_ids, genome_ids,
                        comp_threshold, cont_threshold,
@@ -54,13 +68,11 @@ class GenomeFilter(object):
             GenomeDatabase.ReportError("Directory doesn't exist: " + directory)
             return None
 
-        cur = GenomeDatabase.conn.cursor()
-
         # For all of the markers, get the expected marker size.
         if GenomeDatabase.debugMode:
             self.logger.info("Getting expected marker sizes...")
 
-        cur.execute("SELECT markers.id, markers.name, description, id_in_database, size, external_id_prefix " +
+        self.cur.execute("SELECT markers.id, markers.name, description, id_in_database, size, external_id_prefix " +
                     "FROM markers, marker_databases " +
                     "WHERE markers.id in %s "
                     "AND markers.marker_database_id = marker_databases.id "
@@ -69,7 +81,7 @@ class GenomeFilter(object):
         chosen_markers = dict()
         chosen_markers_order = []
 
-        for marker_id, marker_name, marker_description, id_in_database, size, external_id_prefix in cur:
+        for marker_id, marker_name, marker_description, id_in_database, size, external_id_prefix in self.cur:
             chosen_markers[marker_id] = {'external_id_prefix': external_id_prefix, 'name': marker_name,
                                          'description': marker_description, 'id_in_database': id_in_database, 'size': size}
             chosen_markers_order.append(marker_id)
@@ -84,18 +96,18 @@ class GenomeFilter(object):
                 GenomeDatabase.ExternalGenomeIdsToGenomeIds(guaranteed_genome_ids))
 
         if guaranteed_genome_list_ids:
-            guaranteed_genome_list_ids = [
-                x.strip() for x in guaranteed_genome_list_ids.split(",")]
-            guaranteed_genomes.update(
-                GenomeDatabase.GetGenomeIdListFromGenomeListIds(guaranteed_genome_list_ids))
+            guaranteed_genome_list_ids = [x.strip() for x in guaranteed_genome_list_ids.split(",")]
+
+            genome_list_mngr = GenomeListManager(self.cur, self.currentUser)
+            genome_id_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(guaranteed_genome_list_ids)
+            guaranteed_genomes.update(genome_id_list)
         self.logger.info(
             'Identified %d genomes to be excluded from filtering.' % len(guaranteed_genomes))
 
         # find genomes that fail completeness and contamination thresholds
         self.logger.info('Filtering genomes with completeness <%.1f%% or contamination >%.1f%%.' % (
             comp_threshold, cont_threshold))
-        filtered_genomes = self._filterOnGenomeQuality(
-            cur, genome_ids, comp_threshold, cont_threshold)
+        filtered_genomes = self._filterOnGenomeQuality(genome_ids, comp_threshold, cont_threshold)
         filtered_genomes -= guaranteed_genomes
         self.logger.info(
             'Filtered %d genomes based on completeness and contamination.' % len(filtered_genomes))
@@ -106,8 +118,7 @@ class GenomeFilter(object):
             self.logger.info(
                 'Filtering genomes outside taxonomic groups of interest.')
             taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
-            genome_ids_from_taxa = self._genomesFromTaxa(
-                cur, genome_ids, taxa_to_retain)
+            genome_ids_from_taxa = self._genomesFromTaxa(genome_ids, taxa_to_retain)
 
             new_genomes_to_retain = genomes_to_retain.intersection(
                 genome_ids_from_taxa).union(guaranteed_genomes)
@@ -145,11 +156,11 @@ class GenomeFilter(object):
         multi_hits_fh.write("\t".join(multi_hits_header) + "\n")
 
         # select genomes to retain
-        cur.execute("SELECT * " +
+        self.cur.execute("SELECT * " +
                     "FROM metadata_view "
                     "WHERE id IN %s", (tuple(genomes_to_retain),))
-        col_headers = [desc[0] for desc in cur.description]
-        metadata = cur.fetchall()
+        col_headers = [desc[0] for desc in self.cur.description]
+        metadata = self.cur.fetchall()
 
         # create ARB import filter
         arb_import_filter = os.path.join(directory, prefix + "_arb_filter.ift")
@@ -183,10 +194,10 @@ class GenomeFilter(object):
                                     "AND sequence is NOT NULL " +
                                     "AND marker_id in %s ")
 
-            cur.execute(
+            self.cur.execute(
                 aligned_marker_query, (db_genome_id, tuple(marker_ids)))
 
-            if (cur.rowcount == 0):
+            if (self.cur.rowcount == 0):
                 self.logger.warning(
                     "Genome %s has no markers for this marker set in the database and will be missing from the output files." % external_genome_id)
                 continue
@@ -280,13 +291,11 @@ class GenomeFilter(object):
 
         return genomes_to_retain
 
-    def _filterOnGenomeQuality(self, cur, genome_ids, comp_threshold, cont_threshold):
+    def _filterOnGenomeQuality(self, genome_ids, comp_threshold, cont_threshold):
         """Filter genomes on completeness and contamination thresholds.
 
         Parameters
         ----------
-        cur :
-            Database cursor.
         genome_ids : list
             Database identifier for genomes of interest.
         comp_threshold : float
@@ -300,22 +309,20 @@ class GenomeFilter(object):
             Database identifier of genomes passing quality filtering.
         """
 
-        cur.execute("SELECT id " +
-                    "FROM metadata_genes " +
-                    "WHERE id IN %s " +
-                    "AND (checkm_completeness < %s " +
-                    "OR checkm_contamination > %s)",
-                    (tuple(genome_ids), comp_threshold, cont_threshold))
+        self.cur.execute("SELECT id " +
+                            "FROM metadata_genes " +
+                            "WHERE id IN %s " +
+                            "AND (checkm_completeness < %s " +
+                            "OR checkm_contamination > %s)",
+                            (tuple(genome_ids), comp_threshold, cont_threshold))
 
-        return set([x[0] for x in cur])
+        return set([x[0] for x in self.cur])
 
-    def _genomesFromTaxa(self, cur, genome_ids, taxa_to_retain):
+    def _genomesFromTaxa(self, genome_ids, taxa_to_retain):
         """Filter genomes to those within specified taxonomic groups.
 
         Parameters
         ----------
-        cur :
-            Database cursor.
         genome_ids : list
             Database identifier for genomes of interest.
         taxa_to_retain : list
@@ -346,13 +353,13 @@ class GenomeFilter(object):
                 query_tuple.append(tuple(taxa))
         query_str = ' OR '.join(query_str)
 
-        cur.execute("SELECT id " +
-                    "FROM metadata_taxonomy " +
-                    "WHERE id IN %s "
-                    "AND " + query_str,
-                    tuple(query_tuple))
+        self.cur.execute("SELECT id " +
+                            "FROM metadata_taxonomy " +
+                            "WHERE id IN %s "
+                            "AND " + query_str,
+                            tuple(query_tuple))
 
-        genome_ids_from_taxa = set([x[0] for x in cur])
+        genome_ids_from_taxa = set([x[0] for x in self.cur])
 
         return genome_ids_from_taxa
 
