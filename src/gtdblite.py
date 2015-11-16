@@ -32,6 +32,8 @@ from gtdblite.Exceptions import GenomeDatabaseError
 from biolib.external.execute import check_dependencies
 from biolib.misc.custom_help_formatter import CustomHelpFormatter
 
+from gtdblite.GenomeListManager import GenomeListManager
+
 
 def version():
     """Read software and NCBI version information from file.
@@ -172,8 +174,8 @@ def CreateTreeData(db, args):
             genome_id_list += temp_list
 
         if args.genome_list_ids:
-            temp_list = db.GetGenomeIdListFromGenomeListIds(
-                args.genome_list_ids.split(","))
+            genome_list_mngr = GenomeListManager(db.conn.cursor(), db.currentUser)
+            temp_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(args.genome_list_ids.split(","))
             if temp_list is False:
                 return False
             genome_id_list += temp_list
