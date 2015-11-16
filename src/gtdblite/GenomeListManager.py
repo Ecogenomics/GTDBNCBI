@@ -317,9 +317,7 @@ class GenomeListManager(object):
                     genome_list_ids),)
             )
 
-            # print table
-            header = (
-                "list_id", "name", "owner", "genome_count")
+            header = ("list_id", "name", "owner", "genome_count")
 
             rows = []
             for (list_id, name, owned_by_root, username, genome_count) in self.cur:
