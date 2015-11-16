@@ -1120,7 +1120,9 @@ class GenomeDatabase(object):
             len(genome_ids), len(marker_ids)))
 
         try:
-            gf = GenomeFilter()
+            cur = self.conn.cursor()
+
+            gf = GenomeFilter(cur, self.currentUser)
             genomes_to_retain, chosen_markers_order, chosen_markers = gf.FilterTreeData(self, marker_ids, genome_ids,
                                                                                         comp_threshold, cont_threshold,
                                                                                         taxa_filter,
@@ -1275,7 +1277,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
-            genome_id_list = genome_list_mngr.GetGenomeIdListFromGenomeListId(list_ids)
+            genome_id_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(list_ids)
 
             if not genome_id_list:
                 raise GenomeDatabaseError(
@@ -1303,28 +1305,8 @@ class GenomeDatabase(object):
         try:
             cur = self.conn.cursor()
 
-            if not genome_list_ids:
-                raise GenomeDatabaseError(
-                    "Unable to print genome details: No genomes given.")
-
-            cur.execute(
-                "SELECT lists.id, lists.name, lists.owned_by_root, users.username, count(contents.list_id) " +
-                "FROM genome_lists as lists " +
-                "LEFT OUTER JOIN users ON lists.owner_id = users.id " +
-                "JOIN genome_list_contents as contents ON contents.list_id = lists.id " +
-                "WHERE lists.id in %s " +
-                "GROUP by lists.id, users.username " +
-                "ORDER by lists.display_order asc, lists.id", (tuple(genome_list_ids),)
-            )
-
-            # print table
-            header = (
-                "list_id", "name", "owner", "genome_count")
-
-            rows = []
-            for (list_id, name, owned_by_root, username, genome_count) in cur:
-                rows.append(
-                    (list_id, name, ("root" if owned_by_root else username), genome_count))
+            genome_list_mngr = GenomeListManager(cur, self.currentUser)
+            header, rows = genome_list_mngr.printGenomeListsDetails(genome_list_ids)
 
             self.PrintTable(header, rows)
 
