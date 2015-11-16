@@ -41,7 +41,6 @@ class GenomeListManager(object):
         self.logger = logging.getLogger()
 
         self.cur = cur
-
         self.currentUser = currentUser
 
     # TODO: This should not be here, technically the backend is agnostic so
@@ -200,27 +199,7 @@ class GenomeListManager(object):
 
         return True
 
-    # Function: GetGenomeIdListFromGenomeListId
-    # Given a genome list id, return all the ids of the genomes contained within that genome list.
-    #
-    # Parameters:
-    # genome_list_id - The genome list id of the genome list whose contents needs to be retrieved.
-    #
-    # Returns:
-    # A list of all the genome ids contained within the specified genome list,
-    # False on failure.
-    def GetGenomeIdListFromGenomeListId(self, genome_list_id):
-        try:
-            self.cur.execute("SELECT genome_id " +
-                             "FROM genome_list_contents " +
-                             "WHERE list_id = %s", (tuple(genome_list_id),))
-
-        except GenomeDatabaseError as e:
-            raise e
-
-        return [genome_id for (genome_id,) in self.cur.fetchall()]
-
-    def _getGenomeIdListFromGenomeListIds(self, genome_list_ids):
+    def getGenomeIdListFromGenomeListIds(self, genome_list_ids):
         '''
         Function: GetGenomeIdListFromGenomeListIds
         Given a list of ids, return all the ids of the genomes contained
@@ -266,15 +245,6 @@ class GenomeListManager(object):
                              "FROM genome_lists " +
                              "WHERE id in %s ", (tuple(genome_list_ids),))
 
-            no_permission_list_ids = []
-            for (list_id, owner_id, owned_by_root, private) in self.cur:
-                if private and (not self.currentUser.isRootUser()) and (owned_by_root or owner_id != self.currentUser.getUserId()):
-                    no_permission_list_ids.append(list_id)
-
-            if no_permission_list_ids:
-                raise GenomeDatabaseError(
-                    "Insufficient permission to view genome lists: %s" % str(no_permission_list_ids))
-
             self.cur.execute("SELECT genome_id " +
                              "FROM genome_list_contents " +
                              "WHERE list_id in %s", (tuple(genome_list_ids),))
@@ -285,26 +255,7 @@ class GenomeListManager(object):
         return [genome_id for (genome_id,) in self.cur.fetchall()]
 
     def deleteGenomeList(self, genome_list_ids):
-        for genome_list_id in genome_list_ids:
-            try:
-                edit_permission = self.permissionToModify(genome_list_id)
-                if edit_permission is None:
-                    raise GenomeDatabaseError(
-                        "Unable to retrieve genome list id for editing. Offending list id: {0}".format(genome_list_id))
-                if edit_permission is False:
-                    raise GenomeDatabaseError(
-                        "Insufficient permissions to delete genome list. Offending list id: {0}".format(genome_list_id))
-                if not self._confirm("Are you sure you want to delete {0} lists (this action cannot be undone)".format(len(genome_list_ids))):
-                    raise GenomeDatabaseError("User aborted database action.")
-                list_genomes_ids = self._getGenomeIdListFromGenomeListIds([genome_list_id])
-                self.editGenomeList(genome_list_id, list_genomes_ids, 'remove')
-            except GenomeDatabaseError as e:
-                raise e
-
-        return True
-
-    def _printGenomeListsDetails(self, genome_list_ids):
-        """Print genome list details.
+        """Delete genome list and associated genomes.
 
         Parameters
         ----------
@@ -314,7 +265,40 @@ class GenomeListManager(object):
         Returns
         -------
         bool
-            True if successful, else False.
+            True if successful.
+        """
+
+        for genome_list_id in genome_list_ids:
+            try:
+                edit_permission = self.permissionToModify(genome_list_id)
+                if edit_permission is False:
+                    raise GenomeDatabaseError(
+                        "Insufficient permissions to delete genome list. Offending list id: {0}".format(genome_list_id))
+
+                if not self._confirm("Are you sure you want to delete {0} lists (this action cannot be undone)".format(len(genome_list_ids))):
+                    raise GenomeDatabaseError("User aborted database action.")
+
+                list_genomes_ids = self.getGenomeIdListFromGenomeListIds([genome_list_id])
+                self.editGenomeList(genome_list_id, list_genomes_ids, 'remove')
+            except GenomeDatabaseError as e:
+                raise e
+
+        return True
+
+    def printGenomeListsDetails(self, genome_list_ids):
+        """Print genome list details.
+
+        Parameters
+        ----------
+        genome_list_ids : iterable
+            Unique identifier of genome lists in database.
+
+        Returns
+        -------
+        list
+            Column headers.
+        list
+            Content for each row.
         """
 
         try:
@@ -345,7 +329,7 @@ class GenomeListManager(object):
         except GenomeDatabaseError as e:
             raise e
 
-        return (header, rows)
+        return header, rows
 
     def permissionToModify(self, genome_list_id):
         """Check if user has permission to modify genome list.
