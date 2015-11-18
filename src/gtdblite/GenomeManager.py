@@ -126,7 +126,7 @@ class GenomeManager(object):
 
             self.logger.info(
                 "Calculating and storing metadata for each genomes.")
-            metadata_mngr = MetadataManager()
+            metadata_mngr = MetadataManager(self.cur, self.currentUser)
             for db_genome_id, values in genomic_files.iteritems():
                 genome_file_paths = file_paths[db_genome_id]
                 output_dir, _file = os.path.split(
@@ -137,8 +137,7 @@ class GenomeManager(object):
                     raise GenomeDatabaseError(
                         "Couldn't find CheckM result for bin  %s." % bin_id)
 
-                metadata_mngr.addMetadata(self.cur,
-                                          db_genome_id,
+                metadata_mngr.addMetadata(db_genome_id,
                                           genome_file_paths["fasta_path"],
                                           genome_file_paths["gff_path"],
                                           checkm_results_dict[bin_id],
@@ -155,12 +154,12 @@ class GenomeManager(object):
             pfam_search.run(gene_files)
 
             # identify an align canonical bacterial and archaeal markers
-            marker_set_mngr = MarkerSetManager(self.cur, self.currentUser)
-            bac_marker_ids = marker_set_mngr.GetCanonicalBacterialMarkers()
-            ar_marker_ids = marker_set_mngr.GetCanonicalArchaealMarkers()
+            # marker_set_mngr = MarkerSetManager(self.cur, self.currentUser)
+            # bac_marker_ids = marker_set_mngr.GetCanonicalBacterialMarkers()
+            # ar_marker_ids = marker_set_mngr.GetCanonicalArchaealMarkers()
 
-            aligned_marker_mngr = AlignedMarkerManager(self.threads)
-            aligned_marker_mngr.calculateAlignedMarkerSets(genomes_to_retain, marker_ids)
+            # aligned_marker_mngr = AlignedMarkerManager(self.threads)
+            # aligned_marker_mngr.calculateAlignedMarkerSets(genomes_to_retain, marker_ids)
 
             # determine if genomes should be assigned to a representatives
         except:
