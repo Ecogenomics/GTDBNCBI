@@ -17,24 +17,31 @@
 
 import os
 import logging
+
 import psycopg2
-import sys
-
-
 from psycopg2.extensions import AsIs
 
-from gtdblite import ConfigMetadata
-from gtdblite.GenomeDatabaseConnection import GenomeDatabaseConnection
-from gtdblite.Exceptions import GenomeDatabaseError
-
-from biolib.common import remove_extension
+import ConfigMetadata
+from Exceptions import GenomeDatabaseError
 
 
 class MetadataManager(object):
 
-    def __init__(self):
-        self.conn = GenomeDatabaseConnection()
-        self.conn.MakePostgresConnection()
+    def __init__(self, cur, currentUser):
+        """Initialize.
+
+        Parameters
+        ----------
+        cur : psycopg2.cursor
+            Database cursor.
+        currentUser : User
+            Current user of database.
+        """
+
+        self.logger = logging.getLogger()
+
+        self.cur = cur
+        self.currentUser = currentUser
 
     def viewMetadata(self):
         '''
@@ -45,18 +52,15 @@ class MetadataManager(object):
         Print lists of Metadata on Screen
         '''
         try:
-            cur = self.conn.cursor()
-            cur.execute("SELECT * FROM view_list_meta_columns")
+            self.cur.execute("SELECT * FROM view_list_meta_columns")
             print "\t".join(("Table", "Field", "Datatype", "Description"))
-            for tup in cur.fetchall():
+            for tup in self.cur.fetchall():
                 info_list = list(tup)
                 if info_list[2] == "double precision":
                     info_list[2] = "float"
                 elif str(info_list[2]).startswith("timestamp"):
                     info_list[2] = "timestamp"
                 print "\t".join(info_list)
-            cur.close()
-            self.conn.ClosePostgresConnection()
         except GenomeDatabaseError as e:
             raise e
 
@@ -69,14 +73,11 @@ class MetadataManager(object):
         '''
 
         try:
-            cur = self.conn.cursor()
             query = "SELECT * from metadata_view"
             outputquery = 'copy ({0}) to stdout with csv header'.format(query)
             with open(path, 'w') as f:
-                cur.copy_expert(outputquery, f)
+                self.cur.copy_expert(outputquery, f)
             print "Export Successful"
-            cur.close()
-            self.conn.ClosePostgresConnection()
         except GenomeDatabaseError as e:
             raise e
 
@@ -91,7 +92,6 @@ class MetadataManager(object):
         :param metafile: TSV file with the format (Genome_id \t Value)
         '''
         try:
-            cur = self.conn.cursor()
             data_list = []
             with open(metafile, 'r') as metaf:
                 for line in metaf:
@@ -104,10 +104,7 @@ class MetadataManager(object):
                 genome_id[n] = new_i
             query = "SELECT upsert('{0}','{1}','{2}',%s,%s)".format(
                 table, field, typemeta)
-            cur.execute(query, (genome_id, meta_value))
-            self.conn.commit()
-            cur.close()
-            self.conn.ClosePostgresConnection()
+            self.cur.execute(query, (genome_id, meta_value))
         except GenomeDatabaseError as e:
             raise e
         except psycopg2.Error as e:
@@ -122,7 +119,6 @@ class MetadataManager(object):
         Format of the TSV file is new_field \t description \t type \t table
         '''
         try:
-            cur = self.conn.cursor()
             data_dict = {}
             with open(metadatafile, 'r') as metaf:
                 for line in metaf:
@@ -134,41 +130,37 @@ class MetadataManager(object):
                         "table": array_line[3], "type": array_line[2], "desc": array_line[1]}
 
             query = "SELECT v.field,v.table from view_list_meta_columns as v"
-            cur.execute(query)
-            all_col_dict = dict(cur.fetchall())
+            self.cur.execute(query)
+            all_col_dict = dict(self.cur.fetchall())
             print all_col_dict
             for key, value in data_dict.iteritems():
                 if key in all_col_dict:
                     if all_col_dict.get(key) == value['table']:
                         query_comment = "COMMENT ON COLUMN {0}.{1} IS '{2}'".format(
                             value['table'], key, value['desc'])
-                        cur.execute(query_comment)
+                        self.cur.execute(query_comment)
                     else:
                         logging.warning("Column {0} is already presents in the {1} table .".format(
                             key, all_col_dict.get(key)))
                 else:
                     query_add_col = "ALTER TABLE {0} ADD COLUMN {1} {2}".format(
                         value['table'], key, value['type'])
-                    cur.execute(query_add_col)
+                    self.cur.execute(query_add_col)
                     query_add_comment = "COMMENT ON COLUMN {0}.{1} IS '{2}'".format(
                         value['table'], key, value['desc'])
-                    cur.execute(query_add_comment)
+                    self.cur.execute(query_add_comment)
 
 # ---------- PSQL are not refresh automatically so we need to drop the existing view and recreate it with a new Definition.
-            cur.execute("SELECT refreshView()")
-            self.conn.commit()
-            cur.close()
-            self.conn.ClosePostgresConnection
+            self.cur.execute("SELECT refreshView()")
+
         except GenomeDatabaseError as e:
             raise e
 
-    def addMetadata(self, cur, db_genome_id, genome_file, gff_file, checkm_results, output_dir):
+    def addMetadata(self, db_genome_id, genome_file, gff_file, checkm_results, output_dir):
         """Calculate and add metadata to DB.
 
         Parameters
         ----------
-        cur : psycopg2.cursor
-            Database cursor.
         db_genome_id : str
             Unique database identifer of genome.
         genome_file : str
@@ -182,16 +174,16 @@ class MetadataManager(object):
         """
 
         # create rows for genome in metadata tables
-        cur.execute(
+        self.cur.execute(
             "INSERT INTO metadata_nucleotide (id) VALUES ({0})".format(db_genome_id))
-        cur.execute(
+        self.cur.execute(
             "INSERT INTO metadata_genes (id) VALUES ({0})".format(db_genome_id))
-        cur.execute(
+        self.cur.execute(
             "INSERT INTO metadata_taxonomy (id) VALUES ({0})".format(db_genome_id))
 
         self._calculateMetadata(genome_file, gff_file, output_dir)
-        self._storeMetadata(cur, db_genome_id, output_dir)
-        self._storeCheckM(cur, db_genome_id, checkm_results)
+        self._storeMetadata(db_genome_id, output_dir)
+        self._storeCheckM(db_genome_id, checkm_results)
 
     def _calculateMetadata(self, genome_file, gff_file, output_dir):
         """Calculate metadata for new genome.
@@ -219,13 +211,11 @@ class MetadataManager(object):
                                                          ConfigMetadata.GTDB_SSU_SILVA_TAXONOMY,
                                                          os.path.join(output_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR)))
 
-    def _storeMetadata(self, cur, db_genome_id, genome_dir):
+    def _storeMetadata(self, db_genome_id, genome_dir):
         """Parse metadata files for genome and store in database.
 
         Parameters
         ----------
-        cur : psycopg2.cursor
-            Database cursor.
         db_genome_id : str
             Unique database identifier of genome.
         genome_dir : str
@@ -239,7 +229,7 @@ class MetadataManager(object):
                           for line in open(metadata_nt_path)]
         query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(
             db_genome_id)
-        cur.executemany(query_nt, [(AsIs(c), v) for (c, v) in genome_list_nt])
+        self.cur.executemany(query_nt, [(AsIs(c), v) for (c, v) in genome_list_nt])
 
         try:
             # protein metadata
@@ -249,29 +239,31 @@ class MetadataManager(object):
                                 for line in open(metadata_gene_path)]
             query_gene = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(
                 db_genome_id)
-            cur.executemany(query_gene, [(AsIs(c), v)
+            self.cur.executemany(query_gene, [(AsIs(c), v)
                                          for (c, v) in genome_list_gene])
 
             # Greengenes SSU metadata
+            query_taxonomy = "UPDATE metadata_taxonomy SET %s = %s WHERE id = {0}".format(db_genome_id)
             metadata_ssu_gg_path = os.path.join(
                 genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
             genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
                 metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX)
-            query_taxonomy = "UPDATE metadata_taxonomy SET %s = %s WHERE id = {0}".format(
-                db_genome_id)
-            cur.executemany(
-                query_taxonomy, [(AsIs(c), v) for (c, v) in genome_list_taxonomy])
+            if genome_list_taxonomy:
+                self.cur.executemany(
+                    query_taxonomy, [(AsIs(c), v) for (c, v) in genome_list_taxonomy])
 
             # SILVA SSU metadata
             metadata_ssu_silva_path = os.path.join(
                 genome_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
             genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
                 metadata_ssu_silva_path, ConfigMetadata.GTDB_SSU_SILVA_PREFIX)
-            cur.executemany(
-                query_taxonomy, [(AsIs(c), v) for (c, v) in genome_list_taxonomy])
+            if genome_list_taxonomy:
+                self.cur.executemany(
+                    query_taxonomy, [(AsIs(c), v) for (c, v) in genome_list_taxonomy])
+
             query_gene_ssu = "UPDATE metadata_genes SET ssu_count = %s WHERE id = {0}".format(
                 db_genome_id)
-            cur.execute(query_gene_ssu, (ssu_count,))
+            self.cur.execute(query_gene_ssu, (ssu_count,))
         except psycopg2.Error as e:
             raise GenomeDatabaseError(e.pgerror)
 
@@ -322,13 +314,11 @@ class MetadataManager(object):
 
         return metadata, ssu_count
 
-    def _storeCheckM(self, cur, db_genome_id, checkm_results):
+    def _storeCheckM(self, db_genome_id, checkm_results):
         """Store CheckM results for genome.
 
         Parameters
         ----------
-        cur : psycopg2.cursor
-            Database cursor.
         db_genome_id : str
             Unique database identifer of genome.
         checkm_results : dict
@@ -347,4 +337,4 @@ class MetadataManager(object):
 
         query = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(
             db_genome_id)
-        cur.executemany(query, [(AsIs(c), v) for (c, v) in checkm_data])
+        self.cur.executemany(query, [(AsIs(c), v) for (c, v) in checkm_data])
