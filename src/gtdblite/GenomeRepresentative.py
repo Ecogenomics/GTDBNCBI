@@ -40,3 +40,31 @@ class GenomeRepresentative(object):
         self.currentUser = currentUser
 
     def determineRepresentative(self):
+        pass
+
+    def __assignRepresentatives(self):
+        """Assign genomes to a representative.
+
+        This function will try to assign all
+        non-representative genomes to a
+        representative. In normal use, this
+        function is not called, but it is helpful
+        when large numbers of genomes are added
+        directly to the database.
+        """
+
+        # get representative genomes
+        self.cur.execute("SELECT id "
+                         "FROM genomes "
+                         "WHERE gtdb_representative = 'TRUE'")
+        rep_genome_ids = [genome_id for genome_id in self.cur.fetchall()]
+        print 'rep_genome_ids', len(rep_genome_ids)
+
+        # compare genomes to representatives
+        self.cur.execute("SELECT id FROM genomes")
+        for genome_id in self.cur:
+            for rep_genome_id in rep_genome_ids:
+                self.cur.execute("SELECT id "
+                         "FROM genomes "
+                         "WHERE gtdb_representative = 'TRUE'")
+

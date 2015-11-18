@@ -46,11 +46,10 @@ class GenomeFilter(object):
         self.cur = cur
         self.currentUser = currentUser
 
-    def FilterTreeData(self, GenomeDatabase, marker_ids, genome_ids,
+    def filterTreeData(self, marker_ids, genome_ids,
                        comp_threshold, cont_threshold,
                        taxa_filter,
-                       guaranteed_genome_list_ids, guaranteed_genome_ids,
-                       directory):
+                       guaranteed_genome_list_ids, guaranteed_genome_ids):
         """Filter genomes based on provided criteria.
 
         Parameters
@@ -65,14 +64,7 @@ class GenomeFilter(object):
         self.logger.info(
             'Filtering initial set of %d genomes.' % len(genome_ids))
 
-        if not os.path.isdir(directory):
-            GenomeDatabase.ReportError("Directory doesn't exist: " + directory)
-            return None
-
         # For all of the markers, get the expected marker size.
-        if GenomeDatabase.debugMode:
-            self.logger.info("Getting expected marker sizes...")
-
         self.cur.execute("SELECT markers.id, markers.name, description, id_in_database, size, external_id_prefix " +
                     "FROM markers, marker_databases " +
                     "WHERE markers.id in %s "
@@ -130,11 +122,10 @@ class GenomeFilter(object):
 
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 
-    def writeTreeFiles(self, GenomeDatabase, marker_ids, genomes_to_retain, directory, prefix, chosen_markers_order, chosen_markers, alignment, individual):
+    def writeTreeFiles(self, marker_ids, genomes_to_retain, directory, prefix, chosen_markers_order, chosen_markers, alignment, individual):
         '''
         Write summary files and arb files
 
-        :param GenomeDatabase:
         :param marker_ids:
         :param genomes_to_retain:
         :param directory:
@@ -145,7 +136,8 @@ class GenomeFilter(object):
         :param individual:
         '''
 
-        cur = GenomeDatabase.conn.cursor()
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
         # output the marker info and multiple hit info
         multi_hits_fh = open(
@@ -204,7 +196,7 @@ class GenomeFilter(object):
                     "Genome %s has no markers for this marker set in the database and will be missing from the output files." % external_genome_id)
                 continue
 
-            for marker_id, sequence, multiple_hits, evalue in cur:
+            for marker_id, sequence, multiple_hits, evalue in self.cur:
                 if evalue:  # markers without an e-value are missing
                     genome_info['markers'][marker_id] = sequence
                 genome_info['multiple_hits'][marker_id] = multiple_hits

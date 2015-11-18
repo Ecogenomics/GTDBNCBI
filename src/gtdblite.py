@@ -911,6 +911,7 @@ if __name__ == '__main__':
     try:
         db.Login(args.logon_as_user, args.login_as_root)
     except GenomeDatabaseError as e:
+        db.conn.ClosePostgresConnection()
         ErrorReport(e.message + " The following error(s) were reported:\n")
         DumpDBErrors(db)
         sys.exit(-1)
@@ -918,6 +919,7 @@ if __name__ == '__main__':
     try:
         result = args.func(db, args)
     except:
+        db.conn.ClosePostgresConnection()
         ErrorReport("Exception caught. Dumping info.\n")
 
         if db.GetWarnings():
@@ -938,4 +940,5 @@ if __name__ == '__main__':
         ErrorReport(
             "Database action failed. The following error(s) were reported:\n")
         DumpDBErrors(db)
-        sys.exit(-1)
+
+    db.conn.ClosePostgresConnection()
