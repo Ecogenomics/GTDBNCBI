@@ -375,18 +375,15 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             gf = GenomeFilter(cur, self.currentUser)
-            genomes_to_retain, chosen_markers_order, chosen_markers = gf.FilterTreeData(self, marker_ids, genome_ids,
+            genomes_to_retain, chosen_markers_order, chosen_markers = gf.filterTreeData(marker_ids, genome_ids,
                                                                                         comp_threshold, cont_threshold,
                                                                                         taxa_filter,
-                                                                                        guaranteed_genome_list_ids, guaranteed_genome_ids,
-                                                                                        directory)
+                                                                                        guaranteed_genome_list_ids, guaranteed_genome_ids)
 
             aligned_mngr = AlignedMarkerManager(self.threads)
-            aligned_mngr.calculateAlignedMarkerSets(
-                genomes_to_retain, marker_ids)
+            aligned_mngr.calculateAlignedMarkerSets(genomes_to_retain, marker_ids)
 
-            gf.writeTreeFiles(
-                self, marker_ids, genomes_to_retain, directory, prefix, chosen_markers_order, chosen_markers, alignment, individual)
+            gf.writeTreeFiles(marker_ids, genomes_to_retain, directory, prefix, chosen_markers_order, chosen_markers, alignment, individual)
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
@@ -846,7 +843,8 @@ class GenomeDatabase(object):
 
     def ViewMetadata(self):
         try:
-            metaman = MetadataManager()
+            cur = self.conn.cursor()
+            metaman = MetadataManager(cur, self.currentUser)
             metaman.viewMetadata()
             return True
         except GenomeDatabaseError as e:
@@ -855,26 +853,33 @@ class GenomeDatabase(object):
 
     def ExportMetadata(self, path):
         try:
-            metaman = MetadataManager()
+            cur = self.conn.cursor()
+            metaman = MetadataManager(cur, self.currentUser)
             metaman.exportMetadata(path)
-            return True
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+
+        return True
 
     def ImportMetadata(self, table=None, field=None, typemeta=None, metafile=None):
         try:
-            metaman = MetadataManager()
+            cur = self.conn.cursor()
+            metaman = MetadataManager(cur, self.currentUser)
             metaman.importMetadata(table, field, typemeta, metafile)
-            return True
+            self.conn.commit()
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
 
+        return True
+
     def CreateMetadata(self, path):
         try:
-            metaman = MetadataManager()
+            cur = self.conn.cursor()
+            metaman = MetadataManager(cur, self.currentUser)
             metaman.createMetadata(path)
+            self.conn.commit()
             return True
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
