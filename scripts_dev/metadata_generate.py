@@ -1,0 +1,1 @@
+/srv/projects/gtdb/scripts/metadata_generate.py
