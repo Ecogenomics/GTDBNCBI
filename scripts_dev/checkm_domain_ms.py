@@ -1,0 +1,1 @@
+/srv/projects/gtdb/scripts/checkm_domain_ms.py

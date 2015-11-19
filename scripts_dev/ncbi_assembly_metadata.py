@@ -1,0 +1,1 @@
+/srv/projects/gtdb/scripts/ncbi_assembly_metadata.py
