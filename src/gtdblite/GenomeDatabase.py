@@ -153,7 +153,10 @@ class GenomeDatabase(object):
             return True
         return False
 
-    def AddGenomes(self, batchfile, checkm_file, modify_genome_list_id=None,
+    def AddGenomes(self, batchfile,
+                   checkm_file,
+                   study_file,
+                   modify_genome_list_id=None,
                    new_genome_list_name=None):
         """Add genomes to database.
 
@@ -163,6 +166,8 @@ class GenomeDatabase(object):
             Name of file describing genomes to add.
         checkm_file : str
             Name of file containing CheckM quality estimates.
+        study_file : str
+            Name of file describing study from which genomes were recovered.
 
         Returns
         -------
@@ -204,7 +209,7 @@ class GenomeDatabase(object):
 
             # add genomes to database
             genome_mngr = GenomeManager(cur, self.currentUser, self.threads)
-            genome_ids = genome_mngr.addGenomes(checkm_file, batchfile)
+            genome_ids = genome_mngr.addGenomes(checkm_file, batchfile, study_file)
 
             if modify_genome_list_id is not None:
                 genome_list_mngr = GenomeListManager(cur, self.currentUser)
@@ -212,8 +217,7 @@ class GenomeDatabase(object):
                                                            genome_ids=genome_ids,
                                                            operation='add')
                 if not bSuccess:
-                    raise GenomeDatabaseError(
-                        "Unable to add genomes to genome list.")
+                    raise GenomeDatabaseError("Unable to add genomes to genome list.")
 
             # all genomes were process successfully so move them into the GTDB
             # directory structure
@@ -221,14 +225,16 @@ class GenomeDatabase(object):
             genome_mngr.moveGenomes(genome_ids)
 
             self.conn.commit()
-            self.logger.info('Done.')
-            return True
+
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
         except:
             self.conn.rollback()
             raise
+
+        self.logger.info('Done.')
+        return True
 
     # True if has permission. False if doesn't. None on error.
     def DeleteGenomes(self, batchfile=None, external_ids=None, reason=None):

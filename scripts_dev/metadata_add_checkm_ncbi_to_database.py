@@ -1,0 +1,1 @@
+/srv/projects/gtdb/scripts/metadata_add_checkm_ncbi_to_database.py
