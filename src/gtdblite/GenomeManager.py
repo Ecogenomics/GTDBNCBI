@@ -95,7 +95,7 @@ class GenomeManager(object):
         file_logger.setFormatter(log_format)
         logger.addHandler(file_logger)
 
-    def addGenomes(self, checkm_file, batchfile):
+    def addGenomes(self, checkm_file, batchfile, study_file):
         """Add new genomes to DB.
 
         Parameters
@@ -104,6 +104,8 @@ class GenomeManager(object):
             Name of file containing CheckM results.
         batchfile : str
             Name of file describing genomes to add.
+        study_file : str
+            Name of file describing study from which genomes were recovered
 
         Returns
         -------
@@ -114,20 +116,24 @@ class GenomeManager(object):
         try:
             self.tmp_output_dir = tempfile.mkdtemp()
 
+            self.logger.info("Parsing Study file.")
+            study_id = self._processStudy(study_file)
+
             self.logger.info("Reading CheckM file.")
             checkm_results_dict = self._processCheckM(checkm_file)
 
-            genomic_files = self._addGenomeBatch(
-                batchfile, self.tmp_output_dir)
+            genomic_files = self._addGenomeBatch(batchfile, self.tmp_output_dir)
 
             self.logger.info("Running Prodigal to identify genes.")
             prodigal = Prodigal(self.threads)
             file_paths = prodigal.run(genomic_files)
 
-            self.logger.info(
-                "Calculating and storing metadata for each genomes.")
+            self.logger.info("Calculating and storing metadata for each genome.")
             metadata_mngr = MetadataManager(self.cur, self.currentUser)
             for db_genome_id, values in genomic_files.iteritems():
+                self.cur.execute("UPDATE genomes SET study_id = %s WHERE id = %s",
+                                    (study_id, db_genome_id))
+
                 genome_file_paths = file_paths[db_genome_id]
                 output_dir, _file = os.path.split(
                     genome_file_paths["aa_gene_path"])
@@ -135,7 +141,7 @@ class GenomeManager(object):
                 bin_id = values['checkm_bin_id']
                 if bin_id not in checkm_results_dict:
                     raise GenomeDatabaseError(
-                        "Couldn't find CheckM result for bin  %s." % bin_id)
+                        "Couldn't find CheckM result for bin %s." % bin_id)
 
                 metadata_mngr.addMetadata(db_genome_id,
                                           genome_file_paths["fasta_path"],
@@ -505,6 +511,68 @@ class GenomeManager(object):
         checkm_fh.close()
 
         return checkm_results_dict
+
+    def _processStudy(self, study_file):
+        """Parse information from study file.
+
+        Parameters
+        ----------
+        study_file : str
+            Name of file describing study from which genomes were recovered
+
+        Returns
+        -------
+        int
+            Database identifier of study.
+        """
+
+        try:
+            study_fh = open(study_file, "rb")
+        except:
+            raise GenomeDatabaseError(
+                "Cannot open study file: " + study_file)
+
+        # required information in study file
+        study_info = {
+            "study_description": None,
+            "sequencing_platform": None,
+            "read_files": None,
+            "qc_program": None,
+            "assembly_program": None,
+            "gap_filling_program": None,
+            "mapping_program": None,
+            "binning_program": None,
+            "scaffolding_program": None,
+            "genome_assessment_program": None,
+            "refinement_description": None,
+        }
+
+        for line in study_fh:
+            line = line.rstrip()
+            if line:
+                line_split = line.split("\t")
+
+                field = line_split[0]
+                value = line_split[1]
+
+                if field not in study_info:
+                    raise GenomeDatabaseError("Study file %s contains an unknown field: %s" + (study_file, field))
+                else:
+                    study_info[field] = value
+
+        study_fh.close()
+
+        # check that all fields were populated
+        for field, value in study_info.iteritems():
+            if not value:
+                raise GenomeDatabaseError("Study file %s is missing the field: %s" + (study_file, field))
+
+        # add information to study table
+        query = "INSERT INTO study (%s) VALUES %s RETURNING study_id"
+        self.cur.execute(query, (AsIs(','.join(study_info.keys())), tuple(study_info.values())))
+        study_id = self.cur.fetchone()[0]
+
+        return study_id
 
     # TODO: This should not be here, techincally the backend is agnostic so
     # shouldn't assume command line.

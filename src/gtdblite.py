@@ -141,6 +141,7 @@ def AddGenomes(db, args):
 
     return db.AddGenomes(args.batchfile,
                          args.checkm_file,
+                         args.study_file,
                          args.genome_list_id,
                          args.genome_list_name)
 
@@ -548,8 +549,10 @@ if __name__ == '__main__':
                                                              help='Add one or more genomes to the tree.')
     parser_genome_add.add_argument('--batchfile', dest='batchfile',
                                    required=True, help='Batch file describing genomes - one per line, tab separated in 3-6 columns (bin_filename, bin_name, bin_desc, [gene_filename], [source], [id_at_source])')
-    parser_genome_add.add_argument('--checkm_results', dest='checkm_file',
-                                   required=True, help='Provide a CheckM results file. MUST BE A TAB TABLE! e.g. "checkm taxonomy_wf -f CHECKM_FILE --tab_table domain Bacteria bins/ output"')
+    parser_genome_add.add_argument('--checkm_results', dest='checkm_file', required=True,
+                                   help='Provide a CheckM results file. MUST BE A TAB TABLE! e.g. "checkm taxonomy_wf -f CHECKM_FILE --tab_table domain Bacteria bins/ output"')
+    parser_genome_add.add_argument('--study_file', required=True,
+                                   help='File describing study and workflow from which genomes where recovered')
 
     mutex_group = parser_genome_add.add_mutually_exclusive_group(required=True)
     mutex_group.add_argument('--modify_list', dest='genome_list_id',
