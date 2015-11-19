@@ -362,8 +362,8 @@ class GenomeDatabase(object):
 
     def MakeTreeData(self, marker_ids, genome_ids,
                      directory, prefix,
-                     comp_threshold, cont_threshold,
-                     taxa_filter,
+                     quality_threshold, comp_threshold, cont_threshold,
+                     taxa_filter, excluded_genome_list_ids,
                      guaranteed_genome_list_ids, guaranteed_genome_ids,
                      alignment, individual,
                      build_tree=True):
@@ -376,9 +376,11 @@ class GenomeDatabase(object):
 
             gf = GenomeFilter(cur, self.currentUser)
             genomes_to_retain, chosen_markers_order, chosen_markers = gf.filterTreeData(marker_ids, genome_ids,
-                                                                                        comp_threshold, cont_threshold,
+                                                                                        quality_threshold, comp_threshold, cont_threshold,
                                                                                         taxa_filter,
-                                                                                        guaranteed_genome_list_ids, guaranteed_genome_ids)
+                                                                                        excluded_genome_list_ids,
+                                                                                        guaranteed_genome_list_ids,
+                                                                                        guaranteed_genome_ids)
 
             aligned_mngr = AlignedMarkerManager(self.threads)
             aligned_mngr.calculateAlignedMarkerSets(genomes_to_retain, marker_ids)

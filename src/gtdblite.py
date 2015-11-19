@@ -233,8 +233,8 @@ def CreateTreeData(db, args):
 
     return db.MakeTreeData(marker_id_list, genome_id_list,
                            args.out_dir, args.prefix,
-                           args.comp_threshold, args.cont_threshold,
-                           args.taxa_filter,
+                           args.quality_threshold, args.comp_threshold, args.cont_threshold,
+                           args.taxa_filter, args.excluded_genome_list_ids,
                            args.guaranteed_genome_list_ids, args.guaranteed_genome_ids,
                            not args.no_alignment,
                            args.individual,
@@ -827,16 +827,21 @@ if __name__ == '__main__':
     parser_tree_create.add_argument('--marker_set_ids', dest='marker_set_ids', default=None,
                                     help='Provide a list of marker set ids (comma separated), whose markers will be used to build the tree')
 
+    parser_tree_create.add_argument('--quality_threshold',
+                                    type=float, default=50, help='Filter genomes where the quality (completeness - 4*contamination) if below the specified threshold')
     parser_tree_create.add_argument('--completeness_threshold', dest='comp_threshold',
                                     type=float, default=50, help='Filter genomes below this completeness threshold')
     parser_tree_create.add_argument('--contamination_threshold', dest='cont_threshold',
                                     type=float, default=10, help='Filter genomes above this contamination threshold')
+
+    parser_tree_create.add_argument(
+        '--excluded_genome_list_ids', help='Comma-separated list of genome lists to exclude from the tree')
     parser_tree_create.add_argument(
         '--guaranteed_genome_list_ids', help='Comma-separated list of genome lists to retain in tree independent of filtering criteria')
     parser_tree_create.add_argument(
         '--guaranteed_genome_ids', help='Comma-separated list of genome identifiers to retain in tree independent of filtering criteria')
     parser_tree_create.add_argument(
-        '--taxa_filter', help='Filter genomes to taxa within taxonomic groups specified as a comma-separated list')
+        '--taxa_filter', help='Filter genomes to taxa within taxonomic groups specified as a comma-separated list (e.g., p__Proteobacteria)')
 
     parser_tree_create.add_argument('--prefix', required=False, default='gtdb',
                                     help='Desired prefix for output files')

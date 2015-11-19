@@ -47,9 +47,11 @@ class GenomeFilter(object):
         self.currentUser = currentUser
 
     def filterTreeData(self, marker_ids, genome_ids,
-                       comp_threshold, cont_threshold,
+                       quality_threshold, comp_threshold, cont_threshold,
                        taxa_filter,
-                       guaranteed_genome_list_ids, guaranteed_genome_ids):
+                       excluded_genome_list_ids,
+                       guaranteed_genome_list_ids,
+                       guaranteed_genome_ids):
         """Filter genomes based on provided criteria.
 
         Parameters
@@ -95,16 +97,17 @@ class GenomeFilter(object):
             genome_list_mngr = GenomeListManager(self.cur, self.currentUser)
             genome_id_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(guaranteed_genome_list_ids)
             guaranteed_genomes.update(genome_id_list)
+
         self.logger.info(
             'Identified %d genomes to be excluded from filtering.' % len(guaranteed_genomes))
 
-        # find genomes that fail completeness and contamination thresholds
-        self.logger.info('Filtering genomes with completeness <%.1f%% or contamination >%.1f%%.' % (
-            comp_threshold, cont_threshold))
-        filtered_genomes = self._filterOnGenomeQuality(genome_ids, comp_threshold, cont_threshold)
+        # find genomes that fail completeness, contamination, or genome quality thresholds
+        self.logger.info('Filtering genomes with completeness <%.1f%%, contamination >%.1f%%, or quality <%.1f%%.' % (
+            comp_threshold, cont_threshold, quality_threshold))
+        filtered_genomes = self._filterOnGenomeQuality(genome_ids, quality_threshold, comp_threshold, cont_threshold)
         filtered_genomes -= guaranteed_genomes
         self.logger.info(
-            'Filtered %d genomes based on completeness and contamination.' % len(filtered_genomes))
+            'Filtered %d genomes based on completeness, contamination, and quality.' % len(filtered_genomes))
 
         # filter genomes based on taxonomy
         genomes_to_retain = set(genome_ids) - filtered_genomes
@@ -114,11 +117,24 @@ class GenomeFilter(object):
             taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
             genome_ids_from_taxa = self._genomesFromTaxa(genome_ids, taxa_to_retain)
 
-            new_genomes_to_retain = genomes_to_retain.intersection(
-                genome_ids_from_taxa).union(guaranteed_genomes)
+            new_genomes_to_retain = genomes_to_retain.intersection(genome_ids_from_taxa).union(guaranteed_genomes)
             self.logger.info('Filtered %d additional genomes based on taxonomic affiliations.' % (
                 len(genomes_to_retain) - len(new_genomes_to_retain)))
             genomes_to_retain = new_genomes_to_retain
+
+        # filter genomes in excluded genome lists
+        if excluded_genome_list_ids:
+            excluded_genome_list_ids = [x.strip() for x in excluded_genome_list_ids.split(",")]
+
+            genome_list_mngr = GenomeListManager(self.cur, self.currentUser)
+            genomes_to_exclude = genome_list_mngr.getGenomeIdListFromGenomeListIds(excluded_genome_list_ids)
+
+            new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude).union(guaranteed_genomes)
+            self.logger.info('Filtered %d additional genomes explicitly indicated for exclusion.' % (
+                len(genomes_to_retain) - len(new_genomes_to_retain)))
+            genomes_to_retain = new_genomes_to_retain
+
+        self.logger.info('Building tree across %d genomes.' % len(genomes_to_retain))
 
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 
@@ -285,13 +301,15 @@ class GenomeFilter(object):
 
         return genomes_to_retain
 
-    def _filterOnGenomeQuality(self, genome_ids, comp_threshold, cont_threshold):
+    def _filterOnGenomeQuality(self, genome_ids, quality_threshold, comp_threshold, cont_threshold):
         """Filter genomes on completeness and contamination thresholds.
 
         Parameters
         ----------
         genome_ids : list
             Database identifier for genomes of interest.
+        quality_threshold : float
+            Minimum required quality threshold.
         comp_threshold : float
             Minimum required completeness.
         cont_threshold : float
@@ -300,15 +318,16 @@ class GenomeFilter(object):
         Returns
         -------
         set
-            Database identifier of genomes passing quality filtering.
+            Database identifier of genomes failing quality filtering.
         """
 
         self.cur.execute("SELECT id " +
                             "FROM metadata_genes " +
                             "WHERE id IN %s " +
                             "AND (checkm_completeness < %s " +
-                            "OR checkm_contamination > %s)",
-                            (tuple(genome_ids), comp_threshold, cont_threshold))
+                            "OR checkm_contamination > %s " +
+                            "OR (checkm_completeness - 4*checkm_contamination) < %s)",
+                            (tuple(genome_ids), comp_threshold, cont_threshold, quality_threshold))
 
         return set([x[0] for x in self.cur])
 
