@@ -172,9 +172,15 @@ class GenomeFilter(object):
         col_headers = [desc[0] for desc in self.cur.description]
         metadata = self.cur.fetchall()
 
+        # identify columns of interest
+        genome_id_index = col_headers.index('id')
+        genome_name_index = col_headers.index('genome')
+        col_headers.remove('id')
+        col_headers.remove('genome')
+
         # create ARB import filter
         arb_import_filter = os.path.join(directory, prefix + "_arb_filter.ift")
-        self._arbImportFilter(col_headers[2:], arb_import_filter)
+        self._arbImportFilter(col_headers, arb_import_filter)  # skip database identifier and genome name columns
 
         # run through each of the genomes and make the magic happen
         self.logger.info(
@@ -187,8 +193,12 @@ class GenomeFilter(object):
         single_copy = defaultdict(int)
         ubiquitous = defaultdict(int)
         for genome_metadata in metadata:
-            db_genome_id = genome_metadata[0]
-            external_genome_id = genome_metadata[1]
+            # take special care of the genome identifier and name as these
+            # are handle as a special case in the ARB metadata file
+            db_genome_id = genome_metadata[genome_id_index]
+            external_genome_id = genome_metadata[genome_name_index]
+            del genome_metadata[max(db_genome_id, external_genome_id)]
+            del genome_metadata[min(db_genome_id, external_genome_id)]
 
             # For each genome, we calculate the aligned markers that are not
             # present in the aligned marker table
@@ -255,8 +265,8 @@ class GenomeFilter(object):
                 aligned_seq = ''
             self._arbRecord(arb_metadata_fh,
                             external_genome_id,
-                            col_headers[2:],
-                            genome_metadata[2:],
+                            col_headers,
+                            genome_metadata,
                             multiple_hit_count,
                             len(chosen_markers_order),
                             aligned_seq)
