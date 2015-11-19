@@ -1,0 +1,1 @@
+/srv/projects/gtdb/scripts/ncbi_genome_dirs.py

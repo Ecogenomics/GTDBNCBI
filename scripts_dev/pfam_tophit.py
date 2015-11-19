@@ -1,0 +1,1 @@
+/srv/projects/gtdb/scripts/pfam_tophit.py
