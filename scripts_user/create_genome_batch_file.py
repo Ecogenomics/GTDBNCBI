@@ -41,10 +41,18 @@ class GenomeBatchFile(object):
       fout = open(outFile, 'w')
 
       files = os.listdir(binFolder)
+
+      binCount = 0
       for f in files:
         if f.endswith(extension):
           binId = f[0:f.rfind('.')]
           fout.write('%s\t%s\t%s\n' % (os.path.join(binFolder, f), binId, binId + ' (' + studyDesc + ')'))
+          binCount += 1
+
+      if not binCount:
+        print 'No bins identified in %s. Check that your files have the correct extension (-x).' % binFolder
+      else:
+        print 'Process %d bins.' % binCount
 
       fout.close()
 
