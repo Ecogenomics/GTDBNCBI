@@ -30,7 +30,7 @@ from GenomeListManager import GenomeListManager
 from MarkerManager import MarkerManager
 from MarkerSetManager import MarkerSetManager
 from MetadataManager import MetadataManager
-from GenomeFilter import GenomeFilter
+from TreeManager import TreeManager
 from Exceptions import GenomeDatabaseError
 from AlignedMarkerManager import AlignedMarkerManager
 
@@ -380,18 +380,18 @@ class GenomeDatabase(object):
         try:
             cur = self.conn.cursor()
 
-            gf = GenomeFilter(cur, self.currentUser)
-            genomes_to_retain, chosen_markers_order, chosen_markers = gf.filterTreeData(marker_ids, genome_ids,
-                                                                                        quality_threshold, comp_threshold, cont_threshold,
-                                                                                        taxa_filter,
-                                                                                        excluded_genome_list_ids,
-                                                                                        guaranteed_genome_list_ids,
-                                                                                        guaranteed_genome_ids)
+            tree_mngr = TreeManager(cur, self.currentUser)
+            genomes_to_retain, chosen_markers_order, chosen_markers = tree_mngr.filterGenomes(marker_ids, genome_ids,
+                                                                                                quality_threshold, comp_threshold, cont_threshold,
+                                                                                                taxa_filter,
+                                                                                                excluded_genome_list_ids,
+                                                                                                guaranteed_genome_list_ids,
+                                                                                                guaranteed_genome_ids)
 
             aligned_mngr = AlignedMarkerManager(self.threads)
             aligned_mngr.calculateAlignedMarkerSets(genomes_to_retain, marker_ids)
 
-            gf.writeTreeFiles(marker_ids, genomes_to_retain, directory, prefix, chosen_markers_order, chosen_markers, alignment, individual)
+            tree_mngr.writeFiles(marker_ids, genomes_to_retain, directory, prefix, chosen_markers_order, chosen_markers, alignment, individual)
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
