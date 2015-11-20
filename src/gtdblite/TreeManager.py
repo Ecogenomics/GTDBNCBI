@@ -28,7 +28,8 @@ from GenomeManager import GenomeManager
 from GenomeListManager import GenomeListManager
 
 
-class GenomeFilter(object):
+class TreeManager(object):
+    """Manages genomes, concatenated alignment, and metadata for tree inference and visualization."""
 
     def __init__(self, cur, currentUser):
         """Initialize.
@@ -46,7 +47,7 @@ class GenomeFilter(object):
         self.cur = cur
         self.currentUser = currentUser
 
-    def filterTreeData(self, marker_ids, genome_ids,
+    def filterGenomes(self, marker_ids, genome_ids,
                        quality_threshold, comp_threshold, cont_threshold,
                        taxa_filter,
                        excluded_genome_list_ids,
@@ -138,7 +139,7 @@ class GenomeFilter(object):
 
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 
-    def writeTreeFiles(self, marker_ids, genomes_to_retain, directory, prefix, chosen_markers_order, chosen_markers, alignment, individual):
+    def writeFiles(self, marker_ids, genomes_to_retain, directory, prefix, chosen_markers_order, chosen_markers, alignment, individual):
         '''
         Write summary files and arb files
 
@@ -195,10 +196,11 @@ class GenomeFilter(object):
         for genome_metadata in metadata:
             # take special care of the genome identifier and name as these
             # are handle as a special case in the ARB metadata file
+            genome_metadata = list(genome_metadata)
             db_genome_id = genome_metadata[genome_id_index]
             external_genome_id = genome_metadata[genome_name_index]
-            del genome_metadata[max(db_genome_id, external_genome_id)]
-            del genome_metadata[min(db_genome_id, external_genome_id)]
+            del genome_metadata[max(genome_id_index, genome_name_index)]
+            del genome_metadata[min(genome_id_index, genome_name_index)]
 
             # For each genome, we calculate the aligned markers that are not
             # present in the aligned marker table
