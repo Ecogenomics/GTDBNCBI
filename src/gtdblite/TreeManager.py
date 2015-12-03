@@ -406,10 +406,16 @@ class TreeManager(object):
         fout.write('\tSRT "*\\=="\n')
         fout.write('\tWRITE "%s"\n\n' % 'name')
 
+        # place organism name near top for convenience
+        fout.write('MATCH\t"%s\\=*"\n' % 'organism_name')
+        fout.write('\tSRT "*\\=="\n')
+        fout.write('\tWRITE "%s"\n\n' % 'organism_name')
+
         for field in metadata_fields + ['multiple_homologs']:
-            fout.write('MATCH\t"%s\\=*"\n' % field)
-            fout.write('\tSRT "*\\=="\n')
-            fout.write('\tWRITE "%s"\n\n' % field)
+            if field != 'organism_name':
+                fout.write('MATCH\t"%s\\=*"\n' % field)
+                fout.write('\tSRT "*\\=="\n')
+                fout.write('\tWRITE "%s"\n\n' % field)
 
         fout.write('SEQUENCEAFTER\t"multiple_homologs*"\n')
         fout.write('SEQUENCESRT\t"*\\=="\n')
@@ -436,7 +442,13 @@ class TreeManager(object):
         for col_header, value in zip(metadata_fields, metadata_values):
             if type(value) is float:
                 value = '%.4g' % value
-            fout.write("%s=%s\n" % (col_header, str(value)))
+
+            # replace equal signs as these are incompatible with the ARB parser
+            value = str(value)
+            if value:
+                value = value.replace('=', '/')
+
+            fout.write("%s=%s\n" % (col_header, value))
         fout.write("multiple_homologs=%i/%i\n" %
                    (multiple_hit_count, num_marker_genes))
         fout.write("aligned_seq=%s\n" % (aligned_seq))
