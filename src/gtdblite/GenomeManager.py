@@ -71,7 +71,8 @@ class GenomeManager(object):
 
         self.genomeCopyDir = Config.GTDB_GENOME_USR_DIR
         self.deprecatedUserDir = Config.GTDB_DPRCTD_USR_DIR
-        self.deprecatedNCBIDir = Config.GTDB_DPRCTD_NCBI_DIR
+        self.deprecatedGBKDir = Config.GTDB_DPRCTD_GBK_DIR
+        self.deprecatedRSQDir = Config.GTDB_DPRCTD_RSQ_DIR
 
     def _loggerSetup(self, silent=False):
         """Set logging for application.
@@ -129,11 +130,12 @@ class GenomeManager(object):
             prodigal = Prodigal(self.threads)
             file_paths = prodigal.run(genomic_files)
 
-            self.logger.info("Calculating and storing metadata for each genome.")
+            self.logger.info(
+                "Calculating and storing metadata for each genome.")
             metadata_mngr = MetadataManager(self.cur, self.currentUser)
             for db_genome_id, values in genomic_files.iteritems():
                 self.cur.execute("UPDATE genomes SET study_id = %s WHERE id = %s",
-                                    (study_id, db_genome_id))
+                                 (study_id, db_genome_id))
 
                 genome_file_paths = file_paths[db_genome_id]
                 output_dir, _file = os.path.split(
@@ -557,7 +559,8 @@ class GenomeManager(object):
                 value = line_split[1]
 
                 if field not in study_info:
-                    raise GenomeDatabaseError("Study file %s contains an unknown field: %s" + (study_file, field))
+                    raise GenomeDatabaseError(
+                        "Study file %s contains an unknown field: %s" + (study_file, field))
                 else:
                     study_info[field] = value
 
@@ -566,11 +569,13 @@ class GenomeManager(object):
         # check that all fields were populated
         for field, value in study_info.iteritems():
             if not value:
-                raise GenomeDatabaseError("Study file %s is missing the field: %s" + (study_file, field))
+                raise GenomeDatabaseError(
+                    "Study file %s is missing the field: %s" + (study_file, field))
 
         # add information to study table
         query = "INSERT INTO study (%s) VALUES %s RETURNING study_id"
-        self.cur.execute(query, (AsIs(','.join(study_info.keys())), tuple(study_info.values())))
+        self.cur.execute(
+            query, (AsIs(','.join(study_info.keys())), tuple(study_info.values())))
         study_id = self.cur.fetchone()[0]
 
         return study_id
@@ -643,9 +648,12 @@ class GenomeManager(object):
                     if info.get("prefix") is "U":
                         target = os.path.dirname(
                             os.path.join(self.deprecatedUserDir, info.get("relative_path")))
-                    elif info.get("prefix") is "NCBI":
+                    elif info.get("prefix") is "GB":
                         target = os.path.join(
-                            self.deprecatedNCBIDir, info.get("relative_path"))
+                            self.deprecatedGBKDir, info.get("relative_path"))
+                    elif info.get("prefix") is "RS":
+                        target = os.path.join(
+                            self.deprecatedRSQDir, info.get("relative_path"))
                     make_sure_path_exists(target)
                     os.rename(
                         os.path.dirname(Tools.fastaPathGenerator(info.get("relative_path"), info.get("prefix"))), target)
@@ -669,7 +677,7 @@ class GenomeManager(object):
         - Boolean returning the state of the function
         - The username currently running the delete function
         -a Dictionary listing the list of genomes and where each genome has saved
-            the owner,the Prefix (U or NCBI) , the relative path
+            the owner,the Prefix (U,GB or RS) , the relative path
 
         '''
         try:
@@ -736,11 +744,11 @@ class GenomeManager(object):
 
             if len(map_sources_to_ids.keys()):
                 self.cur.execute("CREATE TEMP TABLE %s (prefix text)" %
-                            (temp_table_name,))
+                                 (temp_table_name,))
                 query = "INSERT INTO {0} (prefix) VALUES (%s)".format(
                     temp_table_name)
                 self.cur.executemany(query, [(x,)
-                                        for x in map_sources_to_ids.keys()])
+                                             for x in map_sources_to_ids.keys()])
             else:
                 raise GenomeDatabaseError(
                     "No genome sources found for these ids. %s" % str(external_ids))
@@ -856,18 +864,20 @@ class GenomeManager(object):
 
         try:
             if not genome_id_list:
-                raise GenomeDatabaseError("Unable to print genomes. No genomes found.")
+                raise GenomeDatabaseError(
+                    "Unable to print genomes. No genomes found.")
 
             columns = "genomes.id, genomes.name, description, owned_by_root, username, " + \
                 "external_id_prefix || '_' || id_at_source as external_id, date_added"
 
             self.cur.execute("SELECT " + columns + " FROM genomes " +
-                        "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
-                        "JOIN genome_sources AS sources ON genome_source_id = sources.id " +
-                        "AND genomes.id in %s " +
-                        "ORDER BY genomes.id ASC", (tuple(genome_id_list),))
+                             "LEFT OUTER JOIN users ON genomes.owner_id = users.id " +
+                             "JOIN genome_sources AS sources ON genome_source_id = sources.id " +
+                             "AND genomes.id in %s " +
+                             "ORDER BY genomes.id ASC", (tuple(genome_id_list),))
 
-            header = ("genome_id", "name", "description", "owner", "data_added")
+            header = (
+                "genome_id", "name", "description", "owner", "data_added")
 
             rows = []
             for (_genome_id, name, description, owned_by_root, username, external_id, date_added) in self.cur:
