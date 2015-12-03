@@ -48,11 +48,11 @@ class TreeManager(object):
         self.currentUser = currentUser
 
     def filterGenomes(self, marker_ids, genome_ids,
-                       quality_threshold, comp_threshold, cont_threshold,
-                       taxa_filter,
-                       excluded_genome_list_ids,
-                       guaranteed_genome_list_ids,
-                       guaranteed_genome_ids):
+                      quality_threshold, comp_threshold, cont_threshold,
+                      taxa_filter,
+                      excluded_genome_list_ids,
+                      guaranteed_genome_list_ids,
+                      guaranteed_genome_ids):
         """Filter genomes based on provided criteria.
 
         Parameters
@@ -69,10 +69,10 @@ class TreeManager(object):
 
         # For all of the markers, get the expected marker size.
         self.cur.execute("SELECT markers.id, markers.name, description, id_in_database, size, external_id_prefix " +
-                    "FROM markers, marker_databases " +
-                    "WHERE markers.id in %s "
-                    "AND markers.marker_database_id = marker_databases.id "
-                    "ORDER by external_id_prefix ASC, id_in_database ASC", (tuple(marker_ids),))
+                         "FROM markers, marker_databases " +
+                         "WHERE markers.id in %s "
+                         "AND markers.marker_database_id = marker_databases.id "
+                         "ORDER by external_id_prefix ASC, id_in_database ASC", (tuple(marker_ids),))
 
         chosen_markers = dict()
         chosen_markers_order = []
@@ -93,19 +93,23 @@ class TreeManager(object):
                 genome_mngr.externalGenomeIdsToGenomeIds(guaranteed_genome_ids))
 
         if guaranteed_genome_list_ids:
-            guaranteed_genome_list_ids = [x.strip() for x in guaranteed_genome_list_ids.split(",")]
+            guaranteed_genome_list_ids = [
+                x.strip() for x in guaranteed_genome_list_ids.split(",")]
 
             genome_list_mngr = GenomeListManager(self.cur, self.currentUser)
-            genome_id_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(guaranteed_genome_list_ids)
+            genome_id_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(
+                guaranteed_genome_list_ids)
             guaranteed_genomes.update(genome_id_list)
 
         self.logger.info(
             'Identified %d genomes to be excluded from filtering.' % len(guaranteed_genomes))
 
-        # find genomes that fail completeness, contamination, or genome quality thresholds
+        # find genomes that fail completeness, contamination, or genome quality
+        # thresholds
         self.logger.info('Filtering genomes with completeness <%.1f%%, contamination >%.1f%%, or quality <%.1f%%.' % (
             comp_threshold, cont_threshold, quality_threshold))
-        filtered_genomes = self._filterOnGenomeQuality(genome_ids, quality_threshold, comp_threshold, cont_threshold)
+        filtered_genomes = self._filterOnGenomeQuality(
+            genome_ids, quality_threshold, comp_threshold, cont_threshold)
         filtered_genomes -= guaranteed_genomes
         self.logger.info(
             'Filtered %d genomes based on completeness, contamination, and quality.' % len(filtered_genomes))
@@ -116,26 +120,32 @@ class TreeManager(object):
             self.logger.info(
                 'Filtering genomes outside taxonomic groups of interest.')
             taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
-            genome_ids_from_taxa = self._genomesFromTaxa(genome_ids, taxa_to_retain)
+            genome_ids_from_taxa = self._genomesFromTaxa(
+                genome_ids, taxa_to_retain)
 
-            new_genomes_to_retain = genomes_to_retain.intersection(genome_ids_from_taxa).union(guaranteed_genomes)
+            new_genomes_to_retain = genomes_to_retain.intersection(
+                genome_ids_from_taxa).union(guaranteed_genomes)
             self.logger.info('Filtered %d additional genomes based on taxonomic affiliations.' % (
                 len(genomes_to_retain) - len(new_genomes_to_retain)))
             genomes_to_retain = new_genomes_to_retain
 
         # filter genomes in excluded genome lists
         if excluded_genome_list_ids:
-            excluded_genome_list_ids = [x.strip() for x in excluded_genome_list_ids.split(",")]
+            excluded_genome_list_ids = [
+                x.strip() for x in excluded_genome_list_ids.split(",")]
 
             genome_list_mngr = GenomeListManager(self.cur, self.currentUser)
-            genomes_to_exclude = genome_list_mngr.getGenomeIdListFromGenomeListIds(excluded_genome_list_ids)
+            genomes_to_exclude = genome_list_mngr.getGenomeIdListFromGenomeListIds(
+                excluded_genome_list_ids)
 
-            new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude).union(guaranteed_genomes)
+            new_genomes_to_retain = genomes_to_retain.difference(
+                genomes_to_exclude).union(guaranteed_genomes)
             self.logger.info('Filtered %d additional genomes explicitly indicated for exclusion.' % (
                 len(genomes_to_retain) - len(new_genomes_to_retain)))
             genomes_to_retain = new_genomes_to_retain
 
-        self.logger.info('Building tree across %d genomes.' % len(genomes_to_retain))
+        self.logger.info('Building tree across %d genomes.' %
+                         len(genomes_to_retain))
 
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 
@@ -168,8 +178,8 @@ class TreeManager(object):
 
         # select genomes to retain
         self.cur.execute("SELECT * " +
-                    "FROM metadata_view "
-                    "WHERE id IN %s", (tuple(genomes_to_retain),))
+                         "FROM metadata_view "
+                         "WHERE id IN %s", (tuple(genomes_to_retain),))
         col_headers = [desc[0] for desc in self.cur.description]
         metadata = self.cur.fetchall()
 
@@ -181,7 +191,8 @@ class TreeManager(object):
 
         # create ARB import filter
         arb_import_filter = os.path.join(directory, prefix + "_arb_filter.ift")
-        self._arbImportFilter(col_headers, arb_import_filter)  # skip database identifier and genome name columns
+        # skip database identifier and genome name columns
+        self._arbImportFilter(col_headers, arb_import_filter)
 
         # run through each of the genomes and make the magic happen
         self.logger.info(
@@ -334,12 +345,12 @@ class TreeManager(object):
         """
 
         self.cur.execute("SELECT id " +
-                            "FROM metadata_genes " +
-                            "WHERE id IN %s " +
-                            "AND (checkm_completeness < %s " +
-                            "OR checkm_contamination > %s " +
-                            "OR (checkm_completeness - 4*checkm_contamination) < %s)",
-                            (tuple(genome_ids), comp_threshold, cont_threshold, quality_threshold))
+                         "FROM metadata_genes " +
+                         "WHERE id IN %s " +
+                         "AND (checkm_completeness < %s " +
+                         "OR checkm_contamination > %s " +
+                         "OR (checkm_completeness - 4*checkm_contamination) < %s)",
+                         (tuple(genome_ids), comp_threshold, cont_threshold, quality_threshold))
 
         return set([x[0] for x in self.cur])
 
@@ -379,10 +390,10 @@ class TreeManager(object):
         query_str = ' OR '.join(query_str)
 
         self.cur.execute("SELECT id " +
-                            "FROM metadata_taxonomy " +
-                            "WHERE id IN %s "
-                            "AND " + query_str,
-                            tuple(query_tuple))
+                         "FROM metadata_taxonomy " +
+                         "WHERE id IN %s "
+                         "AND " + query_str,
+                         tuple(query_tuple))
 
         genome_ids_from_taxa = set([x[0] for x in self.cur])
 
@@ -431,11 +442,13 @@ class TreeManager(object):
         """Write out ARB record for genome."""
 
         # customize output relative to raw database table
-        if external_genome_id.startswith('NCBI'):
+        if external_genome_id.startswith('GB') or external_genome_id.startswith('RS'):
             metadata_values = list(metadata_values)
             organism_name_index = metadata_fields.index('organism_name')
-            ncbi_organism_name_index = metadata_fields.index('ncbi_organism_name')
-            metadata_values[organism_name_index] = metadata_values[ncbi_organism_name_index]
+            ncbi_organism_name_index = metadata_fields.index(
+                'ncbi_organism_name')
+            metadata_values[organism_name_index] = metadata_values[
+                ncbi_organism_name_index]
 
         fout.write("BEGIN\n")
         fout.write("db_name=%s\n" % external_genome_id)
