@@ -36,13 +36,19 @@ def fastaPathGenerator(path=None, prefix=None):
     if Config.GTDB_GENOME_USR_DIR:
         genomeUserDir = Config.GTDB_GENOME_USR_DIR
 
-    genomeNCBIDir = None
-    if Config.GTDB_GENOME_NCBI_DIR:
-        genomeNCBIDir = Config.GTDB_GENOME_NCBI_DIR
+    genomeGBKDir = None
+    if Config.GTDB_GENOME_GBK_DIR:
+        genomeGBKDir = Config.GTDB_GENOME_GBK_DIR
+
+    genomeRSQDir = None
+    if Config.GTDB_GENOME_RSQ_DIR:
+        genomeRSQDir = Config.GTDB_GENOME_RSQ_DIR
 
     if prefix == 'U':
         return os.path.join(genomeUserDir, path)
-    elif prefix == "NCBI":
-        return os.path.join(genomeNCBIDir, path)
+    elif prefix == "GB":
+        return os.path.join(genomeGBKDir, path)
+    elif prefix == "RS":
+        return os.path.join(genomeRSQDir, path)
     else:
         print "prefix {0} is not existing".format(prefix)
