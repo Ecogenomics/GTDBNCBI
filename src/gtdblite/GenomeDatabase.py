@@ -245,10 +245,9 @@ class GenomeDatabase(object):
                 external_ids = []
 
             if batchfile:
-                fh = open(batchfile, "rb")
-                external_ids.extend(
-                    [line.rstrip().split('\t')[0] for line in fh])
-                fh.close()
+                for line in open(batchfile, "rb"):
+                    if line[0] != '#':
+                        external_ids.append(line.rstrip().split('\t')[0])
 
             genome_mngr = GenomeManager(cur, self.currentUser)
             genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(external_ids)
