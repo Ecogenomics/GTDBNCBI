@@ -73,7 +73,10 @@ class MetadataManager(object):
         '''
 
         try:
-            query = "SELECT * from metadata_view"
+            query_tmp = "CREATE TEMPORARY TABLE temp_tb as SELECT * FROM metadata_view;"
+            query_tmp += "ALTER TABLE temp_tb DROP COLUMN id;ALTER TABLE temp_tb DROP COLUMN study_id;"
+            self.cur.execute(query_tmp)
+            query = "SELECT * FROM temp_tb"
             outputquery = 'copy ({0}) to stdout with csv header'.format(query)
             with open(path, 'w') as f:
                 self.cur.copy_expert(outputquery, f)
@@ -229,7 +232,8 @@ class MetadataManager(object):
                           for line in open(metadata_nt_path)]
         query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(
             db_genome_id)
-        self.cur.executemany(query_nt, [(AsIs(c), v) for (c, v) in genome_list_nt])
+        self.cur.executemany(
+            query_nt, [(AsIs(c), v) for (c, v) in genome_list_nt])
 
         try:
             # protein metadata
@@ -240,10 +244,11 @@ class MetadataManager(object):
             query_gene = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(
                 db_genome_id)
             self.cur.executemany(query_gene, [(AsIs(c), v)
-                                         for (c, v) in genome_list_gene])
+                                              for (c, v) in genome_list_gene])
 
             # Greengenes SSU metadata
-            query_taxonomy = "UPDATE metadata_taxonomy SET %s = %s WHERE id = {0}".format(db_genome_id)
+            query_taxonomy = "UPDATE metadata_taxonomy SET %s = %s WHERE id = {0}".format(
+                db_genome_id)
             metadata_ssu_gg_path = os.path.join(
                 genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
             genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
