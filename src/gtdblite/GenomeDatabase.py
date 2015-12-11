@@ -65,7 +65,7 @@ class GenomeDatabase(object):
                 "Unable to establish database connection")
 
         cur = self.conn.cursor()
-        user_mngr = UserManager(cur)
+        user_mngr = UserManager(cur, None)
 
         if user:
             if not user_mngr.rootLogin(self.GetLinuxUsername()):
