@@ -181,15 +181,31 @@ class AlignedMarkerManager(object):
                         else:
                             gene_dict[markerid] = {"marker_path": marker_dict_original.get(markerid).get("path"), "gene": genename, "gene_seq": all_genes_dict.get(
                                 genename), "evalue": evalue, "bitscore": bitscore, "multihit": False, "db_marker_id": marker_dict_original.get(markerid).get("db_marker_id")}
-            final_dict = []
+            final_dict_genome = []
+            final_dict_markerid = []
+            final_dict_seq = []
+            final_dict_multihits = []
+            final_dict_evalue = []
+            final_dict_bitscore = []
             for mid, info in marker_dict_original.iteritems():
                 if mid not in gene_dict:
-                    final_dict.append((db_genome_id, info.get(
-                        "db_marker_id"), "-" * info.get("size"), False, None, None,))
-            result_align = self._runHmmAlign(gene_dict, db_genome_id)
-            final_dict.extend(result_align)
-            query = "INSERT INTO aligned_markers (genome_id,marker_id,sequence,multiple_hits,evalue,bitscore) VALUES (%s,%s,%s,%s,%s,%s)"
-            temp_cur.executemany(query, final_dict)
+                    final_dict_genome.append(db_genome_id)
+                    final_dict_markerid.append(info.get("db_marker_id"))
+                    final_dict_seq.append("-" * info.get("size"))
+                    final_dict_multihits.append(False)
+                    final_dict_evalue.append(None)
+                    final_dict_bitscore.append(None)
+            result_aligns = self._runHmmAlign(gene_dict, db_genome_id)
+            for result_align in result_aligns:
+                final_dict_genome.append(result_align[0])
+                final_dict_markerid.append(result_align[1])
+                final_dict_seq.append(result_align[2])
+                final_dict_multihits.append(result_align[3])
+                final_dict_evalue.append(result_align[4])
+                final_dict_bitscore.append(result_align[5])
+        query = "SELECT upsert_aligned_markers(%s,%s,%s,%s,%s,%s)"
+        temp_cur.execute(query, (final_dict_genome, final_dict_markerid,
+                                 final_dict_seq, final_dict_multihits, final_dict_evalue, final_dict_bitscore))
         temp_con.commit()
         temp_cur.close()
         temp_con.ClosePostgresConnection()
