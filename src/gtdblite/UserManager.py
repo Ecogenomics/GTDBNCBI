@@ -26,7 +26,7 @@ from Exceptions import GenomeDatabaseError
 class UserManager(object):
     """Manages users in database."""
 
-    def __init__(self, cur):
+    def __init__(self, cur, currentUser):
         """Initialize.
 
         Parameters
@@ -38,7 +38,7 @@ class UserManager(object):
         self.logger = logging.getLogger()
 
         self.cur = cur
-        self.currentUser = None
+        self.currentUser = currentUser
 
     # Function: UserLogin
     # Log a user into the database (make the user the current user of the database).
@@ -145,13 +145,9 @@ class UserManager(object):
                         "FROM user_roles " +
                         "WHERE name = %s)", (username, has_root, rolename))
 
-            self.conn.commit()
-
         except GenomeDatabaseError as e:
-            self.conn.rollback()
             raise e
         except:
-            self.conn.rollback()
             raise
 
         return True

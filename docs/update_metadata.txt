@@ -1,0 +1,83 @@
+Metadata:
+	1. generate missing metadata run:
+		[User Genomes] prodigal.py: should not be necessary, but can be used to call genes if somehow this was not done
+		[NCBI Genomes] Extract genomes if necessary
+		pfam_search.py: run Pfam HMMs over called genes
+		pfam_tophit.py: identify top hits to Pfam families
+		tigrfam.py: run TIGRfam HMMs over called genes
+		tigrfam_tophit.py: identify top hits to TIGRfam families
+		metadata_generate.py: generate metadata derived from nucleotide (e.g., GC) and protein (e.g., gene count) files
+		ssu.py: identifies, extracts, and taxonomically classifies 16S rRNA genes in genomes 
+		==> Need to run twice: once for SILVA and once for Greengenes
+	2. create tables with metadata for all genomes:
+		metadata_create_tables.py: creates the metadata_nt.tsv, metadata_gene.tsv, metadata_ssu.gg_2013_08.tsv, metadata_ssu.silva_199_gg_taxa.tsv, and metadata_ssu_count.tsv tables
+	3. create NCBI specific metadata tables
+		./ncbi_assembly_file_metadata.py /srv/db/genome_db/genomes/ncbi/2015_11_10/refseq/assembly_summary.tsv genomes_in_db.tsv /srv/db/genome_db/data/2015_12_03/ncbi_refseq_assembly_file_metadata.tsv
+		./ncbi_assembly_file_metadata.py /srv/db/genome_db/ncbi/2015_11_27/genomes/genbank/assembly_summary.tsv genomes_in_db.tsv /srv/db/genome_db/data/2015_12_03/ncbi_genbank_assembly_file_metadata.tsv
+		
+		./ncbi_assembly_metadata.py /srv/db/genome_db/genomes/ncbi/2015_11_10/refseq/ /srv/db/genome_db/data/2015_12_03/ncbi_refseq_assembly_metadata.tsv
+		./ncbi_assembly_metadata.py /srv/db/genome_db/ncbi/2015_11_27/genomes/genbank/ /srv/db/genome_db/data/2015_12_03/ncbi_genbank_assembly_metadata.tsv
+	4. import metadata into database:
+		metadata_add_to_database.py: script must be run for each metadata table produced by metadata_create_tables.py
+			./metadata_add_to_database.py /srv/db/genome_db/data/2015_12_03/metadata_gene.tsv /srv/db/genome_db/data/metadata_gene.desc.tsv
+			./metadata_add_to_database.py /srv/db/genome_db/data/2015_12_03/metadata_nt.tsv /srv/db/genome_db/data/metadata_nt.desc.tsv
+			./metadata_add_to_database.py /srv/db/genome_db/data/2015_12_03/metadata_ssu.gg_2013_08.tsv /srv/db/genome_db/data/metadata_ssu.gg_2013_08.desc.tsv
+			./metadata_add_to_database.py /srv/db/genome_db/data/2015_12_03/metadata_ssu.silva_199_gg_taxa.tsv /srv/db/genome_db/data/metadata_ssu.silva_199_gg_taxa.desc.tsv
+			./metadata_add_to_database.py /srv/db/genome_db/data/2015_12_03/metadata_ssu_count.tsv /srv/db/genome_db/data/metadata_ssu_count.desc.tsv
+			
+		add NCBI metadata:
+			./metadata_add_to_database.py /srv/db/genome_db/data/2015_12_03/ncbi_genbank_assembly_file_metadata.tsv /srv/db/genome_db/data/metadata_ncbi_assembly_file.desc.tsv
+			./metadata_add_to_database.py /srv/db/genome_db/data/2015_12_03/ncbi_refseq_assembly_file_metadata.tsv /srv/db/genome_db/data/metadata_ncbi_assembly_file.desc.tsv
+			
+			./metadata_add_to_database.py /srv/db/genome_db/data/2015_12_03/ncbi_genbank_assembly_metadata.tsv /srv/db/genome_db/data/metadata_ncbi_assembly.desc.tsv
+			./metadata_add_to_database.py /srv/db/genome_db/data/2015_12_03/ncbi_refseq_assembly_metadata.tsv /srv/db/genome_db/data/metadata_ncbi_assembly.desc.tsv
+	5. import CheckM estimates:
+			./metadata_add_checkm_ncbi_to_database.py /srv/db/genome_db/genomes/ncbi/2015_11_10/refseq/checkm_lineage_ms/checkm.profiles.tsv
+			./metadata_add_checkm_ncbi_to_database.py /srv/db/genome_db/ncbi/2015_11_27/genomes/genbank/checkm_lineage_ms/checkm.profiles.tsv
+
+Generating 7-rank NCBI taxonomy:
+	1. Download the latest NCBI taxonomy database:
+		ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz
+	2. Download and concatenate the latest Archaea and Bacteria RefSeq assembly data:
+		ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/
+	3. Run the ncbi_taxonomy.py script to create an NCBI taxonomy file:
+		ncbi_taxonomy.py /srv/db/genome_db/data/2015_12_03/ncbi_taxonomy/ /srv/db/genome_db/genomes/ncbi/2015_11_10/refseq/assembly_summary.tsv <output_taxonomy>
+		ncbi_taxonomy.py /srv/db/genome_db/data/2015_12_03/ncbi_taxonomy/ /srv/db/genome_db/genomes/ncbi/2015_11_10/genbank/assembly_summary.tsv <output_taxonomy>
+	4. Convert this to a standard 7-rank taxonomy with the ncbi_standardized_taxonomy.py script
+	5. Add to database:
+		ncbi_add_taxonomy_to_database.py
+		
+NCBI type strains:
+	1. Run ncbi_type_strains.py
+	2. Run ncbi_type_strain_metadata_table.py
+	3. Add to database:
+		./metadata_add_to_database.py /srv/db/genome_db/data/2015_11_27/ncbi_type_strain_table.tsv /srv/db/genome_db/data/metadata_ncbi_assembly.desc.tsv
+
+Representative genomes:
+	Currently, representative genomes are being select among the RefSeq genomes.
+		1. Dump the metadata for all genomes in the GTDB using "gtdb metadata export"
+		2. Update path/files specified in genometreetk.cfg of the GenomeTreeTk.
+		3. Run genometreetk representative command => ncbi_refseq_representatives.tsv
+		
+	GenBank and user genomes should then be assigned to representatives based 
+	on AAI to either the canonical bacterial or archaeal alignment.
+		1. Dump archaeal and bacterial alignments for NCBI genomes and User genomes meeting filtering criteria:
+			gtdb -t 32 trees create --genome_list_ids 215 --marker_set_ids 1 --output ./bacteria --guaranteed_genome_list_ids 215 --all_user_genomes --quality_threshold 0 --completeness_threshold 10
+			gtdb -t 32 trees create --genome_list_ids 215 --marker_set_ids 2 --output ./archaea --guaranteed_genome_list_ids 215 --all_user_genomes --quality_threshold 0 --completeness_threshold 10
+		2. Run genometreetk aai_cluster
+			genometreetk aai_cluster ./archaea/gtdb_concatenated.faa ./bacteria/gtdb_concatenated.faa ncbi_refseq_representatives.tsv  ../gtdb_metadata.tsv .
+			
+			This generates two files:
+			representatives.tsv: this is a list of genomes that should act as representatives for further clustering of user genomes
+			genomes_to_retain.tsv: this is a list of genomes that should be retained because they are a representative genome, 
+									novel (though of insufficient quality to be a representative), a representative or reference genome in RefSeq, 
+									or a second genome in a cluster (two genomes are retain per cluster to aid annotating in ARB)
+									
+	Representative genomes can be added to the GTDB with:
+		add_representatives_gtdb.py representatives.tsv genomes_to_retain.tsv representative_genomes.desc.tsv
+		
+Problem genomes:
+GCF_000826165.1 => Failed to be processed by CheckM
+
+
+./map_taxonomy_img_to_ncbi.py /srv/db/genome_db/data/2015_11_27/ncbi_refseq_assembly_metadata.tsv /srv/db/img/latest/img_genomes.metadata.feb17_2015.tsv /srv/db/gtdblite/static/datafiles/taxonomy/gtdb_taxonomy.tsv test

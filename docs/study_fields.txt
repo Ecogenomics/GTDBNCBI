@@ -1,0 +1,16 @@
+study_description	Genomes recovered from 11 coalbed methane wells in Queensland, Australia.
+sequencing_platform	Illumina HiSeq
+read_files	/srv/projects/coal/surat_csg/seq_data/raw_data/*.fq.gz
+qc_program	Trimmomatic v0.33
+assembly_program	CLC v4.4.0.122465
+gap_filling_program	Abyss-sealer v1.9.0
+mapping_program	BamM v1.5.2
+binning_program	MetaBAT v0.25.4
+scaffolding_program	FinishM v0.0.7
+genome_assessment_program	CheckM v1.0.5
+refinement_description	RefineM v0.0.7 outlier and reference features were used to reduce contamination and improve completeness.
+
+
+
+Genome fields
+genome_coverage

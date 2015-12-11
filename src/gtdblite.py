@@ -128,8 +128,12 @@ def AddUser(db, args):
     if args.has_root:
         has_root = True
 
-    user_mngr = UserManager(db.conn.cursor())
-    return user_mngr.addUser(args.username, args.role, has_root)
+    user_mngr = UserManager(db.conn.cursor(), db.currentUser)
+    bSuccess = user_mngr.addUser(args.username, args.role, has_root)
+
+    db.conn.commit()
+
+    return bSuccess
 
 
 def EditUser(db, args):
@@ -420,10 +424,18 @@ def exportMetadata(db, args):
 
 
 def importMetadata(db, args):
+    if not db.currentUser.isRootUser():
+        logging.getLogger().info("Only the root user may import metadata.")
+        return False
+
     return db.ImportMetadata(args.table, args.field, args.typemeta, args.metadatafile)
 
 
 def createMetadata(db, args):
+    if not db.currentUser.isRootUser():
+        logging.getLogger().info("Only the root user may create new metadata fields.")
+        return False
+
     return db.CreateMetadata(args.metadatafile)
 
 
@@ -776,19 +788,20 @@ if __name__ == '__main__':
                                                                     formatter_class=CustomHelpFormatter,
                                                                     help='Create one or many metadata field.')
     parser_metadata_create.add_argument('--file', dest='metadatafile',
-                                        required=True, help='Metadata file describing the new field \
-                                        - one metadata per line, tab separated in 4 columns (name,description,datatype,metadata table')
+                                        required=True, help='Metadata file describing the new field - ' +
+                                                            'one metadata per line, tab separated in 4 columns' +
+                                                            '(name,description,datatype,metadata table)')
     parser_metadata_create.set_defaults(func=createMetadata)
 
     # metadata view parser
     parser_metadata_view = metadata_category_subparser.add_parser('view',
-                                                                  help='List all existing metadata fields with table name and description')
+                                                                  help='List all existing metadata fields with table name and description.')
     parser_metadata_view.set_defaults(func=viewMetadata)
 
     # metadata import parser
     parser_metadata_import = metadata_category_subparser.add_parser('import',
                                                                     formatter_class=CustomHelpFormatter,
-                                                                    help='Import Metadata values for a list of genome')
+                                                                    help='Import metadata values for a list of genome.')
     parser_metadata_import.add_argument('--table', dest='table', default=None, required=True,
                                         help='Table where the metadata field is present')
     parser_metadata_import.add_argument('--field', dest='field', default=None, required=True,
@@ -796,14 +809,14 @@ if __name__ == '__main__':
     parser_metadata_import.add_argument('--type', dest='typemeta', default=None, required=True,
                                         help='Type of the Metadata field')
     parser_metadata_import.add_argument('--metadatafile', dest='metadatafile', default=None,
-                                        help='TSV file . One genome per line , tab separated in 2 columns (genome id , metadata value)')
+                                        help='TSV file. One genome per line, tab separated in 2 columns (genome id , metadata value)')
     parser_metadata_import.set_defaults(func=importMetadata)
 
     # metadata export parser
 
     parser_metadata_export = metadata_category_subparser.add_parser('export',
                                                                     formatter_class=CustomHelpFormatter,
-                                                                    help='Export a CSV file with all Metadata fields')
+                                                                    help='Export a CSV file with all metadata fields.')
     parser_metadata_export.add_argument('--output', dest='outfile', default=None, required=True,
                                         help='Destination to write the CSV file')
     parser_metadata_export.set_defaults(func=exportMetadata)
