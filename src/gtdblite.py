@@ -159,7 +159,8 @@ def CreateTreeData(db, args):
     genome_id_list = []
 
     if args.all_genomes:
-        genome_id_list = db.getAllGenomeIds()
+        genome_mngr = GenomeManager(db.conn.cursor(), db.currentUser)
+        genome_id_list = genome_mngr.getAllGenomeIds()
         if genome_id_list is False:
             return False
     else:
