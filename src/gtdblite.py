@@ -124,21 +124,21 @@ def ErrorReport(msg):
 
 
 def AddUser(db, args):
-    has_root = False
-    if args.has_root:
-        has_root = True
-
-    user_mngr = UserManager(db.conn.cursor(), db.currentUser)
-    bSuccess = user_mngr.addUser(args.username, args.role, has_root)
-
-    db.conn.commit()
-
-    return bSuccess
+    log_has_root = False
+    if args.login_as_root:
+        log_has_root = True
+    return db.addUser(args.username,
+                      args.role,
+                      log_has_root)
 
 
 def EditUser(db, args):
-    user_mngr = UserManager(db.conn.cursor())
-    return user_mngr.editUser(args.username, args.role, args.has_root)
+    log_has_root = False
+    if args.login_as_root:
+        log_has_root = True
+    return db.editUser(args.username,
+                       args.role,
+                       log_has_root)
 
 
 def AddGenomes(db, args):
@@ -175,14 +175,17 @@ def CreateTreeData(db, args):
 
         if args.genome_ids:
             genome_mngr = GenomeManager(db.conn.cursor(), db.currentUser)
-            temp_list = genome_mngr.externalGenomeIdsToGenomeIds(args.genome_ids.split(","))
+            temp_list = genome_mngr.externalGenomeIdsToGenomeIds(
+                args.genome_ids.split(","))
             if temp_list is False:
                 return False
             genome_id_list += temp_list
 
         if args.genome_list_ids:
-            genome_list_mngr = GenomeListManager(db.conn.cursor(), db.currentUser)
-            temp_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(args.genome_list_ids.split(","))
+            genome_list_mngr = GenomeListManager(
+                db.conn.cursor(), db.currentUser)
+            temp_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(
+                args.genome_list_ids.split(","))
             if temp_list is False:
                 return False
             genome_id_list += temp_list
@@ -205,7 +208,8 @@ def CreateTreeData(db, args):
     marker_id_list = []
     if args.marker_ids:
         marker_mngr = MarkerManager(db.conn.cursor(), db.currentUser)
-        temp_list = marker_mngr.externalMarkerIdsToMarkerIds(args.marker_ids.split(","))
+        temp_list = marker_mngr.externalMarkerIdsToMarkerIds(
+            args.marker_ids.split(","))
         if temp_list is None:
             return False
         marker_id_list += temp_list
@@ -214,8 +218,10 @@ def CreateTreeData(db, args):
     if args.marker_set_ids:
         marker_set_ids = args.marker_set_ids.split(",")
         for set_id in marker_set_ids:
-            marker_set_mngr = MarkerSetManager(db.conn.cursor(), db.currentUser)
-            temp_marker_list = marker_set_mngr.getMarkerIdListFromMarkerSetId(set_id)
+            marker_set_mngr = MarkerSetManager(
+                db.conn.cursor(), db.currentUser)
+            temp_marker_list = marker_set_mngr.getMarkerIdListFromMarkerSetId(
+                set_id)
             if temp_marker_list:
                 marker_id_list += temp_marker_list
 
@@ -228,7 +234,8 @@ def CreateTreeData(db, args):
 
     if marker_batchfile_ids:
         marker_mngr = MarkerManager(db.conn.cursor(), db.currentUser)
-        temp_list = marker_mngr.externalMarkerIdsToMarkerIds(marker_batchfile_ids)
+        temp_list = marker_mngr.externalMarkerIdsToMarkerIds(
+            marker_batchfile_ids)
         if temp_list is None:
             return False
         marker_id_list += temp_list
@@ -388,7 +395,7 @@ def ViewMarkerSets(db, args):
         print "No marker sets found."
         return True
 
-    return db.PrintMarkerSetsDetails(marker_sets)
+    return db.printMarkerSetsDetails(marker_sets)
 
 
 def EditMarkerSet(db, args):
@@ -404,6 +411,13 @@ def EditMarkerSet(db, args):
         private = True
 
     return db.EditMarkerSet(args.set_id, args.batchfile, marker_ids, args.operation, args.name, args.description, private)
+
+
+def DeleteMarkerSets(db, args):
+    set_ids = None
+    if args.set_ids:
+        set_ids = args.set_ids.split(",")
+    return db.deleteMarkerSets(set_ids)
 
 
 def MarkerSetsContents(db, args):
@@ -433,7 +447,8 @@ def importMetadata(db, args):
 
 def createMetadata(db, args):
     if not db.currentUser.isRootUser():
-        logging.getLogger().info("Only the root user may create new metadata fields.")
+        logging.getLogger().info(
+            "Only the root user may create new metadata fields.")
         return False
 
     return db.CreateMetadata(args.metadatafile)
@@ -780,6 +795,14 @@ if __name__ == '__main__':
                              help='Make this marker set public (all users can see).')
 
     parser_marker_sets_edit.set_defaults(func=EditMarkerSet)
+
+    # Delete marker sets
+    parser_marker_sets_delete = marker_set_category_subparser.add_parser('delete',
+                                                                         formatter_class=CustomHelpFormatter,
+                                                                         help='Delete a marker set')
+    parser_marker_sets_delete.add_argument('--set_ids', dest='set_ids',
+                                           required=True, help='Provide a list of marker set ids (comma separated) whose contents you wish to delete.')
+    parser_marker_sets_delete.set_defaults(func=DeleteMarkerSets)
 
 # -------- Metadata Management subparsers
 
