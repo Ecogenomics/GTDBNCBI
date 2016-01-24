@@ -845,7 +845,7 @@ if __name__ == '__main__':
                                     help='Provide a list of marker set ids (comma separated), whose markers will be used to build the tree')
 
     parser_tree_create.add_argument('--quality_threshold',
-                                    type=float, default=50, help='Filter genomes where the quality (completeness - 4*contamination) if below the specified threshold')
+                                    type=float, default=50, help='Filter genomes where the quality (completeness - 4*contamination) is below the specified threshold')
     parser_tree_create.add_argument('--completeness_threshold', dest='comp_threshold',
                                     type=float, default=50, help='Filter genomes below this completeness threshold')
     parser_tree_create.add_argument('--contamination_threshold', dest='cont_threshold',
