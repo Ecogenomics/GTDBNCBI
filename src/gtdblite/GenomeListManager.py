@@ -129,23 +129,23 @@ class GenomeListManager(object):
                 raise GenomeDatabaseError(
                     "Insufficient pesrmissions to edit this genome list. Offending list id: %s" % genome_list_id)
 
-            update_query = ""
+            update_query = []
             params = []
 
             if name is not None:
-                update_query += "name = %s"
+                update_query.append("name = %s")
                 params.append(name)
 
             if description is not None:
-                update_query += "description = %s"
+                update_query.append("description = %s")
                 params.append(description)
 
             if private is not None:
-                update_query += "private = %s"
+                update_query.append("private = %s")
                 params.append(private)
 
             if params:
-                self.cur.execute("UPDATE genome_lists SET " + update_query +
+                self.cur.execute("UPDATE genome_lists SET " + ",".join(update_query) +
                                  " WHERE id = %s", params + [genome_list_id])
 
             temp_table_name = Tools.generateTempTableName()
@@ -193,7 +193,7 @@ class GenomeListManager(object):
 
                 else:
                     raise GenomeDatabaseError(
-                        "Unknown genome list edit operation: %s" % operation)
+                        "Unknown genome set edit operation: %s" % operation)
         except GenomeDatabaseError as e:
             raise e
 
@@ -241,9 +241,6 @@ class GenomeListManager(object):
                     "Unknown genome list id(s) given. %s" % str(missing_list_ids))
 
             # Find any genome list ids that we dont have permission to view
-            self.cur.execute("SELECT id, owner_id, owned_by_root, private " +
-                             "FROM genome_lists " +
-                             "WHERE id in %s ", (tuple(genome_list_ids),))
 
             self.cur.execute("SELECT genome_id " +
                              "FROM genome_list_contents " +
@@ -278,7 +275,8 @@ class GenomeListManager(object):
                 if not self._confirm("Are you sure you want to delete {0} lists (this action cannot be undone)".format(len(genome_list_ids))):
                     raise GenomeDatabaseError("User aborted database action.")
 
-                list_genomes_ids = self.getGenomeIdListFromGenomeListIds([genome_list_id])
+                list_genomes_ids = self.getGenomeIdListFromGenomeListIds(
+                    [genome_list_id])
                 self.editGenomeList(genome_list_id, list_genomes_ids, 'remove')
             except GenomeDatabaseError as e:
                 raise e
