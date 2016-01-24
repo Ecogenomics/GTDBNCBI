@@ -52,9 +52,9 @@ class UserManager(object):
     def userLogin(self, username):
         try:
             self.cur.execute("SELECT users.id, user_roles.id, user_roles.name "
-                        "FROM users, user_roles " +
-                        "WHERE users.role_id = user_roles.id " +
-                        "AND users.username = %s", (username,))
+                             "FROM users, user_roles " +
+                             "WHERE users.role_id = user_roles.id " +
+                             "AND users.username = %s", (username,))
 
             result = self.cur.fetchone()
 
@@ -62,7 +62,8 @@ class UserManager(object):
                 raise GenomeDatabaseError("User not found: %s" % username)
 
             (user_id, role_id, rolename) = result
-            self.currentUser = User.createUser(user_id, username, rolename, role_id)
+            self.currentUser = User.createUser(
+                user_id, username, rolename, role_id)
 
         except GenomeDatabaseError as e:
             raise e
@@ -81,10 +82,6 @@ class UserManager(object):
     # current user).
     def rootLogin(self, username):
         try:
-            if not self.conn.IsPostgresConnectionActive():
-                raise GenomeDatabaseError(
-                    "Unable to establish database connection")
-
             query = "SELECT id, has_root_login FROM users WHERE username = %s"
             self.cur.execute(query, [username])
             result = self.cur.fetchone()
@@ -141,9 +138,9 @@ class UserManager(object):
                     "User %s already exists in the database." % username)
 
             self.cur.execute("INSERT into users (username, role_id, has_root_login) (" +
-                        "SELECT %s, id, %s " +
-                        "FROM user_roles " +
-                        "WHERE name = %s)", (username, has_root, rolename))
+                             "SELECT %s, id, %s " +
+                             "FROM user_roles " +
+                             "WHERE name = %s)", (username, has_root, rolename))
 
         except GenomeDatabaseError as e:
             raise e
@@ -157,30 +154,6 @@ class UserManager(object):
             if (not self.currentUser.isRootUser()):
                 raise GenomeDatabaseError(
                     "Only the root user may edit existing accounts.")
-
-                # The following may be useful in the future if roles change, but at the moment,
-                # only the root user can make any meaningful user edits
-                """
-                if has_root is not None:
-                    raise GenomeDatabaseError("Only the root user may edit the root access of users.")
-
-                if rolename == 'admin':
-                    raise GenomeDatabaseError("Only the root user may create admin accounts.")
-
-                cur.execute("SELECT users.id, user_roles.id, user_roles.name "
-                    "FROM users, user_roles " +
-                    "WHERE users.role_id = user_roles.id " +
-                    "AND users.username = %s", (username, ))
-
-                result = cur.fetchone()
-
-                if not result:
-                    raise GenomeDatabaseError("User not found: %s" % username)
-
-                (user_id, current_role_id, current_rolename) = result
-                if current_rolename == 'admin':
-                    raise GenomeDatabaseError("Only the root user may edit current admin accounts.")
-                """
 
             conditional_queries = []
             params = []
@@ -196,15 +169,12 @@ class UserManager(object):
 
             if params:
                 self.cur.execute("UPDATE users " +
-                            "SET " + ','.join(conditional_queries) + " "
-                            "WHERE username = %s", params + [username])
+                                 "SET " + ','.join(conditional_queries) + " "
+                                 "WHERE username = %s", params + [username])
 
-            self.conn.commit()
         except GenomeDatabaseError as e:
-            self.conn.rollback()
             raise e
-        except:
-            self.conn.rollback()
-            raise
+        except Exception as e:
+            raise e
 
         return True

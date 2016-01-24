@@ -154,6 +154,29 @@ class GenomeDatabase(object):
             return True
         return False
 
+    def addUser(self, username, role, login_has_root):
+        try:
+            cur = self.conn.cursor()
+            user_mngr = UserManager(cur, self.currentUser)
+            user_mngr.addUser(username, role, login_has_root)
+            self.conn.commit()
+            return True
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+    def editUser(self, username, role, login_has_root):
+        try:
+            cur = self.conn.cursor()
+            user_mngr = UserManager(cur, self.currentUser)
+            user_mngr.editUser(username, role, login_has_root)
+            self.conn.commit()
+            return True
+        except GenomeDatabaseError as e:
+            self.conn.rollback()
+            self.ReportError(e.message)
+            return False
+
     def AddGenomes(self, batchfile,
                    checkm_file,
                    study_file,
@@ -586,7 +609,7 @@ class GenomeDatabase(object):
 
         return True
 
-    def PrintMarkerSetsDetails(self, marker_set_ids):
+    def printMarkerSetsDetails(self, marker_set_ids):
         """Print genome list details.
 
         Parameters
@@ -730,11 +753,11 @@ class GenomeDatabase(object):
 
             marker_set_mngr = MarkerSetManager(cur, self.currentUser)
             marker_list_id = marker_set_mngr.createMarkerSet(
-                cur, marker_id_list, name, description, owner_id, private)
+                marker_id_list, name, description, owner_id, private)
             if marker_list_id is False:
                 raise GenomeDatabaseError("Unable to create new marker set.")
 
-            self.PrintMarkerSetsDetails(marker_list_id)
+# TODEL            self.PrintMarkerSetsDetails(marker_list_id)
 
             self.conn.commit()
 
@@ -795,6 +818,25 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
+        return True
+
+    def deleteMarkerSets(self, set_ids=None):
+        '''
+        Delete a list of marker sets
+
+        :param list_ids: List of marker IDs to delete
+        '''
+        try:
+            cur = self.conn.cursor()
+            marker_set_mngr = MarkerSetManager(cur, self.currentUser)
+            if not marker_set_mngr.deleteMarkerSets(set_ids):
+                raise GenomeDatabaseError(
+                    "Unable to edit marker sets")
+            self.conn.commit()
+        except GenomeDatabaseError as e:
+            self.conn.rollback()
+            self.ReportError(e.message)
+            return False
         return True
 
     def GetVisibleMarkerSetsByOwner(self, owner_id=None, include_private=False):

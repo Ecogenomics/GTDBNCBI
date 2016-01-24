@@ -43,6 +43,12 @@ class MarkerSetManager(object):
         self.cur = cur
         self.currentUser = currentUser
 
+    def _confirm(self, msg):
+        raw = raw_input(msg + " (y/N): ")
+        if raw.upper() == "Y":
+            return True
+        return False
+
     def createMarkerSet(self, marker_id_list, name, description, owner_id=None, private=None):
         """Create a new marker set.
 
@@ -80,7 +86,8 @@ class MarkerSetManager(object):
             (marker_set_id,) = self.cur.fetchone()
 
             query = "INSERT INTO marker_set_contents (set_id, marker_id) VALUES (%s, %s)"
-            self.cur.executemany(query, [(marker_set_id, x) for x in marker_id_list])
+            self.cur.executemany(
+                query, [(marker_set_id, x) for x in marker_id_list])
 
         except GenomeDatabaseError as e:
             raise e
@@ -122,24 +129,24 @@ class MarkerSetManager(object):
                 raise GenomeDatabaseError(
                     "Insufficient permissions to edit this marker set. Offending set id: %s" % marker_set_id)
 
-            update_query = ""
+            update_query = []
             params = []
 
             if name is not None:
-                update_query += "name = %s"
+                update_query.append("name = %s")
                 params.append(name)
 
             if description is not None:
-                update_query += "description = %s"
+                update_query.append("description = %s")
                 params.append(description)
 
             if private is not None:
-                update_query += "private = %s"
+                update_query.append("private = %s")
                 params.append(private)
 
             if params:
-                self.cur.execute("UPDATE marker_sets SET " + update_query +
-                            " WHERE id = %s", params + [marker_set_id])
+                self.cur.execute("UPDATE marker_sets SET " + ",".join(update_query) +
+                                 " WHERE id = %s", params + [marker_set_id])
 
             temp_table_name = Tools.generateTempTableName()
 
@@ -150,7 +157,7 @@ class MarkerSetManager(object):
                         "No marker ids given to perform '%s' operation." % operation)
 
                 self.cur.execute("CREATE TEMP TABLE %s (id integer)" %
-                            (temp_table_name,))
+                                 (temp_table_name,))
                 query = "INSERT INTO {0} (id) VALUES (%s)".format(
                     temp_table_name)
                 self.cur.executemany(query, [(x,) for x in marker_ids])
@@ -170,12 +177,58 @@ class MarkerSetManager(object):
                              "SELECT id " +
                              "FROM {0})").format(temp_table_name)
                     self.cur.execute(query, [marker_set_id])
+
+                    query_is_empty = ("SELECT count(msc.marker_id) from marker_sets as ms " +
+                                      "LEFT JOIN  marker_set_contents as msc on msc.set_id = ms.id " +
+                                      "WHERE ms.id = {0} " +
+                                      "GROUP BY ms.id").format(marker_set_id)
+                    self.cur.execute(query_is_empty)
+
+                    count = self.cur.fetchone()
+                    if count[0] == 0:
+                        # We delete the list because it's empty
+                        query_del_set = ("DELETE FROM marker_sets WHERE id = {0} ").format(
+                            marker_set_id)
+                        self.cur.execute(query_del_set)
+
                 else:
                     raise GenomeDatabaseError(
                         "Unknown marker set edit operation: %s" % operation)
 
         except GenomeDatabaseError as e:
             raise e
+
+        return True
+
+    def deleteMarkerSets(self, marker_set_ids):
+        """Delete marker set and associated markers.
+
+        Parameters
+        ----------
+        marker_set_ids : iterable
+            Unique identifier of marker sets in database.
+
+        Returns
+        -------
+        bool
+            True if successful.
+        """
+
+        for marker_set_id in marker_set_ids:
+            try:
+                edit_permission = self.permissionToModify(marker_set_id)
+                if edit_permission is False:
+                    raise GenomeDatabaseError(
+                        "Insufficient permissions to delete marker set. Offending marker set id: {0}".format(marker_set_id))
+
+                if not self._confirm("Are you sure you want to delete {0} set(s) (this action cannot be undone)".format(len(marker_set_ids))):
+                    raise GenomeDatabaseError("User aborted database action.")
+
+                list_marker_ids = self.getMarkerIdListFromMarkerSetId(
+                    [marker_set_id])
+                self.editMarkerSet(marker_set_id, list_marker_ids, 'remove')
+            except GenomeDatabaseError as e:
+                raise e
 
         return True
 
@@ -216,8 +269,8 @@ class MarkerSetManager(object):
         """
 
         self.cur.execute("SELECT id, owner_id, owned_by_root, private " +
-                    "FROM marker_sets " +
-                    "WHERE id = %s ", (tuple(marker_set_id),))
+                         "FROM marker_sets " +
+                         "WHERE id = %s ", (tuple(marker_set_id),))
 
         result = self.cur.fetchone()
 
@@ -226,8 +279,8 @@ class MarkerSetManager(object):
             return None
 
         self.cur.execute("SELECT marker_id " +
-                    "FROM marker_set_contents " +
-                    "WHERE set_id = %s ", (tuple(marker_set_id),))
+                         "FROM marker_set_contents " +
+                         "WHERE set_id = %s ", (tuple(marker_set_id),))
 
         return [marker_id for (marker_id,) in self.cur.fetchall()]
 
@@ -246,7 +299,7 @@ class MarkerSetManager(object):
         list
             Content for each row.
         """
-
+        print marker_set_ids
         try:
             if not marker_set_ids:
                 raise GenomeDatabaseError(
@@ -254,9 +307,9 @@ class MarkerSetManager(object):
 
             if not self.currentUser.isRootUser():
                 self.cur.execute("SELECT id " +
-                            "FROM marker_sets as sets " +
-                            "WHERE sets.private = True " +
-                            "AND sets.id in %s ", (tuple(marker_set_ids),))
+                                 "FROM marker_sets as sets " +
+                                 "WHERE sets.private = True " +
+                                 "AND sets.id in %s ", (tuple(marker_set_ids),))
 
                 unviewable_set_ids = [set_id for (set_id,) in self.cur]
                 if unviewable_set_ids:
@@ -301,8 +354,8 @@ class MarkerSetManager(object):
 
         try:
             self.cur.execute("SELECT owner_id, owned_by_root " +
-                        "FROM marker_sets " +
-                        "WHERE id = %s ", (marker_set_id,))
+                             "FROM marker_sets " +
+                             "WHERE id = %s ", (marker_set_id,))
 
             result = self.cur.fetchone()
 
