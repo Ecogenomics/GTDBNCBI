@@ -32,6 +32,8 @@ from Prodigal import Prodigal
 from TigrfamSearch import TigrfamSearch
 from PfamSearch import PfamSearch
 from GenomeRepresentativeManager import GenomeRepresentativeManager
+from MarkerSetManager import MarkerSetManager
+from AlignedMarkerManager import AlignedMarkerManager
 
 from biolib.checksum import sha256
 from biolib.common import make_sure_path_exists
@@ -151,6 +153,7 @@ class GenomeManager(object):
                                           checkm_results_dict[bin_id],
                                           output_dir)
 
+            # annotated genes against TIGRfam and Pfam databases
             self.logger.info("Identifying TIGRfam protein families.")
             gene_files = [file_paths[db_genome_id]['aa_gene_path']
                           for db_genome_id in genomic_files]
@@ -160,10 +163,6 @@ class GenomeManager(object):
             self.logger.info("Identifying Pfam protein families.")
             pfam_search = PfamSearch(self.threads)
             pfam_search.run(gene_files)
-
-            # determine if genomes should be assigned to a representatives
-            #!!!genome_rep_mngr = GenomeRepresentativeManager(self.cur, self.currentUser)
-            #!!!genome_rep_mngr.assignToRepresentative(genomic_files.keys())
         except:
             if os.path.exists(self.tmp_output_dir):
                 shutil.rmtree(self.tmp_output_dir)

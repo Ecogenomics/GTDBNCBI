@@ -35,14 +35,23 @@ from biolib.seq_io import read_fasta
 class AlignedMarkerManager(object):
     ''''Manage the processing of Aligned Markers and querying marker information.'''
 
-    def __init__(self, threads):
-        """Initialize."""
+    def __init__(self, cur, threads):
+        """Initialize.
+        
+        Parameters
+        ----------
+        cur : psycopg2.cursor
+            Database cursor.
+        threads : int
+            Number of threads to use for processing.
+        """
 
         self.logger = logging.getLogger()
         self.threads = threads
 
-        self.conn = GenomeDatabaseConnection()
-        self.conn.MakePostgresConnection()
+        #self.conn = GenomeDatabaseConnection()
+        #self.conn.MakePostgresConnection()
+        self.cur = cur
 
         self.tigrfam_suffix = ConfigMetadata.TIGRFAM_SUFFIX
         self.tigrfam_top_hit_suffix = ConfigMetadata.TIGRFAM_TOP_HIT_SUFFIX
@@ -61,22 +70,19 @@ class AlignedMarkerManager(object):
 
         self.logger.info('Aligning marker genes not already in the database.')
 
-        cur = self.conn.cursor()
-
         # We need to rebuild the path to each
         genome_dirs_query = ("SELECT g.id, g.fasta_file_location,gs.external_id_prefix "
                              "FROM genomes g " +
                              "LEFT JOIN genome_sources gs ON gs.id = g.genome_source_id " +
                              "WHERE g.id in %s")
-        cur.execute(genome_dirs_query, (tuple(db_genome_ids),))
-        raw_results = cur.fetchall()
+        self.cur.execute(genome_dirs_query, (tuple(db_genome_ids),))
+        raw_results = self.cur.fetchall()
         genome_dirs = {a: fastaPathGenerator(b, c) for a, b, c in raw_results}
 
         manager = multiprocessing.Manager()
         out_q = manager.Queue()
         procs = []
         nprocs = self.threads
-
         for item in splitchunks(genome_dirs, nprocs):
             p = multiprocessing.Process(
                 target=self._hmmWorker,
@@ -112,7 +118,7 @@ class AlignedMarkerManager(object):
 
     def _runHmmMultiAlign(self, db_genome_id, path, marker_ids):
         '''
-        Selects Markers that are not aligned for a specific genome.
+        Selects markers that are not aligned for a specific genome.
 
         :param db_genome_id: Selected genome
         :param path: Path to the genomic fasta file for the genome
