@@ -33,6 +33,7 @@ from MetadataManager import MetadataManager
 from TreeManager import TreeManager
 from Exceptions import GenomeDatabaseError
 from AlignedMarkerManager import AlignedMarkerManager
+from GenomeRepresentativeManager import GenomeRepresentativeManager
 
 
 class GenomeDatabase(object):
@@ -234,8 +235,7 @@ class GenomeDatabase(object):
 
             # add genomes to database
             genome_mngr = GenomeManager(cur, self.currentUser, self.threads)
-            genome_ids = genome_mngr.addGenomes(
-                checkm_file, batchfile, study_file)
+            genome_ids = genome_mngr.addGenomes(checkm_file, batchfile, study_file)
 
             if modify_genome_list_id is not None:
                 genome_list_mngr = GenomeListManager(cur, self.currentUser)
@@ -413,12 +413,17 @@ class GenomeDatabase(object):
                      alignment, individual,
                      build_tree=True):
 
-        self.logger.info('Making tree for %d genomes using %d marker genes.' % (
-            len(genome_ids), len(marker_ids)))
-
         try:
             cur = self.conn.cursor()
 
+            # ensure all genomes have been assigned to a representatives
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser)
+            genome_rep_mngr.assignToRepresentative()
+
+            # create tree data
+            self.logger.info('Creating tree data for %d genomes using %d marker genes.' %
+                                (len(genome_ids), len(marker_ids)))
+            
             tree_mngr = TreeManager(cur, self.currentUser)
             genomes_to_retain, chosen_markers_order, chosen_markers = tree_mngr.filterGenomes(marker_ids, genome_ids,
                                                                                               quality_threshold, comp_threshold, cont_threshold,
@@ -427,9 +432,8 @@ class GenomeDatabase(object):
                                                                                               guaranteed_genome_list_ids,
                                                                                               guaranteed_genome_ids)
 
-            aligned_mngr = AlignedMarkerManager(self.threads)
-            aligned_mngr.calculateAlignedMarkerSets(
-                genomes_to_retain, marker_ids)
+            aligned_mngr = AlignedMarkerManager(cur, self.threads)
+            aligned_mngr.calculateAlignedMarkerSets(genomes_to_retain, marker_ids)
 
             tree_mngr.writeFiles(marker_ids, genomes_to_retain, directory,
                                  prefix, chosen_markers_order, chosen_markers, alignment, individual)
@@ -930,6 +934,11 @@ class GenomeDatabase(object):
     def ExportMetadata(self, path):
         try:
             cur = self.conn.cursor()
+            
+            # ensure all genomes have been assigned to a representatives
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser)
+            genome_rep_mngr.assignToRepresentative()
+            
             metaman = MetadataManager(cur, self.currentUser)
             metaman.exportMetadata(path)
         except GenomeDatabaseError as e:
@@ -966,26 +975,6 @@ class GenomeDatabase(object):
 
         try:
             cur = self.conn.cursor()
-            
-            
-            #*** TESTING
-            
-
-            marker_set_mngr = MarkerSetManager(cur, self.currentUser)
-            aligned_mngr = AlignedMarkerManager(self.threads)
-            aligned_mngr.calculateAlignedMarkerSets(['147524'], marker_set_mngr.canonicalBacterialMarkers())
-            aligned_mngr.calculateAlignedMarkerSets(['147524'], marker_set_mngr.canonicalArchaealMarkers())
-            
-            sys.exit()
-            
-            from GenomeRepresentativeManager import GenomeRepresentativeManager
-            grm = GenomeRepresentativeManager(cur, self.currentUser)
-            grm.assignToRepresentative(['147524'])
-            
-            
-            
-            
-            
 
             cur.execute("SELECT name, external_id_prefix, " +
                         "(SELECT COUNT(*) "

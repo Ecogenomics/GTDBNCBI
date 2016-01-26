@@ -62,18 +62,18 @@ class MarkerSetManager(object):
         
         return self.getMarkerIdListFromMarkerSetIds([self.arCanonicalMarkerSetId])
     
-    def concatenatedAlignedMarkers(self, db_genome_id, marker_ids):
+    def concatenatedAlignedMarkers(self, db_genome_id, marker_id_index):
         """Create concatenated alignment of markers for genome.
 
-        Markers are processed in the order specified by
-        marker_ids.
+        Markers are concatenated in the order specified by
+        marker_id_index.
 
         Parameters
         ----------
         db_genome_id : str
             Unique database identifier of genome of interest.
-        marker_ids : list
-            List of database identifiers for markers of interest.
+        marker_id_index : d[marker_id] -> index
+            Dictionary indicating the order to concatenate markers.
 
         Returns
         -------
@@ -81,16 +81,17 @@ class MarkerSetManager(object):
             Concatenated alignment.
         """
 
-        concatenated_align = ''
-        for marker_id in marker_ids:
-            query = ("SELECT sequence " +
-                    "FROM aligned_markers " +
-                    "WHERE genome_id = %s AND marker_id = %s")
-            self.cur.execute(query, (db_genome_id, marker_id))
+        query = ("SELECT marker_id, sequence " +
+                 "FROM aligned_markers " +
+                 "WHERE genome_id = %s AND marker_id = ANY(%s)")
+        self.cur.execute(query, (db_genome_id, marker_id_index.keys()))
 
-            concatenated_align += self.cur.fetchone()[0]
+        concatenated_align = [None] * len(marker_id_index)
+        for marker_id, sequence in self.cur:
+            index = marker_id_index[marker_id]
+            concatenated_align[index] = sequence
 
-        return concatenated_align
+        return ''.join(concatenated_align)
 
     def createMarkerSet(self, marker_id_list, name, description, owner_id=None, private=None):
         """Create a new marker set.
