@@ -21,6 +21,7 @@ import itertools
 import psycopg2
 
 from MarkerSetManager import MarkerSetManager
+from AlignedMarkerManager import AlignedMarkerManager
 
 
 class GenomeRepresentativeManager(object):
@@ -86,6 +87,22 @@ class GenomeRepresentativeManager(object):
         aai = float(matches) / max(1, (matches + mismatches))
 
         return aai >= threshold
+    
+    def _unprocessedGenomes(self):
+        """Identify genomes that have not been compared to representatives.
+        
+        Returns
+        -------
+        list
+            List of database identifiers for unprocessed genomes.
+        """
+        
+        self.cur.execute("SELECT id " +
+                         "FROM metadata_taxonomy " +
+                         "WHERE gtdb_representative IS NULL")
+        unprocessed_genome_ids = [genome_id[0] for genome_id in self.cur.fetchall()]
+
+        return unprocessed_genome_ids
 
     def representativeGenomes(self):
         """Get list of representative genomes.
@@ -103,37 +120,62 @@ class GenomeRepresentativeManager(object):
 
         return rep_genome_ids
 
-    def assignToRepresentative(self, db_genome_ids):
+    def assignToRepresentative(self):
         """Assign genomes to representatives.
 
-        Parameters
-        ----------
-        db_genome_ids : list
-            Unique database identifier of genomes to process.
+        This method assumes any genomes to process
+        have already been committed to the database
+        as identification and alignment of canonical
+        marker genes is done in independent database
+        transactions.
         """
+
+        # identify genomes that have not been compared to representatives
+        unprocessed_genome_ids = self._unprocessedGenomes()
+        if not unprocessed_genome_ids:
+            return
 
         # get canonical bacterial and archaeal markers
         marker_set_mngr = MarkerSetManager(self.cur, self.currentUser)
         bac_marker_ids = marker_set_mngr.canonicalBacterialMarkers()
         ar_marker_ids = marker_set_mngr.canonicalArchaealMarkers()
 
+        # identify and align genes from canonical bacterial and archaeal marker sets
+        aligned_mngr = AlignedMarkerManager(self.cur, self.threads)
+        aligned_mngr.calculateAlignedMarkerSets(unprocessed_genome_ids,
+                                                    marker_set_mngr.canonicalBacterialMarkers())
+        aligned_mngr.calculateAlignedMarkerSets(unprocessed_genome_ids,
+                                                    marker_set_mngr.canonicalArchaealMarkers())
+
+        # define desired order of marker genes
+        # (order doesn't matter, but must be consistent between genomes)
+        bac_marker_index = {}
+        for i, marker_id in enumerate(bac_marker_ids):
+            bac_marker_index[marker_id] = i
+
+        ar_marker_index = {}
+        for i, marker_id in enumerate(ar_marker_ids):
+            ar_marker_index[marker_id] = i
+
         # get list of representative genomes
         rep_genome_ids = self.representativeGenomes()
-        self.logger.info("Comparing genomes to %d representatives." % len(rep_genome_ids))
+        self.logger.info("Comparing %d unprocessed genomes to %d representatives." %
+                                                    (len(unprocessed_genome_ids),
+                                                     len(rep_genome_ids)))
 
         # process each genome
         assigned_to_rep_count = 0
-        for genome_id in db_genome_ids:
+        for genome_id in unprocessed_genome_ids:
             # get canonical alignment
-            genome_bac_align = marker_set_mngr.concatenatedAlignedMarkers(genome_id, bac_marker_ids)
-            genome_ar_align = marker_set_mngr.concatenatedAlignedMarkers(genome_id, ar_marker_ids)
+            genome_bac_align = marker_set_mngr.concatenatedAlignedMarkers(genome_id, bac_marker_index)
+            genome_ar_align = marker_set_mngr.concatenatedAlignedMarkers(genome_id, ar_marker_index)
 
             for rep_id in rep_genome_ids:
-                rep_bac_align = marker_set_mngr.concatenatedAlignedMarkers(rep_id, bac_marker_ids)
-                rep_ar_align = marker_set_mngr.concatenatedAlignedMarkers(rep_id, ar_marker_ids)
+                rep_bac_align = marker_set_mngr.concatenatedAlignedMarkers(rep_id, bac_marker_index)
+                rep_ar_align = marker_set_mngr.concatenatedAlignedMarkers(rep_id, ar_marker_index)
 
                 bCluster = (self._aai_test(genome_bac_align, rep_bac_align, self.repThreshold) or
-                            self._aai(genome_ar_align, rep_ar_align, self.repThreshold))
+                            self._aai_test(genome_ar_align, rep_ar_align, self.repThreshold))
 
                 if bCluster:
                     # assign genome to current representative

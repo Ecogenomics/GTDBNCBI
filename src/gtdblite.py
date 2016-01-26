@@ -487,48 +487,48 @@ if __name__ == '__main__':
                                                       help='Commands for adding and modifying users.')
 
     user_category_subparser = user_category_parser.add_subparsers(
-        help='User command help', dest='user_subparser_name')
+        help='User command help.', dest='user_subparser_name')
 
     genome_category_parser = category_parser.add_parser('genomes',
                                                         formatter_class=CustomHelpFormatter,
                                                         help='Commands for adding, viewing, and removing genomes.')
-    genome_category_subparser = genome_category_parser.add_subparsers(help='Genome command help',
+    genome_category_subparser = genome_category_parser.add_subparsers(help='Genome command help.',
                                                                       dest='genome_subparser_name')
 
     genome_list_category_parser = category_parser.add_parser('genome_lists',
                                                              formatter_class=CustomHelpFormatter,
                                                              help='Commands for adding, viewing, and removing lists of genomes.')
-    genome_list_category_subparser = genome_list_category_parser.add_subparsers(help='Genome List command help',
+    genome_list_category_subparser = genome_list_category_parser.add_subparsers(help='Genome list command help.',
                                                                                 dest='genome_list_subparser_name')
 
     marker_category_parser = category_parser.add_parser('markers',
                                                         formatter_class=CustomHelpFormatter,
                                                         help='Commands for adding or viewing marker genes.')
-    marker_category_subparser = marker_category_parser.add_subparsers(help='Marker command help',
+    marker_category_subparser = marker_category_parser.add_subparsers(help='Marker command help.',
                                                                       dest='marker_subparser_name')
 
     marker_set_category_parser = category_parser.add_parser('marker_sets',
                                                             formatter_class=CustomHelpFormatter,
                                                             help='Commands for adding, viewing, and removing sets of markers.')
-    marker_set_category_subparser = marker_set_category_parser.add_subparsers(help='Marker Set command help',
+    marker_set_category_subparser = marker_set_category_parser.add_subparsers(help='Marker set command help.',
                                                                               dest='marker_sets_subparser_name')
 
     metadata_category_parser = category_parser.add_parser('metadata',
                                                           formatter_class=CustomHelpFormatter,
                                                           help='Commands for adding, viewing, and removing metadata fields and values.')
-    metadata_category_subparser = metadata_category_parser.add_subparsers(help='Metadata command help',
+    metadata_category_subparser = metadata_category_parser.add_subparsers(help='Metadata command help.',
                                                                           dest='metadata_subparser_name')
 
     tree_category_parser = category_parser.add_parser('tree',
                                                       formatter_class=CustomHelpFormatter,
-                                                      help='Commands for inferring a phylogenetic tree.')
-    tree_category_subparser = tree_category_parser.add_subparsers(help='Tree command help',
+                                                      help='Commands for inferring a phylogeny.')
+    tree_category_subparser = tree_category_parser.add_subparsers(help='Tree command help.',
                                                                   dest='tree_subparser_name')
 
     db_stats_category_parser = category_parser.add_parser('db_stats',
                                                           formatter_class=CustomHelpFormatter,
                                                           help='Commands for viewing database statistics.')
-    db_stats_category_subparser = db_stats_category_parser.add_subparsers(help='Database stats command help',
+    db_stats_category_subparser = db_stats_category_parser.add_subparsers(help='Database statistics command help.',
                                                                           dest='db_stats_subparser_name')
 
 # -------- User Management subparsers
@@ -551,7 +551,7 @@ if __name__ == '__main__':
     optional_user_add.add_argument(
         '--has_root', dest='has_root', action="store_true", required=False, help='User has permission to become the root user.')
     optional_user_add.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
 
     parser_user_add.set_defaults(func=AddUser)
 
@@ -569,9 +569,9 @@ if __name__ == '__main__':
     optional_user_edit = parser_user_edit.add_argument_group(
         'optional arguments')
     optional_user_edit.add_argument(
-        '--role', dest='role', choices=('user', 'admin'), required=False, help='Change the user to this role')
+        '--role', dest='role', choices=('user', 'admin'), required=False, help='Change the user to this role.')
     optional_user_edit.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
 
     mutual_user_edit = parser_user_edit.add_argument_group(
         'mutually exclusive optional arguments')
@@ -596,11 +596,11 @@ if __name__ == '__main__':
     required_genome_add = parser_genome_add.add_argument_group(
         'required arguments')
     required_genome_add.add_argument('--batchfile', dest='batchfile',
-                                     required=True, help='Batch file describing genomes - one per line, tab separated in 3-6 columns (bin_filename, bin_name, bin_desc, [gene_filename], [source], [id_at_source])')
+                                     required=True, help='Batch file describing genomes - one per line, tab separated in 3-6 columns (bin_filename, bin_name, bin_desc, [gene_filename], [source], [id_at_source]).')
     required_genome_add.add_argument('--checkm_results', dest='checkm_file', required=True,
-                                     help='Provide a CheckM results file. MUST BE A TAB TABLE! e.g. "checkm taxonomy_wf -f CHECKM_FILE --tab_table domain Bacteria bins/ output"')
+                                     help='Provide a tab-separated CheckM results file (e.g. "checkm taxonomy_wf -f CHECKM_FILE --tab_table domain Bacteria ./bins output").')
     required_genome_add.add_argument('--study_file', required=True,
-                                     help='File describing study and workflow from which genomes where recovered')
+                                     help='File describing study and workflow from which genomes were recovered.')
     mutual_genome_add = parser_genome_add.add_argument_group(
         'mutually exclusive required arguments')
     mutex_group = mutual_genome_add.add_mutually_exclusive_group(
@@ -615,7 +615,7 @@ if __name__ == '__main__':
     optional_genome_add = parser_genome_add.add_argument_group(
         'optional arguments')
     optional_genome_add.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
     parser_genome_add.set_defaults(func=AddGenomes)
 
     # genome view parser
@@ -626,9 +626,9 @@ if __name__ == '__main__':
     atleastone_genome_view = parser_genome_view.add_argument_group(
         'At least one argument required')
     atleastone_genome_view.add_argument('--batchfile', dest='batchfile', default=None,
-                                        help='Batchfile of genome ids (one per line) to view.')
+                                        help='Batchfile of genome IDs (one per line) to view.')
     atleastone_genome_view.add_argument('--genome_ids', dest='id_list', default=None,
-                                        help='Provide a list of genome ids (comma separated) to view.')
+                                        help='Provide a list of genome IDs (comma separated) to view.')
     atleastone_genome_view.add_argument('--all', dest='view_all', action="store_true",
                                         help='View all genomes in the database.')
     optional_genome_view = parser_genome_view.add_argument_group(
@@ -645,17 +645,17 @@ if __name__ == '__main__':
     atleastone_genome_delete = parser_genome_delete.add_argument_group(
         'At least one argument required')
     atleastone_genome_delete.add_argument('--batchfile', dest='batchfile', default=None,
-                                          help='Batchfile of genome ids (one per line) to delete')
+                                          help='Batchfile of genome IDs (one per line) to delete.')
     atleastone_genome_delete.add_argument('--genome_ids', dest='id_list', default=None,
-                                          help='Provide a list of genome ids (comma separated) to view')
+                                          help='Provide a list of genome IDs (comma separated) to view.')
     required_genome_delete = parser_genome_delete.add_argument_group(
         'required named arguments')
     required_genome_delete.add_argument('--reason', dest='reason', required=True,
-                                        help='Provide a reason why genomes are deleted')
+                                        help='Provide a reason why genomes are deleted.')
     optional_genome_delete = parser_genome_delete.add_argument_group(
         'optional arguments')
     optional_genome_delete.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
 
     parser_genome_delete.set_defaults(func=DeleteGenomes)
 
@@ -665,25 +665,25 @@ if __name__ == '__main__':
     parser_genome_lists_create = genome_list_category_subparser.add_parser('create',
                                                                            add_help=False,
                                                                            formatter_class=CustomHelpFormatter,
-                                                                           description='Create a genome list')
+                                                                           description='Create a genome list.')
     required_genome_lists_create = parser_genome_lists_create.add_argument_group(
         'required named arguments')
     required_genome_lists_create.add_argument('--name', dest='name', required=True,
-                                              help='The name of the genome list.')
+                                              help='Name of the genome list.')
     atleastone_genome_lists_create = parser_genome_lists_create.add_argument_group(
         'At least one argument required')
     atleastone_genome_lists_create.add_argument('--batchfile', dest='batchfile',
-                                                help='A file of genome IDs, one per line, to add to the create list')
+                                                help='File of genome IDs, one per line, to add to the create list.')
     atleastone_genome_lists_create.add_argument('--genome_ids', dest='genome_ids',
-                                                help='List of genome IDs (comma separated) to add to the create list')
+                                                help='List of genome IDs (comma separated) to add to the create list.')
     optional_genome_lists_create = parser_genome_lists_create.add_argument_group(
         'optional arguments')
     optional_genome_lists_create.add_argument('--description', dest='description',
                                               help='A brief description of the genome list.')
     optional_genome_lists_create.add_argument('--set_public', dest='public', action='store_true', default=False,
-                                              help='Make the new list publically visible.')
+                                              help='Make the new list publicly visible.')
     optional_genome_lists_create.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
 
     parser_genome_lists_create.set_defaults(func=CreateGenomeList)
 
@@ -710,7 +710,7 @@ if __name__ == '__main__':
     optional_genome_lists_view = parser_genome_lists_view.add_argument_group(
         'optional arguments')
     optional_genome_lists_view.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
 
     parser_genome_lists_view.set_defaults(func=ViewGenomeLists)
 
@@ -718,39 +718,39 @@ if __name__ == '__main__':
     parser_genome_lists_contents = genome_list_category_subparser.add_parser('contents',
                                                                              add_help=False,
                                                                              formatter_class=CustomHelpFormatter,
-                                                                             description='View the contents of genome list(s)')
+                                                                             description='View the contents of genome list(s).')
     required_genome_lists_contents = parser_genome_lists_contents.add_argument_group(
         'required arguments')
     required_genome_lists_contents.add_argument('--list_ids', dest='list_ids', required=True,
-                                                help='Provide a list of genome list ids (comma separated) whose contents you wish to view.')
+                                                help='Provide a list of genome list IDs (comma separated) whose contents you wish to view.')
     optional_genome_lists_contents = parser_genome_lists_contents.add_argument_group(
         'optional arguments')
     optional_genome_lists_contents.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
     parser_genome_lists_contents.set_defaults(func=ContentsGenomeLists)
 
     # Edit genome list
     parser_genome_lists_edit = genome_list_category_subparser.add_parser('edit',
                                                                          add_help=False,
                                                                          formatter_class=CustomHelpFormatter,
-                                                                         description='Edit a genome list')
+                                                                         description='Edit a genome list.')
     required_genome_lists_edit = parser_genome_lists_edit.add_argument_group(
         'required named arguments')
     required_genome_lists_edit.add_argument('--list_id', dest='list_id',
-                                            required=True, help='The id of the genome list to edit')
+                                            required=True, help='Id of genome list to edit.')
 
     optional_genome_lists_edit = parser_genome_lists_edit.add_argument_group(
         'optional arguments')
     optional_genome_lists_edit.add_argument('--batchfile', dest='batchfile',
-                                            help='A file of genome IDs, one per line, to add remove from the list')
+                                            help='A file of genome IDs, one per line, to add remove from the list.')
     optional_genome_lists_edit.add_argument('--genome_ids', dest='genome_ids',
-                                            help='List of genome IDs to add/remove from list')
+                                            help='List of genome IDs to add/remove from list.')
     optional_genome_lists_edit.add_argument('--operation', dest='operation', choices=('add', 'remove'),
-                                            help='What to do with the tree_ids with regards to the genome list.WARNING: If all genomes are removed from a list, The list will be deleted.')
+                                            help='What to do with the tree_ids with regards to the genome list. If all genomes are removed from a list, the list will be deleted.')
     optional_genome_lists_edit.add_argument('--name', dest='name',
                                             help='Modify the name of the list to this.')
     optional_genome_lists_edit.add_argument('--description', dest='description',
-                                            help='Change the brief description of the genome list to this.')
+                                            help='Change the description of the genome list.')
     optional_genome_lists_edit.add_argument(
         '-h', '--help', action="help", help="show help message")
 
@@ -769,15 +769,15 @@ if __name__ == '__main__':
     parser_genome_lists_delete = genome_list_category_subparser.add_parser('delete',
                                                                            add_help=False,
                                                                            formatter_class=CustomHelpFormatter,
-                                                                           description='Delete a genome list')
+                                                                           description='Delete a genome list.')
     required_genome_lists_delete = parser_genome_lists_delete.add_argument_group(
         'required named arguments')
     required_genome_lists_delete.add_argument('--list_ids', dest='list_ids',
-                                              required=True, help='The id of the genome lists to delete')
+                                              required=True, help='Id of the genome lists to delete.')
     optional_genome_lists_delete = parser_genome_lists_delete.add_argument_group(
         'optional arguments')
     optional_genome_lists_delete.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
     parser_genome_lists_delete.set_defaults(func=DeleteGenomeLists)
 
 
@@ -786,11 +786,11 @@ if __name__ == '__main__':
     parser_marker_add = marker_category_subparser.add_parser('add',
                                                              add_help=False,
                                                              formatter_class=CustomHelpFormatter,
-                                                             description='Add in one or many marker HMMs into the database')
+                                                             description='Add one or more marker HMMs to the database.')
     required_marker_add = parser_marker_add.add_argument_group(
         'required arguments')
     required_marker_add.add_argument('--batchfile', dest='batchfile', required=True,
-                                     help='Batchfile describing the markers - one HMM file per line (one model per file), tab separated in 3-5 columns (filename, name, desc, [database], [database_specific_id]')
+                                     help='Batchfile describing the markers - one HMM file per line (one model per file), tab separated in 3-5 columns (filename, name, desc, [database], [database_specific_id])')
     mutual_required_marker_add = parser_marker_add.add_argument_group(
         'mutually exclusive required arguments')
     mutex_group = mutual_required_marker_add.add_mutually_exclusive_group(
@@ -804,26 +804,26 @@ if __name__ == '__main__':
     optional_marker_add = parser_marker_add.add_argument_group(
         'optional arguments')
     optional_marker_add.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
     parser_marker_add.set_defaults(func=AddMarkers)
 
     # View markers
     parser_marker_view = marker_category_subparser.add_parser('view',
                                                               add_help=False,
                                                               formatter_class=CustomHelpFormatter,
-                                                              description='View HMM markers in the database')
+                                                              description='View HMM markers in the database.')
     atleastone_marker_view = parser_marker_view.add_argument_group(
         'At least one required argument')
     atleastone_marker_view.add_argument('--batchfile', dest='batchfile', default=None,
-                                        help='Batchfile of marker ids (one per line) to view')
+                                        help='Batchfile of marker IDs (one per line) to view.')
     atleastone_marker_view.add_argument('--marker_ids', dest='id_list', default=None,
-                                        help='Provide a list of genome ids (comma separated) to view')
+                                        help='Provide a list of genome IDs (comma separated) to view.')
     atleastone_marker_view.add_argument('--all', dest='view_all', action="store_true",
-                                        help='View ALL the markers in the database.')
+                                        help='View all markers in the database.')
     optional_marker_view = parser_marker_view.add_argument_group(
         'optional arguments')
     optional_marker_view.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
     parser_marker_view.set_defaults(func=ViewMarkers)
 
 # -------- Marker Set Management subparsers
@@ -832,26 +832,26 @@ if __name__ == '__main__':
     parser_marker_sets_create = marker_set_category_subparser.add_parser('create',
                                                                          add_help=False,
                                                                          formatter_class=CustomHelpFormatter,
-                                                                         description='Create a marker set')
+                                                                         description='Create a marker set.')
     required_marker_sets_create = parser_marker_sets_create.add_argument_group(
         'required arguments')
     required_marker_sets_create.add_argument('--name', dest='name', required=True,
-                                             help='The name of the marker set.')
+                                             help='Name of the marker set.')
     atleastone_marker_sets_create = parser_marker_sets_create.add_argument_group(
         'At least one required argument')
     atleastone_marker_sets_create.add_argument('--batchfile', dest='batchfile',
-                                               help='A file of marker IDs, one per line, to add to the created set')
+                                               help='File of marker IDs, one per line, to add to the created set.')
     atleastone_marker_sets_create.add_argument('--marker_ids', dest='marker_ids',
-                                               help='List of marker IDs (comma separated) to add to the created set')
+                                               help='List of marker IDs (comma separated) to add to the created set.')
 
     optional_marker_sets_create = parser_marker_sets_create.add_argument_group(
         'optional arguments')
     optional_marker_sets_create.add_argument('--description', dest='description',
-                                             help='A brief description of the marker set.')
+                                             help='Brief description of the marker set.')
     optional_marker_sets_create.add_argument('--set_public', dest='public', action='store_true', default=False,
-                                             help='Make the new set publically visible.')
+                                             help='Make the new set publicly visible.')
     optional_marker_sets_create.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
 
     parser_marker_sets_create.set_defaults(func=CreateMarkerSet)
 
@@ -877,7 +877,7 @@ if __name__ == '__main__':
     optional_marker_sets_view = parser_marker_sets_view.add_argument_group(
         'optional arguments')
     optional_marker_sets_view.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
 
     parser_marker_sets_view.set_defaults(func=ViewMarkerSets)
 
@@ -885,42 +885,42 @@ if __name__ == '__main__':
     parser_marker_sets_contents = marker_set_category_subparser.add_parser('contents',
                                                                            add_help=False,
                                                                            formatter_class=CustomHelpFormatter,
-                                                                           description='View the contents of marker set(s)')
+                                                                           description='View the contents of marker set(s).')
     required_marker_sets_contents = parser_marker_sets_contents.add_argument_group(
         'required named arguments')
     parser_marker_sets_contents.add_argument('--set_ids', dest='set_ids', required=True,
-                                             help='Provide a list of marker set ids (comma separated) whose contents you wish to view.')
+                                             help='Provide a list of marker set IDs (comma separated) whose contents you wish to view.')
     optional_marker_sets_contents = parser_marker_sets_contents.add_argument_group(
         'optional arguments')
     optional_marker_sets_contents.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
     parser_marker_sets_contents.set_defaults(func=MarkerSetsContents)
 
     # Edit marker set
     parser_marker_sets_edit = marker_set_category_subparser.add_parser('edit',
                                                                        add_help=False,
                                                                        formatter_class=CustomHelpFormatter,
-                                                                       description='Edit a marker set')
+                                                                       description='Edit a marker set.')
 
     required_marker_sets_edit = parser_marker_sets_edit.add_argument_group(
         'required arguments')
     required_marker_sets_edit.add_argument('--set_id', dest='set_id',
-                                           required=True, help='The id of the marker set to edit')
+                                           required=True, help='Id of the marker set to edit')
 
     optional_marker_sets_edit = parser_marker_sets_edit.add_argument_group(
         'optional arguments')
     optional_marker_sets_edit.add_argument('--batchfile', dest='batchfile',
-                                           help='A file of marker ids, one per line, to add/remove from the set')
+                                           help='File of marker IDs, one per line, to add/remove from the set.')
     optional_marker_sets_edit.add_argument('--marker_ids', dest='marker_ids',
-                                           help='List (comma separated) of marker ids to add/remove from set')
+                                           help='List (comma separated) of marker IDs to add/remove from set.')
     optional_marker_sets_edit.add_argument('--operation', dest='operation', choices=('add', 'remove'),
-                                           help='What to do with the provided marker ids with regards to the marker set.')
+                                           help='What to do with the provided marker IDs with regards to the marker set.')
     optional_marker_sets_edit.add_argument('--name', dest='name',
                                            help='Modify the name of the set to this.')
     optional_marker_sets_edit.add_argument('--description', dest='description',
-                                           help='Change the brief description of the marker set to this.')
+                                           help='Change the description of the marker set to this.')
     optional_marker_sets_edit.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
 
     mutual_marker_sets_edit = parser_marker_sets_edit.add_argument_group(
         'mutually exclusive optional arguments')
@@ -937,15 +937,15 @@ if __name__ == '__main__':
     parser_marker_sets_delete = marker_set_category_subparser.add_parser('delete',
                                                                          add_help=False,
                                                                          formatter_class=CustomHelpFormatter,
-                                                                         description='Delete a marker set')
+                                                                         description='Delete a marker set.')
     required_marker_sets_delete = parser_marker_sets_delete.add_argument_group(
         'required arguments')
     required_marker_sets_delete.add_argument('--set_ids', dest='set_ids',
-                                             required=True, help='Provide a list of marker set ids (comma separated) whose contents you wish to delete.')
+                                             required=True, help='List of marker set IDs (comma separated) whose contents you wish to delete.')
     optional_marker_sets_delete = parser_marker_sets_delete.add_argument_group(
         'optional arguments')
     optional_marker_sets_delete.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
 
     parser_marker_sets_delete.set_defaults(func=DeleteMarkerSets)
 
@@ -961,18 +961,18 @@ if __name__ == '__main__':
     required_metadata_create.add_argument('--file', dest='metadatafile',
                                           required=True, help='Metadata file describing the new field - ' +
                                           'one metadata per line, tab separated in 4 columns' +
-                                          '(name,description,datatype,metadata table)')
+                                          '(name,description,datatype,metadata table).')
     optional_metadata_create = parser_metadata_create.add_argument_group(
         'optional arguments')
     optional_metadata_create.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
     parser_metadata_create.set_defaults(func=createMetadata)
 
     # metadata view parser
     parser_metadata_view = metadata_category_subparser.add_parser('view',
                                                                   add_help=False,
                                                                   formatter_class=CustomHelpFormatter,
-                                                                  description='List all existing metadata fields with table name and description.')
+                                                                  description='List existing metadata fields with table name and description.')
     parser_metadata_view.set_defaults(func=viewMetadata)
 
     # metadata import parser
@@ -983,13 +983,13 @@ if __name__ == '__main__':
     required_metadata_import = parser_metadata_import.add_argument_group(
         'required arguments')
     required_metadata_import.add_argument('--table', dest='table', default=None, required=True,
-                                          help='Table where the metadata field is present')
+                                          help='Table where the metadata field is present.')
     required_metadata_import.add_argument('--field', dest='field', default=None, required=True,
-                                          help='Metadata field where the value(s) will be saved')
+                                          help='Metadata field where the value(s) will be saved.')
     required_metadata_import.add_argument('--type', dest='typemeta', default=None, required=True,
-                                          help='Type of the Metadata field')
+                                          help='Type of the Metadata field.')
     required_metadata_import.add_argument('--metadatafile', dest='metadatafile', default=None, required=True,
-                                          help='TSV file. One genome per line, tab separated in 2 columns (genome id , metadata value)')
+                                          help='TSV file. One genome per line, tab separated in 2 columns (genome id , metadata value).')
     optional_metadata_import = parser_metadata_import.add_argument_group(
         'optional arguments')
     optional_metadata_import.add_argument(
@@ -1005,7 +1005,7 @@ if __name__ == '__main__':
     required_metadata_export = parser_metadata_export.add_argument_group(
         'required arguments')
     required_metadata_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                          help='Destination to write the CSV file')
+                                          help='Destination to write the CSV file.')
     optional_metadata_export = parser_metadata_export.add_argument_group(
         'optional arguments')
     optional_metadata_export.add_argument(
@@ -1016,72 +1016,72 @@ if __name__ == '__main__':
     parser_tree_create = tree_category_subparser.add_parser('create',
                                                             add_help=False,
                                                             formatter_class=CustomHelpFormatter,
-                                                            description='Create a genome tree')
+                                                            description='Create a genome tree.')
 
     atleastone_genomes_create_tree = parser_tree_create.add_argument_group(
         'minimum of one argument required')
     atleastone_genomes_create_tree.add_argument('--genome_batchfile', dest='genome_batchfile', default=None,
-                                                help='Provide a file of genome IDs, one per line, to include in the tree')
+                                                help='File of genome IDs, one per line, to include in the tree.')
     atleastone_genomes_create_tree.add_argument('--genome_ids', dest='genome_ids', default=None,
-                                                help='Provide a list of genome ids (comma separated), whose genomes should be included in the tree')
+                                                help='List of genome IDs (comma separated), whose genomes should be included in the tree.')
     atleastone_genomes_create_tree.add_argument('--genome_list_ids', dest='genome_list_ids', default=None,
-                                                help='Provide a list of genome list ids (comma separated), whose genomes should be included in the tree')
+                                                help='List of genome list IDs (comma separated), whose genomes should be included in the tree.')
     atleastone_genomes_create_tree.add_argument('--all_user_genomes', default=False, action='store_true',
-                                                help='Included all user genomes in the tree, subject to filtering')
+                                                help='Included all user genomes in the tree, subject to filtering.')
     atleastone_genomes_create_tree.add_argument('--all_genomes', default=False, action='store_true',
-                                                help='Included all genomes in the tree, subject to filtering')
+                                                help='Included all genomes in the tree, subject to filtering.')
 
     atleastone_markers_create_tree = parser_tree_create.add_argument_group(
         'minimum of one argument required')
     atleastone_markers_create_tree.add_argument('--marker_batchfile', dest='marker_batchfile', default=None,
-                                                help='Provide a file of marker IDs, one per line, to build the tree')
+                                                help='File of marker IDs, one per line, to build the tree.')
     atleastone_markers_create_tree.add_argument('--marker_ids', dest='marker_ids', default=None,
-                                                help='Provide a list of marker ids (comma separated), whose markers will be used to build the tree')
+                                                help='List of marker IDs (comma separated), whose markers will be used to build the tree.')
     atleastone_markers_create_tree.add_argument('--marker_set_ids', dest='marker_set_ids', default=None,
-                                                help='Provide a list of marker set ids (comma separated), whose markers will be used to build the tree')
+                                                help='List of marker set IDs (comma separated), whose markers will be used to build the tree.')
 
     required_markers_create_tree = parser_tree_create.add_argument_group(
         'required arguments')
     required_markers_create_tree.add_argument('--output', dest='out_dir', required=True,
-                                              help='Directory to output the files')
+                                              help='Directory to output files.')
 
     optional_markers_create_tree = parser_tree_create.add_argument_group(
         'optional arguments')
 
     optional_markers_create_tree.add_argument('--quality_threshold',
-                                              type=float, default=50, help='Filter genomes where the quality (completeness - 4*contamination) if below the specified threshold')
+                                              type=float, default=50, help='Filter genomes with a quality (completeness - 4*contamination) below threshold.')
     optional_markers_create_tree.add_argument('--completeness_threshold', dest='comp_threshold',
-                                              type=float, default=50, help='Filter genomes below this completeness threshold')
+                                              type=float, default=50, help='Filter genomes below completeness threshold.')
     optional_markers_create_tree.add_argument('--contamination_threshold', dest='cont_threshold',
-                                              type=float, default=10, help='Filter genomes above this contamination threshold')
+                                              type=float, default=10, help='Filter genomes above contamination threshold.')
 
     optional_markers_create_tree.add_argument(
-        '--excluded_genome_list_ids', help='Comma-separated list of genome lists to exclude from the tree')
+        '--excluded_genome_list_ids', help='List of genome list IDs (comma separated)to exclude from the tree.')
     optional_markers_create_tree.add_argument(
-        '--guaranteed_genome_list_ids', help='Comma-separated list of genome lists to retain in tree independent of filtering criteria')
+        '--guaranteed_genome_list_ids', help='List of genome list IDs (comma separated) to retain in tree independent of filtering criteria'.)
     optional_markers_create_tree.add_argument(
-        '--guaranteed_genome_ids', help='Comma-separated list of genome identifiers to retain in tree independent of filtering criteria')
+        '--guaranteed_genome_ids', help='List of genome IDs (comma separated) to retain in tree independent of filtering criteria.')
     optional_markers_create_tree.add_argument(
-        '--taxa_filter', help='Filter genomes to taxa within taxonomic groups specified as a comma-separated list (e.g., p__Proteobacteria)')
+        '--taxa_filter', help='Filter genomes to taxa within specific taxonomic groups (e.g., p__Proteobacteria, p__Actinobacteria).')
 
     optional_markers_create_tree.add_argument('--prefix', required=False, default='gtdb',
-                                              help='Desired prefix for output files')
+                                              help='Desired prefix for output files'.)
     optional_markers_create_tree.add_argument('--no_alignment', action='store_true',
-                                              help='Do not include concatenated alignment in ARB metadata file')
+                                              help='Remove concatenated alignment in ARB metadata file.')
     optional_markers_create_tree.add_argument(
-        '--individual', action='store_true', help='Create individual FASTA files for each marker')
+        '--individual', action='store_true', help='Create individual FASTA files for each marker.')
 
     optional_markers_create_tree.add_argument('--no_tree', dest='no_tree', action="store_true",
-                                              help="Only output tree data, don't build the tree")
+                                              help="Only output tree data, don't build the tree.")
     optional_markers_create_tree.add_argument(
-        '-h', '--help', action="help", help="show help message")
+        '-h', '--help', action="help", help="Show help message.")
 
     parser_tree_create.set_defaults(func=CreateTreeData)
 
 # -------- Generate Tree Data
     parser_db_stats_view = db_stats_category_subparser.add_parser('view',
                                                                   formatter_class=CustomHelpFormatter,
-                                                                  help='View database statistics')
+                                                                  help='View database statistics.')
 
     parser_db_stats_view.set_defaults(func=DatabaseStatsData)
 
@@ -1098,37 +1098,36 @@ if __name__ == '__main__':
     if (args.category_parser_name == 'tree' and args.tree_subparser_name == 'create'):
         if (args.genome_batchfile is None and args.genome_ids is None and args.genome_list_ids is None and not args.all_genomes):
             parser_tree_create.error(
-                'Need to specify at least one of --genome_batchfile, --genome_ids, --genome_list_ids or --all_genomes')
+                'Need to specify at least one of --genome_batchfile, --genome_ids, --genome_list_ids or --all_genomes.')
         if (args.marker_batchfile is None and args.marker_ids is None and args.marker_set_ids is None):
             parser_tree_create.error(
-                'Need to specify at least one of --marker_batchfile, --marker_ids or --marker_set_ids')
+                'Need to specify at least one of --marker_batchfile, --marker_ids or --marker_set_ids.')
 
     if (args.category_parser_name == 'genomes' and args.genome_subparser_name == 'view'):
         if (args.batchfile is not None or args.id_list is not None):
             if args.view_all:
                 parser_genome_view.error(
-                    'argument --all must be used by itself')
+                    'Argument --all must be used by itself.')
         elif not args.view_all:
             parser_genome_view.error(
-                'need to specify at least one of --all, --batchfile or --genome_ids')
+                'Need to specify at least one of --all, --batchfile or --genome_ids.')
 
     if (args.category_parser_name == 'genomes' and args.genome_subparser_name == 'delete'):
         if (args.batchfile is None and args.id_list is None):
             parser_genome_delete.error(
-                'need to specify at least one of --batchfile or --genome_ids')
+                'Need to specify at least one of --batchfile or --genome_ids.')
 
     if (args.category_parser_name == 'markers' and args.marker_subparser_name == 'view'):
         if (args.batchfile is not None or args.id_list is not None):
             if args.view_all:
                 parser_marker_view.error(
-                    'argument --all must be used by itself')
+                    'Argument --all must be used by itself.')
         elif not args.view_all:
             parser_marker_view.error(
-                'need to specify at least one of --all, --batchfile or --marker_ids')
+                'Need to specify at least one of --all, --batchfile or --marker_ids.')
 
     # Initialise the backend
     db = GenomeDatabase.GenomeDatabase(args.threads, args.tab_table)
-
     db.conn.MakePostgresConnection()
 
     if args.debug:
