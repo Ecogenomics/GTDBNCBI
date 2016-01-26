@@ -901,8 +901,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             marker_set_mngr = MarkerSetManager(cur, self.currentUser)
-            marker_ids = marker_set_mngr.getMarkerIdListFromMarkerSetId(
-                marker_set_ids)
+            marker_ids = marker_set_mngr.getMarkerIdListFromMarkerSetIds(marker_set_ids)
 
             if marker_ids is None:
                 raise GenomeDatabaseError(
@@ -967,6 +966,26 @@ class GenomeDatabase(object):
 
         try:
             cur = self.conn.cursor()
+            
+            
+            #*** TESTING
+            
+
+            marker_set_mngr = MarkerSetManager(cur, self.currentUser)
+            aligned_mngr = AlignedMarkerManager(self.threads)
+            aligned_mngr.calculateAlignedMarkerSets(['147524'], marker_set_mngr.canonicalBacterialMarkers())
+            aligned_mngr.calculateAlignedMarkerSets(['147524'], marker_set_mngr.canonicalArchaealMarkers())
+            
+            sys.exit()
+            
+            from GenomeRepresentativeManager import GenomeRepresentativeManager
+            grm = GenomeRepresentativeManager(cur, self.currentUser)
+            grm.assignToRepresentative(['147524'])
+            
+            
+            
+            
+            
 
             cur.execute("SELECT name, external_id_prefix, " +
                         "(SELECT COUNT(*) "

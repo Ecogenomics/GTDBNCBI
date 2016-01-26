@@ -21,7 +21,7 @@ import psycopg2
 from psycopg2.extensions import AsIs
 
 import Tools
-from Exceptions import GenomeDatabaseError
+from Exceptions import GenomeDatabaseError 
 
 
 class MarkerSetManager(object):
@@ -43,11 +43,54 @@ class MarkerSetManager(object):
         self.cur = cur
         self.currentUser = currentUser
 
+        self.bacCanonicalMarkerSetId = 1
+        self.arCanonicalMarkerSetId = 2
+        
     def _confirm(self, msg):
         raw = raw_input(msg + " (y/N): ")
         if raw.upper() == "Y":
             return True
         return False
+
+    def canonicalBacterialMarkers(self):
+        """Get identifiers of canonical bacterial markers."""
+        
+        return self.getMarkerIdListFromMarkerSetIds([self.bacCanonicalMarkerSetId])
+        
+    def canonicalArchaealMarkers(self):
+        """Get identifiers of canonical archaeal markers."""
+        
+        return self.getMarkerIdListFromMarkerSetIds([self.arCanonicalMarkerSetId])
+    
+    def concatenatedAlignedMarkers(self, db_genome_id, marker_ids):
+        """Create concatenated alignment of markers for genome.
+
+        Markers are processed in the order specified by
+        marker_ids.
+
+        Parameters
+        ----------
+        db_genome_id : str
+            Unique database identifier of genome of interest.
+        marker_ids : list
+            List of database identifiers for markers of interest.
+
+        Returns
+        -------
+        str
+            Concatenated alignment.
+        """
+
+        concatenated_align = ''
+        for marker_id in marker_ids:
+            query = ("SELECT sequence " +
+                    "FROM aligned_markers " +
+                    "WHERE genome_id = %s AND marker_id = %s")
+            self.cur.execute(query, (db_genome_id, marker_id))
+
+            concatenated_align += self.cur.fetchone()[0]
+
+        return concatenated_align
 
     def createMarkerSet(self, marker_id_list, name, description, owner_id=None, private=None):
         """Create a new marker set.
@@ -224,8 +267,7 @@ class MarkerSetManager(object):
                 if not self._confirm("Are you sure you want to delete {0} set(s) (this action cannot be undone)".format(len(marker_set_ids))):
                     raise GenomeDatabaseError("User aborted database action.")
 
-                list_marker_ids = self.getMarkerIdListFromMarkerSetId(
-                    [marker_set_id])
+                list_marker_ids = self.getMarkerIdListFromMarkerSetIds([marker_set_id])
                 self.editMarkerSet(marker_set_id, list_marker_ids, 'remove')
             except GenomeDatabaseError as e:
                 raise e
@@ -254,33 +296,33 @@ class MarkerSetManager(object):
 
         return result_ids
 
-    def getMarkerIdListFromMarkerSetId(self, marker_set_id):
+    def getMarkerIdListFromMarkerSetIds(self, marker_set_ids):
         """Get marker identifiers within specific marker set.
 
         Parameters
         ----------
-        marker_set_id : int
-            Identifier of marker set.
+        marker_set_ids : iterable
+            Identifiers of marker sets.
 
         Returns
         -------
         list
-            Identifier of markers in marker set.
+            Identifier of markers in marker sets.
         """
 
         self.cur.execute("SELECT id, owner_id, owned_by_root, private " +
                          "FROM marker_sets " +
-                         "WHERE id = %s ", (tuple(marker_set_id),))
+                         "WHERE id = %s ", (tuple(marker_set_ids),))
 
         result = self.cur.fetchone()
 
         if not result:
-            self.ReportError("No marker set with id: %s" % str(marker_set_id))
+            self.ReportError("At least one marker set is invalid: %s" % str(marker_set_ids))
             return None
 
         self.cur.execute("SELECT marker_id " +
                          "FROM marker_set_contents " +
-                         "WHERE set_id = %s ", (tuple(marker_set_id),))
+                         "WHERE set_id = %s ", (tuple(marker_set_ids),))
 
         return [marker_id for (marker_id,) in self.cur.fetchall()]
 
