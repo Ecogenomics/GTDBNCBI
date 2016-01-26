@@ -214,16 +214,10 @@ def CreateTreeData(db, args):
             return False
         marker_id_list += temp_list
 
-    # TODO: make GetMarkerIdListFromMarkerSetIds
     if args.marker_set_ids:
         marker_set_ids = args.marker_set_ids.split(",")
-        for set_id in marker_set_ids:
-            marker_set_mngr = MarkerSetManager(
-                db.conn.cursor(), db.currentUser)
-            temp_marker_list = marker_set_mngr.getMarkerIdListFromMarkerSetId(
-                set_id)
-            if temp_marker_list:
-                marker_id_list += temp_marker_list
+        marker_set_mngr = MarkerSetManager(db.conn.cursor(), db.currentUser)
+        marker_id_list += marker_set_mngr.getMarkerIdListFromMarkerSetIds(marker_set_ids)
 
     marker_batchfile_ids = []
     if args.marker_batchfile:
@@ -525,9 +519,9 @@ if __name__ == '__main__':
     metadata_category_subparser = metadata_category_parser.add_subparsers(help='Metadata command help',
                                                                           dest='metadata_subparser_name')
 
-    tree_category_parser = category_parser.add_parser('trees',
+    tree_category_parser = category_parser.add_parser('tree',
                                                       formatter_class=CustomHelpFormatter,
-                                                      help='Commands for inferring phylogenies.')
+                                                      help='Commands for inferring a phylogenetic tree.')
     tree_category_subparser = tree_category_parser.add_subparsers(help='Tree command help',
                                                                   dest='tree_subparser_name')
 
@@ -1025,7 +1019,7 @@ if __name__ == '__main__':
                                                             description='Create a genome tree')
 
     atleastone_genomes_create_tree = parser_tree_create.add_argument_group(
-        'At least one required arguments')
+        'minimum of one argument required')
     atleastone_genomes_create_tree.add_argument('--genome_batchfile', dest='genome_batchfile', default=None,
                                                 help='Provide a file of genome IDs, one per line, to include in the tree')
     atleastone_genomes_create_tree.add_argument('--genome_ids', dest='genome_ids', default=None,
@@ -1038,7 +1032,7 @@ if __name__ == '__main__':
                                                 help='Included all genomes in the tree, subject to filtering')
 
     atleastone_markers_create_tree = parser_tree_create.add_argument_group(
-        'At least one required arguments')
+        'minimum of one argument required')
     atleastone_markers_create_tree.add_argument('--marker_batchfile', dest='marker_batchfile', default=None,
                                                 help='Provide a file of marker IDs, one per line, to build the tree')
     atleastone_markers_create_tree.add_argument('--marker_ids', dest='marker_ids', default=None,
@@ -1101,7 +1095,7 @@ if __name__ == '__main__':
         loggerSetup(None, args.silent)
 
     # Special parser checks
-    if (args.category_parser_name == 'trees' and args.tree_subparser_name == 'create'):
+    if (args.category_parser_name == 'tree' and args.tree_subparser_name == 'create'):
         if (args.genome_batchfile is None and args.genome_ids is None and args.genome_list_ids is None and not args.all_genomes):
             parser_tree_create.error(
                 'Need to specify at least one of --genome_batchfile, --genome_ids, --genome_list_ids or --all_genomes')

@@ -167,8 +167,7 @@ class TreeManager(object):
             os.makedirs(directory)
 
         # output the marker info and multiple hit info
-        multi_hits_fh = open(
-            os.path.join(directory, prefix + "_multi_hits.tsv"), 'wb')
+        multi_hits_fh = open(os.path.join(directory, prefix + "_multi_hits.tsv"), 'wb')
         multi_hits_header = ["Genome_ID"]
         for marker_id in chosen_markers_order:
             external_id = chosen_markers[marker_id][

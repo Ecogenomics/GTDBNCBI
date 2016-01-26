@@ -118,9 +118,19 @@ class AlignedMarkerManager(object):
         :param path: Path to the genomic fasta file for the genome
         :param marker_ids: list of marker ids for the selected sets
         '''
+
         temp_con = GenomeDatabaseConnection()
         temp_con.MakePostgresConnection()
         temp_cur = temp_con.cursor()
+
+        # gather information for all marker genes
+        final_genome = []
+        final_markerid = []
+        final_seq = []
+        final_multihits = []
+        final_evalue = []
+        final_bitscore = []
+
         marker_dbs = {"PFAM": self.pfam_top_hit_suffix,
                       "TIGR": self.tigrfam_top_hit_suffix}
         for marker_db, marker_suffix in marker_dbs.iteritems():
@@ -134,22 +144,17 @@ class AlignedMarkerManager(object):
                      "AND g.id = %s " +
                      "AND m.id in %s " +
                      "AND md.external_id_prefix like %s")
-            temp_cur.execute(
-                query, (db_genome_id, tuple(marker_ids,), marker_db))
+            temp_cur.execute(query, (db_genome_id, tuple(marker_ids,), marker_db))
             raw_results = temp_cur.fetchall()
-            marker_dict_original = {
-                a: {"path": b, "size": c, "db_marker_id": d} for a, b, c, d in raw_results}
+            marker_dict_original = {a: {"path": b, "size": c, "db_marker_id": d} for a, b, c, d in raw_results}
 
+            # get all gene sequences
             genome_path = str(path)
-            tophit_path = genome_path.replace(
-                self.genome_file_suffix, marker_suffix)
-
-            # we load the list of all the genes detected in the genome
-            protein_file = tophit_path.replace(
-                marker_suffix, self.protein_file_suffix)
-
+            tophit_path = genome_path.replace(self.genome_file_suffix, marker_suffix)
+            protein_file = tophit_path.replace(marker_suffix, self.protein_file_suffix)
             all_genes_dict = read_fasta(protein_file, False)
-            # we store the the tophit file line by line and store the
+
+            # we store the tophit file line by line and store the
             # information in a dictionary
             with open(tophit_path) as tp:
                 # first line is header line
@@ -163,52 +168,67 @@ class AlignedMarkerManager(object):
                         diff_markers = sublist.split(";")
                     else:
                         diff_markers = [sublist]
+
                     for each_gene in diff_markers:
                         sublist = each_gene.split(",")
                         markerid = sublist[0]
                         if markerid not in marker_dict_original:
                             continue
+
                         evalue = sublist[1]
                         bitscore = sublist[2].strip()
+
                         if markerid in gene_dict:
                             oldbitscore = gene_dict.get(
                                 markerid).get("bitscore")
                             if oldbitscore < bitscore:
-                                gene_dict[markerid] = {"marker_path": marker_dict_original.get(markerid).get("path"), "gene": genename, "gene_seq": all_genes_dict.get(
-                                    genename), "evalue": evalue, "bitscore": bitscore, "multihit": True, "db_marker_id": marker_dict_original.get(markerid).get("db_marker_id")}
+                                gene_dict[markerid] = {"marker_path": marker_dict_original.get(markerid).get("path"),
+                                                       "gene": genename,
+                                                       "gene_seq": all_genes_dict.get(genename),
+                                                       "evalue": evalue,
+                                                       "bitscore": bitscore,
+                                                       "multihit": True,
+                                                       "db_marker_id": marker_dict_original.get(markerid).get("db_marker_id")}
                             else:
                                 gene_dict.get(markerid)["multihit"] = True
                         else:
-                            gene_dict[markerid] = {"marker_path": marker_dict_original.get(markerid).get("path"), "gene": genename, "gene_seq": all_genes_dict.get(
-                                genename), "evalue": evalue, "bitscore": bitscore, "multihit": False, "db_marker_id": marker_dict_original.get(markerid).get("db_marker_id")}
-            final_dict_genome = []
-            final_dict_markerid = []
-            final_dict_seq = []
-            final_dict_multihits = []
-            final_dict_evalue = []
-            final_dict_bitscore = []
+                            gene_dict[markerid] = {"marker_path": marker_dict_original.get(markerid).get("path"),
+                                                   "gene": genename,
+                                                   "gene_seq": all_genes_dict.get(genename),
+                                                   "evalue": evalue,
+                                                   "bitscore": bitscore,
+                                                   "multihit": False,
+                                                   "db_marker_id": marker_dict_original.get(markerid).get("db_marker_id")}
+
             for mid, info in marker_dict_original.iteritems():
                 if mid not in gene_dict:
-                    final_dict_genome.append(db_genome_id)
-                    final_dict_markerid.append(info.get("db_marker_id"))
-                    final_dict_seq.append("-" * info.get("size"))
-                    final_dict_multihits.append(False)
-                    final_dict_evalue.append(None)
-                    final_dict_bitscore.append(None)
+                    final_genome.append(db_genome_id)
+                    final_markerid.append(info.get("db_marker_id"))
+                    final_seq.append("-" * info.get("size"))
+                    final_multihits.append(False)
+                    final_evalue.append(None)
+                    final_bitscore.append(None)
+
             result_aligns = self._runHmmAlign(gene_dict, db_genome_id)
             for result_align in result_aligns:
-                final_dict_genome.append(result_align[0])
-                final_dict_markerid.append(result_align[1])
-                final_dict_seq.append(result_align[2])
-                final_dict_multihits.append(result_align[3])
-                final_dict_evalue.append(result_align[4])
-                final_dict_bitscore.append(result_align[5])
+                final_genome.append(result_align[0])
+                final_markerid.append(result_align[1])
+                final_seq.append(result_align[2])
+                final_multihits.append(result_align[3])
+                final_evalue.append(result_align[4])
+                final_bitscore.append(result_align[5])
+
         query = "SELECT upsert_aligned_markers(%s,%s,%s,%s,%s,%s)"
-        temp_cur.execute(query, (final_dict_genome, final_dict_markerid,
-                                 final_dict_seq, final_dict_multihits, final_dict_evalue, final_dict_bitscore))
+        temp_cur.execute(query, (final_genome,
+                                     final_markerid,
+                                     final_seq,
+                                     final_multihits,
+                                     final_evalue,
+                                     final_bitscore))
         temp_con.commit()
         temp_cur.close()
         temp_con.ClosePostgresConnection()
+
         return True
 
     def _runHmmAlign(self, marker_dict, genome):

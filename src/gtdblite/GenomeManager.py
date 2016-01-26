@@ -31,8 +31,7 @@ from MetadataManager import MetadataManager
 from Prodigal import Prodigal
 from TigrfamSearch import TigrfamSearch
 from PfamSearch import PfamSearch
-from AlignedMarkerManager import AlignedMarkerManager
-from MarkerSetManager import MarkerSetManager
+from GenomeRepresentativeManager import GenomeRepresentativeManager
 
 from biolib.checksum import sha256
 from biolib.common import make_sure_path_exists
@@ -162,15 +161,9 @@ class GenomeManager(object):
             pfam_search = PfamSearch(self.threads)
             pfam_search.run(gene_files)
 
-            # identify an align canonical bacterial and archaeal markers
-            # marker_set_mngr = MarkerSetManager(self.cur, self.currentUser)
-            # bac_marker_ids = marker_set_mngr.GetCanonicalBacterialMarkers()
-            # ar_marker_ids = marker_set_mngr.GetCanonicalArchaealMarkers()
-
-            # aligned_marker_mngr = AlignedMarkerManager(self.threads)
-            # aligned_marker_mngr.calculateAlignedMarkerSets(genomes_to_retain, marker_ids)
-
             # determine if genomes should be assigned to a representatives
+            #!!!genome_rep_mngr = GenomeRepresentativeManager(self.cur, self.currentUser)
+            #!!!genome_rep_mngr.assignToRepresentative(genomic_files.keys())
         except:
             if os.path.exists(self.tmp_output_dir):
                 shutil.rmtree(self.tmp_output_dir)
