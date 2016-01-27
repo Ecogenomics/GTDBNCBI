@@ -20,6 +20,8 @@ import itertools
 
 import psycopg2
 
+from biolib.parallel import Parallel
+
 from MarkerSetManager import MarkerSetManager
 from AlignedMarkerManager import AlignedMarkerManager
 
@@ -27,7 +29,7 @@ from AlignedMarkerManager import AlignedMarkerManager
 class GenomeRepresentativeManager(object):
     ''''Manage genome representatives.'''
 
-    def __init__(self, cur, currentUser):
+    def __init__(self, cur, currentUser, threads):
         """Initialize.
 
         Parameters
@@ -42,6 +44,7 @@ class GenomeRepresentativeManager(object):
 
         self.cur = cur
         self.currentUser = currentUser
+        self.threads = threads
 
         # threshold used to assign genome to representative
         self.repThreshold = 0.99
@@ -87,16 +90,16 @@ class GenomeRepresentativeManager(object):
         aai = float(matches) / max(1, (matches + mismatches))
 
         return aai >= threshold
-    
+
     def _unprocessedGenomes(self):
         """Identify genomes that have not been compared to representatives.
-        
+
         Returns
         -------
         list
             List of database identifiers for unprocessed genomes.
         """
-        
+
         self.cur.execute("SELECT id " +
                          "FROM metadata_taxonomy " +
                          "WHERE gtdb_representative IS NULL")
@@ -141,11 +144,15 @@ class GenomeRepresentativeManager(object):
         ar_marker_ids = marker_set_mngr.canonicalArchaealMarkers()
 
         # identify and align genes from canonical bacterial and archaeal marker sets
+        all_markers = set(bac_marker_ids).union(ar_marker_ids)
         aligned_mngr = AlignedMarkerManager(self.cur, self.threads)
-        aligned_mngr.calculateAlignedMarkerSets(unprocessed_genome_ids,
-                                                    marker_set_mngr.canonicalBacterialMarkers())
-        aligned_mngr.calculateAlignedMarkerSets(unprocessed_genome_ids,
-                                                    marker_set_mngr.canonicalArchaealMarkers())
+        aligned_mngr.calculateAlignedMarkerSets(unprocessed_genome_ids, all_markers)
+
+        # get list of representative genomes
+        rep_genome_ids = self.representativeGenomes()
+        self.logger.info("Comparing %d unprocessed genomes to %d representatives." %
+                                                    (len(unprocessed_genome_ids),
+                                                     len(rep_genome_ids)))
 
         # define desired order of marker genes
         # (order doesn't matter, but must be consistent between genomes)
@@ -157,11 +164,12 @@ class GenomeRepresentativeManager(object):
         for i, marker_id in enumerate(ar_marker_ids):
             ar_marker_index[marker_id] = i
 
-        # get list of representative genomes
-        rep_genome_ids = self.representativeGenomes()
-        self.logger.info("Comparing %d unprocessed genomes to %d representatives." %
-                                                    (len(unprocessed_genome_ids),
-                                                     len(rep_genome_ids)))
+        # get concatenated alignments for all representatives
+        rep_bac_aligns = {}
+        rep_ar_aligns = {}
+        for rep_id in rep_genome_ids:
+            rep_bac_aligns[rep_id] = marker_set_mngr.concatenatedAlignedMarkers(rep_id, bac_marker_index)
+            rep_ar_aligns[rep_id] = marker_set_mngr.concatenatedAlignedMarkers(rep_id, ar_marker_index)
 
         # process each genome
         assigned_to_rep_count = 0
@@ -171,8 +179,8 @@ class GenomeRepresentativeManager(object):
             genome_ar_align = marker_set_mngr.concatenatedAlignedMarkers(genome_id, ar_marker_index)
 
             for rep_id in rep_genome_ids:
-                rep_bac_align = marker_set_mngr.concatenatedAlignedMarkers(rep_id, bac_marker_index)
-                rep_ar_align = marker_set_mngr.concatenatedAlignedMarkers(rep_id, ar_marker_index)
+                rep_bac_align = rep_bac_aligns[rep_id]
+                rep_ar_align = rep_ar_aligns[rep_id]
 
                 bCluster = (self._aai_test(genome_bac_align, rep_bac_align, self.repThreshold) or
                             self._aai_test(genome_ar_align, rep_ar_align, self.repThreshold))
@@ -190,4 +198,4 @@ class GenomeRepresentativeManager(object):
 
         # currently, new genomes are never made a representative
         query = "UPDATE metadata_taxonomy SET gtdb_representative = %s WHERE id = %s"
-        self.cur.executemany(query, [('False', genome_id) for genome_id in db_genome_ids])
+        self.cur.executemany(query, [('False', genome_id) for genome_id in unprocessed_genome_ids])

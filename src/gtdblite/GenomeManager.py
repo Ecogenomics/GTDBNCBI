@@ -31,9 +31,6 @@ from MetadataManager import MetadataManager
 from Prodigal import Prodigal
 from TigrfamSearch import TigrfamSearch
 from PfamSearch import PfamSearch
-from GenomeRepresentativeManager import GenomeRepresentativeManager
-from MarkerSetManager import MarkerSetManager
-from AlignedMarkerManager import AlignedMarkerManager
 
 from biolib.checksum import sha256
 from biolib.common import make_sure_path_exists
