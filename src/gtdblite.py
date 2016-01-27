@@ -1096,9 +1096,9 @@ if __name__ == '__main__':
 
     # Special parser checks
     if (args.category_parser_name == 'tree' and args.tree_subparser_name == 'create'):
-        if (args.genome_batchfile is None and args.genome_ids is None and args.genome_list_ids is None and not args.all_genomes):
+        if (not args.genome_batchfile and not args.genome_ids and not args.genome_list_ids and not args.all_user_genomes and not args.all_genomes):
             parser_tree_create.error(
-                'Need to specify at least one of --genome_batchfile, --genome_ids, --genome_list_ids or --all_genomes.')
+                'Need to specify at least one of --genome_batchfile, --genome_ids, --genome_list_ids, --all_user_genomes, or --all_genomes.')
         if (args.marker_batchfile is None and args.marker_ids is None and args.marker_set_ids is None):
             parser_tree_create.error(
                 'Need to specify at least one of --marker_batchfile, --marker_ids or --marker_set_ids.')
