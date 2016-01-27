@@ -22,6 +22,8 @@ from multiprocessing import Pool
 
 import prettytable
 
+from biolib.external.fasttree import FastTree
+
 import Config
 from UserManager import UserManager
 from GenomeDatabaseConnection import GenomeDatabaseConnection
@@ -435,16 +437,28 @@ class GenomeDatabase(object):
             aligned_mngr = AlignedMarkerManager(cur, self.threads)
             aligned_mngr.calculateAlignedMarkerSets(genomes_to_retain, marker_ids)
 
-            tree_mngr.writeFiles(marker_ids, genomes_to_retain, directory,
-                                 prefix, chosen_markers_order, chosen_markers, alignment, individual)
+            msa_file = tree_mngr.writeFiles(marker_ids,
+                                             genomes_to_retain,
+                                             directory,
+                                             prefix,
+                                             chosen_markers_order,
+                                             chosen_markers,
+                                             alignment,
+                                             individual)
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
 
         if build_tree:
-            pass
-            # To Do: should infer tree here
+            self.logger.info('Inferring tree for %d genome under WAG and GAMMA models.' % len(genomes_to_retain))
+
+            output_tree = os.path.join(directory, prefix + '_phylogeny.wag_gamma.tree')
+            output_tree_log = os.path.join(directory, prefix + '_fasttree.log')
+            log_file = os.path.join(directory, prefix + '_fasttree_output.txt')
+
+            fasttree = FastTree(multithreaded=True)
+            fasttree.run(msa_file, 'prot', 'wag', output_tree, output_tree_log, log_file)
 
         self.logger.info('Done.')
 
