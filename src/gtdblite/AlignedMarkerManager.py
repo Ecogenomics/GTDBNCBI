@@ -37,7 +37,7 @@ class AlignedMarkerManager(object):
 
     def __init__(self, cur, threads):
         """Initialize.
-        
+
         Parameters
         ----------
         cur : psycopg2.cursor
@@ -49,8 +49,8 @@ class AlignedMarkerManager(object):
         self.logger = logging.getLogger()
         self.threads = threads
 
-        #self.conn = GenomeDatabaseConnection()
-        #self.conn.MakePostgresConnection()
+        # self.conn = GenomeDatabaseConnection()
+        # self.conn.MakePostgresConnection()
         self.cur = cur
 
         self.tigrfam_suffix = ConfigMetadata.TIGRFAM_SUFFIX
@@ -224,13 +224,14 @@ class AlignedMarkerManager(object):
                 final_evalue.append(result_align[4])
                 final_bitscore.append(result_align[5])
 
-        query = "SELECT upsert_aligned_markers(%s,%s,%s,%s,%s,%s)"
-        temp_cur.execute(query, (final_genome,
-                                     final_markerid,
-                                     final_seq,
-                                     final_multihits,
-                                     final_evalue,
-                                     final_bitscore))
+        if final_genome:
+            query = "SELECT upsert_aligned_markers(%s,%s,%s,%s,%s,%s)"
+            temp_cur.execute(query, (final_genome,
+                                         final_markerid,
+                                         final_seq,
+                                         final_multihits,
+                                         final_evalue,
+                                         final_bitscore))
         temp_con.commit()
         temp_cur.close()
         temp_con.ClosePostgresConnection()
