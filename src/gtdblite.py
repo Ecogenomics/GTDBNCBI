@@ -1058,14 +1058,14 @@ if __name__ == '__main__':
     optional_markers_create_tree.add_argument(
         '--excluded_genome_list_ids', help='List of genome list IDs (comma separated)to exclude from the tree.')
     optional_markers_create_tree.add_argument(
-        '--guaranteed_genome_list_ids', help='List of genome list IDs (comma separated) to retain in tree independent of filtering criteria'.)
+        '--guaranteed_genome_list_ids', help='List of genome list IDs (comma separated) to retain in tree independent of filtering criteria.')
     optional_markers_create_tree.add_argument(
         '--guaranteed_genome_ids', help='List of genome IDs (comma separated) to retain in tree independent of filtering criteria.')
     optional_markers_create_tree.add_argument(
         '--taxa_filter', help='Filter genomes to taxa within specific taxonomic groups (e.g., p__Proteobacteria, p__Actinobacteria).')
 
     optional_markers_create_tree.add_argument('--prefix', required=False, default='gtdb',
-                                              help='Desired prefix for output files'.)
+                                              help='Desired prefix for output files.')
     optional_markers_create_tree.add_argument('--no_alignment', action='store_true',
                                               help='Remove concatenated alignment in ARB metadata file.')
     optional_markers_create_tree.add_argument(

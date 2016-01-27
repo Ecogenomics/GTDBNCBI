@@ -417,13 +417,13 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
             genome_rep_mngr.assignToRepresentative()
 
             # create tree data
             self.logger.info('Creating tree data for %d genomes using %d marker genes.' %
                                 (len(genome_ids), len(marker_ids)))
-            
+
             tree_mngr = TreeManager(cur, self.currentUser)
             genomes_to_retain, chosen_markers_order, chosen_markers = tree_mngr.filterGenomes(marker_ids, genome_ids,
                                                                                               quality_threshold, comp_threshold, cont_threshold,
@@ -934,13 +934,15 @@ class GenomeDatabase(object):
     def ExportMetadata(self, path):
         try:
             cur = self.conn.cursor()
-            
+
             # ensure all genomes have been assigned to a representatives
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
             genome_rep_mngr.assignToRepresentative()
-            
+
             metaman = MetadataManager(cur, self.currentUser)
             metaman.exportMetadata(path)
+
+            self.conn.commit()
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
@@ -976,6 +978,11 @@ class GenomeDatabase(object):
         try:
             cur = self.conn.cursor()
 
+            # make sure representative have been determine for all genomes
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_rep_mngr.assignToRepresentative()
+
+            # determine number of genomes from different database sources
             cur.execute("SELECT name, external_id_prefix, " +
                         "(SELECT COUNT(*) "
                         "FROM genomes "
@@ -984,12 +991,25 @@ class GenomeDatabase(object):
                         "ORDER BY id")
             genome_counts = cur.fetchall()
 
-            print '\t'.join(('Genome Source', 'Prefix', 'Genome Count'))
+            print ''
+            header = ('Genome Source', 'Prefix', 'Genome Count')
+            rows = []
             for tup in genome_counts:
-                print '\t'.join(map(str, list(tup)))
+                rows.append(tup)
+
+            self.PrintTable(header, genome_counts)
 
             print ''
             print 'Total genomes: %d' % (sum([x[2] for x in genome_counts]))
+
+            # report number of reference genomes
+            cur.execute("SELECT COUNT(*) "
+                        "FROM metadata_taxonomy "
+                        "WHERE gtdb_representative = True")
+            ref_genome_counts = cur.fetchone()[0]
+            print 'Number of reference genomes: %d' % ref_genome_counts
+
+            self.conn.commit()
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
