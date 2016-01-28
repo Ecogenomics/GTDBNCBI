@@ -25,6 +25,7 @@ import prettytable
 from biolib.external.fasttree import FastTree
 
 import Config
+from Exceptions import GenomeDatabaseError
 from UserManager import UserManager
 from GenomeDatabaseConnection import GenomeDatabaseConnection
 from GenomeManager import GenomeManager
@@ -33,7 +34,6 @@ from MarkerManager import MarkerManager
 from MarkerSetManager import MarkerSetManager
 from MetadataManager import MetadataManager
 from TreeManager import TreeManager
-from Exceptions import GenomeDatabaseError
 from AlignedMarkerManager import AlignedMarkerManager
 from GenomeRepresentativeManager import GenomeRepresentativeManager
 
