@@ -58,8 +58,6 @@ class GenomeDatabase(object):
         if Config.GTDB_GENOME_USR_DIR:
             self.genomeCopyUserDir = Config.GTDB_GENOME_USR_DIR
 
-        self.defaultMarkerDatabaseName = 'user'
-
     def Login(self, user, login_as_root):
         """Login to database."""
 
@@ -301,37 +299,6 @@ class GenomeDatabase(object):
 
         return True
 
-    def GetAllUserGenomeIds(self):
-        """Get genome identifiers for all user genomes.
-
-        Returns
-        -------
-        list
-            Database identifiers for all user genomes.
-        """
-        try:
-            cur = self.conn.cursor()
-
-            cur.execute("SELECT id " +
-                        "FROM genome_sources " +
-                        "WHERE name = %s", (self.defaultMarkerDatabaseName,))
-
-            user_source_id = cur.fetchone()[0]
-
-            cur.execute("SELECT id " +
-                        "FROM genomes " +
-                        "WHERE genome_source_id = %s", (user_source_id,))
-
-            result_ids = []
-            for (genome_id,) in cur:
-                result_ids.append(genome_id)
-
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return False
-
-        return result_ids
-
     # True on success. False on failure/error.
     def ViewGenomes(self, batchfile=None, external_ids=None):
         try:
@@ -340,7 +307,7 @@ class GenomeDatabase(object):
 
             genome_ids = []
             if external_ids is None and batchfile is None:
-                genome_ids = genome_mngr.getAllGenomeIds()
+                genome_ids = genome_mngr.allGenomeIds()
             else:
                 if external_ids is None:
                     external_ids = []
@@ -410,7 +377,8 @@ class GenomeDatabase(object):
     def MakeTreeData(self, marker_ids, genome_ids,
                      directory, prefix,
                      quality_threshold, comp_threshold, cont_threshold,
-                     taxa_filter, excluded_genome_list_ids,
+                     taxa_filter,
+                     excluded_genome_list_ids, excluded_genome_ids,
                      guaranteed_genome_list_ids, guaranteed_genome_ids,
                      alignment, individual,
                      build_tree=True):
@@ -431,6 +399,7 @@ class GenomeDatabase(object):
                                                                                               quality_threshold, comp_threshold, cont_threshold,
                                                                                               taxa_filter,
                                                                                               excluded_genome_list_ids,
+                                                                                              excluded_genome_ids,
                                                                                               guaranteed_genome_list_ids,
                                                                                               guaranteed_genome_ids)
 
@@ -582,8 +551,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
-            genome_id_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(
-                list_ids)
+            genome_id_list = genome_list_mngr.getGenomeIdsFromGenomeListIds(list_ids)
 
             if not genome_id_list:
                 raise GenomeDatabaseError(

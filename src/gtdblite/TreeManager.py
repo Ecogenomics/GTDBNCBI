@@ -51,6 +51,7 @@ class TreeManager(object):
                       quality_threshold, comp_threshold, cont_threshold,
                       taxa_filter,
                       excluded_genome_list_ids,
+                      excluded_genome_ids,
                       guaranteed_genome_list_ids,
                       guaranteed_genome_ids):
         """Filter genomes based on provided criteria.
@@ -84,32 +85,32 @@ class TreeManager(object):
 
         # find genomes that are in the guaranteed list
         self.logger.info('Identifying genomes to be excluded from filtering.')
+        genome_mngr = GenomeManager(self.cur, self.currentUser)
+        genome_list_mngr = GenomeListManager(self.cur, self.currentUser)
         guaranteed_genomes = set()
         if guaranteed_genome_ids:
-            genome_mngr = GenomeManager(self.cur, self.currentUser)
-            guaranteed_genome_ids = [x.strip()
-                                     for x in guaranteed_genome_ids.split(",")]
-            guaranteed_genomes.update(
-                genome_mngr.externalGenomeIdsToGenomeIds(guaranteed_genome_ids))
+            genome_ids = [x.strip() for x in guaranteed_genome_ids.split(",")]
+            db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(genome_ids)
+            guaranteed_genomes.update(db_genome_ids)
 
         if guaranteed_genome_list_ids:
-            guaranteed_genome_list_ids = [
-                x.strip() for x in guaranteed_genome_list_ids.split(",")]
-
-            genome_list_mngr = GenomeListManager(self.cur, self.currentUser)
-            genome_id_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(
-                guaranteed_genome_list_ids)
-            guaranteed_genomes.update(genome_id_list)
+            guaranteed_genome_list_ids = [x.strip()
+                                          for x in guaranteed_genome_list_ids.split(",")]
+            db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(guaranteed_genome_list_ids)
+            guaranteed_genomes.update(db_genome_ids)
 
         self.logger.info(
             'Identified %d genomes to be excluded from filtering.' % len(guaranteed_genomes))
 
-        # find genomes that fail completeness, contamination, or genome quality
-        # thresholds
+        # find genomes that fail completeness, contamination, or genome quality thresholds
         self.logger.info('Filtering genomes with completeness <%.1f%%, contamination >%.1f%%, or quality <%.1f%%.' % (
-            comp_threshold, cont_threshold, quality_threshold))
-        filtered_genomes = self._filterOnGenomeQuality(
-            genome_ids, quality_threshold, comp_threshold, cont_threshold)
+                            comp_threshold,
+                            cont_threshold,
+                            quality_threshold))
+        filtered_genomes = self._filterOnGenomeQuality(genome_ids,
+                                                       quality_threshold,
+                                                       comp_threshold,
+                                                       cont_threshold)
         filtered_genomes -= guaranteed_genomes
         self.logger.info(
             'Filtered %d genomes based on completeness, contamination, and quality.' % len(filtered_genomes))
@@ -120,32 +121,41 @@ class TreeManager(object):
             self.logger.info(
                 'Filtering genomes outside taxonomic groups of interest.')
             taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
-            genome_ids_from_taxa = self._genomesFromTaxa(
-                genome_ids, taxa_to_retain)
+            genome_ids_from_taxa = self._genomesFromTaxa(genome_ids, taxa_to_retain)
 
             new_genomes_to_retain = genomes_to_retain.intersection(
                 genome_ids_from_taxa).union(guaranteed_genomes)
             self.logger.info('Filtered %d additional genomes based on taxonomic affiliations.' % (
-                len(genomes_to_retain) - len(new_genomes_to_retain)))
+                                len(genomes_to_retain) - len(new_genomes_to_retain)))
             genomes_to_retain = new_genomes_to_retain
 
-        # filter genomes in excluded genome lists
+        # filter genomes explicitly specified for exclusion
+        genomes_to_exclude = set()
+        if excluded_genome_ids:
+            excluded_genome_ids = [x.strip()
+                                    for x in excluded_genome_ids.split(",")]
+            db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(excluded_genome_ids)
+            genomes_to_exclude.update(db_genome_ids)
+
         if excluded_genome_list_ids:
-            excluded_genome_list_ids = [
-                x.strip() for x in excluded_genome_list_ids.split(",")]
+            excluded_genome_list_ids = [x.strip()
+                                        for x in excluded_genome_list_ids.split(",")]
+            db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(excluded_genome_list_ids)
+            genomes_to_exclude.update(db_genome_ids)
 
-            genome_list_mngr = GenomeListManager(self.cur, self.currentUser)
-            genomes_to_exclude = genome_list_mngr.getGenomeIdListFromGenomeListIds(
-                excluded_genome_list_ids)
+        # check that genomes are marker for retention and exclusion
+        conflicting_genomes = guaranteed_genomes.intersection(genomes_to_exclude)
+        if conflicting_genomes:
+            raise GenomeDatabaseError('Genomes marked for both retention and exclusion, e.g.: %s'
+                                        % conflicting_genomes.pop())
 
-            new_genomes_to_retain = genomes_to_retain.difference(
-                genomes_to_exclude).union(guaranteed_genomes)
+        if genomes_to_exclude:
+            new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude).union(guaranteed_genomes)
             self.logger.info('Filtered %d additional genomes explicitly indicated for exclusion.' % (
                 len(genomes_to_retain) - len(new_genomes_to_retain)))
             genomes_to_retain = new_genomes_to_retain
 
-        self.logger.info('Building tree across %d genomes.' %
-                         len(genomes_to_retain))
+        self.logger.info('Producing tree data for %d genomes.' % len(genomes_to_retain))
 
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 

@@ -21,7 +21,7 @@ import psycopg2
 from psycopg2.extensions import AsIs
 
 import Tools
-from Exceptions import GenomeDatabaseError 
+from Exceptions import GenomeDatabaseError
 
 
 class MarkerSetManager(object):
@@ -45,7 +45,7 @@ class MarkerSetManager(object):
 
         self.bacCanonicalMarkerSetId = 1
         self.arCanonicalMarkerSetId = 2
-        
+
     def _confirm(self, msg):
         raw = raw_input(msg + " (y/N): ")
         if raw.upper() == "Y":
@@ -54,14 +54,14 @@ class MarkerSetManager(object):
 
     def canonicalBacterialMarkers(self):
         """Get identifiers of canonical bacterial markers."""
-        
-        return self.getMarkerIdListFromMarkerSetIds([self.bacCanonicalMarkerSetId])
-        
+
+        return self.getMarkerIdsFromMarkerSetIds([self.bacCanonicalMarkerSetId])
+
     def canonicalArchaealMarkers(self):
         """Get identifiers of canonical archaeal markers."""
-        
-        return self.getMarkerIdListFromMarkerSetIds([self.arCanonicalMarkerSetId])
-    
+
+        return self.getMarkerIdsFromMarkerSetIds([self.arCanonicalMarkerSetId])
+
     def concatenatedAlignedMarkers(self, db_genome_id, marker_id_index):
         """Create concatenated alignment of markers for genome.
 
@@ -268,7 +268,7 @@ class MarkerSetManager(object):
                 if not self._confirm("Are you sure you want to delete {0} set(s) (this action cannot be undone)".format(len(marker_set_ids))):
                     raise GenomeDatabaseError("User aborted database action.")
 
-                list_marker_ids = self.getMarkerIdListFromMarkerSetIds([marker_set_id])
+                list_marker_ids = self.getMarkerIdsFromMarkerSetIds([marker_set_id])
                 self.editMarkerSet(marker_set_id, list_marker_ids, 'remove')
             except GenomeDatabaseError as e:
                 raise e
@@ -297,7 +297,7 @@ class MarkerSetManager(object):
 
         return result_ids
 
-    def getMarkerIdListFromMarkerSetIds(self, marker_set_ids):
+    def getMarkerIdsFromMarkerSetIds(self, marker_set_ids):
         """Get marker identifiers within specific marker set.
 
         Parameters

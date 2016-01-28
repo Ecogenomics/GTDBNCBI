@@ -34,6 +34,7 @@ from biolib.misc.custom_help_formatter import CustomHelpFormatter
 from gtdblite.UserManager import UserManager
 from gtdblite.GenomeManager import GenomeManager
 from gtdblite.GenomeListManager import GenomeListManager
+from gtdblite.GenomeRepresentativeManager import GenomeRepresentativeManager
 from gtdblite.MarkerManager import MarkerManager
 from gtdblite.MarkerSetManager import MarkerSetManager
 
@@ -160,64 +161,94 @@ def AddMarkers(db, args):
 
 def CreateTreeData(db, args):
 
-    genome_id_list = []
+    # get desired set of genomes for inferring tree
+    genome_rep_mngr = GenomeRepresentativeManager(db.conn.cursor(), db.currentUser, db.threads)
+    genome_mngr = GenomeManager(db.conn.cursor(), db.currentUser)
+    genome_list_mngr = GenomeListManager(db.conn.cursor(), db.currentUser)
+
+    genome_id_list = set()
+    if args.all_representatives:
+        temp_list = genome_rep_mngr.representativeGenomes()
+        if not temp_list:
+            return False
+        genome_id_list.update(temp_list)
+
+    if args.ncbi_representatives:
+        temp_list = genome_rep_mngr.ncbiRepresentativeGenomes()
+        if not temp_list:
+            return False
+        genome_id_list.update(temp_list)
+
+    if args.user_representatives:
+        temp_list = genome_rep_mngr.userRepresentativeGenomes()
+        if not temp_list:
+            return False
+        genome_id_list.update(temp_list)
 
     if args.all_genomes:
-        genome_mngr = GenomeManager(db.conn.cursor(), db.currentUser)
-        genome_id_list = genome_mngr.getAllGenomeIds()
-        if genome_id_list is False:
+        temp_list = genome_mngr.allGenomeIds()
+        if not temp_list:
             return False
-    else:
-        if args.all_user_genomes:
-            genome_id_list = db.GetAllUserGenomeIds()
-            if genome_id_list is False:
-                return False
+        genome_id_list.update(temp_list)
 
-        if args.genome_ids:
-            genome_mngr = GenomeManager(db.conn.cursor(), db.currentUser)
-            temp_list = genome_mngr.externalGenomeIdsToGenomeIds(
-                args.genome_ids.split(","))
-            if temp_list is False:
-                return False
-            genome_id_list += temp_list
+    if args.ncbi_genomes:
+        temp_list = genome_mngr.ncbiGenomeIds()
+        if not temp_list:
+            return False
+        genome_id_list.update(temp_list)
 
-        if args.genome_list_ids:
-            genome_list_mngr = GenomeListManager(
-                db.conn.cursor(), db.currentUser)
-            temp_list = genome_list_mngr.getGenomeIdListFromGenomeListIds(
-                args.genome_list_ids.split(","))
-            if temp_list is False:
-                return False
-            genome_id_list += temp_list
+    if args.user_genomes:
+        temp_list = genome_mngr.userGenomeIds()
+        if not temp_list:
+            return False
+        genome_id_list.update(temp_list)
 
-        genome_batchfile_ids = []
-        if args.genome_batchfile:
-            fh = open(args.genome_batchfile, "rb")
-            for line in fh:
-                line = line.rstrip()
-                genome_batchfile_ids.append(line)
+    if args.genome_list_ids:
+        temp_list = genome_list_mngr.getGenomeIdsFromGenomeListIds(args.genome_list_ids.split(","))
+        if not temp_list:
+            return False
+        genome_id_list.update(temp_list)
 
-        if genome_batchfile_ids:
-            genome_id_list += db.ExternalGenomeIdsToGenomeIds(
-                genome_batchfile_ids)
+    if args.genome_ids:
+        temp_list = genome_mngr.externalGenomeIdsToGenomeIds(args.genome_ids.split(","))
+        if not temp_list:
+            return False
+        genome_id_list.update(temp_list)
+
+    genome_batchfile_ids = []
+    if args.genome_batchfile:
+        fh = open(args.genome_batchfile, "rb")
+        for line in fh:
+            line = line.strip()
+            genome_batchfile_ids.append(line)
+
+    if genome_batchfile_ids:
+        temp_list += genome_mngr.externalGenomeIdsToGenomeIds(genome_batchfile_ids)
+        if not temp_list:
+            return False
+        genome_id_list.update(temp_list)
 
     if (len(genome_id_list) == 0):
         db.ReportError("No genomes found from the information provided.")
         return False
 
-    marker_id_list = []
+    # get desired set of marker for inferring tree
+    marker_set_mngr = MarkerSetManager(db.conn.cursor(), db.currentUser)
+    marker_mngr = MarkerManager(db.conn.cursor(), db.currentUser)
+
+    marker_id_list = set()
     if args.marker_ids:
-        marker_mngr = MarkerManager(db.conn.cursor(), db.currentUser)
-        temp_list = marker_mngr.externalMarkerIdsToMarkerIds(
-            args.marker_ids.split(","))
-        if temp_list is None:
+        temp_list = marker_mngr.externalMarkerIdsToMarkerIds(args.marker_ids.split(","))
+        if not temp_list:
             return False
-        marker_id_list += temp_list
+        marker_id_list.update(temp_list)
 
     if args.marker_set_ids:
         marker_set_ids = args.marker_set_ids.split(",")
-        marker_set_mngr = MarkerSetManager(db.conn.cursor(), db.currentUser)
-        marker_id_list += marker_set_mngr.getMarkerIdListFromMarkerSetIds(marker_set_ids)
+        temp_list = marker_set_mngr.getMarkerIdsFromMarkerSetIds(marker_set_ids)
+        if not temp_list:
+            return False
+        marker_id_list.update(temp_list)
 
     marker_batchfile_ids = []
     if args.marker_batchfile:
@@ -227,12 +258,11 @@ def CreateTreeData(db, args):
             marker_batchfile_ids.append(line)
 
     if marker_batchfile_ids:
-        marker_mngr = MarkerManager(db.conn.cursor(), db.currentUser)
         temp_list = marker_mngr.externalMarkerIdsToMarkerIds(
             marker_batchfile_ids)
         if temp_list is None:
             return False
-        marker_id_list += temp_list
+        marker_id_list.update(temp_list)
 
     if (len(marker_id_list) == 0):
         db.ReportError("No markers found from the information provided.")
@@ -241,7 +271,8 @@ def CreateTreeData(db, args):
     return db.MakeTreeData(marker_id_list, genome_id_list,
                            args.out_dir, args.prefix,
                            args.quality_threshold, args.comp_threshold, args.cont_threshold,
-                           args.taxa_filter, args.excluded_genome_list_ids,
+                           args.taxa_filter,
+                           args.excluded_genome_list_ids, args.excluded_genome_ids,
                            args.guaranteed_genome_list_ids, args.guaranteed_genome_ids,
                            not args.no_alignment,
                            args.individual,
@@ -1020,33 +1051,41 @@ if __name__ == '__main__':
 
     atleastone_genomes_create_tree = parser_tree_create.add_argument_group(
         'minimum of one argument required')
-    atleastone_genomes_create_tree.add_argument('--genome_batchfile', dest='genome_batchfile', default=None,
-                                                help='File of genome IDs, one per line, to include in the tree.')
-    atleastone_genomes_create_tree.add_argument('--genome_ids', dest='genome_ids', default=None,
-                                                help='List of genome IDs (comma separated), whose genomes should be included in the tree.')
-    atleastone_genomes_create_tree.add_argument('--genome_list_ids', dest='genome_list_ids', default=None,
-                                                help='List of genome list IDs (comma separated), whose genomes should be included in the tree.')
-    atleastone_genomes_create_tree.add_argument('--all_user_genomes', default=False, action='store_true',
-                                                help='Included all user genomes in the tree, subject to filtering.')
+    atleastone_genomes_create_tree.add_argument('--all_representatives', default=False, action='store_true',
+                                                help='Included all representative genomes in the tree, subject to filtering.')
+    atleastone_genomes_create_tree.add_argument('--ncbi_representatives', default=False, action='store_true',
+                                                help='Included all NCBI representative genomes in the tree, subject to filtering.')
+    atleastone_genomes_create_tree.add_argument('--user_representatives', default=False, action='store_true',
+                                                help='Included all user representative genomes in the tree, subject to filtering.')
+
     atleastone_genomes_create_tree.add_argument('--all_genomes', default=False, action='store_true',
                                                 help='Included all genomes in the tree, subject to filtering.')
+    atleastone_genomes_create_tree.add_argument('--ncbi_genomes', default=False, action='store_true',
+                                                help='Included all NCBI genomes in the tree, subject to filtering.')
+    atleastone_genomes_create_tree.add_argument('--user_genomes', default=False, action='store_true',
+                                                help='Included all user genomes in the tree, subject to filtering.')
+
+    atleastone_genomes_create_tree.add_argument('--genome_list_ids', dest='genome_list_ids', default=None,
+                                                help='List of genome list IDs (comma separated), whose genomes should be included in the tree.')
+    atleastone_genomes_create_tree.add_argument('--genome_ids', dest='genome_ids', default=None,
+                                                help='List of genome IDs (comma separated), whose genomes should be included in the tree.')
+    atleastone_genomes_create_tree.add_argument('--genome_batchfile', dest='genome_batchfile', default=None,
+                                                help='File of genome IDs, one per line, to include in the tree.')
 
     atleastone_markers_create_tree = parser_tree_create.add_argument_group(
         'minimum of one argument required')
-    atleastone_markers_create_tree.add_argument('--marker_batchfile', dest='marker_batchfile', default=None,
-                                                help='File of marker IDs, one per line, to build the tree.')
-    atleastone_markers_create_tree.add_argument('--marker_ids', dest='marker_ids', default=None,
-                                                help='List of marker IDs (comma separated), whose markers will be used to build the tree.')
     atleastone_markers_create_tree.add_argument('--marker_set_ids', dest='marker_set_ids', default=None,
                                                 help='List of marker set IDs (comma separated), whose markers will be used to build the tree.')
+    atleastone_markers_create_tree.add_argument('--marker_ids', dest='marker_ids', default=None,
+                                                help='List of marker IDs (comma separated), whose markers will be used to build the tree.')
+    atleastone_markers_create_tree.add_argument('--marker_batchfile', dest='marker_batchfile', default=None,
+                                                help='File of marker IDs, one per line, to build the tree.')
 
     required_markers_create_tree = parser_tree_create.add_argument_group(
         'required arguments')
-    required_markers_create_tree.add_argument('--output', dest='out_dir', required=True,
-                                              help='Directory to output files.')
+    required_markers_create_tree.add_argument('--output', dest='out_dir', required=True, help='Directory to output files.')
 
-    optional_markers_create_tree = parser_tree_create.add_argument_group(
-        'optional arguments')
+    optional_markers_create_tree = parser_tree_create.add_argument_group('optional arguments')
 
     optional_markers_create_tree.add_argument('--quality_threshold',
                                               type=float, default=50, help='Filter genomes with a quality (completeness - 4*contamination) below threshold.')
@@ -1055,26 +1094,28 @@ if __name__ == '__main__':
     optional_markers_create_tree.add_argument('--contamination_threshold', dest='cont_threshold',
                                               type=float, default=10, help='Filter genomes above contamination threshold.')
 
-    optional_markers_create_tree.add_argument(
-        '--excluded_genome_list_ids', help='List of genome list IDs (comma separated)to exclude from the tree.')
-    optional_markers_create_tree.add_argument(
-        '--guaranteed_genome_list_ids', help='List of genome list IDs (comma separated) to retain in tree independent of filtering criteria.')
-    optional_markers_create_tree.add_argument(
-        '--guaranteed_genome_ids', help='List of genome IDs (comma separated) to retain in tree independent of filtering criteria.')
-    optional_markers_create_tree.add_argument(
-        '--taxa_filter', help='Filter genomes to taxa within specific taxonomic groups (e.g., p__Proteobacteria, p__Actinobacteria).')
+    optional_markers_create_tree.add_argument('--excluded_genome_list_ids',
+                                              help='Genome list IDs (comma separated) indicating genomes to exclude from the tree.')
+    optional_markers_create_tree.add_argument('--excluded_genome_ids',
+                                              help='Genome IDs (comma separated) indicating genomes to exclude from the tree.')
+    optional_markers_create_tree.add_argument('--guaranteed_genome_list_ids',
+                                              help='Genome list IDs (comma separated) indicating genomes to retain in tree independent of filtering criteria.')
+    optional_markers_create_tree.add_argument('--guaranteed_genome_ids',
+                                              help='Genome IDs (comma separated) indicating genomes to retain in tree independent of filtering criteria.')
+    optional_markers_create_tree.add_argument('--taxa_filter',
+                                              help='Filter genomes to taxa within specific taxonomic groups (e.g., p__Proteobacteria, p__Actinobacteria).')
 
     optional_markers_create_tree.add_argument('--prefix', required=False, default='gtdb',
                                               help='Desired prefix for output files.')
     optional_markers_create_tree.add_argument('--no_alignment', action='store_true',
                                               help='Remove concatenated alignment in ARB metadata file.')
-    optional_markers_create_tree.add_argument(
-        '--individual', action='store_true', help='Create individual FASTA files for each marker.')
+    optional_markers_create_tree.add_argument('--individual', action='store_true',
+                                              help='Create individual FASTA files for each marker.')
 
     optional_markers_create_tree.add_argument('--no_tree', dest='no_tree', action="store_true",
-                                              help="Only output tree data, don't build the tree.")
-    optional_markers_create_tree.add_argument(
-        '-h', '--help', action="help", help="Show help message.")
+                                              help="Output tree data, but do not infer a tree.")
+    optional_markers_create_tree.add_argument('-h', '--help', action="help",
+                                              help="Show help message.")
 
     parser_tree_create.set_defaults(func=CreateTreeData)
 
@@ -1096,12 +1137,23 @@ if __name__ == '__main__':
 
     # Special parser checks
     if (args.category_parser_name == 'tree' and args.tree_subparser_name == 'create'):
-        if (not args.genome_batchfile and not args.genome_ids and not args.genome_list_ids and not args.all_user_genomes and not args.all_genomes):
+        if (not args.all_representatives and
+                not args.ncbi_representatives and
+                not args.user_representatives and
+                not args.all_genomes and
+                not args.ncbi_genomes and
+                not args.user_genomes and
+                not args.genome_list_ids and
+                not args.genome_ids and
+                not args.genome_batchfile):
             parser_tree_create.error(
-                'Need to specify at least one of --genome_batchfile, --genome_ids, --genome_list_ids, --all_user_genomes, or --all_genomes.')
-        if (args.marker_batchfile is None and args.marker_ids is None and args.marker_set_ids is None):
+                'Need to specify at least one of --all_representatives, --ncbi_representatives, --user_representatives, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
+
+        if (not args.marker_set_ids
+                and not args.marker_ids
+                and not args.marker_batchfile):
             parser_tree_create.error(
-                'Need to specify at least one of --marker_batchfile, --marker_ids or --marker_set_ids.')
+                'Need to specify at least one of --marker_set_ids, --marker_ids or --marker_batchfile.')
 
     if (args.category_parser_name == 'genomes' and args.genome_subparser_name == 'view'):
         if (args.batchfile is not None or args.id_list is not None):
