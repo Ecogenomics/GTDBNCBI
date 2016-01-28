@@ -22,6 +22,8 @@ import psycopg2
 
 from biolib.parallel import Parallel
 
+from Exceptions import GenomeDatabaseError
+from GenomeManager import GenomeManager
 from MarkerSetManager import MarkerSetManager
 from AlignedMarkerManager import AlignedMarkerManager
 
@@ -100,15 +102,19 @@ class GenomeRepresentativeManager(object):
             List of database identifiers for unprocessed genomes.
         """
 
-        self.cur.execute("SELECT id " +
-                         "FROM metadata_taxonomy " +
-                         "WHERE gtdb_representative IS NULL")
-        unprocessed_genome_ids = [genome_id[0] for genome_id in self.cur.fetchall()]
+        try:
+            self.cur.execute("SELECT id " +
+                             "FROM metadata_taxonomy " +
+                             "WHERE gtdb_representative IS NULL")
+            unprocessed_genome_ids = [genome_id[0] for genome_id in self.cur.fetchall()]
+
+        except GenomeDatabaseError as e:
+            raise e
 
         return unprocessed_genome_ids
 
     def representativeGenomes(self):
-        """Get list of representative genomes.
+        """Get genome identifiers for all representative genomes.
 
         Returns
         -------
@@ -116,12 +122,64 @@ class GenomeRepresentativeManager(object):
             List of database identifiers for representative genomes.
         """
 
-        self.cur.execute("SELECT id " +
-                         "FROM metadata_taxonomy " +
-                         "WHERE gtdb_representative = 'TRUE'")
-        rep_genome_ids = [genome_id[0] for genome_id in self.cur.fetchall()]
+        try:
+            self.cur.execute("SELECT id " +
+                             "FROM metadata_taxonomy " +
+                             "WHERE gtdb_representative = 'TRUE'")
+            rep_genome_ids = [genome_id[0] for genome_id in self.cur]
+
+        except GenomeDatabaseError as e:
+            raise e
 
         return rep_genome_ids
+
+    def ncbiRepresentativeGenomes(self):
+        """Get genome identifiers for all NCBI representative genomes.
+
+        Returns
+        -------
+        list
+            List of database identifiers for NCBI representative genomes.
+        """
+
+        try:
+            genome_mngr = GenomeManager(self.cur, self.currentUser)
+            ncbi_genomes_ids = genome_mngr.ncbiGenomeIds()
+
+            self.cur.execute("SELECT id " +
+                             "FROM metadata_taxonomy " +
+                             "WHERE gtdb_representative = 'TRUE' " +
+                             "AND id = ANY(%s)", (ncbi_genomes_ids,))
+            rep_genome_ids = [genome_id[0] for genome_id in self.cur]
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return rep_genome_ids
+
+    def userRepresentativeGenomes(self):
+        """Get genome identifiers for all user representative genomes.
+
+        Returns
+        -------
+        list
+            List of database identifiers for user representative genomes.
+        """
+
+        try:
+            genome_mngr = GenomeManager(self.cur, self.currentUser)
+            user_genomes_ids = genome_mngr.userGenomeIds()
+
+            self.cur.execute("SELECT id " +
+                             "FROM metadata_taxonomy " +
+                             "WHERE gtdb_representative = 'TRUE' " +
+                             "AND id = ANY(%s)", (user_genomes_ids,))
+            user_rep_genome_ids = [genome_id[0] for genome_id in self.cur]
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return user_rep_genome_ids
 
     def assignToRepresentative(self):
         """Assign genomes to representatives.

@@ -167,6 +167,80 @@ class GenomeManager(object):
 
         return genomic_files.keys()
 
+    def allGenomeIds(self):
+        """Get genome identifiers for all genomes.
+
+        Returns
+        -------
+        list
+            Database identifiers for all genomes.
+        """
+
+        try:
+            query = "SELECT id FROM genomes"
+            self.cur.execute(query)
+
+            result_ids = [genome_id[0] for genome_id in self.cur]
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return result_ids
+
+    def userGenomeIds(self):
+        """Get genome identifiers for all user genomes.
+
+        Returns
+        -------
+        list
+            Database identifiers for all user genomes.
+        """
+
+        try:
+            self.cur.execute("SELECT id " +
+                             "FROM genome_sources " +
+                             "WHERE name = %s", ('user',))
+
+            user_source_id = self.cur.fetchone()[0]
+
+            self.cur.execute("SELECT id " +
+                             "FROM genomes " +
+                             "WHERE genome_source_id = %s", (user_source_id,))
+
+            result_ids = [genome_id[0] for genome_id in self.cur]
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return result_ids
+
+    def ncbiGenomeIds(self):
+        """Get genome identifiers for all NCBI genomes.
+
+        Returns
+        -------
+        list
+            Database identifiers for all NCBI genomes.
+        """
+
+        try:
+            self.cur.execute("SELECT id " +
+                             "FROM genome_sources " +
+                             "WHERE name IN %s", (('RefSeq', 'GenBank'),))
+
+            source_ids = [r[0] for r in self.cur.fetchall()]
+
+            self.cur.execute("SELECT id " +
+                             "FROM genomes " +
+                             "WHERE genome_source_id = ANY(%s)", (source_ids,))
+
+            result_ids = [genome_id[0] for genome_id in self.cur]
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return result_ids
+
     def moveGenomes(self, db_genome_ids):
         """Move genome files into database directory structure.
 
@@ -807,28 +881,6 @@ class GenomeManager(object):
 
                 for (genome_id,) in self.cur:
                     result_ids.append(genome_id)
-
-        except GenomeDatabaseError as e:
-            raise e
-
-        return result_ids
-
-    def getAllGenomeIds(self):
-        """Get genome identifiers for all genomes.
-
-        Returns
-        -------
-        list
-            Database identifiers for all genomes.
-        """
-
-        try:
-            query = "SELECT id FROM genomes"
-            self.cur.execute(query)
-
-            result_ids = []
-            for (genome_id,) in self.cur:
-                result_ids.append(genome_id)
 
         except GenomeDatabaseError as e:
             raise e

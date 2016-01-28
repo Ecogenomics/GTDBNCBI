@@ -199,9 +199,9 @@ class GenomeListManager(object):
 
         return True
 
-    def getGenomeIdListFromGenomeListIds(self, genome_list_ids):
+    def getGenomeIdsFromGenomeListIds(self, genome_list_ids):
         '''
-        Function: GetGenomeIdListFromGenomeListIds
+        Function: getGenomeIdsFromGenomeListIds
         Given a list of ids, return all the ids of the genomes contained
 
         :param genome_list_ids: A list of genome list ids whose contents needs to be retrieved.
@@ -275,8 +275,7 @@ class GenomeListManager(object):
                 if not self._confirm("Are you sure you want to delete {0} lists (this action cannot be undone)".format(len(genome_list_ids))):
                     raise GenomeDatabaseError("User aborted database action.")
 
-                list_genomes_ids = self.getGenomeIdListFromGenomeListIds(
-                    [genome_list_id])
+                list_genomes_ids = self.getGenomeIdsFromGenomeListIds([genome_list_id])
                 self.editGenomeList(genome_list_id, list_genomes_ids, 'remove')
             except GenomeDatabaseError as e:
                 raise e
