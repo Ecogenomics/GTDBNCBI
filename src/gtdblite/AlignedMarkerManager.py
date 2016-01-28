@@ -150,14 +150,20 @@ class AlignedMarkerManager(object):
                      "AND g.id = %s " +
                      "AND m.id in %s " +
                      "AND md.external_id_prefix like %s")
-            temp_cur.execute(query, (db_genome_id, tuple(marker_ids,), marker_db))
+            temp_cur.execute(
+                query, (db_genome_id, tuple(marker_ids,), marker_db))
             raw_results = temp_cur.fetchall()
-            marker_dict_original = {a: {"path": b, "size": c, "db_marker_id": d} for a, b, c, d in raw_results}
+            marker_dict_original = {
+                a: {"path": b, "size": c, "db_marker_id": d} for a, b, c, d in raw_results}
 
             # get all gene sequences
             genome_path = str(path)
-            tophit_path = genome_path.replace(self.genome_file_suffix, marker_suffix)
-            protein_file = tophit_path.replace(marker_suffix, self.protein_file_suffix)
+            tophit_path = genome_path.replace(
+                self.genome_file_suffix, marker_suffix)
+
+            # we load the list of all the genes detected in the genome
+            protein_file = tophit_path.replace(
+                marker_suffix, self.protein_file_suffix)
             all_genes_dict = read_fasta(protein_file, False)
 
             # we store the tophit file line by line and store the
@@ -227,11 +233,11 @@ class AlignedMarkerManager(object):
         if final_genome:
             query = "SELECT upsert_aligned_markers(%s,%s,%s,%s,%s,%s)"
             temp_cur.execute(query, (final_genome,
-                                         final_markerid,
-                                         final_seq,
-                                         final_multihits,
-                                         final_evalue,
-                                         final_bitscore))
+                                     final_markerid,
+                                     final_seq,
+                                     final_multihits,
+                                     final_evalue,
+                                     final_bitscore))
         temp_con.commit()
         temp_cur.close()
         temp_con.ClosePostgresConnection()
