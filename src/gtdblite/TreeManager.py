@@ -143,7 +143,7 @@ class TreeManager(object):
             db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(excluded_genome_list_ids)
             genomes_to_exclude.update(db_genome_ids)
 
-        # check that genomes are marker for retention and exclusion
+        # check if genomes are marker for retention and exclusion
         conflicting_genomes = guaranteed_genomes.intersection(genomes_to_exclude)
         if conflicting_genomes:
             raise GenomeDatabaseError('Genomes marked for both retention and exclusion, e.g.: %s'

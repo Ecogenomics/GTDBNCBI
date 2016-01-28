@@ -1178,7 +1178,7 @@ if __name__ == '__main__':
             parser_marker_view.error(
                 'Need to specify at least one of --all, --batchfile or --marker_ids.')
 
-    # Initialise the backend
+    # initialise the backend
     db = GenomeDatabase.GenomeDatabase(args.threads, args.tab_table)
     db.conn.MakePostgresConnection()
 
