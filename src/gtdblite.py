@@ -126,7 +126,7 @@ def ErrorReport(msg):
 
 def AddUser(db, args):
     log_has_root = False
-    if args.login_as_root:
+    if args.login_as_root and args.has_root:
         log_has_root = True
     return db.addUser(args.username,
                       args.role,
@@ -135,7 +135,7 @@ def AddUser(db, args):
 
 def EditUser(db, args):
     log_has_root = False
-    if args.login_as_root:
+    if args.login_as_root and args.has_root:
         log_has_root = True
     return db.editUser(args.username,
                        args.role,
@@ -162,7 +162,8 @@ def AddMarkers(db, args):
 def CreateTreeData(db, args):
 
     # get desired set of genomes for inferring tree
-    genome_rep_mngr = GenomeRepresentativeManager(db.conn.cursor(), db.currentUser, db.threads)
+    genome_rep_mngr = GenomeRepresentativeManager(
+        db.conn.cursor(), db.currentUser, db.threads)
     genome_mngr = GenomeManager(db.conn.cursor(), db.currentUser)
     genome_list_mngr = GenomeListManager(db.conn.cursor(), db.currentUser)
 
@@ -204,13 +205,15 @@ def CreateTreeData(db, args):
         genome_id_list.update(temp_list)
 
     if args.genome_list_ids:
-        temp_list = genome_list_mngr.getGenomeIdsFromGenomeListIds(args.genome_list_ids.split(","))
+        temp_list = genome_list_mngr.getGenomeIdsFromGenomeListIds(
+            args.genome_list_ids.split(","))
         if not temp_list:
             return False
         genome_id_list.update(temp_list)
 
     if args.genome_ids:
-        temp_list = genome_mngr.externalGenomeIdsToGenomeIds(args.genome_ids.split(","))
+        temp_list = genome_mngr.externalGenomeIdsToGenomeIds(
+            args.genome_ids.split(","))
         if not temp_list:
             return False
         genome_id_list.update(temp_list)
@@ -223,7 +226,8 @@ def CreateTreeData(db, args):
             genome_batchfile_ids.append(line)
 
     if genome_batchfile_ids:
-        temp_list += genome_mngr.externalGenomeIdsToGenomeIds(genome_batchfile_ids)
+        temp_list += genome_mngr.externalGenomeIdsToGenomeIds(
+            genome_batchfile_ids)
         if not temp_list:
             return False
         genome_id_list.update(temp_list)
@@ -238,14 +242,16 @@ def CreateTreeData(db, args):
 
     marker_id_list = set()
     if args.marker_ids:
-        temp_list = marker_mngr.externalMarkerIdsToMarkerIds(args.marker_ids.split(","))
+        temp_list = marker_mngr.externalMarkerIdsToMarkerIds(
+            args.marker_ids.split(","))
         if not temp_list:
             return False
         marker_id_list.update(temp_list)
 
     if args.marker_set_ids:
         marker_set_ids = args.marker_set_ids.split(",")
-        temp_list = marker_set_mngr.getMarkerIdsFromMarkerSetIds(marker_set_ids)
+        temp_list = marker_set_mngr.getMarkerIdsFromMarkerSetIds(
+            marker_set_ids)
         if not temp_list:
             return False
         marker_id_list.update(temp_list)
@@ -1083,9 +1089,11 @@ if __name__ == '__main__':
 
     required_markers_create_tree = parser_tree_create.add_argument_group(
         'required arguments')
-    required_markers_create_tree.add_argument('--output', dest='out_dir', required=True, help='Directory to output files.')
+    required_markers_create_tree.add_argument(
+        '--output', dest='out_dir', required=True, help='Directory to output files.')
 
-    optional_markers_create_tree = parser_tree_create.add_argument_group('optional arguments')
+    optional_markers_create_tree = parser_tree_create.add_argument_group(
+        'optional arguments')
 
     optional_markers_create_tree.add_argument('--quality_threshold',
                                               type=float, default=50, help='Filter genomes with a quality (completeness - 4*contamination) below threshold.')
