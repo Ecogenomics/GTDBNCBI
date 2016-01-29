@@ -49,7 +49,7 @@ class GenomeRepresentativeManager(object):
         self.threads = threads
 
         # threshold used to assign genome to representative
-        self.repThreshold = 0.99
+        self.aai_threshold = 0.99
 
     def _aai_test(self, seq1, seq2, threshold):
         """Test AAI between sequences.
@@ -65,12 +65,13 @@ class GenomeRepresentativeManager(object):
         seq2 : float
             Second sequence.
         threshold : float
-            Required AAI to cluster sequences.
+            Minimum AAI required for reporting.
 
         Returns
         -------
-        bool
-            True if AAI is greater than or equal to threshold, else False.
+        float
+            AAI between sequences if it is greater than the
+            specified threshold, else None.
         """
 
         assert len(seq1) == len(seq2)
@@ -85,13 +86,15 @@ class GenomeRepresentativeManager(object):
             elif c1 != c2:
                 mismatches += 1
                 if mismatches >= max_mismatches:
-                    return False
+                    return None
             else:
                 matches += 1
 
         aai = float(matches) / max(1, (matches + mismatches))
+        if aai < threshold:
+            return None
 
-        return aai >= threshold
+        return aai
 
     def _unprocessedGenomes(self):
         """Identify genomes that have not been compared to representatives.
@@ -236,21 +239,30 @@ class GenomeRepresentativeManager(object):
             genome_bac_align = marker_set_mngr.concatenatedAlignedMarkers(genome_id, bac_marker_index)
             genome_ar_align = marker_set_mngr.concatenatedAlignedMarkers(genome_id, ar_marker_index)
 
+            assigned_representative = None
+            aai_threshold = self.aai_threshold
             for rep_id in rep_genome_ids:
                 rep_bac_align = rep_bac_aligns[rep_id]
                 rep_ar_align = rep_ar_aligns[rep_id]
 
-                bCluster = (self._aai_test(genome_bac_align, rep_bac_align, self.repThreshold) or
-                            self._aai_test(genome_ar_align, rep_ar_align, self.repThreshold))
+                aai = self._aai_test(genome_bac_align, rep_bac_align, aai_threshold)
+                if not aai:
+                    aai = self._aai_test(genome_ar_align, rep_ar_align, aai_threshold)
 
-                if bCluster:
-                    # assign genome to current representative
-                    assigned_to_rep_count += 1
-                    query = ("UPDATE metadata_taxonomy " +
-                             "SET gtdb_genome_representative = %s " +
-                             "WHERE id = %s")
-                    self.cur.execute(query, (rep_id, genome_id))
-                    break
+                if aai:
+                    # move up the threshold as we are only interested in
+                    # identifying more suitable representatives
+                    aai_threshold = aai
+                    assigned_representative = rep_id
+
+            # assign genome to current representative
+            if assigned_representative:
+                assigned_to_rep_count += 1
+                query = ("UPDATE metadata_taxonomy " +
+                         "SET gtdb_genome_representative = %s " +
+                         "WHERE id = %s")
+                self.cur.execute(query, (assigned_representative, genome_id))
+                break
 
         self.logger.info("Assigned %d genomes to a representative." % assigned_to_rep_count)
 
