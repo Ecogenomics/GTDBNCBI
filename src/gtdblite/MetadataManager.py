@@ -232,8 +232,12 @@ class MetadataManager(object):
                           for line in open(metadata_nt_path)]
         query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(
             db_genome_id)
-        self.cur.executemany(
-            query_nt, [(AsIs(c), v) for (c, v) in genome_list_nt])
+        for c, v in genome_list_nt:
+            try:
+                v = float(v)
+                self.cur.execute(query_nt, [AsIs(c), v])
+            except:
+                self.cur.execute(query_nt, [AsIs(c), v])
 
         try:
             # protein metadata
@@ -243,8 +247,12 @@ class MetadataManager(object):
                                 for line in open(metadata_gene_path)]
             query_gene = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(
                 db_genome_id)
-            self.cur.executemany(query_gene, [(AsIs(c), v)
-                                              for (c, v) in genome_list_gene])
+            for c, v in genome_list_gene:
+                try:
+                    v = float(v)
+                    self.cur.execute(query_gene, [AsIs(c), v])
+                except:
+                    self.cur.execute(query_gene, [AsIs(c), v])
 
             # Greengenes SSU metadata
             query_taxonomy = "UPDATE metadata_taxonomy SET %s = %s WHERE id = {0}".format(
@@ -254,8 +262,12 @@ class MetadataManager(object):
             genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
                 metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX)
             if genome_list_taxonomy:
-                self.cur.executemany(
-                    query_taxonomy, [(AsIs(c), v) for (c, v) in genome_list_taxonomy])
+                for c, v in genome_list_taxonomy:
+                    try:
+                        v = float(v)
+                        self.cur.execute(query_taxonomy, [AsIs(c), v])
+                    except:
+                        self.cur.execute(query_taxonomy, [AsIs(c), v])
 
             # SILVA SSU metadata
             metadata_ssu_silva_path = os.path.join(
@@ -263,8 +275,12 @@ class MetadataManager(object):
             genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
                 metadata_ssu_silva_path, ConfigMetadata.GTDB_SSU_SILVA_PREFIX)
             if genome_list_taxonomy:
-                self.cur.executemany(
-                    query_taxonomy, [(AsIs(c), v) for (c, v) in genome_list_taxonomy])
+                for c, v in genome_list_taxonomy:
+                    try:
+                        v = float(v)
+                        self.cur.execute(query_taxonomy, [AsIs(c), v])
+                    except:
+                        self.cur.execute(query_taxonomy, [AsIs(c), v])
 
             query_gene_ssu = "UPDATE metadata_genes SET ssu_count = %s WHERE id = {0}".format(
                 db_genome_id)
