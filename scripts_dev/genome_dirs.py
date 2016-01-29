@@ -40,25 +40,37 @@ class GenomeDir(object):
   def __init__(self):
     pass
 
-  def run(self, genome_dir, output_file,ftp_dir):
+  def run(self, ncbi_genome_dir, user_genome_dir, output_file):
     """Create file indicating directory of each genome."""
 
     fout = open(output_file, 'w')
 
-    for domain in ['archaea', 'bacteria']:
-      domain_dir = os.path.join(genome_dir, domain)
-      for species_dir in os.listdir(domain_dir):
-        full_species_dir = os.path.join(domain_dir, species_dir)
-        if os.path.isfile(full_species_dir):
-	   continue
-	if not os.listdir(full_species_dir):
-	   continue
-        if ftp_dir:
-           full_species_dir=os.path.join(full_species_dir,"latest_assembly_versions")
-        for assembly_dir in os.listdir(full_species_dir):
-          accession = assembly_dir[0:assembly_dir.find('_', 4)]
-          full_assembly_dir = os.path.join(full_species_dir, assembly_dir)
-          fout.write('%s\t%s\n' % (accession, os.path.abspath(full_assembly_dir)))
+    for db in ['genbank', 'refseq']:
+        for domain in ['archaea', 'bacteria']:
+          domain_dir = os.path.join(ncbi_genome_dir, db, domain)
+          for species_dir in os.listdir(domain_dir):
+            full_species_dir = os.path.join(domain_dir, species_dir)
+            if not os.path.isdir(full_species_dir):
+                continue
+
+            for assembly_dir in os.listdir(full_species_dir):
+                accession = assembly_dir[0:assembly_dir.find('_', 4)]
+                if db == 'genbank':
+                    accession = 'GB_' + accession
+                else:
+                    accession = 'RS_' + accession
+            
+                full_assembly_dir = os.path.join(full_species_dir, assembly_dir)
+                fout.write('%s\t%s\n' % (accession, os.path.abspath(full_assembly_dir)))
+                
+    for user in os.listdir(user_genome_dir):
+        user_dir = os.path.join(user_genome_dir, user)
+        if not os.path.isdir(user_dir):
+            continue
+            
+        for genome_id in os.listdir(user_dir):
+            full_path = os.path.join(user_dir, genome_id)
+            fout.write('%s\t%s\n' % (genome_id, os.path.abspath(full_path)))
 
     fout.close()
 
@@ -67,16 +79,15 @@ if __name__ == '__main__':
   print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  parser.add_argument('genome_dir', help='base directory leading to NCBI archaeal and bacterial genome assemblies')
+  parser.add_argument('ncbi_genome_dir', help='base directory leading to NCBI GenBank and RefSeq genomes.')
+  parser.add_argument('user_genome_dir', help='base directory leading to user genomes.')
   parser.add_argument('output_file', help='output metadata file')
-  parser.add_argument('-ftp', dest='ftp_directories', action='store_true',
-                        help='Use if the FTP directories are parsed ( latest_assembly_versions')
 
   args = parser.parse_args()
 
   try:
     p = GenomeDir()
-    p.run(args.genome_dir, args.output_file,args.ftp_directories)
+    p.run(args.ncbi_genome_dir, args.user_genome_dir, args.output_file)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:
