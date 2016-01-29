@@ -136,7 +136,6 @@ class UserManager(object):
             if len(self.cur.fetchall()) > 0:
                 raise GenomeDatabaseError(
                     "User %s already exists in the database." % username)
-
             self.cur.execute("INSERT into users (username, role_id, has_root_login) (" +
                              "SELECT %s, id, %s " +
                              "FROM user_roles " +
