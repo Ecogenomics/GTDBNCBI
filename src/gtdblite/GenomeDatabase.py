@@ -288,11 +288,23 @@ class GenomeDatabase(object):
                     if line[0] != '#':
                         external_ids.append(line.rstrip().split('\t')[0])
 
+            # get database identifiers
             genome_mngr = GenomeManager(cur, self.currentUser)
             genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(external_ids)
+
+            # restrict deletion of representative genomes
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            db_rep_genome_ids = genome_rep_mngr.representativeGenomes()
+            rep_genomes_to_delete = set(db_rep_genome_ids).intersection(genome_ids)
+            if len(rep_genomes_to_delete):
+                self.logger.warning("The %d genome(s) marked as representatives will not be deleted." % len(rep_genomes_to_delete))
+                genome_ids = set(genome_ids).difference(rep_genomes_to_delete)
+
+            # delete genomes
             genome_mngr.deleteGenomes(batchfile, genome_ids, reason)
 
             self.conn.commit()
+
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
@@ -414,6 +426,8 @@ class GenomeDatabase(object):
                                              chosen_markers,
                                              alignment,
                                              individual)
+
+            self.conn.commit()
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)

@@ -668,6 +668,7 @@ class GenomeManager(object):
                 raise GenomeDatabaseError(
                     "Unable to delete genomes. Unable to retrieve genome ids.")
 
+            # restrict deletion to genomes owned by user
             has_permission, username, genomes_owners = self._hasPermissionToEditGenomes(
                 db_genome_ids)
 
@@ -679,51 +680,52 @@ class GenomeManager(object):
                 raise GenomeDatabaseError(
                     "Unable to delete genomes. Insufficient permissions.")
 
-            if not self._confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(db_genome_ids)):
-                raise GenomeDatabaseError("User aborted database action.")
+            sys.exit()
+            if db_genome_ids:
+                if not self._confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(db_genome_ids)):
+                    raise GenomeDatabaseError("User aborted database action.")
 
-            self.cur.execute("DELETE FROM aligned_markers " +
-                             "WHERE genome_id in %s ", (tuple(db_genome_ids),))
+                self.cur.execute("DELETE FROM aligned_markers " +
+                                 "WHERE genome_id IN %s ", (tuple(db_genome_ids),))
 
-            self.cur.execute("DELETE FROM genome_list_contents " +
-                             "WHERE genome_id in %s", (tuple(db_genome_ids),))
+                self.cur.execute("DELETE FROM genome_list_contents " +
+                                 "WHERE genome_id IN %s", (tuple(db_genome_ids),))
 
-            # Deletion of metadata
+                # Deletion of metadata
 
-            self.cur.execute("DELETE FROM metadata_genes " +
-                             "WHERE id in %s", (tuple(db_genome_ids),))
-            self.cur.execute("DELETE FROM metadata_ncbi " +
-                             "WHERE id in %s", (tuple(db_genome_ids),))
-            self.cur.execute("DELETE FROM metadata_nucleotide " +
-                             "WHERE id in %s", (tuple(db_genome_ids),))
-            self.cur.execute("DELETE FROM metadata_taxonomy " +
-                             "WHERE id in %s", (tuple(db_genome_ids),))
+                self.cur.execute("DELETE FROM metadata_genes " +
+                                 "WHERE id IN %s", (tuple(db_genome_ids),))
+                self.cur.execute("DELETE FROM metadata_ncbi " +
+                                 "WHERE id IN %s", (tuple(db_genome_ids),))
+                self.cur.execute("DELETE FROM metadata_nucleotide " +
+                                 "WHERE id IN %s", (tuple(db_genome_ids),))
+                self.cur.execute("DELETE FROM metadata_taxonomy " +
+                                 "WHERE id IN %s", (tuple(db_genome_ids),))
 
-            self.cur.execute("DELETE FROM genomes " +
-                             "WHERE id in %s", (tuple(db_genome_ids),))
+                self.cur.execute("DELETE FROM genomes " +
+                                 "WHERE id IN %s", (tuple(db_genome_ids),))
 
-            for genome, info in genomes_owners.iteritems():
-                if str(username) != str(info.get("owner")):
-                    logging.info('''Genome {0} has been deleted by {1} for the following reason '{2}'
-                                      WARNING: {1} is not the owner of this {0} (real owner {3} )
-                                      {0} needs to be moved manually to the deprecated folder'''.format(genome, username, reason, info.get("owner")))
-                else:
-                    if info.get("prefix") is "U":
-                        target = os.path.dirname(
-                            os.path.join(self.deprecatedUserDir, info.get("relative_path")))
-                    elif info.get("prefix") is "GB":
-                        target = os.path.join(
-                            self.deprecatedGBKDir, info.get("relative_path"))
-                    elif info.get("prefix") is "RS":
-                        target = os.path.join(
-                            self.deprecatedRSQDir, info.get("relative_path"))
-                    make_sure_path_exists(target)
-                    os.rename(
-                        os.path.dirname(Tools.fastaPathGenerator(info.get("relative_path"), info.get("prefix"))), target)
-                    logging.info("Genome {0} has been deleted by {1} for the following reason '{2}'".format(
-                        genome, username, reason))
+                for genome, info in genomes_owners.iteritems():
+                    if str(username) != str(info.get("owner")):
+                        logging.info('''Genome {0} has been deleted by {1} for the following reason '{2}'
+                                          WARNING: {1} is not the owner of this {0} (real owner {3} )
+                                          {0} needs to be moved manually to the deprecated folder'''.format(genome, username, reason, info.get("owner")))
+                    else:
+                        if info.get("prefix") is "U":
+                            target = os.path.dirname(
+                                os.path.join(self.deprecatedUserDir, info.get("relative_path")))
+                        elif info.get("prefix") is "GB":
+                            target = os.path.join(
+                                self.deprecatedGBKDir, info.get("relative_path"))
+                        elif info.get("prefix") is "RS":
+                            target = os.path.join(
+                                self.deprecatedRSQDir, info.get("relative_path"))
+                        make_sure_path_exists(target)
+                        os.rename(
+                            os.path.dirname(Tools.fastaPathGenerator(info.get("relative_path"), info.get("prefix"))), target)
+                        logging.info("Genome {0} has been deleted by {1} for the following reason '{2}'".format(
+                            genome, username, reason))
         except GenomeDatabaseError as e:
-            self.conn.rollback()
             raise e
 
         return True
