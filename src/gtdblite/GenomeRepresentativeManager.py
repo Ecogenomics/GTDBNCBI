@@ -96,6 +96,45 @@ class GenomeRepresentativeManager(object):
 
         return aai
 
+    def _aai_mismatches(self, seq1, seq2, max_mismatches):
+        """Calculate mismatches between sequences.
+
+        Mismatches are only calculate across
+        positions where both sequences have
+        an amino acid. The max_mismatches
+        threshold is used to quickly stop
+        comparisons between divergent
+        sequences.
+
+        Parameters
+        ----------
+        seq1 : str
+            First sequence.
+        seq2 : float
+            Second sequence.
+        max_mismatches : int
+            Maximum allowed mismatches between sequences.
+
+        Returns
+        -------
+        int
+            Mismatches between sequences if it contains < max_mismatches, else None.
+        """
+
+        mismatches = 0
+        matches = 0
+        for c1, c2 in itertools.izip(seq1, seq2):
+            if c1 == '-' or c2 == '-':
+                continue
+            elif c1 != c2:
+                mismatches += 1
+                if mismatches >= max_mismatches:
+                    return None
+            else:
+                matches += 1
+
+        return mismatches
+
     def _unprocessedGenomes(self):
         """Identify genomes that have not been compared to representatives.
 
@@ -240,20 +279,22 @@ class GenomeRepresentativeManager(object):
             genome_ar_align = marker_set_mngr.concatenatedAlignedMarkers(genome_id, ar_marker_index)
 
             assigned_representative = None
-            aai_threshold = self.aai_threshold
+            bac_max_mismatches = (1.0 - self.aai_threshold) * (len(genome_bac_align) - genome_bac_align.count('-'))
+            ar_max_mismatches = (1.0 - self.aai_threshold) * (len(genome_ar_align) - genome_ar_align.count('-'))
             for rep_id in rep_genome_ids:
                 rep_bac_align = rep_bac_aligns[rep_id]
                 rep_ar_align = rep_ar_aligns[rep_id]
 
-                aai = self._aai_test(genome_bac_align, rep_bac_align, aai_threshold)
-                if not aai:
-                    aai = self._aai_test(genome_ar_align, rep_ar_align, aai_threshold)
+                m = self._aai_mismatches(genome_bac_align, rep_bac_align, bac_max_mismatches)
 
-                if aai:
-                    # move up the threshold as we are only interested in
-                    # identifying more suitable representatives
-                    aai_threshold = aai
+                if m is not None:  # necessary to distinguish None and 0
                     assigned_representative = rep_id
+                    bac_max_mismatches = m
+                else:
+                    m = self._aai_mismatches(genome_ar_align, rep_ar_align, ar_max_mismatches)
+                    if m is not None:  # necessary to distinguish None and 0
+                        assigned_representative = rep_id
+                        ar_max_mismatches = m
 
             # assign genome to current representative
             if assigned_representative:
@@ -262,7 +303,6 @@ class GenomeRepresentativeManager(object):
                          "SET gtdb_genome_representative = %s " +
                          "WHERE id = %s")
                 self.cur.execute(query, (assigned_representative, genome_id))
-                break
 
         self.logger.info("Assigned %d genomes to a representative." % assigned_to_rep_count)
 

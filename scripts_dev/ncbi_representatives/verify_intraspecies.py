@@ -1,3 +1,9 @@
+# Assess the number of inter-species occurences within
+# the defined clusters. Evaluation is based on the NCBI
+# taxonomy. This is known to have misassignments even
+# at the species level, but the number of inter-species
+# occurences should be small.
+
 import csv
 
 def read_gtdb_taxonomy(metadata_file):
@@ -59,10 +65,12 @@ def read_gtdb_ncbi_taxonomy(metadata_file):
 
     return taxonomy
     
-taxonomy = read_gtdb_taxonomy('../../gtdb_metadata.csv')
-#taxonomy = read_gtdb_ncbi_taxonomy('../../gtdb_metadata.csv')
+#taxonomy = read_gtdb_taxonomy('../../gtdb_metadata.csv')
+taxonomy = read_gtdb_ncbi_taxonomy('../../../gtdb_metadata.csv')
 
-for line in open('representatives.tsv'):
+interspecies_count = 0
+intergenus_count = 0
+for line in open('../gtdb_clusters_99.5.tsv'):
     line_split = line.strip().split('\t')
     
     rep_id = line_split[0]
@@ -76,5 +84,15 @@ for line in open('representatives.tsv'):
                 genome_sp = genome_taxonomy[6]
                 
                 if rep_sp != genome_sp and genome_sp != 's__' and rep_sp != 's__':
-                    print 'Inter-species clustering:', rep_taxonomy[5], rep_sp, genome_sp
-    
+                    if 'sp.' in rep_sp or 'sp.' in genome_sp:
+                        continue # these are unqualified (incomplete) species names
+                    #print 'Inter-species clustering:', rep_taxonomy[5], rep_sp, rep_id, genome_sp, genome_id
+                    interspecies_count += 1
+                    
+                if rep_taxonomy[5] != genome_taxonomy[5]:
+                    intergenus_count += 1
+                    print rep_taxonomy[5], genome_taxonomy[5]
+                    
+print ''
+print 'Inter-species count: %d' % interspecies_count
+print 'Inter-genus count: %d' % intergenus_count

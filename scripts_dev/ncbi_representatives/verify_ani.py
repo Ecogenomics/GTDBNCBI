@@ -76,7 +76,7 @@ class VerifyANI(object):
     def _progress(self, processed_items, total_items):
         return 'Processed %d of %d genomes.' % (processed_items, total_items)
 
-    def run(self, representative_file, genome_dir_file):
+    def run(self, cluster_file, genome_dir_file, output_prefix):
         # get path to all nucleotide gene file of all genomes
         gene_files = {}
         for line in open(genome_dir_file):
@@ -86,12 +86,14 @@ class VerifyANI(object):
             genome_path = line_split[1]
             genome_dir_id = os.path.basename(os.path.normpath(genome_path))
             gene_files[genome_id] = os.path.join(line_split[1], genome_dir_id + '_protein.fna')
+            
+        print 'Read path for %d genomes.' % len(gene_files)
 
         # process all clusters
-        fout = open('ani.tsv', 'w')
-        fout_summary = open('ani.summary.tsv', 'w')
+        fout = open(output_prefix + '.ani.tsv', 'w')
+        fout_summary = open(output_prefix + '.ani_summary.tsv', 'w')
         
-        for line in open(representative_file):
+        for line in open(cluster_file):
             line_split = line.strip().split('\t')
             
             rep_genome = line_split[0]
@@ -136,14 +138,15 @@ if __name__ == '__main__':
     print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('representative_file', help='representative file from genometreetk aai_cluster')
+    parser.add_argument('cluster_file', help='cluster file from genometreetk aai_cluster')
     parser.add_argument('genome_dir_file', help='file indicating path to all genome directories')
+    parser.add_argument('output_prefix', help='prefix for output files')
   
     args = parser.parse_args()
 
     try:
         p = VerifyANI()
-        p.run(args.representative_file, args.genome_dir_file)
+        p.run(args.cluster_file, args.genome_dir_file, args.output_prefix)
     except SystemExit:
         print "\nControlled exit resulting from an unrecoverable error or warning."
     except:
