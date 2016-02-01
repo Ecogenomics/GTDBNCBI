@@ -235,7 +235,8 @@ class GenomeDatabase(object):
 
             # add genomes to database
             genome_mngr = GenomeManager(cur, self.currentUser, self.threads)
-            genome_ids = genome_mngr.addGenomes(checkm_file, batchfile, study_file)
+            genome_ids = genome_mngr.addGenomes(
+                checkm_file, batchfile, study_file)
 
             if modify_genome_list_id is not None:
                 genome_list_mngr = GenomeListManager(cur, self.currentUser)
@@ -352,6 +353,7 @@ class GenomeDatabase(object):
     def ViewMarkers(self, batchfile=None, external_ids=None):
         try:
             cur = self.conn.cursor()
+            marker_mngr = MarkerManager(cur, self.currentUser)
 
             marker_ids = []
             if external_ids is None and batchfile is None:
@@ -371,12 +373,11 @@ class GenomeDatabase(object):
                         line = line.rstrip()
                         external_ids.append(line)
 
-                marker_mngr = MarkerManager(cur, self.currentUser)
                 marker_ids = marker_mngr.externalMarkerIdsToMarkerIds(
                     external_ids)
                 if marker_ids is False:
                     raise GenomeDatabaseError("Can not retrieve marker ids.")
-
+            print marker_ids
             header, rows = marker_mngr.printMarkerDetails(marker_ids)
             self.PrintTable(header, rows)
 
@@ -399,12 +400,13 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(
+                cur, self.currentUser, self.threads)
             genome_rep_mngr.assignToRepresentative()
 
             # create tree data
             self.logger.info('Creating tree data for %d genomes using %d marker genes.' %
-                                (len(genome_ids), len(marker_ids)))
+                             (len(genome_ids), len(marker_ids)))
 
             tree_mngr = TreeManager(cur, self.currentUser)
             genomes_to_retain, chosen_markers_order, chosen_markers = tree_mngr.filterGenomes(marker_ids, genome_ids,
@@ -416,16 +418,17 @@ class GenomeDatabase(object):
                                                                                               guaranteed_genome_ids)
 
             aligned_mngr = AlignedMarkerManager(cur, self.threads)
-            aligned_mngr.calculateAlignedMarkerSets(genomes_to_retain, marker_ids)
+            aligned_mngr.calculateAlignedMarkerSets(
+                genomes_to_retain, marker_ids)
 
             msa_file = tree_mngr.writeFiles(marker_ids,
-                                             genomes_to_retain,
-                                             directory,
-                                             prefix,
-                                             chosen_markers_order,
-                                             chosen_markers,
-                                             alignment,
-                                             individual)
+                                            genomes_to_retain,
+                                            directory,
+                                            prefix,
+                                            chosen_markers_order,
+                                            chosen_markers,
+                                            alignment,
+                                            individual)
 
             self.conn.commit()
 
@@ -434,14 +437,17 @@ class GenomeDatabase(object):
             return False
 
         if build_tree:
-            self.logger.info('Inferring tree for %d genome under WAG and GAMMA models.' % len(genomes_to_retain))
+            self.logger.info(
+                'Inferring tree for %d genome under WAG and GAMMA models.' % len(genomes_to_retain))
 
-            output_tree = os.path.join(directory, prefix + '_phylogeny.wag_gamma.tree')
+            output_tree = os.path.join(
+                directory, prefix + '_phylogeny.wag_gamma.tree')
             output_tree_log = os.path.join(directory, prefix + '_fasttree.log')
             log_file = os.path.join(directory, prefix + '_fasttree_output.txt')
 
             fasttree = FastTree(multithreaded=True)
-            fasttree.run(msa_file, 'prot', 'wag', output_tree, output_tree_log, log_file)
+            fasttree.run(
+                msa_file, 'prot', 'wag', output_tree, output_tree_log, log_file)
 
         self.logger.info('Done.')
 
@@ -565,7 +571,8 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
-            genome_id_list = genome_list_mngr.getGenomeIdsFromGenomeListIds(list_ids)
+            genome_id_list = genome_list_mngr.getGenomeIdsFromGenomeListIds(
+                list_ids)
 
             if not genome_id_list:
                 raise GenomeDatabaseError(
@@ -901,7 +908,8 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             marker_set_mngr = MarkerSetManager(cur, self.currentUser)
-            marker_ids = marker_set_mngr.getMarkerIdListFromMarkerSetIds(marker_set_ids)
+            marker_ids = marker_set_mngr.getMarkerIdsFromMarkerSetIds(
+                marker_set_ids)
 
             if marker_ids is None:
                 raise GenomeDatabaseError(
@@ -932,7 +940,8 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(
+                cur, self.currentUser, self.threads)
             genome_rep_mngr.assignToRepresentative()
 
             metaman = MetadataManager(cur, self.currentUser)
@@ -975,7 +984,8 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # make sure representative have been determine for all genomes
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(
+                cur, self.currentUser, self.threads)
             genome_rep_mngr.assignToRepresentative()
 
             # determine number of genomes from different database sources

@@ -470,17 +470,18 @@ def exportMetadata(db, args):
 
 def importMetadata(db, args):
     if not db.currentUser.isRootUser():
-        logging.getLogger().info("Only the root user may import metadata.")
-        return False
+        logging.getLogger().warning("Only the root user may import metadata.")
+        return True
 
     return db.ImportMetadata(args.table, args.field, args.typemeta, args.metadatafile)
 
 
 def createMetadata(db, args):
     if not db.currentUser.isRootUser():
-        logging.getLogger().info(
+        logging.getLogger().warning(
             "Only the root user may create new metadata fields.")
-        return False
+
+        return True
 
     return db.CreateMetadata(args.metadatafile)
 
