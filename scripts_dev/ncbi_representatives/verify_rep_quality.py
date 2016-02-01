@@ -1,3 +1,6 @@
+# Verify that all representative genomes have
+# the expected genome quality (completeness - contamination)
+
 import csv
 
 def read_gtdb_genome_quality(metadata_file):
@@ -22,13 +25,13 @@ def read_gtdb_genome_quality(metadata_file):
     return genome_quality
 
 reps = set()
-for line in open('representatives.tsv'):
+for line in open('../gtdb_representatives_99.txt'):
     line_split = line.strip().split('\t')
     rep = line_split[0]
     
     reps.add(rep)
 
-genome_quality = read_gtdb_genome_quality('../../gtdb_metadata.csv')
+genome_quality = read_gtdb_genome_quality('../../../gtdb_metadata.csv')
 
 fout = open('rep_genome_quality.tsv', 'w')
 for r in reps:
