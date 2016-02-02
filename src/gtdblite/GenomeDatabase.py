@@ -294,11 +294,14 @@ class GenomeDatabase(object):
             genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(external_ids)
 
             # restrict deletion of representative genomes
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(
+                cur, self.currentUser, self.threads)
             db_rep_genome_ids = genome_rep_mngr.representativeGenomes()
-            rep_genomes_to_delete = set(db_rep_genome_ids).intersection(genome_ids)
+            rep_genomes_to_delete = set(
+                db_rep_genome_ids).intersection(genome_ids)
             if len(rep_genomes_to_delete):
-                self.logger.warning("The %d genome(s) marked as representatives will not be deleted." % len(rep_genomes_to_delete))
+                self.logger.warning(
+                    "The %d genome(s) marked as representatives will not be deleted." % len(rep_genomes_to_delete))
                 genome_ids = set(genome_ids).difference(rep_genomes_to_delete)
 
             # delete genomes
@@ -377,7 +380,6 @@ class GenomeDatabase(object):
                     external_ids)
                 if marker_ids is False:
                     raise GenomeDatabaseError("Can not retrieve marker ids.")
-            print marker_ids
             header, rows = marker_mngr.printMarkerDetails(marker_ids)
             self.PrintTable(header, rows)
 
