@@ -301,7 +301,11 @@ def DeleteGenomes(db, args):
     if args.id_list:
         external_ids = args.id_list.split(",")
 
-    return db.DeleteGenomes(args.batchfile, external_ids, args.reason)
+    list_ids = None
+    if args.list_of_list_id:
+        list_ids = args.list_of_list_id.split(",")
+
+    return db.DeleteGenomes(args.batchfile, external_ids, list_ids, args.reason)
 
 
 def CreateGenomeList(db, args):
@@ -685,7 +689,9 @@ if __name__ == '__main__':
     atleastone_genome_delete.add_argument('--batchfile', dest='batchfile', default=None,
                                           help='Batchfile of genome IDs (one per line) to delete.')
     atleastone_genome_delete.add_argument('--genome_ids', dest='id_list', default=None,
-                                          help='Provide a list of genome IDs (comma separated) to view.')
+                                          help='Provide a list of genome IDs (comma separated) to delete.')
+    atleastone_genome_delete.add_argument('--list_ids', dest='list_of_list_id', default=None,
+                                          help='Provide IDs of genome list (comma separated) to delete. Genomes part of those lists will be deleted and move to deprecated.')
     required_genome_delete = parser_genome_delete.add_argument_group(
         'required named arguments')
     required_genome_delete.add_argument('--reason', dest='reason', required=True,
@@ -1181,9 +1187,9 @@ if __name__ == '__main__':
                 'Need to specify at least one of --all, --batchfile or --genome_ids.')
 
     if (args.category_parser_name == 'genomes' and args.genome_subparser_name == 'delete'):
-        if (args.batchfile is None and args.id_list is None):
+        if (args.batchfile is None and args.id_list is None and args.list_of_list_id is None):
             parser_genome_delete.error(
-                'Need to specify at least one of --batchfile or --genome_ids.')
+                'Need to specify at least one of --batchfile or --genome_ids or --list_ids.')
 
     if (args.category_parser_name == 'markers' and args.marker_subparser_name == 'view'):
         if (args.batchfile is not None or args.id_list is not None):
