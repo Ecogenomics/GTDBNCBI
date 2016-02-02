@@ -33,6 +33,7 @@ import os
 import sys
 import argparse
 import tempfile
+import shutil
 from collections import defaultdict
 
 from numpy import mean, std
@@ -49,8 +50,8 @@ class VerifyANI(object):
     def _producer(self, data):
         rep_gene_file, gene_file, genome_id = data
         
-        outfile = 'temp_ani_' + genome_id
-        outdir = 'temp_ani_dir_' + genome_id
+        outdir = tempfile.mkdtemp()
+        outfile = os.path.join(outdir, 'working_' + genome_id)
         cmd = 'ani_calculator -genome1fna %s -genome2fna %s -outfile %s -outdir %s' % (rep_gene_file, gene_file, outfile, outdir)
         os.system(cmd)
         
@@ -59,9 +60,8 @@ class VerifyANI(object):
             results = f.readline().strip().split('\t')
             gANI = 0.5*(float(results[2]) + float(results[3]))
             AF = 0.5*(float(results[4]) + float(results[5]))
-        os.remove(outfile)
-        os.system('rm -r %s' % outdir)
-        
+        shutil.rmtree(outdir)
+  
         return (genome_id, gANI, AF)
 
     def _consumer(self, produced_data, consumer_data):
@@ -77,6 +77,10 @@ class VerifyANI(object):
         return 'Processed %d of %d genomes.' % (processed_items, total_items)
 
     def run(self, cluster_file, genome_dir_file, output_prefix):
+        output_dir = os.path.dirname(output_prefix)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
         # get path to all nucleotide gene file of all genomes
         gene_files = {}
         for line in open(genome_dir_file):

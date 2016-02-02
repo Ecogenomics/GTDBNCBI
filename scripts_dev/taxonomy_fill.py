@@ -48,7 +48,7 @@ class TaxonomyFill(object):
     t = taxonomy.read(input_taxonomy)
       
     for genome_id, taxon_list in t.iteritems():
-        full_taxon_list = taxonmoy.fill_missing_ranks(taxon_list)
+        full_taxon_list = taxonomy.fill_missing_ranks(taxon_list)
         fout.write('%s\t%s\n' % (genome_id, ';'.join(full_taxon_list)))
         
     fout.close()

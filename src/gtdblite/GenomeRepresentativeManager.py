@@ -49,7 +49,7 @@ class GenomeRepresentativeManager(object):
         self.threads = threads
 
         # threshold used to assign genome to representative
-        self.aai_threshold = 0.99
+        self.aai_threshold = 0.995
 
     def _aai_test(self, seq1, seq2, threshold):
         """Test AAI between sequences.
@@ -154,6 +154,90 @@ class GenomeRepresentativeManager(object):
             raise e
 
         return unprocessed_genome_ids
+
+    def dereplicatedGenomes(self):
+        """Get identifiers from the dereplicated set of genome.
+
+        Identifiers are return for all representative genomes
+        and all genomes without a representative. This is the
+        typical set of genomes that will be used for tree
+        inference and many other downstream applications. No
+        filtering for genome quality is performed on this set
+        of genomes.
+
+        Returns
+        -------
+        list
+            List of database genome identifiers.
+        """
+
+        try:
+            self.cur.execute("SELECT id " +
+                             "FROM metadata_taxonomy " +
+                             "WHERE gtdb_representative = 'TRUE' "
+                             "OR gtdb_genome_representative IS NULL")
+            derep_genome_ids = [genome_id[0] for genome_id in self.cur]
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return derep_genome_ids
+
+    def ncbiDereplicatedGenomes(self):
+        """Get identifiers from the dereplicated set of NCBI genome.
+
+        Identifiers are return for NCBI representative genomes
+        and NCBI genomes without a representative.
+
+        Returns
+        -------
+        list
+            List of database genome identifiers.
+        """
+
+        try:
+            genome_mngr = GenomeManager(self.cur, self.currentUser)
+            ncbi_genomes_ids = genome_mngr.ncbiGenomeIds()
+
+            self.cur.execute("SELECT id " +
+                             "FROM metadata_taxonomy " +
+                             "WHERE (gtdb_representative = 'TRUE' " +
+                             "OR gtdb_genome_representative IS NULL) " +
+                             "AND id = ANY(%s)", (ncbi_genomes_ids,))
+            derep_genome_ids = [genome_id[0] for genome_id in self.cur]
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return derep_genome_ids
+
+    def userDereplicatedGenomes(self):
+        """Get identifiers from the dereplicated set of User genome.
+
+        Identifiers are return for User representative genomes
+        and User genomes without a representative.
+
+        Returns
+        -------
+        list
+            List of database genome identifiers.
+        """
+
+        try:
+            genome_mngr = GenomeManager(self.cur, self.currentUser)
+            user_genomes_ids = genome_mngr.userGenomeIds()
+
+            self.cur.execute("SELECT id " +
+                             "FROM metadata_taxonomy " +
+                             "WHERE (gtdb_representative = 'TRUE' " +
+                             "OR gtdb_genome_representative IS NULL) " +
+                             "AND id = ANY(%s)", (user_genomes_ids,))
+            derep_genome_ids = [genome_id[0] for genome_id in self.cur]
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return derep_genome_ids
 
     def representativeGenomes(self):
         """Get genome identifiers for all representative genomes.
@@ -286,7 +370,6 @@ class GenomeRepresentativeManager(object):
                 rep_ar_align = rep_ar_aligns[rep_id]
 
                 m = self._aai_mismatches(genome_bac_align, rep_bac_align, bac_max_mismatches)
-
                 if m is not None:  # necessary to distinguish None and 0
                     assigned_representative = rep_id
                     bac_max_mismatches = m
