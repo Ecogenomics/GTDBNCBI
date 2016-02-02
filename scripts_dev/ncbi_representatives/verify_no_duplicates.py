@@ -3,7 +3,7 @@
 import sys
 
 s = set()
-for line in open('../gtdb_clusters_99.tsv'):
+for line in open('gtdb_clusters_99.8.tsv'):
     line_split = line.strip().split('\t')
     
     rep_id = line_split[0]

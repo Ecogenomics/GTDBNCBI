@@ -25,7 +25,7 @@ def read_gtdb_genome_quality(metadata_file):
     return genome_quality
 
 reps = set()
-for line in open('../gtdb_representatives_99.txt'):
+for line in open('gtdb_representatives_99.5.txt'):
     line_split = line.strip().split('\t')
     rep = line_split[0]
     
