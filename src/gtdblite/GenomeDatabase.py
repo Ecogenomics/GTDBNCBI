@@ -1005,6 +1005,21 @@ class GenomeDatabase(object):
 
             self.PrintTable(header, genome_counts)
 
+            # determine number of bacterial and archaeal genomes
+            cur.execute("SELECT gtdb_domain, COUNT(gtdb_domain) " +
+                        "FROM metadata_taxonomy " +
+                        "WHERE gtdb_domain IS NOT NULL " +
+                        "GROUP BY gtdb_domain")
+            domain_count = cur.fetchall()
+
+            print ''
+            header = ('Domain', 'Genome Count')
+            rows = []
+            for tup in domain_count:
+                rows.append(tup)
+
+            self.PrintTable(header, domain_count)
+
             print ''
             print 'Total genomes: %d' % (sum([x[2] for x in genome_counts]))
 
@@ -1014,6 +1029,12 @@ class GenomeDatabase(object):
                         "WHERE gtdb_representative = True")
             ref_genome_counts = cur.fetchone()[0]
             print 'Number of reference genomes: %d' % ref_genome_counts
+
+            cur.execute("SELECT COUNT(*) "
+                        "FROM metadata_taxonomy "
+                        "WHERE gtdb_genome_representative IS NULL")
+            no_ref_genome_counts = cur.fetchone()[0]
+            print 'Number of genomes without a representative: %d' % no_ref_genome_counts
 
             self.conn.commit()
 

@@ -9,7 +9,7 @@ for line in open('../../ncbi_refseq_representatives.tsv'):
     line_split = line.split('\t')
     refseq_reps.add(line_split[0])
     
-for line in open('../gtdb_clusters_99.tsv'):
+for line in open('gtdb_clusters_99.5.tsv'):
     line_split = line.split('\t')
     
     rep = line_split[0]

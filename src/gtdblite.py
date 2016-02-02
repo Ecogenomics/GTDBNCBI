@@ -168,20 +168,20 @@ def CreateTreeData(db, args):
     genome_list_mngr = GenomeListManager(db.conn.cursor(), db.currentUser)
 
     genome_id_list = set()
-    if args.all_representatives:
-        temp_list = genome_rep_mngr.representativeGenomes()
+    if args.all_dereplicated:
+        temp_list = genome_rep_mngr.dereplicatedGenomes()
         if not temp_list:
             return False
         genome_id_list.update(temp_list)
 
-    if args.ncbi_representatives:
-        temp_list = genome_rep_mngr.ncbiRepresentativeGenomes()
+    if args.ncbi_dereplicated:
+        temp_list = genome_rep_mngr.ncbiDereplicatedGenomes()
         if not temp_list:
             return False
         genome_id_list.update(temp_list)
 
-    if args.user_representatives:
-        temp_list = genome_rep_mngr.userRepresentativeGenomes()
+    if args.user_dereplicated:
+        temp_list = genome_rep_mngr.userDereplicatedGenomes()
         if not temp_list:
             return False
         genome_id_list.update(temp_list)
@@ -1027,7 +1027,7 @@ if __name__ == '__main__':
     required_metadata_import.add_argument('--type', dest='typemeta', default=None, required=True,
                                           help='Type of the Metadata field.')
     required_metadata_import.add_argument('--metadatafile', dest='metadatafile', default=None, required=True,
-                                          help='TSV file. One genome per line, tab separated in 2 columns (genome id , metadata value).')
+                                          help='TSV file. One genome per line, tab separated in 2 columns indicating genome id and metadata value.')
     optional_metadata_import = parser_metadata_import.add_argument_group(
         'optional arguments')
     optional_metadata_import.add_argument(
@@ -1058,19 +1058,26 @@ if __name__ == '__main__':
 
     atleastone_genomes_create_tree = parser_tree_create.add_argument_group(
         'minimum of one argument required')
-    atleastone_genomes_create_tree.add_argument('--all_representatives', default=False, action='store_true',
-                                                help='Included all representative genomes in the tree, subject to filtering.')
-    atleastone_genomes_create_tree.add_argument('--ncbi_representatives', default=False, action='store_true',
-                                                help='Included all NCBI representative genomes in the tree, subject to filtering.')
-    atleastone_genomes_create_tree.add_argument('--user_representatives', default=False, action='store_true',
-                                                help='Included all user representative genomes in the tree, subject to filtering.')
+    atleastone_genomes_create_tree.add_argument('--all_dereplicated', default=False, action='store_true',
+                                                help=('Include all representative genomes and all genomes without ' +
+                                                      'a representative. This is the set of genomes typically used ' +
+                                                      'for initial, exploratory tree inference. Genomes are subject ' +
+                                                      'to filtering.'))
+    atleastone_genomes_create_tree.add_argument('--ncbi_dereplicated', default=False, action='store_true',
+                                                help=('Include NCBI representative genomes and NCBI genomes without ' +
+                                                      'a representative. This is the set of genomes typically used ' +
+                                                      'for trees being published. Genomes are subject ' +
+                                                      'to filtering.'))
+    atleastone_genomes_create_tree.add_argument('--user_dereplicated', default=False, action='store_true',
+                                                help=('Include User representative genomes and User genomes without ' +
+                                                      'a representative. Genomes are subject to filtering.'))
 
     atleastone_genomes_create_tree.add_argument('--all_genomes', default=False, action='store_true',
-                                                help='Included all genomes in the tree, subject to filtering.')
+                                                help='Include all genomes, subject to filtering.')
     atleastone_genomes_create_tree.add_argument('--ncbi_genomes', default=False, action='store_true',
-                                                help='Included all NCBI genomes in the tree, subject to filtering.')
+                                                help='Include all NCBI genomes, subject to filtering.')
     atleastone_genomes_create_tree.add_argument('--user_genomes', default=False, action='store_true',
-                                                help='Included all user genomes in the tree, subject to filtering.')
+                                                help='Include all User genomes, subject to filtering.')
 
     atleastone_genomes_create_tree.add_argument('--genome_list_ids', dest='genome_list_ids', default=None,
                                                 help='List of genome list IDs (comma separated), whose genomes should be included in the tree.')
@@ -1146,9 +1153,9 @@ if __name__ == '__main__':
 
     # Special parser checks
     if (args.category_parser_name == 'tree' and args.tree_subparser_name == 'create'):
-        if (not args.all_representatives and
-                not args.ncbi_representatives and
-                not args.user_representatives and
+        if (not args.all_dereplicated and
+                not args.ncbi_dereplicated and
+                not args.user_dereplicated and
                 not args.all_genomes and
                 not args.ncbi_genomes and
                 not args.user_genomes and
@@ -1156,7 +1163,7 @@ if __name__ == '__main__':
                 not args.genome_ids and
                 not args.genome_batchfile):
             parser_tree_create.error(
-                'Need to specify at least one of --all_representatives, --ncbi_representatives, --user_representatives, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
+                'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_dereplicated, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
 
         if (not args.marker_set_ids
                 and not args.marker_ids
