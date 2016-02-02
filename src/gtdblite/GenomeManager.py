@@ -680,7 +680,6 @@ class GenomeManager(object):
                 raise GenomeDatabaseError(
                     "Unable to delete genomes. Insufficient permissions.")
 
-            sys.exit()
             if db_genome_ids:
                 if not self._confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(db_genome_ids)):
                     raise GenomeDatabaseError("User aborted database action.")
