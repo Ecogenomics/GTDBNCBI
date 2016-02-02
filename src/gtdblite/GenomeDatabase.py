@@ -265,7 +265,7 @@ class GenomeDatabase(object):
         return True
 
     # True if has permission. False if doesn't. None on error.
-    def DeleteGenomes(self, batchfile=None, external_ids=None, reason=None):
+    def DeleteGenomes(self, batchfile=None, external_ids=None, list_of_list_id=None, reason=None):
         '''
         Delete genomes from database.
 
@@ -280,6 +280,7 @@ class GenomeDatabase(object):
         '''
         try:
             cur = self.conn.cursor()
+            genome_ids = []
 
             if external_ids is None:
                 external_ids = []
@@ -291,7 +292,16 @@ class GenomeDatabase(object):
 
             # get database identifiers
             genome_mngr = GenomeManager(cur, self.currentUser)
-            genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(external_ids)
+            if len(external_ids) > 0:
+                genome_ids.extend(
+                    genome_mngr.externalGenomeIdsToGenomeIds(external_ids))
+
+            # get all genomes ids from genome list ids
+            if list_of_list_id is not None:
+                genome_list_mngr = GenomeListManager(cur, self.currentUser)
+                genome_ids.extend(
+                    genome_list_mngr.getGenomeIdsFromGenomeListIds(list_of_list_id))
+                genome_list_mngr.deleteGenomeList(list_of_list_id)
 
             # restrict deletion of representative genomes
             genome_rep_mngr = GenomeRepresentativeManager(
@@ -305,7 +315,7 @@ class GenomeDatabase(object):
                 genome_ids = set(genome_ids).difference(rep_genomes_to_delete)
 
             # delete genomes
-            genome_mngr.deleteGenomes(batchfile, genome_ids, reason)
+            genome_mngr.deleteGenomes(batchfile, list(set(genome_ids)), reason)
 
             self.conn.commit()
 
