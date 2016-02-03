@@ -578,6 +578,17 @@ class GenomeDatabase(object):
 
         return [list_id for (list_id,) in cur]
 
+    def GetGenomeListIdsforUser(self, username):
+        cur = self.conn.cursor()
+        print username
+
+        cur.execute("SELECT gl.id " +
+                    "FROM genome_lists gl " +
+                    "LEFT JOIN users on gl.owner_id = users.id " +
+                    "WHERE users.username =  %s ", (username,))
+
+        return [list_id for (list_id,) in cur]
+
     def ViewGenomeListsContents(self, list_ids):
         try:
             cur = self.conn.cursor()
