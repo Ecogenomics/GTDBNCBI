@@ -151,14 +151,6 @@ def AddGenomes(db, args):
                          args.genome_list_name)
 
 
-def AddMarkers(db, args):
-
-    return db.AddMarkers(
-        args.batchfile, args.marker_set_id,
-        args.marker_set_name, args.force
-    )
-
-
 def CreateTreeData(db, args):
 
     # get desired set of genomes for inferring tree
@@ -607,18 +599,18 @@ if __name__ == '__main__':
     required_user_edit.add_argument('--username', dest='username', required=True,
                                     help='Username of the user to edit.')
 
-    optional_user_edit = parser_user_edit.add_argument_group('optional arguments')
-    optional_user_edit.add_argument('--role', dest='role', choices=('user', 'admin'), required=False,
-                                    help='Change the user to this role.')
-    optional_user_edit.add_argument('-h', '--help', action="help",
-                                    help="Show help message.")
-
     mutual_user_edit = parser_user_edit.add_argument_group('mutually exclusive optional arguments')
     mutex_group = mutual_user_edit.add_mutually_exclusive_group(required=False)
     mutex_group.add_argument('--has_root', dest='has_root', action="store_true", default=None,
                              help='Grant user the permission to become the root user.')
     mutex_group.add_argument('--no_root', dest='has_root', action="store_false", default=None,
                              help="Revoke user's permission to become the root user.")
+
+    optional_user_edit = parser_user_edit.add_argument_group('optional arguments')
+    optional_user_edit.add_argument('--role', dest='role', choices=('user', 'admin'), required=False,
+                                    help='Change the user to this role.')
+    optional_user_edit.add_argument('-h', '--help', action="help",
+                                    help="Show help message.")
 
     parser_user_edit.set_defaults(func=EditUser)
 
@@ -772,6 +764,13 @@ if __name__ == '__main__':
     required_gl_edit.add_argument('--list_id', dest='list_id', required=True,
                                     help='Id of genome list to edit.')
 
+    mutualoptional_gl_edit = parser_gl_edit.add_argument_group('mutually optional arguments')
+    mutex_group = mutualoptional_gl_edit.add_mutually_exclusive_group(required=False)
+    mutex_group.add_argument('--set_private', dest='private', action="store_true", default=False,
+                             help='Make this genome list private (only you can see).')
+    mutex_group.add_argument('--set_public', dest='public', action="store_true", default=False,
+                             help='Make this genome list public (all users can see).')
+
     optional_gl_edit = parser_gl_edit.add_argument_group('optional arguments')
     optional_gl_edit.add_argument('--batchfile', dest='batchfile',
                                     help='A file of genome IDs, one per line, to add remove from the list.')
@@ -785,13 +784,6 @@ if __name__ == '__main__':
                                     help='Change the description of the genome list.')
     optional_gl_edit.add_argument('-h', '--help', action="help",
                                     help="Show help message.")
-
-    mutualoptional_gl_edit = parser_gl_edit.add_argument_group('mutually optional arguments')
-    mutex_group = mutualoptional_gl_edit.add_mutually_exclusive_group(required=False)
-    mutex_group.add_argument('--set_private', dest='private', action="store_true", default=False,
-                             help='Make this genome list private (only you can see).')
-    mutex_group.add_argument('--set_public', dest='public', action="store_true", default=False,
-                             help='Make this genome list public (all users can see).')
 
     parser_gl_edit.set_defaults(func=EditGenomeLists)
 
@@ -812,29 +804,6 @@ if __name__ == '__main__':
 
 
 # --------- Marker Management Subparsers
-
-    parser_marker_add = marker_category_subparser.add_parser('add',
-                                                             add_help=False,
-                                                             formatter_class=CustomHelpFormatter,
-                                                             help='Add one or more marker HMMs to the database.')
-    required_marker_add = parser_marker_add.add_argument_group('required arguments')
-    required_marker_add.add_argument('--batchfile', dest='batchfile', required=True,
-                                     help='Batchfile describing the markers - one HMM file per line (one model per file), tab separated in 3-5 columns (filename, name, desc, [database], [database_specific_id])')
-
-    mutual_required_marker_add = parser_marker_add.add_argument_group('mutually exclusive required arguments')
-    mutex_group = mutual_required_marker_add.add_mutually_exclusive_group(required=True)
-    mutex_group.add_argument('--modify_set', dest='marker_set_id',
-                             help='Modify a marker set with the specified id and add all markers to it.')
-    mutex_group.add_argument('--create_set', dest='marker_set_name',
-                             help='Create a marker set with the specified name and add these markers to it.')
-    mutex_group.add_argument('--no_set', dest='no_marker_set', action="store_true",
-                             help="Don't add these markers to a marker set.")
-
-    optional_marker_add = parser_marker_add.add_argument_group('optional arguments')
-    optional_marker_add.add_argument('-h', '--help', action="help",
-                                        help="Show help message.")
-
-    parser_marker_add.set_defaults(func=AddMarkers)
 
     # View markers
     parser_marker_view = marker_category_subparser.add_parser('view',
@@ -930,6 +899,13 @@ if __name__ == '__main__':
     required_ms_edit.add_argument('--set_id', dest='set_id', required=True,
                                   help='Id of the marker set to edit')
 
+    mutual_ms_edit = parser_ms_edit.add_argument_group('mutually exclusive optional arguments')
+    mutex_group = mutual_ms_edit.add_mutually_exclusive_group(required=False)
+    mutex_group.add_argument('--set_private', dest='private', action="store_true", default=False,
+                             help='Make this marker set private (only you can see).')
+    mutex_group.add_argument('--set_public', dest='public', action="store_true", default=False,
+                             help='Make this marker set public (all users can see).')
+
     optional_ms_edit = parser_ms_edit.add_argument_group('optional arguments')
     optional_ms_edit.add_argument('--batchfile', dest='batchfile',
                                   help='File of marker IDs, one per line, to add/remove from the set.')
@@ -943,13 +919,6 @@ if __name__ == '__main__':
                                   help='Change the description of the marker set to this.')
     optional_ms_edit.add_argument('-h', '--help', action="help",
                                   help="Show help message.")
-
-    mutual_ms_edit = parser_ms_edit.add_argument_group('mutually exclusive optional arguments')
-    mutex_group = mutual_ms_edit.add_mutually_exclusive_group(required=False)
-    mutex_group.add_argument('--set_private', dest='private', action="store_true", default=False,
-                             help='Make this marker set private (only you can see).')
-    mutex_group.add_argument('--set_public', dest='public', action="store_true", default=False,
-                             help='Make this marker set public (all users can see).')
 
     parser_ms_edit.set_defaults(func=EditMarkerSet)
 
@@ -970,11 +939,36 @@ if __name__ == '__main__':
 
 # -------- Metadata Management subparsers
 
+    # metadata export parser
+    parser_metadata_export = metadata_category_subparser.add_parser('export',
+                                                                    add_help=False,
+                                                                    formatter_class=CustomHelpFormatter,
+                                                                    help='Export a CSV file with all metadata fields.')
+    required_metadata_export = parser_metadata_export.add_argument_group('required arguments')
+    required_metadata_export.add_argument('--output', dest='outfile', default=None, required=True,
+                                          help='Destination to write the CSV file.')
+
+    optional_metadata_export = parser_metadata_export.add_argument_group('optional arguments')
+    optional_metadata_export.add_argument('-h', '--help', action="help",
+                                             help="Show help message.")
+
+    parser_metadata_export.set_defaults(func=exportMetadata)
+
+    # metadata view parser
+    parser_metadata_view = metadata_category_subparser.add_parser('view',
+                                                                  add_help=False,
+                                                                  formatter_class=CustomHelpFormatter,
+                                                                  help='List existing metadata fields with table name and description.')
+
+    optional_metadata_view = parser_metadata_view.add_argument_group('optional arguments')
+    optional_metadata_view.add_argument('-h', '--help', action="help",
+                                        help="Show help message.")
+
     # metadata create columns parser
     parser_metadata_create = metadata_category_subparser.add_parser('create',
                                                                     add_help=False,
                                                                     formatter_class=CustomHelpFormatter,
-                                                                    help='Create one or many metadata field.')
+                                                                    help='Create one or more new metadata field.')
     required_metadata_create = parser_metadata_create.add_argument_group('required arguments')
     required_metadata_create.add_argument('--file', dest='metadatafile',
                                           required=True, help='Metadata file describing the new fields - ' +
@@ -986,16 +980,6 @@ if __name__ == '__main__':
                                             help="Show help message.")
 
     parser_metadata_create.set_defaults(func=createMetadata)
-
-    # metadata view parser
-    parser_metadata_view = metadata_category_subparser.add_parser('view',
-                                                                  add_help=False,
-                                                                  formatter_class=CustomHelpFormatter,
-                                                                  help='List existing metadata fields with table name and description.')
-
-    optional_metadata_view = parser_metadata_view.add_argument_group('optional arguments')
-    optional_metadata_view.add_argument('-h', '--help', action="help",
-                                        help="Show help message.")
 
     parser_metadata_view.set_defaults(func=viewMetadata)
 
@@ -1019,21 +1003,6 @@ if __name__ == '__main__':
                                             help="Show help message.")
 
     parser_metadata_import.set_defaults(func=importMetadata)
-
-    # metadata export parser
-    parser_metadata_export = metadata_category_subparser.add_parser('export',
-                                                                    add_help=False,
-                                                                    formatter_class=CustomHelpFormatter,
-                                                                    help='Export a CSV file with all metadata fields.')
-    required_metadata_export = parser_metadata_export.add_argument_group('required arguments')
-    required_metadata_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                          help='Destination to write the CSV file.')
-
-    optional_metadata_export = parser_metadata_export.add_argument_group('optional arguments')
-    optional_metadata_export.add_argument('-h', '--help', action="help",
-                                             help="Show help message.")
-
-    parser_metadata_export.set_defaults(func=exportMetadata)
 
 # -------- Generate Tree Data
     parser_tree_create = tree_category_subparser.add_parser('create',

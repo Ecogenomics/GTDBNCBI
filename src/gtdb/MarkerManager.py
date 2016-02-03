@@ -187,7 +187,7 @@ class MarkerManager(object):
                                 "ORDER BY markers.id ASC", (tuple(marker_id_list),))
 
             # print table
-            header = ("marker_id", "name", "description", "size (nt)")
+            header = ("Marker ID", "Name", "Description", "Length (aa)")
 
             rows = []
             for (_marker_id, name, description, external_id, size) in self.cur:

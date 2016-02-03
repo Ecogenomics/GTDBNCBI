@@ -342,7 +342,6 @@ class MarkerSetManager(object):
         list
             Content for each row.
         """
-        print marker_set_ids
         try:
             if not marker_set_ids:
                 raise GenomeDatabaseError(
@@ -352,7 +351,8 @@ class MarkerSetManager(object):
                 self.cur.execute("SELECT id " +
                                  "FROM marker_sets as sets " +
                                  "WHERE sets.private = True " +
-                                 "AND sets.id in %s ", (tuple(marker_set_ids),))
+                                 "AND sets.owner_id != %s"
+                                 "AND sets.id in %s ", (self.currentUser.getUserId(), tuple(marker_set_ids)))
 
                 unviewable_set_ids = [set_id for (set_id,) in self.cur]
                 if unviewable_set_ids:
