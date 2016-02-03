@@ -1,7 +1,5 @@
-###############################################################################
-#
-# resultsParser.py - Parse and output results.
-#
+#!/usr/bin/env python
+
 ###############################################################################
 #                                                                             #
 #    This program is free software: you can redistribute it and/or modify     #
@@ -19,47 +17,9 @@
 #                                                                             #
 ###############################################################################
 
-def vetHit(model, hit):
-    """Check if hit meets required thresholds."""
+import os
 
-
-    try:
-        model.nc
-    except AttributeError:
-        model.nc = None
-    
-    try:
-        model.ga
-    except AttributeError:
-        model.ga = None
-    
-    try:
-        model.tc
-    except AttributeError:
-        model.tc = None
-        
-    
-    # preferentially use model specific bit score thresholds, before
-    # using the user specified e-value and length criteria
-
-    # Give preference to the gathering threshold unless the model
-    # is marked as TIGR (i.e., TIGRFAM model)
-    
-    if model.nc != None and 'TIGR' in model.acc:
-        if model.nc[0] <= hit.full_score:
-            return True
-    elif model.ga != None:
-        if model.ga[0] <= hit.full_score:
-            return True
-    elif model.tc != None:
-        if model.tc[0] <= hit.full_score:
-            return True
-    elif model.nc != None:
-        if model.nc[0] <= hit.full_score:
-            return True
-    else:
-        # No cutoffs in model, let it go through
-        return True
-
-    return False
-
+# fire off the GTDB
+cur_dir = os.path.dirname(os.path.realpath(__file__))
+src_dir = os.path.join(cur_dir, '..', 'src')
+execfile(os.path.join(src_dir, "gtdb.py"))
