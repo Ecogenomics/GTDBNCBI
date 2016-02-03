@@ -338,10 +338,12 @@ def ViewGenomeLists(db, args):
         genome_lists = db.GetAllVisibleGenomeListIds(include_private=False)
     elif args.all:
         genome_lists = db.GetAllVisibleGenomeListIds(include_private=True)
+    elif args.owner_name is not None:
+        genome_lists = db.GetGenomeListIdsforUser(args.owner_name)
     else:
         # TODO: this
         db.ReportError(
-            "Viewing other peoples' genome lists not yet implemented.")
+            "There is an unknown argument")
         return False
 
     if len(genome_lists) == 0:
