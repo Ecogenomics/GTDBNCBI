@@ -21,7 +21,7 @@ import multiprocessing as mp
 
 from biolib.checksum import sha256
 
-from gtdblite import ConfigMetadata
+import ConfigMetadata
 
 
 class TigrfamSearch(object):
