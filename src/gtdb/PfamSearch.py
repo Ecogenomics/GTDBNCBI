@@ -22,7 +22,7 @@ from collections import defaultdict
 
 from biolib.checksum import sha256
 
-from gtdblite import ConfigMetadata
+import ConfigMetadata
 
 
 class PfamSearch(object):

@@ -24,19 +24,17 @@ import ntpath
 import logging
 
 from biolib.common import make_sure_path_exists
-
-from gtdblite import GenomeDatabase
-from gtdblite.Exceptions import GenomeDatabaseError
-
 from biolib.external.execute import check_dependencies
 from biolib.misc.custom_help_formatter import CustomHelpFormatter
 
-from gtdblite.UserManager import UserManager
-from gtdblite.GenomeManager import GenomeManager
-from gtdblite.GenomeListManager import GenomeListManager
-from gtdblite.GenomeRepresentativeManager import GenomeRepresentativeManager
-from gtdblite.MarkerManager import MarkerManager
-from gtdblite.MarkerSetManager import MarkerSetManager
+from gtdb import GenomeDatabase
+from gtdb.Exceptions import GenomeDatabaseError
+from gtdb.UserManager import UserManager
+from gtdb.GenomeManager import GenomeManager
+from gtdb.GenomeListManager import GenomeListManager
+from gtdb.GenomeRepresentativeManager import GenomeRepresentativeManager
+from gtdb.MarkerManager import MarkerManager
+from gtdb.MarkerSetManager import MarkerSetManager
 
 
 def version():
@@ -496,8 +494,7 @@ if __name__ == '__main__':
         ['prodigal', 'genometk', 'blastn', 'hmmsearch', 'pfam_search.pl'])
 
     # create the top-level parser
-    parser = argparse.ArgumentParser(
-        prog='gtdblite.py', formatter_class=CustomHelpFormatter)
+    parser = argparse.ArgumentParser(prog='gtdb', formatter_class=CustomHelpFormatter)
     parser.add_argument('-r', dest='login_as_root', action='store_true',
                         help='Login as the root user.')
     parser.add_argument('-u', dest='logon_as_user',

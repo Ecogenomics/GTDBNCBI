@@ -17,7 +17,7 @@
 
 import psycopg2 as pg
 
-from gtdblite import Config
+import Config
 
 
 class GenomeDatabaseConnection(object):
