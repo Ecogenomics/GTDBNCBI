@@ -55,7 +55,7 @@ class ExtractGenes(object):
         genbank_file = os.path.join(line_split[1], genome_dir_id + '_genomic.gbff')
         nt_gene_file = os.path.join(line_split[1], genome_dir_id + '_protein.fna')
         
-        if not os.path.exists(nt_gene_file):
+        if not os.path.exists(nt_gene_file) or os.stat(nt_gene_file).st_size == 0:
             cmd = './genbank2nt_fasta.pl %s > %s' % (genbank_file, nt_gene_file)
             print cmd
             os.system(cmd)
