@@ -49,7 +49,7 @@ class GenomeRepresentativeManager(object):
         self.threads = threads
 
         # threshold used to assign genome to representative
-        self.aai_threshold = 0.995
+        # self.aai_threshold = 0.997
 
     def _aai_test(self, seq1, seq2, threshold):
         """Test AAI between sequences.

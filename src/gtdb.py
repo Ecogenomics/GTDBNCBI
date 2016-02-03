@@ -20,6 +20,7 @@
 import argparse
 import sys
 import os
+import inspect
 import ntpath
 import logging
 
@@ -47,7 +48,8 @@ def version():
     str
         NCBI database version.
     """
-    cur_dir = os.path.dirname(os.path.realpath(__file__))
+    cur_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    # cur_dir = os.path.dirname(os.path.realpath(__file__))
     version_file = open(os.path.join(cur_dir, 'VERSION'))
 
     software_version = version_file.readline().strip()
