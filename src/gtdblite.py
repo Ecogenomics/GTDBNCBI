@@ -343,7 +343,7 @@ def ViewGenomeLists(db, args):
     else:
         # TODO: this
         db.ReportError(
-            "Tere is an unknown argument")
+            "There is an unknown argument")
         return False
 
     if len(genome_lists) == 0:
