@@ -21,10 +21,10 @@ import logging
 import shutil
 import multiprocessing as mp
 
-from gtdblite import ConfigMetadata
-
 from biolib.external.prodigal import (Prodigal as BioLibProdigal)
 from biolib.checksum import sha256
+
+import ConfigMetadata
 
 
 class Prodigal(object):
