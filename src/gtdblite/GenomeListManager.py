@@ -127,7 +127,7 @@ class GenomeListManager(object):
                     "Unable to retrieve genome list id for editing. Offending list id: %s" % genome_list_id)
             if edit_permission is False:
                 raise GenomeDatabaseError(
-                    "Insufficient pesrmissions to edit this genome list. Offending list id: %s" % genome_list_id)
+                    "Insufficient permissions to edit this genome list. Offending list id: %s" % genome_list_id)
 
             update_query = []
             params = []
