@@ -268,7 +268,8 @@ class MarkerSetManager(object):
                 if not self._confirm("Are you sure you want to delete {0} set(s) (this action cannot be undone)".format(len(marker_set_ids))):
                     raise GenomeDatabaseError("User aborted database action.")
 
-                list_marker_ids = self.getMarkerIdsFromMarkerSetIds([marker_set_id])
+                list_marker_ids = self.getMarkerIdsFromMarkerSetIds(
+                    [marker_set_id])
                 self.editMarkerSet(marker_set_id, list_marker_ids, 'remove')
             except GenomeDatabaseError as e:
                 raise e
@@ -318,7 +319,8 @@ class MarkerSetManager(object):
         result = self.cur.fetchone()
 
         if not result:
-            self.ReportError("At least one marker set is invalid: %s" % str(marker_set_ids))
+            self.ReportError(
+                "At least one marker set is invalid: %s" % str(marker_set_ids))
             return None
 
         self.cur.execute("SELECT marker_id " +
@@ -346,18 +348,6 @@ class MarkerSetManager(object):
             if not marker_set_ids:
                 raise GenomeDatabaseError(
                     "Unable to print marker set details: No marker sets given.")
-
-            if not self.currentUser.isRootUser():
-                self.cur.execute("SELECT id " +
-                                 "FROM marker_sets as sets " +
-                                 "WHERE sets.private = True " +
-                                 "AND sets.owner_id != %s"
-                                 "AND sets.id in %s ", (self.currentUser.getUserId(), tuple(marker_set_ids)))
-
-                unviewable_set_ids = [set_id for (set_id,) in self.cur]
-                if unviewable_set_ids:
-                    raise GenomeDatabaseError(
-                        "Insufficient privileges to view marker sets: %s." % str(unviewable_set_ids))
 
             self.cur.execute(
                 "SELECT sets.id, sets.name, sets.description, sets.owned_by_root, users.username, count(contents.set_id) " +

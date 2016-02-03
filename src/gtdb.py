@@ -414,10 +414,12 @@ def ViewMarkerSets(db, args):
         marker_sets = db.GetAllVisibleMarkerSetIds(include_private=False)
     elif args.all:
         marker_sets = db.GetAllVisibleMarkerSetIds(include_private=True)
+    elif args.owner_name is not None:
+        marker_sets = db.GetAllMarkerSetsforUser(args.owner_name)
     else:
         # TODO: this
         db.ReportError(
-            "Viewing other peoples' marker sets not yet implemented.")
+            "There is an unknown argument")
         return False
 
     if len(marker_sets) == 0:

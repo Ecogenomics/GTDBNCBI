@@ -926,6 +926,16 @@ class GenomeDatabase(object):
 
         return [set_id for (set_id,) in cur]
 
+    def GetAllMarkerSetsforUser(self, username):
+        cur = self.conn.cursor()
+
+        cur.execute("SELECT ms.id " +
+                    "FROM marker_sets ms " +
+                    "LEFT JOIN users on ms.owner_id = users.id " +
+                    "WHERE users.username =  %s ", (username,))
+
+        return [set_id for (set_id,) in cur]
+
     def ViewMarkerSetsContents(self, marker_set_ids):
         try:
             cur = self.conn.cursor()
