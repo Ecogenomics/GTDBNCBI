@@ -618,14 +618,15 @@ class GenomeManager(object):
             if line:
                 line_split = line.split("\t")
 
-                field = line_split[0]
-                value = line_split[1]
+                if len(line_split) == 2:
+                    field = line_split[0]
+                    value = line_split[1]
 
-                if field not in study_info:
-                    raise GenomeDatabaseError(
-                        "Study file %s contains an unknown field: %s" + (study_file, field))
-                else:
-                    study_info[field] = value
+                    if field not in study_info:
+                        raise GenomeDatabaseError(
+                            "Study file %s contains an unknown field: %s" + (study_file, field))
+                    else:
+                        study_info[field] = value
 
         study_fh.close()
 
