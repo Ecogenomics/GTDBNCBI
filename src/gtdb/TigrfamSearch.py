@@ -70,12 +70,12 @@ class TigrfamSearch(object):
             else:
                 tophits[gene_id] = (hmm_id, evalue, bitscore)
 
-            fout = open(output_tophit_file, 'w')
-            fout.write('Gene Id\tTop hits (Family id,e-value,bitscore)\n')
-            for gene_id, stats in tophits.iteritems():
-                hit_str = ','.join(map(str, stats))
-                fout.write('%s\t%s\n' % (gene_id, hit_str))
-            fout.close()
+        fout = open(output_tophit_file, 'w')
+        fout.write('Gene Id\tTop hits (Family id,e-value,bitscore)\n')
+        for gene_id, stats in tophits.iteritems():
+            hit_str = ','.join(map(str, stats))
+            fout.write('%s\t%s\n' % (gene_id, hit_str))
+        fout.close()
 
         # calculate checksum
         checksum = sha256(output_tophit_file)
