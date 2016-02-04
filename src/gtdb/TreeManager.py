@@ -197,24 +197,10 @@ class TreeManager(object):
         genome_name_index = col_headers.index('genome')
         col_headers.remove('id')
         col_headers.remove('genome')
-        col_headers.append('gtdb_cluster_size')
-        col_headers.append('gtdb_clustered_genomes')
 
         # create ARB import filter
         arb_import_filter = os.path.join(directory, prefix + "_arb_filter.ift")
         self._arbImportFilter(col_headers, arb_import_filter)
-
-        # get clustering information for selected genomes
-        external_genome_ids = [d[genome_name_index] for d in metadata]
-        query = ('SELECT gtdb_genome_representative, genome ' +
-                         'FROM metadata_view ' +
-                         'WHERE id IN (SELECT id ' +
-                         'FROM metadata_taxonomy ' +
-                         'WHERE gtdb_genome_representative = ANY(%s))')
-        self.cur.execute(query, (external_genome_ids,))
-        clustered_genomes = defaultdict(list)
-        for gtdb_genome_representative, external_genome_id in self.cur.fetchall():
-            clustered_genomes[gtdb_genome_representative].append(external_genome_id)
 
         # run through each of the genomes and make the magic happen
         self.logger.info('Writing concatenated alignment and genome metadata for %d genomes.'
@@ -235,10 +221,6 @@ class TreeManager(object):
             external_genome_id = genome_metadata[genome_name_index]
             del genome_metadata[max(genome_id_index, genome_name_index)]
             del genome_metadata[min(genome_id_index, genome_name_index)]
-
-            # append genome representative metadata
-            genome_metadata.append(len(clustered_genomes[external_genome_id]))  # gtdb_cluster_size
-            genome_metadata.append(','.join(clustered_genomes[external_genome_id]))  # gtdb_clustered_genomes
 
             # For each genome, calculate the aligned markers that are not
             # present in the aligned marker table
