@@ -618,23 +618,26 @@ class GenomeManager(object):
             if line:
                 line_split = line.split("\t")
 
-                if len(line_split) == 2:
+                if len(line_split) == 1:
+                    field = line_split[0]
+                    value = ''
+                else:
                     field = line_split[0]
                     value = line_split[1]
 
-                    if field not in study_info:
-                        raise GenomeDatabaseError(
-                            "Study file %s contains an unknown field: %s" + (study_file, field))
-                    else:
-                        study_info[field] = value
+                if field not in study_info:
+                    raise GenomeDatabaseError(
+                        "Study file %s contains an unknown field: %s" % (study_file, field))
+                else:
+                    study_info[field] = value
 
         study_fh.close()
 
         # check that all fields were populated
         for field, value in study_info.iteritems():
-            if not value:
+            if value is None:
                 raise GenomeDatabaseError(
-                    "Study file %s is missing the field: %s" + (study_file, field))
+                    "Study file %s is missing the field: %s" % (study_file, field))
 
         # add information to study table
         query = "INSERT INTO study (%s) VALUES %s RETURNING study_id"
