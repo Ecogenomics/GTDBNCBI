@@ -731,6 +731,7 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
+            return False
 
         return True
 
