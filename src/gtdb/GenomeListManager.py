@@ -215,11 +215,14 @@ class GenomeListManager(object):
             temp_table_name = Tools.generateTempTableName()
 
             if genome_list_ids:
-                self.cur.execute("CREATE TEMP TABLE %s (id integer)" %
-                                 (temp_table_name,))
-                query = "INSERT INTO {0} (id) VALUES (%s)".format(
-                    temp_table_name)
-                self.cur.executemany(query, [(x,) for x in genome_list_ids])
+                try:
+                    self.cur.execute("CREATE TEMP TABLE %s (id integer)" %
+                                     (temp_table_name,))
+                    query = "INSERT INTO {0} (id) VALUES (%s)".format(
+                        temp_table_name)
+                    self.cur.executemany(query, [(genome_list_id,) for genome_list_id in genome_list_ids])
+                except:
+                    raise GenomeDatabaseError("Unable to process genome list ID: %s" % str(genome_list_id))
             else:
                 raise GenomeDatabaseError(
                     "No genome lists given. Cannot retrieve IDs")
