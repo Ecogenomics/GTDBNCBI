@@ -34,8 +34,6 @@ from gtdb.UserManager import UserManager
 from gtdb.GenomeManager import GenomeManager
 from gtdb.GenomeListManager import GenomeListManager
 from gtdb.GenomeRepresentativeManager import GenomeRepresentativeManager
-from gtdb.MarkerManager import MarkerManager
-from gtdb.MarkerSetManager import MarkerSetManager
 
 
 def version():
@@ -153,118 +151,20 @@ def AddGenomes(db, args):
 
 def CreateTreeData(db, args):
 
-    # get desired set of genomes for inferring tree
-    genome_rep_mngr = GenomeRepresentativeManager(
-        db.conn.cursor(), db.currentUser, db.threads)
-    genome_mngr = GenomeManager(db.conn.cursor(), db.currentUser)
-    genome_list_mngr = GenomeListManager(db.conn.cursor(), db.currentUser)
+    genome_id_list = db.GetGenomeIds(args.all_dereplicated,
+                                        args.ncbi_dereplicated,
+                                        args.user_dereplicated,
+                                        args.all_genomes,
+                                        args.ncbi_genomes,
+                                        args.user_genomes,
+                                        args.genome_list_ids,
+                                        args.genome_ids,
+                                        args.genome_batchfile)
 
-    genome_id_list = set()
-    if args.all_dereplicated:
-        temp_list = genome_rep_mngr.dereplicatedGenomes()
-        if not temp_list:
-            return False
-        genome_id_list.update(temp_list)
 
-    if args.ncbi_dereplicated:
-        temp_list = genome_rep_mngr.ncbiDereplicatedGenomes()
-        if not temp_list:
-            return False
-        genome_id_list.update(temp_list)
-
-    if args.user_dereplicated:
-        temp_list = genome_rep_mngr.userDereplicatedGenomes()
-        if not temp_list:
-            return False
-        genome_id_list.update(temp_list)
-
-    if args.all_genomes:
-        temp_list = genome_mngr.allGenomeIds()
-        if not temp_list:
-            return False
-        genome_id_list.update(temp_list)
-
-    if args.ncbi_genomes:
-        temp_list = genome_mngr.ncbiGenomeIds()
-        if not temp_list:
-            return False
-        genome_id_list.update(temp_list)
-
-    if args.user_genomes:
-        temp_list = genome_mngr.userGenomeIds()
-        if not temp_list:
-            return False
-        genome_id_list.update(temp_list)
-
-    if args.genome_list_ids:
-        temp_list = genome_list_mngr.getGenomeIdsFromGenomeListIds(
-            args.genome_list_ids.split(","))
-        if not temp_list:
-            return False
-        genome_id_list.update(temp_list)
-
-    if args.genome_ids:
-        temp_list = genome_mngr.externalGenomeIdsToGenomeIds(
-            args.genome_ids.split(","))
-        if not temp_list:
-            return False
-        genome_id_list.update(temp_list)
-
-    genome_batchfile_ids = []
-    if args.genome_batchfile:
-        fh = open(args.genome_batchfile, "rb")
-        for line in fh:
-            line = line.strip()
-            genome_batchfile_ids.append(line)
-
-    if genome_batchfile_ids:
-        temp_list += genome_mngr.externalGenomeIdsToGenomeIds(
-            genome_batchfile_ids)
-        if not temp_list:
-            return False
-        genome_id_list.update(temp_list)
-
-    if (len(genome_id_list) == 0):
-        db.ReportError("No genomes found from the information provided.")
-        return False
-
-    # get desired set of marker for inferring tree
-    marker_set_mngr = MarkerSetManager(db.conn.cursor(), db.currentUser)
-    marker_mngr = MarkerManager(db.conn.cursor(), db.currentUser)
-
-    marker_id_list = set()
-    if args.marker_ids:
-        temp_list = marker_mngr.externalMarkerIdsToMarkerIds(
-            args.marker_ids.split(","))
-        if not temp_list:
-            return False
-        marker_id_list.update(temp_list)
-
-    if args.marker_set_ids:
-        marker_set_ids = args.marker_set_ids.split(",")
-        temp_list = marker_set_mngr.getMarkerIdsFromMarkerSetIds(
-            marker_set_ids)
-        if not temp_list:
-            return False
-        marker_id_list.update(temp_list)
-
-    marker_batchfile_ids = []
-    if args.marker_batchfile:
-        fh = open(args.marker_batchfile, "rb")
-        for line in fh:
-            line = line.rstrip()
-            marker_batchfile_ids.append(line)
-
-    if marker_batchfile_ids:
-        temp_list = marker_mngr.externalMarkerIdsToMarkerIds(
-            marker_batchfile_ids)
-        if temp_list is None:
-            return False
-        marker_id_list.update(temp_list)
-
-    if (len(marker_id_list) == 0):
-        db.ReportError("No markers found from the information provided.")
-        return False
+    marker_id_list = db.GetMarkerIds(args.marker_ids,
+                                     args.marker_set_ids,
+                                     args.marker_batchfile)
 
     return db.MakeTreeData(marker_id_list, genome_id_list,
                            args.out_dir, args.prefix,
