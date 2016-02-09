@@ -399,6 +399,130 @@ class GenomeDatabase(object):
 
         return True
 
+    def GetGenomeIds(self, all_dereplicated,
+                            ncbi_dereplicated,
+                            user_dereplicated,
+                            all_genomes,
+                            ncbi_genomes,
+                            user_genomes,
+                            genome_list_ids,
+                            genome_ids,
+                            genome_batchfile):
+        """Get all genome IDs of interest.
+
+        Returns
+        -------
+        list
+            Requested genome IDs
+        """
+
+        genome_id_list = set()
+
+        try:
+            cur = self.conn.cursor()
+
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_mngr = GenomeManager(cur, self.currentUser)
+            genome_list_mngr = GenomeListManager(cur, self.currentUser)
+
+            if all_dereplicated:
+                ids = genome_rep_mngr.dereplicatedGenomes()
+                genome_id_list.update(ids)
+
+            if ncbi_dereplicated:
+                ids = genome_rep_mngr.ncbiDereplicatedGenomes()
+                genome_id_list.update(ids)
+
+            if user_dereplicated:
+                ids = genome_rep_mngr.userDereplicatedGenomes()
+                genome_id_list.update(ids)
+
+            if all_genomes:
+                ids = genome_mngr.allGenomeIds()
+                genome_id_list.update(ids)
+
+            if ncbi_genomes:
+                ids = genome_mngr.ncbiGenomeIds()
+                genome_id_list.update(ids)
+
+            if user_genomes:
+                ids = genome_mngr.userGenomeIds()
+                genome_id_list.update(ids)
+
+            if genome_list_ids:
+                ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(genome_list_ids.split(","))
+                genome_id_list.update(ids)
+
+            if genome_ids:
+                ids = genome_mngr.externalGenomeIdsToGenomeIds(genome_ids.split(","))
+                genome_id_list.update(ids)
+
+            genome_batchfile_ids = []
+            if genome_batchfile:
+                fh = open(args.genome_batchfile, "rb")
+                for line in fh:
+                    line = line.strip()
+                    genome_batchfile_ids.append(line)
+
+            if genome_batchfile_ids:
+                ids = genome_mngr.externalGenomeIdsToGenomeIds(genome_batchfile_ids)
+                genome_id_list.update(ids)
+
+            if (len(genome_id_list) == 0):
+                raise GenomeDatabaseError("No genomes found from the information provided.")
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return genome_id_list
+
+    def GetMarkerIds(self, marker_ids, marker_set_ids, marker_batchfile):
+        """Get marker IDs of interest.
+
+        Returns
+        -------
+        list
+            Requested marker IDs.
+        """
+
+        marker_id_list = set()
+
+        try:
+            cur = self.conn.cursor()
+
+            marker_set_mngr = MarkerSetManager(cur, self.currentUser)
+            marker_mngr = MarkerManager(cur, self.currentUser)
+
+            if marker_ids:
+                ids = marker_mngr.externalMarkerIdsToMarkerIds(marker_ids.split(","))
+                marker_id_list.update(ids)
+
+            if marker_set_ids:
+                marker_set_ids = args.marker_set_ids.split(",")
+                ids = marker_set_mngr.getMarkerIdsFromMarkerSetIds(marker_set_ids)
+                marker_id_list.update(ids)
+
+            marker_batchfile_ids = []
+            if marker_batchfile:
+                fh = open(args.marker_batchfile, "rb")
+                for line in fh:
+                    line = line.rstrip()
+                    marker_batchfile_ids.append(line)
+
+            if marker_batchfile_ids:
+                ids = marker_mngr.externalMarkerIdsToMarkerIds(marker_batchfile_ids)
+                marker_id_list.update(ids)
+
+            if (len(marker_id_list) == 0):
+                raise GenomeDatabaseError("No markers found from the information provided.")
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return marker_id_list
+
     def MakeTreeData(self, marker_ids, genome_ids,
                      directory, prefix,
                      quality_threshold, comp_threshold, cont_threshold,
