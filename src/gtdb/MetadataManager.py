@@ -331,7 +331,7 @@ class MetadataManager(object):
 
             if longest_ssu_hit_info:
                 metadata = [(headers[i], value)
-                            for i, value in enumerate(line_split)]
+                            for i, value in enumerate(longest_ssu_hit_info)]
 
         return metadata, ssu_count
 
