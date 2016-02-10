@@ -30,10 +30,6 @@ from biolib.misc.custom_help_formatter import CustomHelpFormatter
 
 from gtdb import GenomeDatabase
 from gtdb.Exceptions import GenomeDatabaseError
-from gtdb.UserManager import UserManager
-from gtdb.GenomeManager import GenomeManager
-from gtdb.GenomeListManager import GenomeListManager
-from gtdb.GenomeRepresentativeManager import GenomeRepresentativeManager
 
 
 def version():
