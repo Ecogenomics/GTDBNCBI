@@ -459,7 +459,7 @@ class GenomeDatabase(object):
 
             genome_batchfile_ids = []
             if genome_batchfile:
-                fh = open(args.genome_batchfile, "rb")
+                fh = open(genome_batchfile, "rb")
                 for line in fh:
                     line = line.strip()
                     genome_batchfile_ids.append(line)
@@ -499,13 +499,13 @@ class GenomeDatabase(object):
                 marker_id_list.update(ids)
 
             if marker_set_ids:
-                marker_set_ids = args.marker_set_ids.split(",")
+                marker_set_ids = marker_set_ids.split(",")
                 ids = marker_set_mngr.getMarkerIdsFromMarkerSetIds(marker_set_ids)
                 marker_id_list.update(ids)
 
             marker_batchfile_ids = []
             if marker_batchfile:
-                fh = open(args.marker_batchfile, "rb")
+                fh = open(marker_batchfile, "rb")
                 for line in fh:
                     line = line.rstrip()
                     marker_batchfile_ids.append(line)
@@ -731,7 +731,6 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return False
 
         return True
 
