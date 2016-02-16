@@ -235,8 +235,9 @@ class GenomeDatabase(object):
 
             # add genomes to database
             genome_mngr = GenomeManager(cur, self.currentUser, self.threads)
-            genome_ids = genome_mngr.addGenomes(
-                checkm_file, batchfile, study_file)
+            genome_ids = genome_mngr.addGenomes(checkm_file,
+                                                batchfile,
+                                                study_file)
 
             if modify_genome_list_id is not None:
                 genome_list_mngr = GenomeListManager(cur, self.currentUser)
@@ -318,6 +319,52 @@ class GenomeDatabase(object):
             genome_mngr.deleteGenomes(batchfile, list(set(genome_ids)), reason)
 
             self.conn.commit()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+
+    def PullGenomes(self,
+                        batchfile, external_ids, list_of_list_id,
+                        genomic, gene, out_dir):
+        '''
+        Copy genomic and gene data to specifed output directory
+
+        :param batchfile: Name of file describing genomes to pull.
+        :param external_ids: List of ids describing genomes to pull.
+        :param list_of_list_id: List of genome list IDs of genomes to pull.
+        :param genomic: Flag indicating if genomic data should be pulled.
+        :param gene: Flag indicating if gene data should be pulled.
+        :param out_dir: Desired directory to copy data to.
+        '''
+        try:
+            cur = self.conn.cursor()
+            db_genome_ids = []
+
+            if external_ids is None:
+                external_ids = []
+
+            if batchfile:
+                for line in open(batchfile, "rb"):
+                    if line[0] != '#':
+                        external_ids.append(line.rstrip().split('\t')[0])
+
+            # get database identifiers
+            genome_mngr = GenomeManager(cur, self.currentUser)
+            if len(external_ids) > 0:
+                db_genome_ids.extend(
+                    genome_mngr.externalGenomeIdsToGenomeIds(external_ids))
+
+            # get all genomes ids from genome list ids
+            if list_of_list_id is not None:
+                genome_list_mngr = GenomeListManager(cur, self.currentUser)
+                db_genome_ids.extend(
+                    genome_list_mngr.getGenomeIdsFromGenomeListIds(list_of_list_id))
+
+            # copy data for each genome
+            genome_mngr.copyGenomes(db_genome_ids, genomic, gene, out_dir)
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)

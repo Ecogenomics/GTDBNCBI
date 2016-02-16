@@ -104,7 +104,7 @@ class AddMetadata(object):
             temp_file.write('%s\t%s\n' % (genome_id, value))
 
       temp_file.close()
-      cmd = 'gtdb metadata import --table %s --field %s --type %s --metadatafile %s' % (table, field, data_type, temp_file.name)
+      cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % (table, field, data_type, temp_file.name)
       print cmd
       os.system(cmd)
       os.remove(temp_file.name)
