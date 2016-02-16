@@ -16,6 +16,7 @@
 
 import os
 import tempfile
+import ntpath
 import shutil
 import logging
 import datetime
@@ -121,8 +122,7 @@ class GenomeManager(object):
             self.logger.info("Reading CheckM file.")
             checkm_results_dict = self._processCheckM(checkm_file)
 
-            genomic_files = self._addGenomeBatch(
-                batchfile, self.tmp_output_dir)
+            genomic_files = self._addGenomeBatch(batchfile, self.tmp_output_dir)
 
             self.logger.info("Running Prodigal to identify genes.")
             prodigal = Prodigal(self.threads)
@@ -297,6 +297,51 @@ class GenomeManager(object):
                 db_genome_id))
 
         shutil.rmtree(self.tmp_output_dir)
+
+    def copyGenomes(self, db_genome_ids, genomic, gene, out_dir):
+        """Copy genome data files to specified directory.
+
+        Parameters
+        ----------
+        db_genome_ids : list
+            Unique database identifiers for genomes.
+        genomic : boolean
+            Flag indicating if genomic data should be copied.
+        gene : boolean
+            Flag indicating if gene data should be copied.
+        out_dir : str
+            Output directory for data.
+        """
+
+        # get database genome identifiers
+        try:
+            self.cur.execute("SELECT external_id_prefix, fasta_file_location, genes_file_location " +
+                             "FROM genomes, genome_sources " +
+                             "WHERE genome_source_id = genome_sources.id " +
+                             "AND genomes.id in %s", (tuple(db_genome_ids),))
+
+            for (external_id_prefix, fasta_file_location, genes_file_location) in self.cur:
+                dir_prefix = None
+                if external_id_prefix == 'U':
+                    dir_prefix = Config.GTDB_GENOME_USR_DIR
+                elif external_id_prefix == 'RS':
+                    dir_prefix = Config.GTDB_GENOME_RSQ_DIR
+                elif external_id_prefix == 'GB':
+                    dir_prefix = Config.GTDB_GENOME_GBK_DIR
+                else:
+                    raise GenomeDatabaseError(
+                        "Unrecognized database prefix: %s" % external_id_prefix)
+
+                if genomic:
+                    genomic_file = os.path.join(dir_prefix, fasta_file_location)
+                    shutil.copy(genomic_file, out_dir)
+
+                if gene:
+                    gene_file = os.path.join(dir_prefix, genes_file_location)
+                    shutil.copy(gene_file, out_dir)
+
+        except GenomeDatabaseError as e:
+            raise e
 
     def _addGenomeBatch(self, batchfile, output_dir):
         """Add genomes specific in batch file to DB.
