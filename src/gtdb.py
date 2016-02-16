@@ -195,6 +195,25 @@ def DeleteGenomes(db, args):
 
     return db.DeleteGenomes(args.batchfile, external_ids, list_ids, args.reason)
 
+def PullGenomes(db, args):
+
+    make_sure_path_exists(args.out_dir)
+
+    external_ids = None
+    if args.id_list:
+        external_ids = args.id_list.split(",")
+
+    list_ids = None
+    if args.list_of_list_id:
+        list_ids = args.list_of_list_id.split(",")
+
+    return db.PullGenomes(args.batchfile,
+                          external_ids,
+                          list_ids,
+                          args.genomic,
+                          args.gene,
+                          args.out_dir)
+
 
 def CreateGenomeList(db, args):
 
@@ -542,25 +561,6 @@ if __name__ == '__main__':
 
     parser_genome_add.set_defaults(func=AddGenomes)
 
-    # genome view parser
-    parser_genome_view = genome_category_subparser.add_parser('view',
-                                                              add_help=False,
-                                                              formatter_class=CustomHelpFormatter,
-                                                              help='View the details of genomes in the database.')
-    atleastone_genome_view = parser_genome_view.add_argument_group('At least one argument required')
-    atleastone_genome_view.add_argument('--batchfile', dest='batchfile', default=None,
-                                        help='Batchfile of genome IDs (one per line) to view.')
-    atleastone_genome_view.add_argument('--genome_ids', dest='id_list', default=None,
-                                        help='Provide a list of genome IDs (comma separated) to view.')
-    atleastone_genome_view.add_argument('--all', dest='view_all', action="store_true",
-                                        help='View all genomes in the database.')
-
-    optional_genome_view = parser_genome_view.add_argument_group('optional arguments')
-    optional_genome_view.add_argument('-h', '--help', action="help",
-                                             help="Show help message.")
-
-    parser_genome_view.set_defaults(func=ViewGenomes)
-
     # genome delete parser
     parser_genome_delete = genome_category_subparser.add_parser('delete',
                                                                 add_help=False,
@@ -583,6 +583,54 @@ if __name__ == '__main__':
                                         help="Show help message.")
 
     parser_genome_delete.set_defaults(func=DeleteGenomes)
+
+    # genome pull parser
+    parser_genome_pull = genome_category_subparser.add_parser('pull',
+                                                                add_help=False,
+                                                                formatter_class=CustomHelpFormatter,
+                                                                help='Pull genomic and gene data from database.')
+    atleastone_genome_pull = parser_genome_pull.add_argument_group('At least one argument required')
+    atleastone_genome_pull.add_argument('--batchfile', dest='batchfile', default=None,
+                                          help='Batchfile of genome IDs (one per line) to pull.')
+    atleastone_genome_pull.add_argument('--genome_ids', dest='id_list', default=None,
+                                          help='Provide a list of genome IDs (comma separated) to pull.')
+    atleastone_genome_pull.add_argument('--list_ids', dest='list_of_list_id', default=None,
+                                          help='Provide IDs of genome lists (comma separated) to pull.')
+
+    atleastone_genome_pull_data = parser_genome_pull.add_argument_group('At least one argument required')
+    atleastone_genome_pull_data.add_argument('--genomic', default=None, action='store_true',
+                                                help='Pull genomic sequences.')
+    atleastone_genome_pull_data.add_argument('--gene', default=None, action='store_true',
+                                          help='Pull called genes in amino acid space.')
+
+    required_markers_genome_pull = parser_genome_pull.add_argument_group('required arguments')
+    required_markers_genome_pull.add_argument('--output', dest='out_dir', required=True,
+                                              help='Directory to output files.')
+
+    optional_genome_pull = parser_genome_pull.add_argument_group('optional arguments')
+    optional_genome_pull.add_argument('-h', '--help', action="help",
+                                        help="Show help message.")
+
+    optional_genome_pull.set_defaults(func=PullGenomes)
+
+    # genome view parser
+    parser_genome_view = genome_category_subparser.add_parser('view',
+                                                              add_help=False,
+                                                              formatter_class=CustomHelpFormatter,
+                                                              help='View the details of genomes in the database.')
+    atleastone_genome_view = parser_genome_view.add_argument_group('At least one argument required')
+    atleastone_genome_view.add_argument('--batchfile', dest='batchfile', default=None,
+                                        help='Batchfile of genome IDs (one per line) to view.')
+    atleastone_genome_view.add_argument('--genome_ids', dest='id_list', default=None,
+                                        help='Provide a list of genome IDs (comma separated) to view.')
+    atleastone_genome_view.add_argument('--all', dest='view_all', action="store_true",
+                                        help='View all genomes in the database.')
+
+    optional_genome_view = parser_genome_view.add_argument_group('optional arguments')
+    optional_genome_view.add_argument('-h', '--help', action="help",
+                                             help="Show help message.")
+
+    parser_genome_view.set_defaults(func=ViewGenomes)
 
 # -------- Genome Lists Management subparsers
 
