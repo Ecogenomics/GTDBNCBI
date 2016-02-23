@@ -47,8 +47,9 @@ class AddTaxonomy(object):
     """Add taxonomy to database."""
 
     genome_list = set()
-    for line in open(genome_list_file):
-      genome_list.add(line.rstrip().split('\t')[0])
+    if genome_list_file:
+        for line in open(genome_list_file):
+          genome_list.add(line.rstrip().split('\t')[0])
 
     # read taxonomy file
     taxonomy = Taxonomy().read(taxonomy_file)
@@ -84,7 +85,7 @@ class AddTaxonomy(object):
         temp_file.write('%s\t%s\n' % (genome_id, rank_str))
 
       temp_file.close()
-      cmd = 'gtdb metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_taxonomy', 'gtdb_' + rank, 'TEXT', temp_file.name)
+      cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_taxonomy', 'gtdb_' + rank, 'TEXT', temp_file.name)
       print cmd
       os.system(cmd)
       os.remove(temp_file.name)

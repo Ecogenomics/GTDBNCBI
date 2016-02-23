@@ -40,7 +40,7 @@ def version():
     str
         Software version.
     str
-        NCBI database version.
+        Software, NCBI database, and GTDB database versions.
     """
     cur_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     # cur_dir = os.path.dirname(os.path.realpath(__file__))
@@ -52,7 +52,10 @@ def version():
     ncbi_version = version_file.readline().strip()
     ncbi_version = ncbi_version[ncbi_version.find('=') + 1:]
 
-    return software_version, ncbi_version
+    gtdb_version = version_file.readline().strip()
+    gtdb_version = gtdb_version[gtdb_version.find('=') + 1:]
+
+    return software_version, ncbi_version, gtdb_version
 
 
 def versionInfo():
@@ -64,8 +67,8 @@ def versionInfo():
         String indication software and NCBI version information.
     """
 
-    software_version, ncbi_version = version()
-    return 'GTDB v%s (NCBI database %s)' % (software_version, ncbi_version)
+    software_version, ncbi_version, gtdb_version = version()
+    return 'GTDB v%s (NCBI database %s; Internal database v%s)' % (software_version, ncbi_version, gtdb_version)
 
 
 def loggerSetup(output_dir, silent=False):
