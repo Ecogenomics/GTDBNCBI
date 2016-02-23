@@ -1,0 +1,37 @@
+Author: Donovan Parks
+Last Updated: Feb. 24, 2016
+
+The taxonomy for the genome tree is in a fairly
+constant state of flux. As such, it needs to be
+updated on a regular basis. Updating the database
+is complicated by a few factors:
+
+- provided taxonomy files often do not cover all
+7 canonical ranks and my not properly use binomial
+names for species
+
+- the taxonomy of representative genomes must be 
+propogated to all genomes clustered with the
+representative
+
+- updated taxonomy files may not cover all genomes
+in the database as curators often focus on specific
+parts of the tree
+
+The GenomeTreeTk provides functionality for allowing
+new taxonomy strings to be quickly corrected, verified,
+and expanded:
+
+1) run the 'fill_ranks' command so all taxonomy strings
+cover all 7 canonical ranks
+2) run the 'binomial' command to ensure all species names
+use binomial nomenclature
+3) run the 'propogate' command to propagate taxonomy strings
+from representatives to all genomes clustered with the a 
+representative
+4) re-run the 'validate' command to ensure the taxonomy file is
+properly formated and to identify potential issues
+
+The final taxonomy file can then be inserted into the GTDB using
+the 'metadata_add_taxonomy_to_database.py' script in 
+/gtdb/scripts_dev.

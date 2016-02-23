@@ -1,2 +1,10 @@
 software_version=0.0.4
 ncbi_database_version=2015-11-27
+gtdb_version=0.0.2
+
+GTDB versions
+-----------
+v0.0.2 (Feb. 24, 2016):
+- update GTDB taxonomy fields
+v0.0.1:
+- initial release
