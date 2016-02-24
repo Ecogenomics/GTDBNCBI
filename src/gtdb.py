@@ -403,6 +403,8 @@ def createMetadata(db, args):
 
     return db.CreateMetadata(args.metadatafile)
 
+def exportTaxonomy(db, args):
+    return db.ExportTaxonomy(args.outfile)
 
 def DatabaseStatsData(db, args):
     return db.ReportStats()
@@ -473,6 +475,12 @@ if __name__ == '__main__':
                                                           help='Commands for adding, viewing, and removing metadata fields and values.')
     metadata_category_subparser = metadata_category_parser.add_subparsers(help='Metadata command help.',
                                                                           dest='metadata_subparser_name')
+
+    taxonomy_category_parser = category_parser.add_parser('taxonomy',
+                                                          formatter_class=CustomHelpFormatter,
+                                                          help='Commands for exporting the GTDB taxonomy.')
+    taxonomy_category_subparser = taxonomy_category_parser.add_subparsers(help='Taxonomy command help.',
+                                                                          dest='taxonomy_subparser_name')
 
     tree_category_parser = category_parser.add_parser('tree',
                                                       formatter_class=CustomHelpFormatter,
@@ -894,7 +902,7 @@ if __name__ == '__main__':
                                                                     help='Export a CSV file with all metadata fields.')
     required_metadata_export = parser_metadata_export.add_argument_group('required arguments')
     required_metadata_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                          help='Destination to write the CSV file.')
+                                          help='Name of output file.')
 
     optional_metadata_export = parser_metadata_export.add_argument_group('optional arguments')
     optional_metadata_export.add_argument('-h', '--help', action="help",
@@ -912,6 +920,8 @@ if __name__ == '__main__':
     optional_metadata_view.add_argument('-h', '--help', action="help",
                                         help="Show help message.")
 
+    parser_metadata_view.set_defaults(func=viewMetadata)
+
     # metadata create columns parser
     parser_metadata_create = metadata_category_subparser.add_parser('create',
                                                                     add_help=False,
@@ -928,8 +938,6 @@ if __name__ == '__main__':
                                             help="Show help message.")
 
     parser_metadata_create.set_defaults(func=createMetadata)
-
-    parser_metadata_view.set_defaults(func=viewMetadata)
 
     # metadata import parser
     parser_metadata_import = metadata_category_subparser.add_parser('import',
@@ -951,6 +959,23 @@ if __name__ == '__main__':
                                             help="Show help message.")
 
     parser_metadata_import.set_defaults(func=importMetadata)
+
+# -------- Metadata Management subparsers
+
+    # taxonmoy export parser
+    taxonomy_export = taxonomy_category_subparser.add_parser('export',
+                                                                add_help=False,
+                                                                formatter_class=CustomHelpFormatter,
+                                                                help='Export GTDB as a TSV file.')
+    required_taxonomy_export = taxonomy_export.add_argument_group('required arguments')
+    required_taxonomy_export.add_argument('--output', dest='outfile', default=None, required=True,
+                                          help='Name of output file.')
+
+    optional_taxonomy_export = taxonomy_export.add_argument_group('optional arguments')
+    optional_taxonomy_export.add_argument('-h', '--help', action="help",
+                                             help="Show help message.")
+
+    taxonomy_export.set_defaults(func=exportTaxonomy)
 
 # -------- Generate Tree Data
     parser_tree_create = tree_category_subparser.add_parser('create',

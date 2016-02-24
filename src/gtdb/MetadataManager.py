@@ -84,6 +84,27 @@ class MetadataManager(object):
         except GenomeDatabaseError as e:
             raise e
 
+    def exportTaxonomy(self, path):
+        '''
+        Function: exportTaxonomy
+        Export GTDB taxonomy for all genomes to a TSV file.
+
+        :param path: Path to the output file
+        '''
+
+        try:
+            self.cur.execute("SELECT genome, gtdb_taxonomy FROM metadata_view")
+
+            fout = open(path, 'w')
+            for genome_id, gtdb_taxonomy in self.cur.fetchall():
+                if gtdb_taxonomy:
+                    fout.write('%s\t%s\n' % (genome_id, gtdb_taxonomy))
+            fout.close()
+
+            print 'Taxonomy information written to: %s' % path
+        except GenomeDatabaseError as e:
+            raise e
+
     def importMetadata(self, table=None, field=None, typemeta=None, metafile=None):
         '''
         Function importMetadata
