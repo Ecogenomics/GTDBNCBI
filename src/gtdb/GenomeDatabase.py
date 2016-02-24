@@ -1181,6 +1181,27 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
+    def ExportTaxonomy(self, path):
+        try:
+            cur = self.conn.cursor()
+
+            # ensure all genomes have been assigned to a representatives
+            genome_rep_mngr = GenomeRepresentativeManager(cur,
+                                                          self.currentUser,
+                                                          self.threads)
+            genome_rep_mngr.assignToRepresentative()
+
+            metaman = MetadataManager(cur, self.currentUser)
+            metaman.exportTaxonomy(path)
+
+            self.conn.commit()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+
     def ReportStats(self):
         """Report general database statistics."""
 
