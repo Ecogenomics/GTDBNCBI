@@ -573,6 +573,7 @@ class GenomeDatabase(object):
     def MakeTreeData(self, marker_ids, genome_ids,
                      directory, prefix,
                      quality_threshold, comp_threshold, cont_threshold,
+                     min_perc_aa, min_perc_taxa,
                      taxa_filter,
                      excluded_genome_list_ids, excluded_genome_ids,
                      guaranteed_genome_list_ids, guaranteed_genome_ids,
@@ -591,27 +592,38 @@ class GenomeDatabase(object):
             self.logger.info('Creating tree data for %d genomes using %d marker genes.' %
                              (len(genome_ids), len(marker_ids)))
 
+            aligned_mngr = AlignedMarkerManager(cur, self.threads)
+            aligned_mngr.calculateAlignedMarkerSets(genome_ids, marker_ids)
+
             tree_mngr = TreeManager(cur, self.currentUser)
-            genomes_to_retain, chosen_markers_order, chosen_markers = tree_mngr.filterGenomes(marker_ids, genome_ids,
-                                                                                              quality_threshold, comp_threshold, cont_threshold,
+            genomes_to_retain, chosen_markers_order, chosen_markers = tree_mngr.filterGenomes(marker_ids,
+                                                                                              genome_ids,
+                                                                                              quality_threshold,
+                                                                                              comp_threshold,
+                                                                                              cont_threshold,
+                                                                                              min_perc_aa,
                                                                                               taxa_filter,
                                                                                               excluded_genome_list_ids,
                                                                                               excluded_genome_ids,
                                                                                               guaranteed_genome_list_ids,
-                                                                                              guaranteed_genome_ids)
+                                                                                              guaranteed_genome_ids,
+                                                                                              directory,
+                                                                                              prefix)
 
-            aligned_mngr = AlignedMarkerManager(cur, self.threads)
-            aligned_mngr.calculateAlignedMarkerSets(
-                genomes_to_retain, marker_ids)
+            if len(genomes_to_retain) == 0:
+                self.logger.warning('No genomes left after filtering.')
+                return True
 
             msa_file = tree_mngr.writeFiles(marker_ids,
                                             genomes_to_retain,
-                                            directory,
-                                            prefix,
+                                            min_perc_taxa,
+                                            min_perc_aa,
                                             chosen_markers_order,
                                             chosen_markers,
                                             alignment,
-                                            individual)
+                                            individual,
+                                            directory,
+                                            prefix)
 
             self.conn.commit()
 
