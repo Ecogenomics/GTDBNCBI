@@ -168,6 +168,7 @@ def CreateTreeData(db, args):
     return db.MakeTreeData(marker_id_list, genome_id_list,
                            args.out_dir, args.prefix,
                            args.quality_threshold, args.comp_threshold, args.cont_threshold,
+                           args.min_perc_aa, args.min_perc_taxa,
                            args.taxa_filter,
                            args.excluded_genome_list_ids, args.excluded_genome_ids,
                            args.guaranteed_genome_list_ids, args.guaranteed_genome_ids,
@@ -1030,13 +1031,17 @@ if __name__ == '__main__':
                                               help='Directory to output files.')
 
     optional_markers_create_tree = parser_tree_create.add_argument_group('optional arguments')
-    optional_markers_create_tree.add_argument('--quality_threshold', type=float, default=50,
+    optional_markers_create_tree.add_argument('--quality_threshold', type=float, default=60,
                                               help='Filter genomes with a quality (completeness - 4*contamination) below threshold.')
-    optional_markers_create_tree.add_argument('--completeness_threshold', dest='comp_threshold', type=float, default=50,
+    optional_markers_create_tree.add_argument('--completeness_threshold', dest='comp_threshold', type=float, default=60,
                                               help='Filter genomes below completeness threshold.')
     optional_markers_create_tree.add_argument('--contamination_threshold', dest='cont_threshold', type=float, default=10,
                                               help='Filter genomes above contamination threshold.')
 
+    optional_markers_create_tree.add_argument('--min_perc_aa', type=float, default=50,
+                                              help='Filter genomes with an insufficient percentage of AA in the MSA.')
+    optional_markers_create_tree.add_argument('--min_perc_taxa', type=float, default=90,
+                                              help='minimum percentage of taxa required required to retain column.')
     optional_markers_create_tree.add_argument('--excluded_genome_list_ids',
                                               help='Genome list IDs (comma separated) indicating genomes to exclude from the tree.')
     optional_markers_create_tree.add_argument('--excluded_genome_ids',
