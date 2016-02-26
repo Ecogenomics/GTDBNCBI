@@ -825,6 +825,31 @@ class GenomeManager(object):
 
         return (True, current_username, dict_genomes_user)
 
+    def genomeIdsToEdxternalGenomeIds(self, db_genome_ids):
+        """Get external genome identifiers from database identifiers.
+
+        Parameters
+        ----------
+        db_genome_ids : list
+            List of database genome ids.
+
+        Returns
+        -------
+        dict : d[db_genome_id] -> external genome id
+            Map from database genome ids to external genome ids.
+        """
+
+        self.cur.execute("SELECT genomes.id, external_id_prefix || '_' || id_at_source as external_id " +
+                             "FROM genomes, genome_sources " +
+                             "WHERE genome_source_id = genome_sources.id " +
+                             "AND genomes.id IN %s", (tuple(db_genome_ids),))
+
+        external_genome_id = {}
+        for internal_id, external_id in self.cur:
+            external_genome_id[internal_id] = external_id
+
+        return external_genome_id
+
     def externalGenomeIdsToGenomeIds(self, external_ids):
         """Get database genome identifiers from external identifiers.
 
