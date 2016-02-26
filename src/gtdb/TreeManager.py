@@ -75,6 +75,10 @@ class TreeManager(object):
         if not os.path.exists(directory):
             os.makedirs(directory)
 
+        # get mapping from db genome IDs to external IDs
+        genome_mngr = GenomeManager(self.cur, self.currentUser)
+        external_ids = genome_mngr.genomeIdsToEdxternalGenomeIds(genome_ids)
+
         filter_genome_file = os.path.join(directory, prefix + '_filtered_genomes.tsv')
         fout_filtered = open(filter_genome_file, 'w')
 
@@ -126,7 +130,7 @@ class TreeManager(object):
                                                        comp_threshold,
                                                        cont_threshold)
         for genome_id in filtered_genomes:
-            fout_filtered.write('%s\t%s\n' % (genome_id, 'Filtered on quality.'))
+            fout_filtered.write('%s\t%s\n' % (external_ids[genome_id], 'Filtered on quality.'))
 
         filtered_genomes -= guaranteed_genomes
         self.logger.info(
@@ -147,7 +151,7 @@ class TreeManager(object):
                                 len(genomes_to_retain) - len(new_genomes_to_retain)))
 
             for genome_id in genomes_to_retain - new_genomes_to_retain:
-                fout_filtered.write('%s\t%s\n' % (genome_id, 'Filtered on taxonomic affiliation.'))
+                fout_filtered.write('%s\t%s\n' % (external_ids[genome_id], 'Filtered on taxonomic affiliation.'))
 
             genomes_to_retain = new_genomes_to_retain
 
@@ -166,7 +170,7 @@ class TreeManager(object):
             genomes_to_exclude.update(db_genome_ids)
 
         for genome_id in genomes_to_exclude:
-            fout_filtered.write('%s\t%s\n' % (genome_id, 'Explicitly marked for exclusion.'))
+            fout_filtered.write('%s\t%s\n' % (external_ids[genome_id], 'Explicitly marked for exclusion.'))
 
         # check if genomes are marker for retention and exclusion
         conflicting_genomes = guaranteed_genomes.intersection(genomes_to_exclude)
@@ -203,7 +207,7 @@ class TreeManager(object):
 
             if total_aa < (min_perc_aa / 100.0) * total_alignment_len:
                 filter_on_aa.add(genome_id)
-                fout_filtered.write('%s\t%s\n' % (genome_id, 'Insufficient number of AA in MSA.'))
+                fout_filtered.write('%s\t%s\n' % (external_ids[genome_id], 'Insufficient number of AA in MSA.'))
 
         fout_filtered.close()
 
@@ -368,7 +372,7 @@ class TreeManager(object):
         # write out MSA
         fasta_concat_filename = os.path.join(directory, prefix + "_concatenated.faa")
         fasta_concat_fh = open(fasta_concat_filename, 'wb')
-        trimmed_seqs.update(pruned_seqs) 
+        trimmed_seqs.update(pruned_seqs)
         for genome_id, aligned_seq in trimmed_seqs.iteritems():
             fasta_outstr = ">%s\n%s\n" % (genome_id, aligned_seq)
             fasta_concat_fh.write(fasta_outstr)
