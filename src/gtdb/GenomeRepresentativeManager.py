@@ -183,11 +183,17 @@ class GenomeRepresentativeManager(object):
 
         return derep_genome_ids
 
-    def ncbiDereplicatedGenomes(self):
+    def ncbiDereplicatedGenomes(self, include_user_reps):
         """Get identifiers from the dereplicated set of NCBI genome.
 
         Identifiers are return for NCBI representative genomes
         and NCBI genomes without a representative.
+
+        Parameters
+        ----------
+        include_user_reps : bool
+            Flag indicating if NCBI genomes assigned to a
+            User representative should be returned.
 
         Returns
         -------
@@ -205,6 +211,14 @@ class GenomeRepresentativeManager(object):
                              "OR gtdb_genome_representative IS NULL) " +
                              "AND id = ANY(%s)", (ncbi_genomes_ids,))
             derep_genome_ids = [genome_id[0] for genome_id in self.cur]
+
+            if include_user_reps:
+                self.cur.execute("SELECT id " +
+                                 "FROM metadata_taxonomy " +
+                                 "WHERE (gtdb_representative = 'FALSE' " +
+                                 "AND gtdb_genome_representative LIKE %s " +
+                                 "AND id = ANY(%s))", ('U%', ncbi_genomes_ids,))
+                derep_genome_ids += [genome_id[0] for genome_id in self.cur]
 
         except GenomeDatabaseError as e:
             raise e

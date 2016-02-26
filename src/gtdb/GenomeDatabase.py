@@ -477,7 +477,8 @@ class GenomeDatabase(object):
                 genome_id_list.update(ids)
 
             if ncbi_dereplicated:
-                ids = genome_rep_mngr.ncbiDereplicatedGenomes()
+                include_user_reps = not (all_dereplicated or user_dereplicated)
+                ids = genome_rep_mngr.ncbiDereplicatedGenomes(include_user_reps)
                 genome_id_list.update(ids)
 
             if user_dereplicated:
@@ -633,7 +634,7 @@ class GenomeDatabase(object):
 
         if build_tree:
             self.logger.info(
-                'Inferring tree for %d genome under WAG and GAMMA models.' % len(genomes_to_retain))
+                'Inferring tree for %d genomes under the WAG and GAMMA models.' % len(genomes_to_retain))
 
             output_tree = os.path.join(
                 directory, prefix + '_phylogeny.wag_gamma.tree')
