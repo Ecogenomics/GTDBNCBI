@@ -352,6 +352,10 @@ class GenomeRepresentativeManager(object):
                                                     (len(unprocessed_genome_ids),
                                                      len(rep_genome_ids)))
 
+        # get external genome IDs for representative genomes
+        genome_mngr = GenomeManager(self.cur, self.currentUser)
+        external_ids = genome_mngr.genomeIdsToEdxternalGenomeIds(rep_genome_ids)
+
         # define desired order of marker genes
         # (order doesn't matter, but must be consistent between genomes)
         bac_marker_index = {}
@@ -399,7 +403,7 @@ class GenomeRepresentativeManager(object):
                 query = ("UPDATE metadata_taxonomy " +
                          "SET gtdb_genome_representative = %s " +
                          "WHERE id = %s")
-                self.cur.execute(query, (assigned_representative, genome_id))
+                self.cur.execute(query, (external_ids[assigned_representative], genome_id))
 
         self.logger.info("Assigned %d genomes to a representative." % assigned_to_rep_count)
 
