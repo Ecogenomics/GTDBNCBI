@@ -1,9 +1,11 @@
-software_version=0.0.7
+software_version=0.0.8
 ncbi_database_version=2015-11-27
-gtdb_version=0.0.3
+gtdb_version=0.0.4
 
 GTDB versions
------------
+-------------
+v0.0.4 (Feb. 27, 2016):
+- update gtdb_genome_representative erroneously set to database genome IDs instead of external genome IDs
 v0.0.3 (Feb. 25, 2016):
 - new metadata field : ncbi_isolation_source in metadata_ncbi table
 - new metadata field : ncbi_country in metadata_ncbi table
