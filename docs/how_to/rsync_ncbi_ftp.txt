@@ -1,0 +1,41 @@
+in /srv/db/ncbi/from_ftp:
+	run rsync:
+		./rsync_genbank.sh
+		./rsync_refseq.sh
+	we then copy all refseq records from the ftp folder to the /srv/db/gtdb/genomes/ncbi/*new_date* folder:
+		mkdir /srv/db/gtdb/genomes/ncbi/2016_02_26
+		
+		
+		
+
+How update_refseq_from_ftp.py works:
+
+	- for each domain:
+		- we list the Refseq records present in the FTP folder (they have to be qualified as latest)
+		- we list the Refseq records present in the previous GTDB folder
+		- if a genome is present in the FTP list but not in the old GTDB list:
+			We add the genome folder to the new gtdb folder
+			TODO: Check if the new genome is actually a new version of an existing genome and replace the old one by this new one
+		- if a genome is not present in the FTP 
+			We delete the genome from GTDB
+			We modify the lists having the deleted genomes.
+		if the genomes is present in both FTP and old GTDB:
+			We compare the checksum file of the 2 folder
+			If the checksum of the genomic.fna.gz and/or protein.faa.gz files are different:
+				-We copy the FTP folder to the new GTDB folder
+				-We unzip all gz file in the new GTDB folder
+				-We update the sha sizes in the GTDB 
+			If checksum of the genomic.fna.gz and/or protein.faa.gz files are the same:
+				-We copy the old GTDB folder to the new GTDB folder
+				-We compare the genbank files between the GTDB folder and FTP folder:
+				If there is a change:
+					We copy the genbank files from FTP that are different from the GTDB folder
+					We copy the checksum files from FTP
+				-We compare the report files between the GTDB folder and FTP folder:
+				If there is a change:
+					We copy the report files from FTP that are different from the GTDB folder
+					
+					
+Genomes are added through the INSERT command  in the genome table.
+No Metadata is generated at this stage. Metadata are generated later.
+			

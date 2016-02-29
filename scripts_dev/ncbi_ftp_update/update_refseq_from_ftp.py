@@ -97,7 +97,7 @@ class UpdateRefSeqFolder(object):
             # new genomes in FTP
             added_dict = {added_key: new_dict[added_key] for added_key in list(
                 set(new_dict.keys()) - set(old_dict.keys()))}
-            self.addGenomes(added_dict)
+            self.addGenomes(added_dict, ftp_refseq, new_refseq, update_date)
 
             # delete genomes from the Database
             removed_dict = {removed_key: old_dict[removed_key] for removed_key in list(
@@ -106,9 +106,23 @@ class UpdateRefSeqFolder(object):
 
             intersect_list = list(
                 set(old_dict.keys()).intersection(set(new_dict.keys())))
-            self.compareGenomes(intersect_list, old_dict, new_dict)
+            self.compareGenomes(intersect_list, old_dict, new_dict, domain)
 
     def addGenomes(self, added_dict, ftp_refseq, new_refseq, update_date):
+        '''
+        addGenomes function insert new genomes in the GTDB database. New genomes are present in the FTP folder 
+        but not in the previous version of GTDB.
+
+        :TODO: Check if the new genome is a new version of an existing genome. in that case we overwrite the previous one 
+        and keep the same database id
+        This will cause a conflict with the removeGenomes function.
+
+
+        :param added_dict: dictionary of genomes to be added (genome_id:path to genome)
+        :param ftp_refseq: base directory leading the the FTP repository for refseq
+        :param new_refseq:base directory leading the new repository for refseq
+        :param update_date:Date when the FTP download has been run (format YYYY-MM-DD)
+        '''
 
         for gcf_record in added_dict:
             target_dir = added_dict[gcf_record].replace(ftp_refseq, new_refseq).replace(
@@ -128,31 +142,40 @@ class UpdateRefSeqFolder(object):
             # write all info for genomes
             list_genome_details = [gcf_record]
             list_genome_details.append('')  # description
-            list_genome_details.append(True)
-            list_genome_details.append(None)
+            list_genome_details.append(True)  # owned_by_root
+            list_genome_details.append(None)  # owner_id
             fasta_file_path = os.path.join(
                 target_dir, os.path.basename(target_dir) + "_genomic.fna")
-
             fasta_file_path_shorten = re.sub(
                 "^.+\/{0}\/".format(self.domain), "{0}/".format(self.domain), fasta_file_path)
+            # fasta_file_location
             list_genome_details.append(fasta_file_path_shorten)
-            list_genome_details.append(self.sha256Calculator(fasta_file_path))
-            list_genome_details.append(2)
-            list_genome_details.append(gcf_record)
-            list_genome_details.append(update_date)
-            list_genome_details.append(True)
-            list_genome_details.append(update_date)
+            list_genome_details.append(
+                self.sha256Calculator(fasta_file_path))  # fasta_file_sha256
+            list_genome_details.append(2)  # genome_source_id 2 is Refseq
+            list_genome_details.append(gcf_record)  # id_at_source
+            list_genome_details.append(update_date)  # date_added
+            list_genome_details.append(True)  # has_changed
+            list_genome_details.append(update_date)  # last_update
             gene_file_path = os.path.join(
-                target_dir, os.path.basename(target_dir) + "_protein.faa")
+                target_dir, os.path.basename(target_dir) + "_protein.faa")  # genes_file_location
             gene_file_path_shorten = re.sub(
                 "^.+\/{0}\/".format(self.domain), "{0}/".format(self.domain), gene_file_path)
             list_genome_details.append(gene_file_path_shorten)
-            list_genome_details.append(self.sha256Calculator(gene_file_path))
+            list_genome_details.append(
+                self.sha256Calculator(gene_file_path))  # genes_file_sha256
             query = "INSERT INTO genomes (name,description,owned_by_root,owner_id,fasta_file_location,fasta_file_sha256,genome_source_id,id_at_source,date_added,has_changed,last_update,genes_file_location,genes_file_sha256) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             self.temp_cur.execute(query, list_genome_details)
             self.temp_con.commit()
 
     def removeGenomes(self, removed_dict):
+        '''
+        removeGenomes function removes all outdated genomes from the gtdb database
+        In addition it tracks the lists(name and owner) that have been modified while deleting those genomes
+
+        :param removed_dict: dictionary of genomes to delete
+        '''
+
         for gcf_record in removed_dict:
             self.report_gcf.write(
                 "{0}\t{1}\tremoved\n".format(self.domain.upper(), gcf_record))
@@ -177,7 +200,14 @@ class UpdateRefSeqFolder(object):
             self.temp_cur.execute(query_delete)
             self.temp_con.commit()
 
-    def compareGenomes(self, intersect_list, old_dict, new_dict):
+    def compareGenomes(self, intersect_list, old_dict, new_dict, domain):
+        '''
+        compare the genomes existing in both folders ( FTP folder and previous gtdb update).
+
+        :param intersect_list:
+        :param old_dict:
+        :param new_dict:
+        '''
         for gcf_record in intersect_list:
             gtdb_dir = old_dict.get(gcf_record)
             ftp_dir = new_dict.get(gcf_record)
@@ -185,7 +215,7 @@ class UpdateRefSeqFolder(object):
                 "latest_assembly_versions/", "")
             self.readmd5Checksum(gtdb_dir, ftp_dir, target_dir, gcf_record)
 
-    def readmd5Checksum(self, gtdb_dir, ftp_dir, target_dir, gcf_record):
+    def readmd5Checksum(self, gtdb_dir, ftp_dir, target_dir, gcf_record, domain):
         '''
         Compare the checksum of the file listed in the checksums.txt
         '''
@@ -195,9 +225,10 @@ class UpdateRefSeqFolder(object):
         status = []
 
         path_gtdb = re.sub(
-            "^.+\/{0}\/".format(self.domain), "{0}/".format(self.domain), gtdb_dir)
+            "^.+\/{0}\/".format(domain), "{0}/".format(domain), gtdb_dir)
         path_ftp = re.sub(
-            "^.+\/{0}\/".format(self.domain), "{0}/".format(self.domain), target_dir)
+            "^.+\/{0}\/".format(domain), "{0}/".format(domain), target_dir)
+        # if the ftp path and the gtdb path are different for a same genome
         if not path_ftp in path_gtdb:
             status.append("moved")
             query = "update genomes set fasta_file_location = replace(fasta_file_location, '{0}', '{1}') where name like '{2}'".format(
@@ -210,20 +241,28 @@ class UpdateRefSeqFolder(object):
         ftpdict, ftpdict_fasta = self.parse_checksum(pathftpmd5)
         gtdbdict, gtdbdict_fasta = self.parse_checksum(pathgtdbmd5)
 
+        # if the genomic.fna.gz or the protein.faa.gz are missing, we set this
+        # record as incomplete
         if len(list(set(ftpdict_fasta.keys()).symmetric_difference(set(gtdbdict_fasta.keys())))) > 0:
             status.append("incomplete")
             return False
         else:
-            ftp_folder = True
+            ftp_folder = False
+            # check if genomic.fna.gz and protein.faa.gz are similar between
+            # previous gtdb and ftp
             for key, value in ftpdict_fasta.iteritems():
-                if value == gtdbdict_fasta.get(key):
-                    ftp_folder = False
+                if value != gtdbdict_fasta.get(key):
+                    ftp_folder = True
                 print gcf_record + "\t" + key + "\t" + gtdbdict_fasta.get(key)
+            # if one of the 2 files is different than the previous version , we
+            # use the ftp record over the previous gtdb one , we then need to
+            # re run the metadata generation
             if ftp_folder:
                 shutil.copytree(
                     ftp_dir, target_dir,
                     ignore=shutil.ignore_patterns("*_assembly_structure"))
                 status.append("modified")
+                # we unzip of gz file
                 for compressed_file in glob.glob(target_dir + "/*.gz"):
                     if os.path.isdir(compressed_file) == False:
                         inF = gzip.open(compressed_file, 'rb')
@@ -248,12 +287,14 @@ class UpdateRefSeqFolder(object):
                 self.temp_con.commit()
 
             else:
+                # The 2 main fasta files haven't changed so we can copy the old
+                # gtdb folder over
                 shutil.copytree(
                     gtdb_dir, target_dir,
                     ignore=shutil.ignore_patterns("*_assembly_structure"))
                 status.append("unmodified")
 
-                # print "{0} to {1}".format(gtdb_dir, target_dir)
+                # We check if all other file of this folder are the same.
                 checksum_changed = False
                 for key, value in ftpdict.iteritems():
                     if value != gtdbdict.get(key):
@@ -277,6 +318,7 @@ class UpdateRefSeqFolder(object):
                             outF.close()
                             os.remove(os.path.join(target_dir, key))
                         status.append("new_metadata")
+                # we copy the new checksum
                 if checksum_changed:
                     try:
                         shutil.copy2(pathgtdbmd5, target_pathnewmd5)
@@ -313,6 +355,12 @@ class UpdateRefSeqFolder(object):
         return sha256_checksum
 
     def comparesha256(self, ftp_file, target_file, status):
+        '''
+        comparesha256 compares the report file
+        :param ftp_file:
+        :param target_file:
+        :param status:
+        '''
         original_checksum = hashlib.md5(
             open(ftp_file, 'rb').read()).hexdigest()
         gtdb_checksum = hashlib.md5(open(target_file, 'rb').read()).hexdigest()
@@ -326,6 +374,12 @@ class UpdateRefSeqFolder(object):
         return status
 
     def parse_checksum(self, md5File):
+        '''
+        parse_checksum function parses the md5 checksum file.
+        It returns 2 dictionaries {file:size} : one for the fna and faa files, one for the genbank files
+        :param md5File:
+        '''
+
         out_dict, out_dict_fasta = {}, {}
 
         with open(md5File) as f:
@@ -362,7 +416,7 @@ if __name__ == "__main__":
     parser.add_argument('--old_genome_dirs_file', dest="old_genome_dirs", required=True,
                         help='metadata file listing all directories from the previous NCBI update date  (generated by genome_dirs.py)')
     parser.add_argument('--ftp_download_date', dest="download_date", required=True,
-                        help='Date when the FTP download has been run (format YYYY-MM-DD')
+                        help='Date when the FTP download has been run (format YYYY-MM-DD)')
 
     args = parser.parse_args()
 
