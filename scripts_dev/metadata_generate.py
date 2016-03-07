@@ -92,17 +92,18 @@ class Metadata(object):
           input_files.append([genome_file, gff_file])
 
     # generate metadata for user genomes
-    print 'Reading user genome directories.'
-    for user_id in os.listdir(user_genome_dir):
-      full_user_dir = os.path.join(user_genome_dir, user_id)
-      if not os.path.isdir(full_user_dir):
-        continue
+    if user_genome_dir != 'NONE':
+        print 'Reading user genome directories.'
+        for user_id in os.listdir(user_genome_dir):
+          full_user_dir = os.path.join(user_genome_dir, user_id)
+          if not os.path.isdir(full_user_dir):
+            continue
 
-      for genome_id in os.listdir(full_user_dir):
-        full_genome_dir = os.path.join(full_user_dir, genome_id)
-        genome_file = os.path.join(full_genome_dir, genome_id + '_genomic.fna')
-        gff_file = os.path.join(full_genome_dir, genome_id + '_protein.gff')
-        input_files.append([genome_file, gff_file])
+          for genome_id in os.listdir(full_user_dir):
+            full_genome_dir = os.path.join(full_user_dir, genome_id)
+            genome_file = os.path.join(full_genome_dir, genome_id + '_genomic.fna')
+            gff_file = os.path.join(full_genome_dir, genome_id + '_protein.gff')
+            input_files.append([genome_file, gff_file])
 
     # process each genome
     print 'Generating metadata for each genome:'
@@ -118,8 +119,8 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('ncbi_genome_dir', help='base directory leading to NCBI archaeal and bacterial genome assemblies')
-  parser.add_argument('user_genome_dir', help='base directory leading to user genomes')
-  parser.add_argument('-c', '--cpus', help='number of CPUs to use', type=int, default=32)
+  parser.add_argument('user_genome_dir', help='base directory leading to user genomes or NONE to skip')
+  parser.add_argument('-t', '--threads', help='number of threads to use', type=int, default=32)
 
   args = parser.parse_args()
 
@@ -127,7 +128,7 @@ if __name__ == '__main__':
 
   try:
     p = Metadata()
-    p.run(args.ncbi_genome_dir, args.user_genome_dir, args.cpus)
+    p.run(args.ncbi_genome_dir, args.user_genome_dir, args.threads)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:

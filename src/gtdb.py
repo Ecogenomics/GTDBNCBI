@@ -404,8 +404,11 @@ def createMetadata(db, args):
 
     return db.CreateMetadata(args.metadatafile)
 
-def exportTaxonomy(db, args):
-    return db.ExportTaxonomy(args.outfile)
+def exportTaxonomyGTDB(db, args):
+    return db.ExportTaxonomy('GTDB', args.outfile)
+
+def exportTaxonomyNCBI(db, args):
+    return db.ExportTaxonomy('NCBI', args.outfile)
 
 def DatabaseStatsData(db, args):
     return db.ReportStats()
@@ -479,7 +482,7 @@ if __name__ == '__main__':
 
     taxonomy_category_parser = category_parser.add_parser('taxonomy',
                                                           formatter_class=CustomHelpFormatter,
-                                                          help='Commands for exporting the GTDB taxonomy.')
+                                                          help='Commands for exporting the taxonomic information.')
     taxonomy_category_subparser = taxonomy_category_parser.add_subparsers(help='Taxonomy command help.',
                                                                           dest='taxonomy_subparser_name')
 
@@ -961,22 +964,37 @@ if __name__ == '__main__':
 
     parser_metadata_import.set_defaults(func=importMetadata)
 
-# -------- Metadata Management subparsers
+# -------- Taxonomy subparsers
 
-    # taxonmoy export parser
-    taxonomy_export = taxonomy_category_subparser.add_parser('export',
+    # GTDB taxonmoy export parser
+    taxonomy_gtdb_export = taxonomy_category_subparser.add_parser('gtdb_export',
                                                                 add_help=False,
                                                                 formatter_class=CustomHelpFormatter,
-                                                                help='Export GTDB as a TSV file.')
-    required_taxonomy_export = taxonomy_export.add_argument_group('required arguments')
-    required_taxonomy_export.add_argument('--output', dest='outfile', default=None, required=True,
+                                                                help='Export GTDB taxonomy as a TSV file.')
+    required_taxonomy_gtdb_export = taxonomy_gtdb_export.add_argument_group('required arguments')
+    required_taxonomy_gtdb_export.add_argument('--output', dest='outfile', default=None, required=True,
                                           help='Name of output file.')
 
-    optional_taxonomy_export = taxonomy_export.add_argument_group('optional arguments')
-    optional_taxonomy_export.add_argument('-h', '--help', action="help",
+    optional_taxonomy_gtdb_export = taxonomy_gtdb_export.add_argument_group('optional arguments')
+    optional_taxonomy_gtdb_export.add_argument('-h', '--help', action="help",
                                              help="Show help message.")
 
-    taxonomy_export.set_defaults(func=exportTaxonomy)
+    taxonomy_gtdb_export.set_defaults(func=exportTaxonomyGTDB)
+
+    # NCBI taxonmoy export parser
+    taxonomy_ncbi_export = taxonomy_category_subparser.add_parser('ncbi_export',
+                                                                add_help=False,
+                                                                formatter_class=CustomHelpFormatter,
+                                                                help='Export NCBI taxonomy as a TSV file.')
+    required_taxonomy_ncbi_export = taxonomy_ncbi_export.add_argument_group('required arguments')
+    required_taxonomy_ncbi_export.add_argument('--output', dest='outfile', default=None, required=True,
+                                          help='Name of output file.')
+
+    optional_taxonomy_ncbi_export = taxonomy_ncbi_export.add_argument_group('optional arguments')
+    optional_taxonomy_ncbi_export.add_argument('-h', '--help', action="help",
+                                             help="Show help message.")
+
+    taxonomy_ncbi_export.set_defaults(func=exportTaxonomyNCBI)
 
 # -------- Generate Tree Data
     parser_tree_create = tree_category_subparser.add_parser('create',

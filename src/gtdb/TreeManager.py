@@ -271,58 +271,45 @@ class TreeManager(object):
         arb_import_filter = os.path.join(directory, prefix + "_arb_filter.ift")
         self._arbImportFilter(col_headers, arb_import_filter)
 
-        # run through each of the genomes, write out metadata, and concatenate markers
-        self.logger.info('Writing concatenated alignment and genome metadata for %d genomes.'
-                            % len(genomes_to_retain))
-        arb_metadata_file = os.path.join(directory, prefix + "_arb_metadata.txt")
-        arb_metadata_fh = open(arb_metadata_file, 'wb')
+        # run through each of the genomes and concatenate markers
+        self.logger.info('Concatenated marker genes for %d genomes.' % len(genomes_to_retain))
 
         individual_marker_fasta = dict()
         single_copy = defaultdict(int)
         ubiquitous = defaultdict(int)
+        multi_hits_details = defaultdict(list)
         msa = {}
         for genome_metadata in metadata:
-            # take special care of the genome identifier and name as these
-            # are handle as a special case in the ARB metadata file
-            genome_metadata = list(genome_metadata)
+            # genome_metadata = list(genome_metadata)
             db_genome_id = genome_metadata[genome_id_index]
             external_genome_id = genome_metadata[genome_name_index]
-            del genome_metadata[max(genome_id_index, genome_name_index)]
-            del genome_metadata[min(genome_id_index, genome_name_index)]
 
-            # For each genome, calculate the aligned markers that are not
-            # present in the aligned marker table
-
-            # write out genome info
-            genome_info = dict()
-            genome_info['markers'] = dict()
-            genome_info['multiple_hits'] = dict()
-
+            # get aligned markers
             aligned_marker_query = ("SELECT aligned_markers.marker_id, sequence, multiple_hits, evalue " +
                                     "FROM aligned_markers " +
                                     "WHERE genome_id = %s " +
                                     "AND sequence is NOT NULL " +
                                     "AND marker_id in %s ")
 
-            self.cur.execute(
-                aligned_marker_query, (db_genome_id, tuple(marker_ids)))
+            self.cur.execute(aligned_marker_query,
+                             (db_genome_id, tuple(marker_ids)))
 
             if (self.cur.rowcount == 0):
-                self.logger.warning(
-                    "Genome %s has no markers for this marker set in the database and will be missing from the output files." % external_genome_id)
+                self.logger.warning("Genome %s has no markers for this marker set and will be missing from the output files." % external_genome_id)
                 continue
 
+            genome_info = dict()
+            genome_info['markers'] = dict()
+            genome_info['multiple_hits'] = dict()
             for marker_id, sequence, multiple_hits, evalue in self.cur:
                 if evalue:  # markers without an e-value are missing
                     genome_info['markers'][marker_id] = sequence
                 genome_info['multiple_hits'][marker_id] = multiple_hits
 
             aligned_seq = ''
-            multi_hits_details = []
             for marker_id in chosen_markers_order:
                 multiple_hits = genome_info['multiple_hits'][marker_id]
-                multi_hits_details.append(
-                    'Multiple' if multiple_hits else 'Single')
+                multi_hits_details[db_genome_id].append('Multiple' if multiple_hits else 'Single')
 
                 if (marker_id in genome_info['markers']):
                     ubiquitous[marker_id] += 1
@@ -342,24 +329,9 @@ class TreeManager(object):
                 aligned_seq += sequence
             msa[external_genome_id] = aligned_seq
 
-            multi_hits_outstr = external_genome_id + \
-                '\t' + '\t'.join(multi_hits_details) + '\n'
+            multi_hits_outstr = '%s\t%s\n' % (external_genome_id, '\t'.join(multi_hits_details[db_genome_id]))
             multi_hits_fh.write(multi_hits_outstr)
 
-            # write out ARB record
-            multiple_hit_count = sum(
-                [1 if x == "Multiple" else 0 for x in multi_hits_details])
-            if not alignment:
-                aligned_seq = ''
-            self._arbRecord(arb_metadata_fh,
-                            external_genome_id,
-                            col_headers,
-                            genome_metadata,
-                            multiple_hit_count,
-                            len(chosen_markers_order),
-                            aligned_seq)
-
-        arb_metadata_fh.close()
         multi_hits_fh.close()
 
         # filter columns without sufficient representation across taxa
@@ -377,6 +349,37 @@ class TreeManager(object):
             fasta_outstr = ">%s\n%s\n" % (genome_id, aligned_seq)
             fasta_concat_fh.write(fasta_outstr)
         fasta_concat_fh.close()
+
+        # write out ARB metadata
+        self.logger.info('Writing ARB metadata for %d genomes.' % len(genomes_to_retain))
+        arb_metadata_file = os.path.join(directory, prefix + "_arb_metadata.txt")
+        arb_metadata_fh = open(arb_metadata_file, 'wb')
+
+        for genome_metadata in metadata:
+            # take special care of the genome identifier and name as these
+            # are handle as a special case in the ARB metadata file
+            genome_metadata = list(genome_metadata)
+            db_genome_id = genome_metadata[genome_id_index]
+            external_genome_id = genome_metadata[genome_name_index]
+            del genome_metadata[max(genome_id_index, genome_name_index)]
+            del genome_metadata[min(genome_id_index, genome_name_index)]
+
+            # write out ARB record
+            multiple_hit_count = sum(
+                [1 if x == "Multiple" else 0 for x in multi_hits_details[db_genome_id]])
+
+            aligned_seq = trimmed_seqs[external_genome_id]
+            if not alignment:
+                aligned_seq = ''
+            self._arbRecord(arb_metadata_fh,
+                            external_genome_id,
+                            col_headers,
+                            genome_metadata,
+                            multiple_hit_count,
+                            len(chosen_markers_order),
+                            aligned_seq)
+
+        arb_metadata_fh.close()
 
         # write out marker gene summary info
         marker_info_fh = open(

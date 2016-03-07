@@ -42,15 +42,7 @@ class SSU(object):
   """Identify, extract, and taxonomically classify 16S rRNA genes in genomes."""
 
   def __init__(self):
-    # Greengenes data files and desired output
-    #self.ssu_db = '/srv/db/gg/2013_08/gg_13_8_otus/rep_set/99_otus.fasta'
-    #self.ssu_taxonomy = '/srv/db/gg/2013_08/gg_13_8_otus/taxonomy/99_otu_taxonomy.txt'
-    #self.output_dir = 'ssu_gg_2013_08'
-
-    # Silva info
-    self.ssu_db = '/srv/whitlam/bio/db/silva/119/SILVA_119.pintail_100.ncbi_ids.fna'
-    self.ssu_taxonomy = '/srv/whitlam/bio/db/silva/119/ssuref_119_maria.2015-09-28.filled.ncbi_ids.tsv'
-    self.output_dir = 'ssu_silva_199_gg_taxonomy'
+    pass
 
   def _producer(self, genome_file):
     """Process each genome."""
@@ -73,8 +65,19 @@ class SSU(object):
                                                           total_items,
                                                           processed_items * 100.0 / total_items)
 
-  def run(self, ncbi_genome_dir, user_genome_dir, cpus):
+  def run(self, ncbi_genome_dir, user_genome_dir, ssu_db, cpus):
     """Create metadata by parsing assembly stats files."""
+    
+    if ssu_db == 'GG':
+        # Greengenes data files and desired output
+        self.ssu_db = '/srv/db/gg/2013_08/gg_13_8_otus/rep_set/99_otus.fasta'
+        self.ssu_taxonomy = '/srv/db/gg/2013_08/gg_13_8_otus/taxonomy/99_otu_taxonomy.txt'
+        self.output_dir = 'ssu_gg_2013_08'
+    elif ssu_db == 'SILVA':
+        # Silva info
+        self.ssu_db = '/srv/whitlam/bio/db/silva/119/SILVA_119.pintail_100.ncbi_ids.fna'
+        self.ssu_taxonomy = '/srv/whitlam/bio/db/silva/119/ssuref_119_maria.2015-09-28.filled.ncbi_ids.tsv'
+        self.output_dir = 'ssu_silva_199_gg_taxonomy'
 
     input_files = []
 
@@ -104,22 +107,23 @@ class SSU(object):
           input_files.append(genome_file)
 
     # generate metadata for user genomes
-    print 'Reading user genome directories.'
-    for user_id in os.listdir(user_genome_dir):
-      full_user_dir = os.path.join(user_genome_dir, user_id)
-      if not os.path.isdir(full_user_dir):
-        continue
-
-      for genome_id in os.listdir(full_user_dir):
-        full_genome_dir = os.path.join(full_user_dir, genome_id)
-
-        if os.path.exists(os.path.join(full_genome_dir, self.output_dir)):
+    if user_genome_dir != 'NONE':
+        print 'Reading user genome directories.'
+        for user_id in os.listdir(user_genome_dir):
+          full_user_dir = os.path.join(user_genome_dir, user_id)
+          if not os.path.isdir(full_user_dir):
             continue
 
-        genome_file = os.path.join(full_genome_dir, genome_id + '_genomic.fna')
-        input_files.append(genome_file)
+          for genome_id in os.listdir(full_user_dir):
+            full_genome_dir = os.path.join(full_user_dir, genome_id)
 
-    print 'Identified %d genomes to process.' % len(input_files)
+            if os.path.exists(os.path.join(full_genome_dir, self.output_dir)):
+                continue
+
+            genome_file = os.path.join(full_genome_dir, genome_id + '_genomic.fna')
+            input_files.append(genome_file)
+
+        print 'Identified %d genomes to process.' % len(input_files)
 
     # process each genome
     print 'Generating metadata for each genome:'
@@ -135,8 +139,10 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('ncbi_genome_dir', help='base directory leading to NCBI archaeal and bacterial genome assemblies')
-  parser.add_argument('user_genome_dir', help='base directory leading to user genomes')
-  parser.add_argument('-c', '--cpus', help='number of CPUs to use', type=int, default=32)
+  parser.add_argument('user_genome_dir', help='base directory leading to user genomes or NONE to skip')
+  parser.add_argument('ssu_db', choices=['GG', 'SILVA'], help='SSU database to use for assigning taxonomy')
+  
+  parser.add_argument('-t', '--threads', help='number of CPUs to use', type=int, default=32)
 
   args = parser.parse_args()
 
@@ -144,7 +150,7 @@ if __name__ == '__main__':
 
   try:
     p = SSU()
-    p.run(args.ncbi_genome_dir, args.user_genome_dir, args.cpus)
+    p.run(args.ncbi_genome_dir, args.user_genome_dir, args.ssu_db, args.threads)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:
