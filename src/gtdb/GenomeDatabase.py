@@ -1194,7 +1194,19 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
-    def ExportTaxonomy(self, path):
+    def ExportTaxonomy(self, taxonomy_src, output_file):
+        """Write taxonomy to file.
+
+        Parameters
+        ----------
+        taxonomy_src : str
+          Indicates desired taxonomy ('GTDB' or 'NCBI').
+        output_file : str
+          Output file.
+        """
+
+        assert(taxonomy_src in ['GTDB', 'NCBI'])
+
         try:
             cur = self.conn.cursor()
 
@@ -1205,7 +1217,7 @@ class GenomeDatabase(object):
             genome_rep_mngr.assignToRepresentative()
 
             metaman = MetadataManager(cur, self.currentUser)
-            metaman.exportTaxonomy(path)
+            metaman.exportTaxonomy(taxonomy_src, output_file)
 
             self.conn.commit()
 

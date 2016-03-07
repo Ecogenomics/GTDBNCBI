@@ -34,6 +34,9 @@ import sys
 import argparse
 import tempfile
 import ntpath
+from string import maketrans
+
+import biolib.seq_io as seq_io
 
 class RunCheckm(object):
   """Apply CheckM to a large set of genomes.
@@ -54,14 +57,23 @@ class RunCheckm(object):
     """Initialization."""
     pass
 
-  def run(self, genome_dir, cpus, output_dir):
+  def run(self, genome_dir, genome_report, cpus, output_dir):
     """Applying CheckM to genomes."""
 
     tmp_dir = os.path.join(output_dir, 'genome_chunks')
 
     if not os.path.exists(output_dir):
       os.makedirs(output_dir)
-
+      
+    # get list of genomes to consider
+    genomes_to_consider = set()
+    for line in open(genome_report):
+        line_split = line.strip().split('\t')
+        if line_split[2] == 'new' or line_split[2] == 'modified':
+            genomes_to_consider.add(line_split[1])
+            
+    print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
+            
     # determine gene files
     gene_files = []
     assembly_ids = {}
@@ -69,6 +81,10 @@ class RunCheckm(object):
       cur_genome_dir = os.path.join(genome_dir, genome_id)
       if os.path.isdir(cur_genome_dir):
         for assembly_id in os.listdir(cur_genome_dir):
+          genome_id = assembly_id[0:assembly_id.find('_', 4)]
+          if genome_id not in genomes_to_consider:
+            continue
+            
           assembly_dir = os.path.join(cur_genome_dir, assembly_id)
 
           if assembly_id in assembly_ids:
@@ -85,16 +101,25 @@ class RunCheckm(object):
 
     print '  Identified %d gene files.' % len(gene_files)
 
-    # create simlinks to genomes in batches of 1000
+    # copy genomes in batches of 1000
+    ambiguous_aa = maketrans('BJZ', 'XXX')
+    
     print 'Partitioning genomes into chunks of 1000.'
     num_chunks = 0
     for i, gene_file in enumerate(gene_files):
       if i % 1000 == 0:
         chunk_dir = os.path.join(tmp_dir, 'chunk%d' % num_chunks)
+        print chunk_dir
         os.makedirs(chunk_dir)
         num_chunks += 1
 
-      os.system('ln -s %s %s' % (os.path.abspath(gene_file), os.path.join(chunk_dir, ntpath.basename(gene_file))))
+      # copy sequences and replace ambiguous bases with an X (unknown)
+      # as pplacer is not compatible with these characters
+      fout = open(os.path.join(chunk_dir, ntpath.basename(gene_file)), 'w')
+      for seq_id, seq, annotation in  seq_io.read_seq(gene_file, True):
+          fout.write('>' + seq_id + ' ' + annotation + '\n')
+          fout.write(seq.translate(ambiguous_aa) + '\n')
+      #os.system('ln -s %s %s' % (os.path.abspath(gene_file), ))
 
     # apply CheckM to each set of 1000 genomes
     print 'Running CheckM on chunks:'
@@ -139,6 +164,7 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('genome_dir', help='directory containing genomes in individual directories')
+  parser.add_argument('genome_report', help='report log indicating new, modified, unmodified, ..., genomes')
   parser.add_argument('output_dir', help='output directory')
   parser.add_argument('-c', '--cpus', help='number of processors to use', type=int, default=16)
 
@@ -146,7 +172,7 @@ if __name__ == '__main__':
 
   try:
     runCheckm = RunCheckm()
-    runCheckm.run(args.genome_dir, args.cpus, args.output_dir)
+    runCheckm.run(args.genome_dir, args.genome_report, args.cpus, args.output_dir)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:
