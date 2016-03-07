@@ -84,24 +84,30 @@ class MetadataManager(object):
         except GenomeDatabaseError as e:
             raise e
 
-    def exportTaxonomy(self, path):
-        '''
-        Function: exportTaxonomy
-        Export GTDB taxonomy for all genomes to a TSV file.
+    def exportTaxonomy(self, taxonomy_src, output_file):
+        """Write taxonomy to file.
 
-        :param path: Path to the output file
-        '''
+        Parameters
+        ----------
+        taxonomy_src : str
+          Indicates desired taxonomy ('GTDB' or 'NCBI').
+        output_file : str
+          Output file.
+        """
 
         try:
-            self.cur.execute("SELECT genome, gtdb_taxonomy FROM metadata_view")
+            if taxonomy_src == 'NCBI':
+                self.cur.execute("SELECT genome, ncbi_taxonomy FROM metadata_view")
+            else:
+                self.cur.execute("SELECT genome, gtdb_taxonomy FROM metadata_view")
 
-            fout = open(path, 'w')
-            for genome_id, gtdb_taxonomy in self.cur.fetchall():
-                if gtdb_taxonomy:
-                    fout.write('%s\t%s\n' % (genome_id, gtdb_taxonomy))
+            fout = open(output_file, 'w')
+            for genome_id, taxonomy in self.cur.fetchall():
+                if taxonomy:
+                    fout.write('%s\t%s\n' % (genome_id, taxonomy))
             fout.close()
 
-            print 'Taxonomy information written to: %s' % path
+            print 'Taxonomy information written to: %s' % output_file
         except GenomeDatabaseError as e:
             raise e
 
