@@ -5,6 +5,7 @@ __pycache__/
 
 #Config file
 src/gtdb/Config.py
+scripts_dev/ncbi_ftp_update/database_configuration/ConfigFTPUpdate.py
 
 # C extensions
 *.so
