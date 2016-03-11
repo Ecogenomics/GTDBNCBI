@@ -1,11 +1,45 @@
 in /srv/db/ncbi/from_ftp:
 	run rsync:
-		./rsync_genbank.sh
-		./rsync_refseq.sh
+		> ./rsync_genbank.sh
+		> ./rsync_refseq.sh
 	we then copy all refseq records from the ftp folder to the /srv/db/gtdb/genomes/ncbi/*new_date* folder:
-		mkdir /srv/db/gtdb/genomes/ncbi/2016_02_26
-		
-		
+		> mkdir /srv/db/gtdb/genomes/ncbi/2016_02_26
+	we list all Records in Genbank and Refseq FTP folders:	
+		> scripts_dev/ncbi_genome_dirs.py 
+			/srv/db/ncbi/from_ftp/genomes/genbank/ 
+			/srv/db/gtdb/metadata/ncbi_2016_02_16/ncbi/ncbi_genbank_genome_dirs.tsv 
+			-ftp
+		> scripts_dev/ncbi_genome_dirs.py 
+			/srv/db/ncbi/from_ftp/genomes/refseq/ 
+			/srv/db/gtdb/metadata/ncbi_2016_02_16/ncbi/ncbi_refseq_genome_dirs.tsv 
+			-ftp
+	we update refseq
+		> python update_refseq_from_ftp_files.py 
+			--ftp_refseq_directory /srv/db/ncbi/from_ftp/genomes/refseq/ 
+			--new_refseq_directory /srv/db/gtdb/genomes/ncbi/2016_02_26/refseq/ 
+			--ftp_genome_dirs_file /srv/db/gtdb/metadata/ncbi_2016_02_16/ncbi_refseq_genome_dirs.tsv 
+			--old_genome_dirs_file /srv/db/gtdb/genomes/ncbi/2015_11_27/refseq/genome_dirs.tsv
+	we list all records in the new Refseq folder
+		> scripts_dev/ncbi_genome_dirs.py 
+			/srv/db/gtdb/genomes/ncbi/2016_02_26/refseq/
+			/srv/db/gtdb/genomes/ncbi/2016_02_26/refseq/genome_dirs.tsv 
+	we update genbank
+		> python update_genbank_from_ftp_files.py 
+	    	--ftp_genbank_directory /srv/db/ncbi/from_ftp/genomes/genbank/
+			--new_genbank_directory /srv/db/gtdb/genomes/ncbi/2016_02_26/genbank/
+			--ftp_genbank_genome_dirs_file /srv/db/gtdb/metadata/ncbi_2016_02_16/ncbi_genbank_genome_dirs.tsv
+    		--old_genbank_genome_dirs_file /srv/db/gtdb/genomes/ncbi/2015_11_27/genbank/genome_dirs.tsv
+            --new_refseq_genome_dirs_file /srv/db/gtdb/genomes/ncbi/2016_02_26/refseq/genome_dirs.tsv
+            
+     we need to run the checkm and  metadata
+     Once the metadata are generated:
+     	> python update_database.py 
+     		--checkm_profile_new_genomes path/to/checkm.profiles.tsv 
+     		--genome_dirs_file /srv/db/gtdb/genomes/ncbi/2016_02_26/genbank/genome_dirs.tsv 
+     		--ftp_download_date 2016-01-23 
+     		--database genbank
+     
+
 		
 
 How update_refseq_from_ftp.py works:
@@ -34,6 +68,35 @@ How update_refseq_from_ftp.py works:
 				-We compare the report files between the GTDB folder and FTP folder:
 				If there is a change:
 					We copy the report files from FTP that are different from the GTDB folder
+					
+How update_database.py works:
+There is 3 files listing the records:
+        dict_existing_records = that get all records present in GTDB
+        list_checkm_records = that get all records present in the new Checkm File ( All new genomes)
+        genome_dirs_dict = that get all records present in the latest GTDB folder ( from genome_dirs.tsv)
+
+Here are the cases:
+    1-new genomes:
+        -present in list_checkm_records but not in dict_existing_records
+        - all info(genomes,path,sha256....) are inserted
+    2- new version of the genomes:
+        -present in list_checkm_records and previous version in dict_existing_records
+        - all info are updated ( Do we want to track this to warn users having those genomes in some lists? )
+    3- existing genomes present in list_checkm_records:
+       - this means that the protein.faa file has changed
+       - all info are updated
+    4-missing genomes:
+        -present in dict_existing_records  but not in genome_dirs_dict
+        -we track this to warn users having those genomes in some lists
+        -all info are removed
+    5- existing genomes not present in list_checkm_records:
+        -This is a bit trickier.
+        - Those genomes are not new and do not have new pretein.faa file.
+        -But it can happen that they have been moved to another specie/genus or even higher ( maybe).
+        -So the path need to be check to see if this is the same folder. If so file_path is updated
+        -Basically this test need to be done to all records that are not part of the 4 first tests.
+        
+        
 					
 					
 Genomes are added through the INSERT command  in the genome table.
