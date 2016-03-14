@@ -365,7 +365,7 @@ class GenomeManager(object):
         for line in fh:
             line = line.rstrip()
             if line == '':
-                self.ReportWarning(
+                self.logger.warning(
                     "Encountered blank line in batch file. It has been ignored.")
                 continue
 

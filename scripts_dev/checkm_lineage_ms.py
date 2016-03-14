@@ -63,63 +63,68 @@ class RunCheckm(object):
     tmp_dir = os.path.join(output_dir, 'genome_chunks')
 
     if not os.path.exists(output_dir):
-      os.makedirs(output_dir)
-      
-    # get list of genomes to consider
-    genomes_to_consider = set()
-    for line in open(genome_report):
-        line_split = line.strip().split('\t')
-        if line_split[2] == 'new' or line_split[2] == 'modified':
-            genomes_to_consider.add(line_split[1])
-            
-    print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
-            
-    # determine gene files
-    gene_files = []
-    assembly_ids = {}
-    for genome_id in os.listdir(genome_dir):
-      cur_genome_dir = os.path.join(genome_dir, genome_id)
-      if os.path.isdir(cur_genome_dir):
-        for assembly_id in os.listdir(cur_genome_dir):
-          genome_id = assembly_id[0:assembly_id.find('_', 4)]
-          if genome_id not in genomes_to_consider:
-            continue
-            
-          assembly_dir = os.path.join(cur_genome_dir, assembly_id)
+        os.makedirs(output_dir)
+        
+        # get list of genomes to consider
+        genomes_to_consider = set()
+        for line in open(genome_report):
+            line_split = line.strip().split('\t')
+            if line_split[2] == 'new' or line_split[2] == 'modified':
+                genomes_to_consider.add(line_split[1])
+                
+        print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
+                
+        # determine gene files
+        gene_files = []
+        assembly_ids = {}
+        for genome_id in os.listdir(genome_dir):
+          cur_genome_dir = os.path.join(genome_dir, genome_id)
+          if os.path.isdir(cur_genome_dir):
+            for assembly_id in os.listdir(cur_genome_dir):
+              genome_id = assembly_id[0:assembly_id.find('_', 4)]
+              if genome_id not in genomes_to_consider:
+                continue
+                
+              assembly_dir = os.path.join(cur_genome_dir, assembly_id)
 
-          if assembly_id in assembly_ids:
-            print 'Duplicate assembly_id:'
-            print assembly_ids[assembly_id]
-            print assembly_dir
-            continue
+              if assembly_id in assembly_ids:
+                print 'Duplicate assembly_id:'
+                print assembly_ids[assembly_id]
+                print assembly_dir
+                continue
 
-          assembly_ids[assembly_id] = assembly_dir
+              assembly_ids[assembly_id] = assembly_dir
 
-          gene_file = os.path.join(assembly_dir, assembly_id + '_protein.faa')
-          if os.path.exists(gene_file):
-            gene_files.append(gene_file)
+              gene_file = os.path.join(assembly_dir, assembly_id + '_protein.faa')
+              if os.path.exists(gene_file):
+                gene_files.append(gene_file)
 
-    print '  Identified %d gene files.' % len(gene_files)
+        print '  Identified %d gene files.' % len(gene_files)
 
-    # copy genomes in batches of 1000
-    ambiguous_aa = maketrans('BJZ', 'XXX')
-    
-    print 'Partitioning genomes into chunks of 1000.'
-    num_chunks = 0
-    for i, gene_file in enumerate(gene_files):
-      if i % 1000 == 0:
-        chunk_dir = os.path.join(tmp_dir, 'chunk%d' % num_chunks)
-        print chunk_dir
-        os.makedirs(chunk_dir)
-        num_chunks += 1
+        # copy genomes in batches of 1000
+        ambiguous_aa = maketrans('BJZ', 'XXX')
+        
+        print 'Partitioning genomes into chunks of 1000.'
+        num_chunks = 0
+        for i, gene_file in enumerate(gene_files):
+          if i % 1000 == 0:
+            chunk_dir = os.path.join(tmp_dir, 'chunk%d' % num_chunks)
+            print chunk_dir
+            os.makedirs(chunk_dir)
+            num_chunks += 1
 
-      # copy sequences and replace ambiguous bases with an X (unknown)
-      # as pplacer is not compatible with these characters
-      fout = open(os.path.join(chunk_dir, ntpath.basename(gene_file)), 'w')
-      for seq_id, seq, annotation in  seq_io.read_seq(gene_file, True):
-          fout.write('>' + seq_id + ' ' + annotation + '\n')
-          fout.write(seq.translate(ambiguous_aa) + '\n')
-      #os.system('ln -s %s %s' % (os.path.abspath(gene_file), ))
+          # copy sequences and replace ambiguous bases with an X (unknown)
+          # as pplacer is not compatible with these characters
+          fout = open(os.path.join(chunk_dir, ntpath.basename(gene_file)), 'w')
+          for seq_id, seq, annotation in  seq_io.read_seq(gene_file, True):
+              fout.write('>' + seq_id + ' ' + annotation + '\n')
+              fout.write(seq.translate(ambiguous_aa) + '\n')
+    else:
+        # just determine number of "chunk" directories
+        num_chunks = 0
+        for d in os.listdir(tmp_dir):
+            if 'chunk' in d:
+                num_chunks += 1
 
     # apply CheckM to each set of 1000 genomes
     print 'Running CheckM on chunks:'
@@ -131,6 +136,7 @@ class RunCheckm(object):
       if os.path.exists(checkm_output_dir):
         continue
 
+      os.makedirs(checkm_output_dir)
       os.system('checkm lineage_wf --pplacer_threads 10 --genes -x faa -t %d %s %s' % (cpus, bin_dir, checkm_output_dir))
 
       tree_qa_file = os.path.join(checkm_output_dir, 'tree_qa.o2.chunk%d.tsv' % i)
