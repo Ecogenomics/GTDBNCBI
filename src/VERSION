@@ -1,9 +1,11 @@
-software_version=0.0.9
+software_version=0.0.10
 ncbi_database_version=2015-11-27
-gtdb_version=0.0.4
+gtdb_version=0.0.5
 
 GTDB versions
 -------------
+v0.0.5 (Mar. 16, 2016):
+- update GTDB taxonomy
 v0.0.4 (Feb. 27, 2016):
 - update gtdb_genome_representative erroneously set to database genome IDs instead of external genome IDs
 v0.0.3 (Feb. 25, 2016):
