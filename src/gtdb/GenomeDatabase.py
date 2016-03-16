@@ -1278,7 +1278,7 @@ class GenomeDatabase(object):
                         "FROM metadata_taxonomy "
                         "WHERE gtdb_representative = True")
             ref_genome_counts = cur.fetchone()[0]
-            print 'Number of reference genomes: %d' % ref_genome_counts
+            print 'Number of representative genomes: %d' % ref_genome_counts
 
             cur.execute("SELECT COUNT(*) "
                         "FROM metadata_taxonomy "

@@ -24,6 +24,8 @@ from psycopg2.extensions import AsIs
 import ConfigMetadata
 from Exceptions import GenomeDatabaseError
 
+from biolib.taxonomy import Taxonomy
+
 
 class MetadataManager(object):
 
@@ -105,6 +107,8 @@ class MetadataManager(object):
             for genome_id, taxonomy in self.cur.fetchall():
                 if taxonomy:
                     fout.write('%s\t%s\n' % (genome_id, taxonomy))
+                else:
+                    fout.write('%s\t%s\n' % (genome_id, ';'.join(Taxonomy.rank_prefixes)))
             fout.close()
 
             print 'Taxonomy information written to: %s' % output_file
