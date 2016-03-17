@@ -31,6 +31,7 @@ __status__ = 'Development'
 
 import os
 import sys
+import logging
 import ntpath
 import argparse
 from collections import defaultdict
@@ -42,7 +43,10 @@ class SSU(object):
   """Identify, extract, and taxonomically classify 16S rRNA genes in genomes."""
 
   def __init__(self):
-    pass
+    logger = logging.getLogger('')
+    logger.setLevel(logging.DEBUG)
+    log_format = logging.Formatter(fmt="[%(asctime)s] %(levelname)s: %(message)s",
+                                   datefmt="%Y-%m-%d %H:%M:%S")
 
   def _producer(self, genome_file):
     """Process each genome."""
