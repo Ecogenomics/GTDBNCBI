@@ -163,7 +163,8 @@ class TaxonomyNCBI(object):
         print '[Warning] Assembly %s has an invalid taxid: %s' % (assembly_accession, tax_id)
         continue
 
-      while name_records[cur_tax_id].name_txt not in ['cellular organisms', 'other sequences', 'unclassified sequences']:
+      roots = ['cellular organisms', 'other sequences', 'unclassified sequences', 'Viruses', 'Viroids']
+      while name_records[cur_tax_id].name_txt not in roots:
         if cur_tax_id == '1':
           print '[Error] TaxId %s reached root of taxonomy tree: %s' % (tax_id, taxonomy)
           sys.exit(-1)

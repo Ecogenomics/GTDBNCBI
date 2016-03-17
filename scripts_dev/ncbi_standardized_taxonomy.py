@@ -50,31 +50,31 @@ class StandardizedTaxonomy(object):
     fout_consistent = open(output_consistent, 'w')
     fout_inconsistent = open(output_inconsistent, 'w')
     for line in open(ncbi_taxonomy_file):
-      line_split = line.strip().split('\t')
+        line_split = line.strip().split('\t')
 
-      assembly_accesssion = line_split[0]
-      taxonomy = line_split[1].split(';')
+        assembly_accesssion = line_split[0]
+        taxonomy = line_split[1].split(';')
 
-      # remove unrecognized ranks (i.e., 'x__') and strain classification
-      revised_taxonomy = []
-      for t in taxonomy:
-        if not t.startswith('x__') and not t.startswith('st__'):
-          revised_taxonomy.append(t)
+        # remove unrecognized ranks (i.e., 'x__') and strain classification
+        revised_taxonomy = []
+        for t in taxonomy:
+            if not t.startswith('x__') and not t.startswith('st__'):
+                revised_taxonomy.append(t)
 
-      # check if revised taxonomy is 7-ranks deep, has canonical
-      # rank prefixes, and matched genus and species names
-      if len(revised_taxonomy) == len(Taxonomy.rank_prefixes):
-        valid_ranks = True
-        for i, t in enumerate(revised_taxonomy):
-          if not t.startswith(Taxonomy.rank_prefixes[i]):
-            valid_ranks = False
+        # create longest taxonomy string possible with canonical ranks
+        canonical_taxonomy = []
+        cur_rank = 0
+        for i, taxon in enumerate(revised_taxonomy):
+            if taxon[0:3] == Taxonomy.rank_prefixes[cur_rank]:
+                canonical_taxonomy.append(taxon)
+                cur_rank += 1
 
-        if valid_ranks:
-          fout_consistent.write('%s\t%s\n' % (assembly_accesssion, ';'.join(revised_taxonomy)))
+        if len(canonical_taxonomy) > 0:
+            if len(canonical_taxonomy) != len(Taxonomy.rank_prefixes):
+                canonical_taxonomy = canonical_taxonomy + list(Taxonomy.rank_prefixes[len(canonical_taxonomy):])
+            fout_consistent.write('%s\t%s\n' % (assembly_accesssion, ';'.join(canonical_taxonomy)))
         else:
-          fout_inconsistent.write('%s\t%s\n' % (assembly_accesssion, ';'.join(taxonomy)))
-      else:
-        fout_inconsistent.write('%s\t%s\n' % (assembly_accesssion, ';'.join(taxonomy)))
+            fout_inconsistent.write('%s\t%s\n' % (assembly_accesssion, ';'.join(taxonomy)))
 
     fout_consistent.close()
     fout_inconsistent.close()
