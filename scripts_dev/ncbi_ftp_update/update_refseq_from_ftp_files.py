@@ -44,7 +44,7 @@ import argparse
 
 class UpdateRefSeqFolder(object):
 
-    def __init__(self):
+    def __init__(self, new_refseq_folder):
 
         self.domains = ["archaea", "bacteria"]
         #self.domains = ["bacteria"]
@@ -58,8 +58,8 @@ class UpdateRefSeqFolder(object):
         self.allExts = self.fastaExts + self.extensions + self.reports
         self.allbutFasta = self.extensions + self.reports
 
-        self.report_gcf = open("report_gcf.log", "w")
-        self.stats_update = open("stats_update.log", "w")
+        self.report_gcf = open(os.path.join(new_refseq_folder, "report_gcf.log"), "w")
+        self.stats_update = open(os.path.join(args.new_refseq_folder, "stats_update.log"), "w")
 
     def runComparison(self, ftp_refseq, new_refseq, ftp_genome_dirs, old_genome_dirs):
         '''
@@ -106,10 +106,10 @@ class UpdateRefSeqFolder(object):
 
     def addGenomes(self, added_dict, ftp_refseq, new_refseq, domain):
         '''
-        addGenomes function insert new genomes in the GTDB database. New genomes are present in the FTP folder 
+        addGenomes function insert new genomes in the GTDB database. New genomes are present in the FTP folder
         but not in the previous version of GTDB.
 
-        :TODO: Check if the new genome is a new version of an existing genome. in that case we overwrite the previous one 
+        :TODO: Check if the new genome is a new version of an existing genome. in that case we overwrite the previous one
         and keep the same database id
         This will cause a conflict with the removeGenomes function.
 
@@ -232,7 +232,7 @@ class UpdateRefSeqFolder(object):
                                     self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 'wb')
                             except IOError:
                                 os.chmod(
-                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 0775)
+                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 0o775)
                                 outF = open(
                                     self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 'wb')
                             outF.write(inF.read())
@@ -245,7 +245,7 @@ class UpdateRefSeqFolder(object):
                     try:
                         shutil.copy2(pathgtdbmd5, target_pathnewmd5)
                     except IOError:
-                        os.chmod(target_pathnewmd5, 0664)
+                        os.chmod(target_pathnewmd5, 0o664)
                         shutil.copy2(pathftpmd5, target_pathnewmd5)
                 for report in self.reports:
                     target_files = glob.glob(
@@ -303,7 +303,7 @@ class UpdateRefSeqFolder(object):
             try:
                 shutil.copy2(ftp_file, target_file)
             except IOError:
-                os.chmod(target_file, 0664)
+                os.chmod(target_file, 0o664)
                 shutil.copy2(ftp_file, target_file)
             status.append("new_metadata")
         return status
@@ -347,7 +347,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     try:
-        update_mngr = UpdateRefSeqFolder()
+        update_mngr = UpdateRefSeqFolder(args.new_refseq)
         update_mngr.runComparison(
             args.ftp_refseq, args.new_refseq, args.ftp_genome_dirs, args.old_genome_dirs)
     except SystemExit:

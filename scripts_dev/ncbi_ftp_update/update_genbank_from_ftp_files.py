@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 ###############################################################################
 #                                                                             #
 #    This program is free software: you can redistribute it and/or modify     #
@@ -42,7 +44,7 @@ import argparse
 
 class UpdateGenbankFolder(object):
 
-    def __init__(self):
+    def __init__(self, new_genbank_folder):
         self.domains = ["archaea", "bacteria"]
 
         self.fastaExts = ("_genomic.fna.gz", "_protein.faa.gz")
@@ -51,8 +53,8 @@ class UpdateGenbankFolder(object):
         self.reports = ("_assembly_report.txt", "_assembly_stats.txt")
         self.allExts = self.fastaExts + self.extensions + self.reports
         self.allbutFasta = self.extensions + self.reports
-        self.log = open("extra_gbk_report_gcf.log", "w")
-        self.select_gca = open("gca_selection.log", "w")
+        self.log = open(os.path.join(new_genbank_folder, "extra_gbk_report_gcf.log"), "w")
+        self.select_gca = open(os.path.join(new_genbank_folder, "gca_selection.log"), "w")
 
     def runComparison(self, ftp_genbank, new_genbank, ftp_genbank_genome_dirs, old_genbank_genome_dirs, new_refseq_genome_dirs):
         '''
@@ -93,13 +95,14 @@ class UpdateGenbankFolder(object):
             self.compareGenomes(
                 intersect_list, old_dict, new_dict, ftp_genbank, new_genbank, domain)
         self.select_gca.close()
+        self.log.close()
 
     def addGenomes(self, added_dict, ftp_genbank, new_genbank, domain):
         '''
-        addGenomes function insert new genomes in the GTDB database. New genomes are present in the FTP folder 
+        addGenomes function insert new genomes in the GTDB database. New genomes are present in the FTP folder
         but not in the previous version of GTDB.
 
-        :TODO: Check if the new genome is a new version of an existing genome. in that case we overwrite the previous one 
+        :TODO: Check if the new genome is a new version of an existing genome. in that case we overwrite the previous one
         and keep the same database id
         This will cause a conflict with the removeGenomes function.
 
@@ -107,7 +110,7 @@ class UpdateGenbankFolder(object):
         :param added_dict: dictionary of genomes to be added (genome_id:path to genome)
         :param ftp_genbank: base directory leading the the FTP repository for refseq
         :param new_genbank:base directory leading the new repository for refseq
-        :param domain:archaea or bacteria 
+        :param domain:archaea or bacteria
         '''
 
         for gcf_record in added_dict:
@@ -235,7 +238,7 @@ class UpdateGenbankFolder(object):
                                     self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 'wb')
                             except IOError:
                                 os.chmod(
-                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 0775)
+                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 0o775)
                                 outF = open(
                                     self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 'wb')
                             outF.write(inF.read())
@@ -248,7 +251,7 @@ class UpdateGenbankFolder(object):
                     try:
                         shutil.copy2(pathgtdbmd5, target_pathnewmd5)
                     except IOError:
-                        os.chmod(target_pathnewmd5, 0664)
+                        os.chmod(target_pathnewmd5, 0o664)
                         shutil.copy2(pathftpmd5, target_pathnewmd5)
                 for report in self.reports:
                     target_files = glob.glob(
@@ -275,8 +278,6 @@ class UpdateGenbankFolder(object):
             sumf.readline()
             count = 1
             for line in sumf:
-                print count
-                count += 1
                 split_line = line.split("\t")
                 gcf_access = split_line[17]
                 full_gca_access = split_line[0]
@@ -318,7 +319,7 @@ class UpdateGenbankFolder(object):
             try:
                 shutil.copy2(ftp_file, target_file)
             except IOError:
-                os.chmod(target_file, 0664)
+                os.chmod(target_file, 0o664)
                 shutil.copy2(ftp_file, target_file)
             status.append("new_metadata")
         return status
@@ -383,7 +384,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     try:
-        update_manager = UpdateGenbankFolder()
+        update_manager = UpdateGenbankFolder(args.new_genbank)
         update_manager.runComparison(
             args.ftp_genbank, args.new_genbank, args.ftp_genbank_genome_dirs, args.old_genbank_genome_dirs, args.new_refseq_genome_dirs)
 
