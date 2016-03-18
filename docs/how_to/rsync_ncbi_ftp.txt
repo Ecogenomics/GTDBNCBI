@@ -101,4 +101,8 @@ Here are the cases:
 					
 Genomes are added through the INSERT command  in the genome table.
 No Metadata is generated at this stage. Metadata are generated later.
+
+GCA_000220355.1 (Candidatus Nanosalinarum) 
+GCA_000220375.1 (Candidatus Nanosalina)
+GCA_000364885.1
 			
