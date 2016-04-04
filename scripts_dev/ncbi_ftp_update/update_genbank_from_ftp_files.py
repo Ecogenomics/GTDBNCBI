@@ -276,7 +276,6 @@ class UpdateGenbankFolder(object):
         with open(os.path.join(ftp_genbank, domain, "assembly_summary.txt"), "r") as sumf:
             # we discard the first line
             sumf.readline()
-            count = 1
             for line in sumf:
                 split_line = line.split("\t")
                 gcf_access = split_line[17]
