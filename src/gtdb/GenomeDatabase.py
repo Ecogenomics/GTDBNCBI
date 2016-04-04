@@ -725,14 +725,8 @@ class GenomeDatabase(object):
             conditional_query += "AND owner_id = %s "
             params.append(owner_id)
 
-        if not self.currentUser.isRootUser():
-            privacy_condition = "private = False"
-            if include_private:
-                privacy_condition = "(private = False OR private = True)"
-
-            conditional_query += "AND (" + \
-                privacy_condition + " OR owner_id = %s)"
-            params.append(self.currentUser.getUserId())
+        if not owner_id and not include_private:
+            conditional_query += "AND private = False"
 
         cur.execute("SELECT id " +
                     "FROM genome_lists " +
@@ -811,9 +805,9 @@ class GenomeDatabase(object):
         try:
             cur = self.conn.cursor()
 
+            print genome_list_ids
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
-            header, rows = genome_list_mngr.printGenomeListsDetails(
-                genome_list_ids)
+            header, rows = genome_list_mngr.printGenomeListsDetails(genome_list_ids)
 
             self.PrintTable(header, rows)
 
