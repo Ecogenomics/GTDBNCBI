@@ -244,7 +244,7 @@ def ViewGenomeLists(db, args):
         genome_lists = db.GetVisibleGenomeListsByOwner(include_private=False)
     elif args.self_owned:
         genome_lists = db.GetVisibleGenomeListsByOwner(
-            db.currentUser.getUserId(), include_private=False)
+            owner_id=db.currentUser.getUserId(), include_private=False)
     elif args.all_public:
         genome_lists = db.GetAllVisibleGenomeListIds(include_private=False)
     elif args.all:
