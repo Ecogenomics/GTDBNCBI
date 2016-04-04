@@ -52,7 +52,7 @@ class AddTaxonomy(object):
         if line[0] == '#':
           continue
 
-        genomes_to_process.add(line.rstrip().split('\t')[0])
+        genomes_to_process.add(line.rstrip().split(',')[0])
 
     # read taxonomy file
     taxonomy = Taxonomy().read(taxonomy_file)
@@ -70,7 +70,7 @@ class AddTaxonomy(object):
         temp_file.write('%s\t%s\n' % (genome_id, taxa_str))
 
     temp_file.close()
-    cmd = 'gtdb metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_taxonomy', 'ncbi_taxonomy', 'TEXT', temp_file.name)
+    cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_taxonomy', 'ncbi_taxonomy', 'TEXT', temp_file.name)
     print cmd
     os.system(cmd)
     os.remove(temp_file.name)
