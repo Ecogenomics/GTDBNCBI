@@ -1151,8 +1151,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            genome_rep_mngr = GenomeRepresentativeManager(
-                cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
             genome_rep_mngr.assignToRepresentative()
 
             metaman = MetadataManager(cur, self.currentUser)
@@ -1228,8 +1227,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # make sure representative have been determine for all genomes
-            genome_rep_mngr = GenomeRepresentativeManager(
-                cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
             genome_rep_mngr.assignToRepresentative()
 
             # determine number of genomes from different database sources
