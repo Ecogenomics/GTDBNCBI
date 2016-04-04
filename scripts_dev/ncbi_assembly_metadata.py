@@ -193,8 +193,8 @@ class Metadata(object):
           if field in self.stats:
             self.stats_info[field] = desc
       elif file_section == 'SD':
-        line_split = line.split()
-        if len(line_split) == 6 and line_split[0] == 'all':
+        line_split = line.split('\t')
+        if len(line_split) == 6 and (line_split[0] in ['all','Primary Assembly']) and (line_split[1] == 'all') and (line_split[3] == 'all'):
           field = line_split[4]
           value = line_split[5].strip()
 
