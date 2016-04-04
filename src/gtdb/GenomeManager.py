@@ -20,13 +20,15 @@ import ntpath
 import shutil
 import logging
 import datetime
-
+import sys
+import multiprocessing
 import psycopg2
-from psycopg2.extensions import AsIs
+import time
 
 import Config
 import ConfigMetadata
 import Tools
+
 from Exceptions import GenomeDatabaseError
 from MetadataManager import MetadataManager
 from Prodigal import Prodigal
@@ -35,6 +37,8 @@ from PfamSearch import PfamSearch
 
 from biolib.checksum import sha256
 from biolib.common import make_sure_path_exists
+from Tools import splitchunks
+from psycopg2.extensions import AsIs
 
 
 class GenomeManager(object):
@@ -130,25 +134,26 @@ class GenomeManager(object):
 
             self.logger.info(
                 "Calculating and storing metadata for each genome.")
-            metadata_mngr = MetadataManager(self.cur, self.currentUser)
-            for db_genome_id, values in genomic_files.iteritems():
-                self.cur.execute("UPDATE genomes SET study_id = %s WHERE id = %s",
-                                 (study_id, db_genome_id))
+            manager = multiprocessing.Manager()
+            out_q = manager.Queue()
+            procs = []
+            nprocs = self.threads
+            for item in splitchunks(genomic_files, nprocs):
+                p = multiprocessing.Process(
+                    target=self._addGenomesWorker,
+                    args=(item, file_paths, checkm_results_dict, study_id, out_q))
+                procs.append(p)
+                p.start()
 
-                genome_file_paths = file_paths[db_genome_id]
-                output_dir, _file = os.path.split(
-                    genome_file_paths["aa_gene_path"])
+            # Collect all results into a single result dict. We know how many dicts
+            # with results to expect.
+            while out_q.empty():
+                time.sleep(1)
 
-                bin_id = values['checkm_bin_id']
-                if bin_id not in checkm_results_dict:
-                    raise GenomeDatabaseError(
-                        "Couldn't find CheckM result for bin %s." % bin_id)
-
-                metadata_mngr.addMetadata(db_genome_id,
-                                          genome_file_paths["fasta_path"],
-                                          genome_file_paths["gff_path"],
-                                          checkm_results_dict[bin_id],
-                                          output_dir)
+            # Wait for all worker processes to finish
+            print procs
+            for p in procs:
+                p.join()
 
             # annotated genes against TIGRfam and Pfam databases
             self.logger.info("Identifying TIGRfam protein families.")
@@ -166,6 +171,40 @@ class GenomeManager(object):
             raise
 
         return genomic_files.keys()
+
+    def _addGenomesWorker(self, genomic_files, file_paths, checkm_results_dict, study_id, out_q):
+        '''
+        The worker function, invoked in a process.
+
+        :param genomic_files: dictionary {genome_id:{checkm_bin_id:value,aa_gene_path:value,fasta_path:value}}
+        :param file_paths : dictionary generated from Prodigal
+        :param checkm_results_dict: dictionary of checkm results
+        :param study_id = study id
+        :param out_q: manager.Queue()
+        '''
+        metadata_mngr = MetadataManager(self.cur, self.currentUser)
+        print genomic_files
+        for db_genome_id, values in genomic_files.iteritems():
+
+            self.cur.execute("UPDATE genomes SET study_id = %s WHERE id = %s",
+                             (study_id, db_genome_id))
+
+            genome_file_paths = file_paths[db_genome_id]
+            output_dir, _file = os.path.split(
+                genome_file_paths["aa_gene_path"])
+
+            bin_id = values['checkm_bin_id']
+            if bin_id not in checkm_results_dict:
+                raise GenomeDatabaseError(
+                    "Couldn't find CheckM result for bin %s." % bin_id)
+
+            metadata_mngr.addMetadata(db_genome_id,
+                                      genome_file_paths["fasta_path"],
+                                      genome_file_paths["gff_path"],
+                                      checkm_results_dict[bin_id],
+                                      output_dir)
+        out_q.put("True")
+        return True
 
     def allGenomeIds(self):
         """Get genome identifiers for all genomes.
@@ -298,7 +337,7 @@ class GenomeManager(object):
 
         shutil.rmtree(self.tmp_output_dir)
 
-    def copyGenomes(self, db_genome_ids, genomic, gene, out_dir):
+    def copyGenomes(self, db_genome_ids, genomic, gene, out_dir, gtdb_header):
         """Copy genome data files to specified directory.
 
         Parameters
@@ -334,10 +373,20 @@ class GenomeManager(object):
 
                 if genomic:
                     genomic_file = os.path.join(dir_prefix, fasta_file_location)
-                    shutil.copy(genomic_file, out_dir)
+                    if gtdb_header and external_id_prefix != 'U':
+                        gtdb_filename = external_id_prefix + "_" + os.path.basename(genomic_file)
+                        out_dir = os.path.join(out_dir, gtdb_filename)
+                        shutil.copy(genomic_file, out_dir)
+                    else:
+                        shutil.copy(genomic_file, out_dir)
 
                 if gene:
                     gene_file = os.path.join(dir_prefix, genes_file_location)
+                    if gtdb_header and external_id_prefix != 'U':
+                        gtdb_filename = external_id_prefix + "_" + os.path.basename(gene_file)
+                        out_dir = os.path.join(out_dir, gtdb_filename)
+                        shutil.copy(gene_file, out_dir)
+                else:
                     shutil.copy(gene_file, out_dir)
 
         except GenomeDatabaseError as e:
@@ -384,11 +433,11 @@ class GenomeManager(object):
                 raise GenomeDatabaseError(
                     "Each line in the batch file must specify a name for the genome.")
 
-            abs_fasta_path = os.path.abspath(fasta_path)
+            abs_fasta_path = os.path.realpath(fasta_path)
 
             abs_gene_path = None
             if gene_path is not None and gene_path != '':
-                abs_gene_path = os.path.abspath(gene_path)
+                abs_gene_path = os.path.realpath(gene_path)
 
             genome_id = self._addGenomeToDB(
                 abs_fasta_path, name, desc, source_name, id_at_source, abs_gene_path)
@@ -530,8 +579,7 @@ class GenomeManager(object):
             return db_genome_id
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return False
+            raise e
 
     def _identifyHeadersCheckM(self, checkm_fh):
         """Parse header information from CheckM file.
@@ -840,9 +888,9 @@ class GenomeManager(object):
         """
 
         self.cur.execute("SELECT genomes.id, external_id_prefix || '_' || id_at_source as external_id " +
-                             "FROM genomes, genome_sources " +
-                             "WHERE genome_source_id = genome_sources.id " +
-                             "AND genomes.id IN %s", (tuple(db_genome_ids),))
+                         "FROM genomes, genome_sources " +
+                         "WHERE genome_source_id = genome_sources.id " +
+                         "AND genomes.id IN %s", (tuple(db_genome_ids),))
 
         external_genome_id = {}
         for internal_id, external_id in self.cur:

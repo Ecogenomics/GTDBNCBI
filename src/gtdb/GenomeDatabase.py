@@ -36,6 +36,7 @@ from MetadataManager import MetadataManager
 from TreeManager import TreeManager
 from AlignedMarkerManager import AlignedMarkerManager
 from GenomeRepresentativeManager import GenomeRepresentativeManager
+from PowerUserManager import PowerUserManager
 
 
 class GenomeDatabase(object):
@@ -327,8 +328,8 @@ class GenomeDatabase(object):
         return True
 
     def PullGenomes(self,
-                        batchfile, external_ids, list_of_list_id,
-                        genomic, gene, out_dir):
+                    batchfile, external_ids, list_of_list_id,
+                    genomic, gene, out_dir, gtdb_header):
         '''
         Copy genomic and gene data to specifed output directory
 
@@ -364,7 +365,7 @@ class GenomeDatabase(object):
                     genome_list_mngr.getGenomeIdsFromGenomeListIds(list_of_list_id))
 
             # copy data for each genome
-            genome_mngr.copyGenomes(db_genome_ids, genomic, gene, out_dir)
+            genome_mngr.copyGenomes(db_genome_ids, genomic, gene, out_dir, gtdb_header)
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
@@ -447,14 +448,14 @@ class GenomeDatabase(object):
         return True
 
     def GetGenomeIds(self, all_dereplicated,
-                            ncbi_dereplicated,
-                            user_dereplicated,
-                            all_genomes,
-                            ncbi_genomes,
-                            user_genomes,
-                            genome_list_ids,
-                            genome_ids,
-                            genome_batchfile):
+                     ncbi_dereplicated,
+                     user_dereplicated,
+                     all_genomes,
+                     ncbi_genomes,
+                     user_genomes,
+                     genome_list_ids,
+                     genome_ids,
+                     genome_batchfile):
         """Get all genome IDs of interest.
 
         Returns
@@ -1171,6 +1172,19 @@ class GenomeDatabase(object):
 
         return True
 
+    def ExportGenomePaths(self, path):
+        try:
+            cur = self.conn.cursor()
+            metaman = MetadataManager(cur, self.currentUser)
+            metaman.ExportGenomePaths(path)
+
+            self.conn.commit()
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+
     def ImportMetadata(self, table=None, field=None, typemeta=None, metafile=None):
         try:
             cur = self.conn.cursor()
@@ -1292,4 +1306,46 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
+        return True
+
+    def RunTreeExceptions(self, path, filtered):
+        '''
+        Function: RunTreeException
+        Export excluded NCBI records for a tree creation (with all default parameters) to a csv file
+
+        :param path: Path to the output file
+        '''
+        try:
+            cur = self.conn.cursor()
+
+            # ensure all genomes have been assigned to a representatives
+            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr.runTreeExceptions(path, filtered)
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+        return True
+
+    def RunSanityCheck(self, path=None):
+        '''
+        Function: RunSanityCheck
+        Run some scripts to check if all records have metadata
+
+        :param path: Path to the output file
+        '''
+        try:
+            cur = self.conn.cursor()
+
+            # ensure all genomes have been assigned to a representatives
+            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr.runSanityCheck(path)
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
         return True
