@@ -354,7 +354,7 @@ class GenomeRepresentativeManager(object):
 
         # get external genome IDs for representative genomes
         genome_mngr = GenomeManager(self.cur, self.currentUser)
-        external_ids = genome_mngr.genomeIdsToEdxternalGenomeIds(rep_genome_ids)
+        external_ids = genome_mngr.genomeIdsToExternalGenomeIds(rep_genome_ids)
 
         # define desired order of marker genes
         # (order doesn't matter, but must be consistent between genomes)

@@ -77,7 +77,7 @@ class TreeManager(object):
 
         # get mapping from db genome IDs to external IDs
         genome_mngr = GenomeManager(self.cur, self.currentUser)
-        external_ids = genome_mngr.genomeIdsToEdxternalGenomeIds(genome_ids)
+        external_ids = genome_mngr.genomeIdsToExternalGenomeIds(genome_ids)
         filter_genome_file = os.path.join(
             directory, prefix + '_filtered_genomes.tsv')
         fout_filtered = open(filter_genome_file, 'w')
