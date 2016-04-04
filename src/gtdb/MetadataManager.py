@@ -22,6 +22,7 @@ import psycopg2
 from psycopg2.extensions import AsIs
 
 import ConfigMetadata
+import Config
 from Exceptions import GenomeDatabaseError
 
 from biolib.taxonomy import Taxonomy
@@ -82,6 +83,34 @@ class MetadataManager(object):
             outputquery = 'copy ({0}) to stdout with csv header'.format(query)
             with open(path, 'w') as f:
                 self.cur.copy_expert(outputquery, f)
+            print "Export Successful"
+        except GenomeDatabaseError as e:
+            raise e
+
+    def ExportGenomePaths(self, path):
+        '''
+        Function: exportMetadata
+        Export the full path for all genomes to a csv file
+
+        :param path: Path to the output file
+        '''
+
+        try:
+            query_tmp = "SELECT id_at_source,external_id_prefix,fasta_file_location FROM genomes,genome_sources WHERE genomes.genome_source_id=genome_sources.id;"
+            self.cur.execute(query_tmp)
+            with open(path, "w") as f:
+                for (id, prefix, file_location) in self.cur:
+                    dir_prefix = None
+                    if prefix == 'U':
+                        dir_prefix = Config.GTDB_GENOME_USR_DIR
+                    elif prefix == 'RS':
+                        dir_prefix = Config.GTDB_GENOME_RSQ_DIR
+                    elif prefix == 'GB':
+                        dir_prefix = Config.GTDB_GENOME_GBK_DIR
+                    else:
+                        raise GenomeDatabaseError(
+                            "Unrecognized database prefix: %s" % prefix)
+                    f.write("{0}\t{1}\n".format(prefix + "_" + id, os.path.dirname(os.path.join(dir_prefix, file_location))))
             print "Export Successful"
         except GenomeDatabaseError as e:
             raise e
