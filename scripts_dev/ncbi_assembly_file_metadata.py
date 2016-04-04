@@ -52,7 +52,8 @@ class Metadata(object):
       if line[0] == '#':
         continue
 
-      genome_ids.add(line.strip().split('\t')[0])
+      genome_id = line.strip().split(',')[0]
+      genome_ids.add(genome_id)
 
     # write out metadata
     fout = open(output_file, 'w')

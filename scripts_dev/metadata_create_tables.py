@@ -200,27 +200,28 @@ class MetadataTable(object):
 
     # generate metadata for user genomes
     print 'Reading user genome directories.'
-    for user_id in os.listdir(user_genome_dir):
-      full_user_dir = os.path.join(user_genome_dir, user_id)
-      if not os.path.isdir(full_user_dir):
-        continue
+    if user_genome_dir != 'NONE':
+        for user_id in os.listdir(user_genome_dir):
+          full_user_dir = os.path.join(user_genome_dir, user_id)
+          if not os.path.isdir(full_user_dir):
+            continue
 
-      for genome_id in os.listdir(full_user_dir):
-        full_genome_dir = os.path.join(full_user_dir, genome_id)
+          for genome_id in os.listdir(full_user_dir):
+            full_genome_dir = os.path.join(full_user_dir, genome_id)
 
-        metadata_nt_file = os.path.join(full_genome_dir, self.metadata_nt_file)
-        self._parse_nt(genome_id, metadata_nt_file, fout_nt)
+            metadata_nt_file = os.path.join(full_genome_dir, self.metadata_nt_file)
+            self._parse_nt(genome_id, metadata_nt_file, fout_nt)
 
-        metadata_gene_file = os.path.join(full_genome_dir, self.metadata_gene_file)
-        self._parse_gene(genome_id, metadata_gene_file, fout_gene)
+            metadata_gene_file = os.path.join(full_genome_dir, self.metadata_gene_file)
+            self._parse_gene(genome_id, metadata_gene_file, fout_gene)
 
-        ssu_gg_taxonomy_file = os.path.join(full_genome_dir, self.ssu_gg_taxonomy_file)
-        self._parse_taxonomy_file(genome_id, ssu_gg_taxonomy_file, fout_gg_taxonomy, 'ssu_gg_2013_08')
+            ssu_gg_taxonomy_file = os.path.join(full_genome_dir, self.ssu_gg_taxonomy_file)
+            self._parse_taxonomy_file(genome_id, ssu_gg_taxonomy_file, fout_gg_taxonomy, 'ssu_gg_2013_08')
 
-        ssu_silva_taxonomy_file = os.path.join(full_genome_dir, self.ssu_silva_taxonomy_file)
-        ssu_count = self._parse_taxonomy_file(genome_id, ssu_silva_taxonomy_file, fout_silva_taxonomy, 'ssu_silva_199_gg_taxa')
+            ssu_silva_taxonomy_file = os.path.join(full_genome_dir, self.ssu_silva_taxonomy_file)
+            ssu_count = self._parse_taxonomy_file(genome_id, ssu_silva_taxonomy_file, fout_silva_taxonomy, 'ssu_silva_199_gg_taxa')
 
-        fout_ssu_count.write('%s\t%d\n' % (genome_id, ssu_count))
+            fout_ssu_count.write('%s\t%d\n' % (genome_id, ssu_count))
 
     fout_nt.close()
     fout_gene.close()
@@ -235,7 +236,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('genbank_genome_dir', help='base directory leading to NCBI GenBank archaeal and bacterial genome assemblies')
   parser.add_argument('refseq_genome_dir', help='base directory leading to NCBI RefSeq archaeal and bacterial genome assemblies')
-  parser.add_argument('user_genome_dir', help='base directory leading to user genomes')
+  parser.add_argument('user_genome_dir', help='base directory leading to user genomes or NONE to skip')
   parser.add_argument('output_dir', help='output directory')
 
   args = parser.parse_args()

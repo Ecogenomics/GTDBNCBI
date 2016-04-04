@@ -74,11 +74,11 @@ class Tigrfam(object):
         cmd = 'hmmsearch -o %s --tblout %s --noali --notextw --cut_nc --cpu 1 %s %s' % (hmmsearch_out, output_hit_file, self.tigrfam_hmms, gene_file)
         os.system(cmd)
 
-        # calculate checksum
-        checksum = sha256(output_hit_file)
-        fout = open(output_hit_file + '.sha256', 'w')
-        fout.write(checksum)
-        fout.close()
+      # calculate checksum
+      checksum = sha256(output_hit_file)
+      fout = open(output_hit_file + '.sha256', 'w')
+      fout.write(checksum)
+      fout.close()
 
       # allow results to be processed or written to file
       queueOut.put(gene_file)
@@ -120,6 +120,7 @@ class Tigrfam(object):
 
           gene_file = os.path.join(assembly_dir, assembly_id + self.protein_file_ext)
           if os.path.exists(gene_file):
+            print gene_file
             gene_files.append(gene_file)
 
     print '  Number of unprocessed genomes: %d' % len(gene_files)
