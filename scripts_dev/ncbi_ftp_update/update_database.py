@@ -46,7 +46,7 @@ from database_configuration import GenomeDatabaseConnectionFTPUpdate
 
 class UpdateGTDBDatabase(object):
 
-    def __init__(self, db):
+    def __init__(self, db, date):
 
         self.db = db
         self.id_database = 3  # By default we set the id to genbank (it is either 2 or 3
@@ -54,7 +54,7 @@ class UpdateGTDBDatabase(object):
             self.id_database = 2
         self.domains = ["archaea", "bacteria"]
         self.report_database_update = open(
-            "report_{0}_update_db.log".format(db), "w")
+            "report_beta_{0}_{1}_update_db.log".format(db, date), "w")
 
         self.temp_con = GenomeDatabaseConnectionFTPUpdate.GenomeDatabaseConnectionFTPUpdate()
         self.temp_con.MakePostgresConnection()
@@ -69,7 +69,10 @@ class UpdateGTDBDatabase(object):
         # Check if the genome is an existing genome
         # short_checkm_records list the records that are either to add or version
         short_checkm_records = self._updateExistingGenomes(dict_existing_records, list_checkm_records, genome_dirs_dict)
+        self.temp_con.commit()
         self._addOrVersionNewGenomes(dict_existing_records, short_checkm_records, genome_dirs_dict, update_date)
+        self.temp_con.commit()
+
         # Because we have added and updated script we repopulate dict_existing_records
         dict_existing_records = self._populateExistingRecords()
         self._checkPathorRemoveRecord(dict_existing_records, genome_dirs_dict, short_checkm_records)
@@ -77,7 +80,10 @@ class UpdateGTDBDatabase(object):
         self.report_database_update.close()
 
     def _checkPathorRemoveRecord(self, dict_existing_records, genome_dirs_dict, list_checkm_records):
+        count = 1
         for record in dict_existing_records:
+            print "_checkPathorRemoveRecord: {0}/{1}".format(count, len(dict_existing_records))
+            count += 1
             # if the record was part of the checkm file, it has already been updated
             if record in list_checkm_records:
                 continue
@@ -85,7 +91,7 @@ class UpdateGTDBDatabase(object):
                 if record not in genome_dirs_dict:
                     self._removeRecord(record)
                 else:
-                    self._checkPathRecord(record, os.path.dirname(dict_existing_records[record]), genome_dirs_dict[record])
+                    self._checkPathRecord(record, dict_existing_records[record], genome_dirs_dict[record])
 
     def _removeRecord(self, record):
         self.report_database_update.write(
@@ -106,7 +112,7 @@ class UpdateGTDBDatabase(object):
                     "list_id:{0}\tlist_name:{1}\t,list_owner:{2}\n".format(*result))
             self.report_database_update.write("###########\n")
         else:
-            self.stats_update.write("No list has been modified\n")
+            self.report_database_update.write("No list has been modified\n")
             self.report_database_update.write("###########\n")
         query_delete = (
             "DELETE FROM genomes WHERE name LIKE '{0}'".format(record))
@@ -115,7 +121,8 @@ class UpdateGTDBDatabase(object):
     def _checkPathRecord(self, record, path_in_db, path_in_folder):
         if path_in_db not in path_in_folder:
             path_in_folder = re.sub(r"(^.+\/)(archaea\/|bacteria\/)", r"\g<2>", path_in_folder)
-            path_in_db = re.sub(r"(.+)(\/.+_genomic.fna)", r"\g<1>", path_in_db)
+            path_in_folder += "/" + os.path.basename(path_in_folder)
+            path_in_db = re.sub(r"(.+)(_genomic.fna)", r"\g<1>", path_in_db)
             query = "update genomes set fasta_file_location = replace(fasta_file_location, '{0}', '{1}') where id_at_source like '{2}'".format(
                     path_in_db, path_in_folder, record)
             self.report_database_update.write("{0}\t{1}\tupdate path\t{2}\t{3}\n".format(self.db, record, path_in_db, path_in_folder))
@@ -125,7 +132,10 @@ class UpdateGTDBDatabase(object):
             self.temp_cur.execute(query)
 
     def _addOrVersionNewGenomes(self, dict_existing_records, list_checkm_records, genome_dirs_dict, update_date):
+        count = 1
         for checkm_record in list_checkm_records:
+            print "_addOrVersionNewGenomes: {0}/{1}".format(count, len(list_checkm_records))
+            count += 1
             if (checkm_record not in dict_existing_records) and (checkm_record in genome_dirs_dict):
                 check_record_base = checkm_record.rsplit(".", 1)[0]
                 id_record = self._checkPreviousVersion(check_record_base)
@@ -173,19 +183,28 @@ class UpdateGTDBDatabase(object):
 
     def _updateExistingGenomes(self, dict_existing_records, list_checkm_records, genome_dirs_dict):
         new_list_checkm_records = []
+        count = 1
         for checkm_record in list_checkm_records:
+            print "_updateExistingGenomes: {0}/{1}".format(count, len(list_checkm_records))
+            count += 1
             if (checkm_record in dict_existing_records) and (checkm_record in genome_dirs_dict):
                 self.report_database_update.write("{0}\t{1}\tupdate protein file\n".format(self.db, checkm_record))
                 path_gtdb = re.sub(r"(^.+\/)(archaea\/|bacteria\/)", r"\g<2>", genome_dirs_dict[checkm_record])
-                path_database = re.sub(r"(.+)(\/.+_genomic.fna)", r"\g<1>", dict_existing_records[checkm_record])
+                path_gtdb += "/" + os.path.basename(path_gtdb)
+                path_database = re.sub(r"(.+)(_genomic.fna)", r"\g<1>", dict_existing_records[checkm_record])
+#                 if checkm_record == 'GCA_001242845.1':
+#                     print path_gtdb
+#                     print path_database
+#                     print "update genomes set fasta_file_location = replace(fasta_file_location, '{0}', '{1}') where name like '{2}'".format(
+#                         path_database, path_gtdb, checkm_record)
                 # If the record is in a different folder , we need to change it's path in the database
                 if path_database not in path_gtdb:
                     query = "update genomes set fasta_file_location = replace(fasta_file_location, '{0}', '{1}') where name like '{2}'".format(
                             path_database, path_gtdb, checkm_record)
-#                   self.temp_cur.execute(query)
+                    self.temp_cur.execute(query)
                     query = "update genomes set genes_file_location = replace(genes_file_location, '{0}', '{1}') where name like '{2}'".format(
                             path_database, path_gtdb, checkm_record)
-#                   self.temp_cur.execute(query)
+                    self.temp_cur.execute(query)
 
                 # if the records is in the Checkm folder that means genomics and protein files have changed. We need to re write their sha256 values
                 genomic_files = glob.glob(genome_dirs_dict[checkm_record] + "/*_genomic.fna")
@@ -194,14 +213,14 @@ class UpdateGTDBDatabase(object):
                     new_md5_genomic = self.sha256Calculator(genomic_file)
                     query = "update genomes set fasta_file_sha256 = '{0}' where name like '{1}'".format(
                         new_md5_genomic, checkm_record)
-#                   self.temp_cur.execute(query)
+                    self.temp_cur.execute(query)
                 gene_files = glob.glob(genome_dirs_dict[checkm_record] + "/*_protein.faa")
                 if len(gene_files) == 1:
                     gene_file = gene_files[0]
                     new_md5_gene = self.sha256Calculator(gene_file)
-                    query = "update genomes set fasta_file_sha256 = '{0}' where name like '{1}'".format(
+                    query = "update genomes set genes_file_sha256 = '{0}' where name like '{1}'".format(
                         new_md5_gene, checkm_record)
-#                   self.temp_cur.execute(query)
+                    self.temp_cur.execute(query)
             else:
                 new_list_checkm_records.append(checkm_record)
         return new_list_checkm_records
@@ -269,7 +288,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--checkm_profile_new_genomes', dest="checkm",
-                        required=True, help='base directory leading the the FTP repository for refseq')
+                        required=True, help='path_to_checkm file')
     parser.add_argument('--genome_dirs_file', dest="genome_dirs_file",
                         required=True, help='genome_dirs file listing all REcords')
     parser.add_argument('--database', dest="db", required=True, choices=["refseq", "genbank"],
@@ -280,7 +299,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     try:
-        update_mngr = UpdateGTDBDatabase(args.db)
+        update_mngr = UpdateGTDBDatabase(args.db, args.date)
         update_mngr.runUpdate(args.checkm, args.genome_dirs_file, args.date)
     except SystemExit:
         print "\nControlled exit resulting from an unrecoverable error or warning."
