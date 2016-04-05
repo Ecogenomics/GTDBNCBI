@@ -132,8 +132,7 @@ class GenomeManager(object):
             prodigal = Prodigal(self.threads)
             file_paths = prodigal.run(genomic_files)
 
-            self.logger.info(
-                "Calculating and storing metadata for each genome.")
+            self.logger.info("Calculating and storing metadata for each genome.")
             manager = multiprocessing.Manager()
             out_q = manager.Queue()
             procs = []
