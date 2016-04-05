@@ -29,7 +29,7 @@ from biolib.external.execute import check_dependencies
 from biolib.misc.custom_help_formatter import CustomHelpFormatter
 
 from gtdb import GenomeDatabase
-from gtdb import Config
+from gtdb import DefaultValues
 from gtdb.Exceptions import GenomeDatabaseError
 
 
@@ -69,7 +69,7 @@ def versionInfo():
     """
 
     software_version, ncbi_version, gtdb_version = version()
-    return 'GTDB v%s (NCBI database %s; Internal database v%s)' % (software_version, ncbi_version, gtdb_version)
+    return 'GTDB v%s (NCBI RefSeq %s; Internal database v%s)' % (software_version, ncbi_version, gtdb_version)
 
 
 def loggerSetup(output_dir, silent=False):
@@ -1080,11 +1080,11 @@ if __name__ == '__main__':
                                               help='Directory to output files.')
 
     optional_markers_create_tree = parser_tree_create.add_argument_group('optional arguments')
-    optional_markers_create_tree.add_argument('--quality_threshold', type=float, default=Config.DEFAULT_QUALITY_THRESHOLD,
+    optional_markers_create_tree.add_argument('--quality_threshold', type=float, default=DefaultValues.DEFAULT_QUALITY_THRESHOLD,
                                               help='Filter genomes with a quality (completeness - 4*contamination) below threshold.')
-    optional_markers_create_tree.add_argument('--completeness_threshold', dest='comp_threshold', type=float, default=Config.DEFAULT_CHECKM_COMPLETENESS,
+    optional_markers_create_tree.add_argument('--completeness_threshold', dest='comp_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_COMPLETENESS,
                                               help='Filter genomes below completeness threshold.')
-    optional_markers_create_tree.add_argument('--contamination_threshold', dest='cont_threshold', type=float, default=Config.DEFAULT_CHECKM_CONTAMINATION,
+    optional_markers_create_tree.add_argument('--contamination_threshold', dest='cont_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_CONTAMINATION,
                                               help='Filter genomes above contamination threshold.')
 
     optional_markers_create_tree.add_argument('--min_perc_aa', type=float, default=50,

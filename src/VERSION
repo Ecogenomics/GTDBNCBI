@@ -1,11 +1,12 @@
-software_version=0.0.10
+software_version=1.0.0
 ncbi_database_version=release 75
-gtdb_version=0.0.6
+gtdb_version=1.0.0
 
 GTDB versions
 -------------
-v0.0.6 (Apr. 5, 2016):
+v1.0.0 (Apr. 5, 2016):
 - official move to RefSeq release 75
+v0.0.6 (Apr. 4, 2016):
 - SRA genomes from binning individual runs removed
 - SRA genomes from binning individual experiments added 
 - Josh's human gut microbiome genomes removed
