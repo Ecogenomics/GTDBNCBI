@@ -18,7 +18,7 @@
 import os
 import logging
 
-import Config
+import DefaultValues
 from Exceptions import GenomeDatabaseError
 
 
@@ -57,7 +57,7 @@ class PowerUserManager(object):
                              "WHERE g.genome_source_id IN (2,3) and " +
                              "mg.checkm_completeness > %s and mg.checkm_contamination < %s " +
                              "and mg.checkm_completeness-4*mg.checkm_contamination > %s and mn.ncbi_organism_name is not NULL",
-                             (Config.DEFAULT_CHECKM_COMPLETENESS, Config.DEFAULT_CHECKM_CONTAMINATION, Config.DEFAULT_QUALITY_THRESHOLD))
+                             (DefaultValues.DEFAULT_CHECKM_COMPLETENESS, DefaultValues.DEFAULT_CHECKM_CONTAMINATION, DefaultValues.DEFAULT_QUALITY_THRESHOLD))
             existing_genus = [genus for (genus,) in self.cur]
             self.cur.execute("SELECT g.name,mg.checkm_completeness,mg.checkm_contamination,mt.ncbi_taxonomy,mnuc.genome_size,(mg.checkm_completeness-4*mg.checkm_contamination) as quality_threshold,mn.ncbi_organism_name " +
                              "FROM genomes g " +
@@ -68,7 +68,7 @@ class PowerUserManager(object):
                              "WHERE g.genome_source_id IN (2,3) and " +
                              "(mg.checkm_completeness < %s or mg.checkm_contamination > %s " +
                              "or mg.checkm_completeness-4*mg.checkm_contamination < %s) and mn.ncbi_organism_name is not NULL",
-                             (Config.DEFAULT_CHECKM_COMPLETENESS, Config.DEFAULT_CHECKM_CONTAMINATION, Config.DEFAULT_QUALITY_THRESHOLD))
+                             (DefaultValues.DEFAULT_CHECKM_COMPLETENESS, DefaultValues.DEFAULT_CHECKM_CONTAMINATION, DefaultValues.DEFAULT_QUALITY_THRESHOLD))
 
             fh = open(path, "w")
             fh.write("Name,CheckM_Completeness,CheckM_Contamination,NCBI_Taxonomy,Genome_size,Quality_Threshold,Organism_name\n")

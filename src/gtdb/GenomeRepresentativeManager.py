@@ -26,6 +26,7 @@ from Exceptions import GenomeDatabaseError
 from GenomeManager import GenomeManager
 from MarkerSetManager import MarkerSetManager
 from AlignedMarkerManager import AlignedMarkerManager
+import DefaultValues
 
 
 class GenomeRepresentativeManager(object):
@@ -49,7 +50,7 @@ class GenomeRepresentativeManager(object):
         self.threads = threads
 
         # threshold used to assign genome to representative
-        self.aai_threshold = 0.997
+        self.aai_threshold = DefaultValues.AAI_CLUSTERING_THRESHOLD
 
     def _aai_test(self, seq1, seq2, threshold):
         """Test AAI between sequences.
