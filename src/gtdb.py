@@ -389,7 +389,7 @@ def exportMetadata(db, args):
     if args.path:
         return db.ExportGenomePaths(args.outfile)
     else:
-        return db.ExportMetadata(args.utfile)
+        return db.ExportMetadata(args.outfile)
 
 
 def importMetadata(db, args):
