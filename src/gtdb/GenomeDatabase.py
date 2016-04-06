@@ -806,7 +806,6 @@ class GenomeDatabase(object):
         try:
             cur = self.conn.cursor()
 
-            print genome_list_ids
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
             header, rows = genome_list_mngr.printGenomeListsDetails(genome_list_ids)
 
