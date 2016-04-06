@@ -379,14 +379,12 @@ class GenomeManager(object):
                     else:
                         shutil.copy(genomic_file, out_dir)
 
-                if gene:
+                elif gene:
                     gene_file = os.path.join(dir_prefix, genes_file_location)
                     if gtdb_header and external_id_prefix != 'U':
                         gtdb_filename = external_id_prefix + "_" + os.path.basename(gene_file)
                         out_dir = os.path.join(out_dir, gtdb_filename)
                         shutil.copy(gene_file, out_dir)
-                else:
-                    shutil.copy(gene_file, out_dir)
 
         except GenomeDatabaseError as e:
             raise e
