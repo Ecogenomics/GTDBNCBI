@@ -150,7 +150,6 @@ class GenomeManager(object):
                 time.sleep(1)
 
             # Wait for all worker processes to finish
-            print procs
             for p in procs:
                 p.join()
 
@@ -182,7 +181,6 @@ class GenomeManager(object):
         :param out_q: manager.Queue()
         '''
         metadata_mngr = MetadataManager(self.cur, self.currentUser)
-        print genomic_files
         for db_genome_id, values in genomic_files.iteritems():
 
             self.cur.execute("UPDATE genomes SET study_id = %s WHERE id = %s",
@@ -521,33 +519,13 @@ class GenomeManager(object):
                     "Could not find the %s genome source." % source)
 
             if id_at_source is None:
-                self.cur.execute(
-                    "SELECT id_at_source FROM genomes WHERE genome_source_id = %s order by id_at_source::int desc", (source_id,))
-                last_id = None
-                for (last_id_at_source,) in self.cur:
-                    last_id = last_id_at_source
-                    break
-
-                self.cur.execute(
-                    "SELECT last_auto_id FROM genome_sources WHERE id = %s ", (source_id,))
-                for (last_auto_id,) in self.cur:
-                    if last_id is None:
-                        last_id = last_auto_id
-                    else:
-                        last_id = max(int(last_id), int(last_auto_id))
-                    break
-
-                # Generate a new id (for user editable lists only)
-                if (last_id is None):
-                    new_id = 1
-                else:
-                    new_id = int(last_id) + 1
-
-                if id_at_source is None:
-                    id_at_source = str(new_id)
-
-                self.cur.execute(
-                    "UPDATE genome_sources set last_auto_id = %s where id = %s", (new_id, source_id))
+                # We use update to return a value. This update should fix the concurreny of multit thread using the same value. Update locks the cell during the transaction.
+                self.cur.execute("UPDATE genome_sources " +
+                                 "SET last_auto_id = (SELECT max(temp.val)+1 " +
+                                 "FROM (SELECT max(id_at_source::int) as val FROM genomes WHERE genome_source_id = %s " +
+                                 "union SELECT last_auto_id as val FROM genome_sources WHERE id = %s " +
+                                 "union select 0 as val) temp ) WHERE id = %s RETURNING last_auto_id;", [source_id] * 3)
+                id_at_source = str(self.cur.fetchone()[0])
 
             added = datetime.datetime.now()
 
