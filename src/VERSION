@@ -1,9 +1,13 @@
-software_version=1.0.0
+software_version=1.1.0
 ncbi_database_version=release 75
 gtdb_version=1.0.0
 
 GTDB versions
 -------------
+v1.1.0 (Apr. 9, 2016):
+- Parallel genome submission
+- Automatic assignment of GTDB taxonomy for clustered genomes
+- Automatically annotate new User genomes as Bacteria or Archaea
 v1.0.0 (Apr. 5, 2016):
 - official move to RefSeq release 75
 v0.0.6 (Apr. 4, 2016):
