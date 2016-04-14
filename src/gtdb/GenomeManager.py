@@ -522,11 +522,7 @@ class GenomeManager(object):
 
             if id_at_source is None:
                 # We use update to return a value. This update should fix the concurreny of multit thread using the same value. Update locks the cell during the transaction.
-                self.cur.execute("UPDATE genome_sources " +
-                                 "SET last_auto_id = (SELECT max(temp.val)+1 " +
-                                 "FROM (SELECT max(id_at_source::int) as val FROM genomes WHERE genome_source_id = %s " +
-                                 "union SELECT last_auto_id as val FROM genome_sources WHERE id = %s " +
-                                 "union select 0 as val) temp ) WHERE id = %s RETURNING last_auto_id;", [source_id] * 3)
+                self.cur.execute("SELECT update_last_auto(%s);", (source_id,))
                 id_at_source = str(self.cur.fetchone()[0])
 
             added = datetime.datetime.now()
