@@ -372,8 +372,8 @@ class GenomeManager(object):
                     genomic_file = os.path.join(dir_prefix, fasta_file_location)
                     if gtdb_header and external_id_prefix != 'U':
                         gtdb_filename = external_id_prefix + "_" + os.path.basename(genomic_file)
-                        out_dir = os.path.join(out_dir, gtdb_filename)
-                        shutil.copy(genomic_file, out_dir)
+                        out_dir_with_header = os.path.join(out_dir, gtdb_filename)
+                        shutil.copy(genomic_file, out_dir_with_header)
                     else:
                         shutil.copy(genomic_file, out_dir)
 
@@ -381,7 +381,9 @@ class GenomeManager(object):
                     gene_file = os.path.join(dir_prefix, genes_file_location)
                     if gtdb_header and external_id_prefix != 'U':
                         gtdb_filename = external_id_prefix + "_" + os.path.basename(gene_file)
-                        out_dir = os.path.join(out_dir, gtdb_filename)
+                        out_dir_with_header = os.path.join(out_dir, gtdb_filename)
+                        shutil.copy(gene_file, out_dir_with_header)
+                    else:
                         shutil.copy(gene_file, out_dir)
 
         except GenomeDatabaseError as e:
