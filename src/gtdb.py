@@ -803,7 +803,7 @@ if __name__ == '__main__':
     atleastone_marker_view.add_argument('--batchfile', dest='batchfile', default=None,
                                         help='Batchfile of marker IDs (one per line) to view.')
     atleastone_marker_view.add_argument('--marker_ids', dest='id_list', default=None,
-                                        help='Provide a list of genome IDs (comma separated) to view.')
+                                        help='Provide a list of marker IDs (comma separated) to view.')
     atleastone_marker_view.add_argument('--all', dest='view_all', action="store_true",
                                         help='View all markers in the database.')
 
