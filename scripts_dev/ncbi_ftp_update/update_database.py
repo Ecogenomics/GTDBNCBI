@@ -180,6 +180,7 @@ class UpdateGTDBDatabase(object):
                                   "date_added = %s,has_changed = %s,  " +
                                   "last_update = %s,genes_file_location = %s,  " +
                                   "genes_file_sha256 = %s WHERE id = {0}; ".format(id_record), list_genome_details)
+            self.temp_cur.execute("DELETE FROM aligned_markers where id = {0};".format(id_record))
 
     def _updateExistingGenomes(self, dict_existing_records, list_checkm_records, genome_dirs_dict):
         new_list_checkm_records = []

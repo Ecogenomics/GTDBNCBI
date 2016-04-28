@@ -15,8 +15,9 @@
 #                                                                             #
 ###############################################################################
 
-DEFAULT_CHECKM_COMPLETENESS = 60
-DEFAULT_CHECKM_CONTAMINATION = 10
-DEFAULT_QUALITY_THRESHOLD = 60
+DEFAULT_CHECKM_COMPLETENESS = 60.0
+DEFAULT_CHECKM_CONTAMINATION = 10.0
+DEFAULT_QUALITY_THRESHOLD = 60.0
 
 AAI_CLUSTERING_THRESHOLD = 0.995
+DEFAULT_DOMAIN_THRESHOLD = 20.0
