@@ -350,8 +350,8 @@ class GenomeRepresentativeManager(object):
         # get list of representative genomes
         rep_genome_ids = self.representativeGenomes()
         self.logger.info("Comparing %d unprocessed genomes to %d representatives." %
-                                                    (len(unprocessed_genome_ids),
-                                                     len(rep_genome_ids)))
+                         (len(unprocessed_genome_ids),
+                          len(rep_genome_ids)))
 
         # get external genome IDs for representative genomes
         genome_mngr = GenomeManager(self.cur, self.currentUser)
@@ -373,6 +373,12 @@ class GenomeRepresentativeManager(object):
         for rep_id in rep_genome_ids:
             rep_bac_aligns[rep_id] = marker_set_mngr.concatenatedAlignedMarkers(rep_id, bac_marker_index)
             rep_ar_aligns[rep_id] = marker_set_mngr.concatenatedAlignedMarkers(rep_id, ar_marker_index)
+
+        self.cur.execute("SELECT count(*) from marker_set_contents where set_id = 1;")
+        len_bac_marker = self.cur.fetchone()[0]
+
+        self.cur.execute("SELECT count(*) from marker_set_contents where set_id = 2;")
+        len_arc_marker = self.cur.fetchone()[0]
 
         # process each genome
         assigned_to_rep_count = 0
@@ -405,6 +411,50 @@ class GenomeRepresentativeManager(object):
                          "SET gtdb_genome_representative = %s " +
                          "WHERE id = %s")
                 self.cur.execute(query, (external_ids[assigned_representative], genome_id))
+                query_taxonomy_req = ("SELECT gtdb_class, gtdb_species, gtdb_taxonomy," +
+                                      "gtdb_phylum, gtdb_family, gtdb_domain, gtdb_order, gtdb_genus " +
+                                      "FROM metadata_taxonomy WHERE id = %s;")
+                self.cur.execute(query_taxonomy_req, (genome_id,))
+                if all(v is None or v == '' for v in self.cur.fetchone()):
+                    query_taxonomy_update = ("UPDATE metadata_taxonomy as mt_newg SET " +
+                                             "gtdb_class = mt_repr.gtdb_class," +
+                                             "gtdb_species = mt_repr.gtdb_species," +
+                                             "gtdb_taxonomy = mt_repr.gtdb_taxonomy," +
+                                             "gtdb_phylum = mt_repr.gtdb_phylum," +
+                                             "gtdb_family = mt_repr.gtdb_family," +
+                                             "gtdb_domain =  mt_repr.gtdb_domain," +
+                                             "gtdb_order = mt_repr.gtdb_order," +
+                                             "gtdb_genus =  mt_repr.gtdb_genus " +
+                                             "FROM metadata_taxonomy mt_repr " +
+                                             "WHERE mt_repr.id = %s " +
+                                             "AND mt_newg.id = %s")
+                    self.cur.execute(query_taxonomy_update, (assigned_representative, genome_id))
+            else:
+                query_taxonomy_req = ("SELECT gtdb_class, gtdb_species, gtdb_taxonomy," +
+                                      "gtdb_phylum, gtdb_family, gtdb_domain, gtdb_order, gtdb_genus " +
+                                      "FROM metadata_taxonomy WHERE id = %s;")
+                self.cur.execute(query_taxonomy_req, (genome_id,))
+                if all(v is None or v == '' for v in self.cur.fetchone()):
+                    query_al_mark = ("SELECT count(*) " +
+                                     "FROM aligned_markers am " +
+                                     "LEFT JOIN marker_set_contents msc ON msc.marker_id = am.marker_id " +
+                                     "WHERE genome_id = %s and msc.set_id = %s and (evalue <> '') IS TRUE;")
+
+                    self.cur.execute(query_al_mark, (genome_id, 1))
+                    aligned_bac_count = self.cur.fetchone()[0]
+
+                    self.cur.execute(query_al_mark, (genome_id, 2))
+                    aligned_arc_count = self.cur.fetchone()[0]
+
+                    if (aligned_arc_count * 100 / len_arc_marker) < DefaultValues.DEFAULT_DOMAIN_THRESHOLD and (aligned_bac_count * 100 / len_bac_marker) < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
+                        continue
+                    elif (aligned_arc_count * 100 / len_arc_marker) < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
+                        domain = "d__Bacteria"
+                    elif (aligned_bac_count * 100 / len_bac_marker) < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
+                        domain = "d__Archaea"
+                    self.cur.execute("UPDATE metadata_taxonomy " +
+                                     "SET gtdb_domain = %s " +
+                                     "WHERE id = %s", (domain, genome_id))
 
         self.logger.info("Assigned %d genomes to a representative." % assigned_to_rep_count)
 

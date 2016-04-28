@@ -134,25 +134,26 @@ class GenomeManager(object):
 
             self.logger.info("Calculating and storing metadata for each genome.")
             manager = multiprocessing.Manager()
-            out_q = manager.Queue()
+            
+            progress_queue = multiprocessing.Queue()
+            progress_proc = multiprocessing.Process(target = self._progress, args = (len(genomic_files), progress_queue))
+            progress_proc.start()
+            
             procs = []
             nprocs = self.threads
             for item in splitchunks(genomic_files, nprocs):
                 p = multiprocessing.Process(
                     target=self._addGenomesWorker,
-                    args=(item, file_paths, checkm_results_dict, study_id, out_q))
+                    args=(item, file_paths, checkm_results_dict, study_id, progress_queue))
                 procs.append(p)
                 p.start()
 
-            # Collect all results into a single result dict. We know how many dicts
-            # with results to expect.
-            while out_q.empty():
-                time.sleep(1)
-
-            # Wait for all worker processes to finish
-            print procs
+            # wait for all worker processes to finish
             for p in procs:
                 p.join()
+                
+            progress_queue.put(None)
+            progress_proc.join()
 
             # annotated genes against TIGRfam and Pfam databases
             self.logger.info("Identifying TIGRfam protein families.")
@@ -170,8 +171,26 @@ class GenomeManager(object):
             raise
 
         return genomic_files.keys()
+        
+    def _progress(self, num_genomes, progress_queue):
+        """Track progress of large parallel jobs."""
+        
+        processed_genomes = 0
+        while True:
+          a = progress_queue.get(block=True, timeout=None)
+          if a == None:
+            break
 
-    def _addGenomesWorker(self, genomic_files, file_paths, checkm_results_dict, study_id, out_q):
+          processed_genomes += 1
+          statusStr = '==> Finished processing %d of %d (%.2f%%) genomes.' % (processed_genomes, 
+                                                                                num_genomes, 
+                                                                                float(processed_genomes)*100/num_genomes)
+          sys.stdout.write('%s\r' % statusStr)
+          sys.stdout.flush()
+
+        sys.stdout.write('\n')
+
+    def _addGenomesWorker(self, genomic_files, file_paths, checkm_results_dict, study_id, progress_queue):
         '''
         The worker function, invoked in a process.
 
@@ -179,10 +198,8 @@ class GenomeManager(object):
         :param file_paths : dictionary generated from Prodigal
         :param checkm_results_dict: dictionary of checkm results
         :param study_id = study id
-        :param out_q: manager.Queue()
         '''
         metadata_mngr = MetadataManager(self.cur, self.currentUser)
-        print genomic_files
         for db_genome_id, values in genomic_files.iteritems():
 
             self.cur.execute("UPDATE genomes SET study_id = %s WHERE id = %s",
@@ -202,7 +219,9 @@ class GenomeManager(object):
                                       genome_file_paths["gff_path"],
                                       checkm_results_dict[bin_id],
                                       output_dir)
-        out_q.put("True")
+                                      
+            progress_queue.put(bin_id)
+            
         return True
 
     def allGenomeIds(self):
@@ -374,19 +393,19 @@ class GenomeManager(object):
                     genomic_file = os.path.join(dir_prefix, fasta_file_location)
                     if gtdb_header and external_id_prefix != 'U':
                         gtdb_filename = external_id_prefix + "_" + os.path.basename(genomic_file)
-                        out_dir = os.path.join(out_dir, gtdb_filename)
-                        shutil.copy(genomic_file, out_dir)
+                        out_dir_with_header = os.path.join(out_dir, gtdb_filename)
+                        shutil.copy(genomic_file, out_dir_with_header)
                     else:
                         shutil.copy(genomic_file, out_dir)
 
-                if gene:
+                elif gene:
                     gene_file = os.path.join(dir_prefix, genes_file_location)
                     if gtdb_header and external_id_prefix != 'U':
                         gtdb_filename = external_id_prefix + "_" + os.path.basename(gene_file)
-                        out_dir = os.path.join(out_dir, gtdb_filename)
+                        out_dir_with_header = os.path.join(out_dir, gtdb_filename)
+                        shutil.copy(gene_file, out_dir_with_header)
+                    else:
                         shutil.copy(gene_file, out_dir)
-                else:
-                    shutil.copy(gene_file, out_dir)
 
         except GenomeDatabaseError as e:
             raise e
@@ -432,17 +451,18 @@ class GenomeManager(object):
                 raise GenomeDatabaseError(
                     "Each line in the batch file must specify a name for the genome.")
 
-            abs_fasta_path = os.path.realpath(fasta_path)
+            abs_fasta_path = os.path.abspath(fasta_path)
+            real_fasta_path = os.path.realpath(fasta_path)
 
             abs_gene_path = None
             if gene_path is not None and gene_path != '':
                 abs_gene_path = os.path.realpath(gene_path)
 
             genome_id = self._addGenomeToDB(
-                abs_fasta_path, name, desc, source_name, id_at_source, abs_gene_path)
+                real_fasta_path, name, desc, source_name, id_at_source, abs_gene_path)
             if not (genome_id):
                 raise GenomeDatabaseError(
-                    "Failed to add genome: %s" % abs_fasta_path)
+                    "Failed to add genome: %s" % real_fasta_path)
 
             self.cur.execute("SELECT external_id_prefix || '_' || id_at_source as external_id " +
                              "FROM genomes, genome_sources " +
@@ -457,7 +477,7 @@ class GenomeManager(object):
 
             fasta_target_file = os.path.join(
                 genome_output_dir, external_genome_id + self.genomeFileSuffix)
-            shutil.copy(abs_fasta_path, fasta_target_file)
+            shutil.copy(real_fasta_path, fasta_target_file)
 
             genes_target_file = None
             if abs_gene_path:
@@ -523,33 +543,9 @@ class GenomeManager(object):
                     "Could not find the %s genome source." % source)
 
             if id_at_source is None:
-                self.cur.execute(
-                    "SELECT id_at_source FROM genomes WHERE genome_source_id = %s order by id_at_source::int desc", (source_id,))
-                last_id = None
-                for (last_id_at_source,) in self.cur:
-                    last_id = last_id_at_source
-                    break
-
-                self.cur.execute(
-                    "SELECT last_auto_id FROM genome_sources WHERE id = %s ", (source_id,))
-                for (last_auto_id,) in self.cur:
-                    if last_id is None:
-                        last_id = last_auto_id
-                    else:
-                        last_id = max(int(last_id), int(last_auto_id))
-                    break
-
-                # Generate a new id (for user editable lists only)
-                if (last_id is None):
-                    new_id = 1
-                else:
-                    new_id = int(last_id) + 1
-
-                if id_at_source is None:
-                    id_at_source = str(new_id)
-
-                self.cur.execute(
-                    "UPDATE genome_sources set last_auto_id = %s where id = %s", (new_id, source_id))
+                # We use update to return a value. This update should fix the concurreny of multit thread using the same value. Update locks the cell during the transaction.
+                self.cur.execute("SELECT update_last_auto(%s);", (source_id,))
+                id_at_source = str(self.cur.fetchone()[0])
 
             added = datetime.datetime.now()
 
