@@ -430,17 +430,18 @@ class GenomeManager(object):
                 raise GenomeDatabaseError(
                     "Each line in the batch file must specify a name for the genome.")
 
-            abs_fasta_path = os.path.realpath(fasta_path)
+            abs_fasta_path = os.path.abspath(fasta_path)
+            real_fasta_path = os.path.realpath(fasta_path)
 
             abs_gene_path = None
             if gene_path is not None and gene_path != '':
                 abs_gene_path = os.path.realpath(gene_path)
 
             genome_id = self._addGenomeToDB(
-                abs_fasta_path, name, desc, source_name, id_at_source, abs_gene_path)
+                real_fasta_path, name, desc, source_name, id_at_source, abs_gene_path)
             if not (genome_id):
                 raise GenomeDatabaseError(
-                    "Failed to add genome: %s" % abs_fasta_path)
+                    "Failed to add genome: %s" % real_fasta_path)
 
             self.cur.execute("SELECT external_id_prefix || '_' || id_at_source as external_id " +
                              "FROM genomes, genome_sources " +
@@ -455,7 +456,7 @@ class GenomeManager(object):
 
             fasta_target_file = os.path.join(
                 genome_output_dir, external_genome_id + self.genomeFileSuffix)
-            shutil.copy(abs_fasta_path, fasta_target_file)
+            shutil.copy(real_fasta_path, fasta_target_file)
 
             genes_target_file = None
             if abs_gene_path:
