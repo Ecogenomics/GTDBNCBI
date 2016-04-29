@@ -139,19 +139,26 @@ class GenomeManager(object):
             progress_proc = multiprocessing.Process(target = self._progress, args = (len(genomic_files), progress_queue))
             progress_proc.start()
             
+            out_q = multiprocessing.Manager().Queue()
+            
             procs = []
             nprocs = self.threads
             for item in splitchunks(genomic_files, nprocs):
                 p = multiprocessing.Process(
                     target=self._addGenomesWorker,
-                    args=(item, file_paths, checkm_results_dict, study_id, progress_queue))
+                    args=(item, file_paths, checkm_results_dict, study_id, out_q, progress_queue))
                 procs.append(p)
                 p.start()
+                
+            # Pierre: why is this needed?
+            while out_q.empty():
+                time.sleep(1)
 
             # wait for all worker processes to finish
             for p in procs:
                 p.join()
                 
+            self.logger.info("Waiting for progress process.")
             progress_queue.put(None)
             progress_proc.join()
 
@@ -177,20 +184,20 @@ class GenomeManager(object):
         
         processed_genomes = 0
         while True:
-          a = progress_queue.get(block=True, timeout=None)
-          if a == None:
+          bin_id = progress_queue.get(block=True, timeout=None)
+          if bin_id == None:
             break
 
           processed_genomes += 1
           statusStr = '==> Finished processing %d of %d (%.2f%%) genomes.' % (processed_genomes, 
-                                                                                num_genomes, 
-                                                                                float(processed_genomes)*100/num_genomes)
+                                                                                    num_genomes, 
+                                                                                    float(processed_genomes)*100/num_genomes)
           sys.stdout.write('%s\r' % statusStr)
           sys.stdout.flush()
 
         sys.stdout.write('\n')
 
-    def _addGenomesWorker(self, genomic_files, file_paths, checkm_results_dict, study_id, progress_queue):
+    def _addGenomesWorker(self, genomic_files, file_paths, checkm_results_dict, study_id, out_q, progress_queue):
         '''
         The worker function, invoked in a process.
 
@@ -222,6 +229,7 @@ class GenomeManager(object):
                                       
             progress_queue.put(bin_id)
             
+        out_q.put("True")
         return True
 
     def allGenomeIds(self):
