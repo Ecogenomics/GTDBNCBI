@@ -319,9 +319,8 @@ class MarkerSetManager(object):
         result = self.cur.fetchone()
 
         if not result:
-            self.ReportError(
+            raise GenomeDatabaseError(
                 "At least one marker set is invalid: %s" % str(marker_set_ids))
-            return None
 
         self.cur.execute("SELECT marker_id " +
                          "FROM marker_set_contents " +
