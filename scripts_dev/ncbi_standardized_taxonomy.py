@@ -18,7 +18,7 @@
 ###############################################################################
 
 __prog_name__ = 'ncbi_standardized_taxonomy.py'
-__prog_desc__ = 'Parse NCBI taxonomy file to produce a standard 7-rank taxonomy for ammendable taxa.'
+__prog_desc__ = 'Parse NCBI taxonomy file to produce a standard 7-rank taxonomy for amenable taxa.'
 
 __author__ = 'Donovan Parks'
 __copyright__ = 'Copyright 2015'
@@ -62,17 +62,39 @@ class StandardizedTaxonomy(object):
                 revised_taxonomy.append(t)
 
         # create longest taxonomy string possible with canonical ranks
-        canonical_taxonomy = []
-        cur_rank = 0
+        canonical_taxonomy = {}
         for i, taxon in enumerate(revised_taxonomy):
-            if taxon[0:3] == Taxonomy.rank_prefixes[cur_rank]:
-                canonical_taxonomy.append(taxon)
-                cur_rank += 1
+            rank_prefix = taxon[0:3]
+            if rank_prefix in Taxonomy.rank_prefixes:
+                if rank_prefix == 's__':
+                    valid_name, reason = Taxonomy().validate_species_name(taxon)
+                    if valid_name:
+                        canonical_taxonomy[Taxonomy.rank_prefixes.index(rank_prefix)] = taxon
+                else:
+                    canonical_taxonomy[Taxonomy.rank_prefixes.index(rank_prefix)] = taxon
+                
+        # fill in missing ranks where possible
+        if canonical_taxonomy:
+            for i in xrange(0, max(canonical_taxonomy.keys())):
+                if i in canonical_taxonomy and (i+1) not in canonical_taxonomy:
+                    taxon = canonical_taxonomy[i][3:]
+                    if taxon[0] == '{':
+                        canonical_taxonomy[i+1] = Taxonomy.rank_prefixes[i+1] + taxon.replace(Taxonomy.rank_labels[i]+'}', 
+                                                                                                Taxonomy.rank_labels[i+1]+'}')
+                    else:
+                        canonical_taxonomy[i+1] = Taxonomy.rank_prefixes[i+1] + '{undefined %s %s}' % (taxon, Taxonomy.rank_labels[i+1])
 
-        if len(canonical_taxonomy) > 0:
-            if len(canonical_taxonomy) != len(Taxonomy.rank_prefixes):
-                canonical_taxonomy = canonical_taxonomy + list(Taxonomy.rank_prefixes[len(canonical_taxonomy):])
-            fout_consistent.write('%s\t%s\n' % (assembly_accesssion, ';'.join(canonical_taxonomy)))
+        cur_taxonomy = []
+        for i in xrange(0, len(Taxonomy.rank_prefixes)):
+            if i in canonical_taxonomy:
+                cur_taxonomy.append(canonical_taxonomy[i])
+            else:
+                break # unable to correctly determine a valid taxonomy below this rank
+
+        if len(cur_taxonomy) > 0:
+            if len(cur_taxonomy) != len(Taxonomy.rank_prefixes):
+                cur_taxonomy = cur_taxonomy + list(Taxonomy.rank_prefixes[len(cur_taxonomy):])
+            fout_consistent.write('%s\t%s\n' % (assembly_accesssion, ';'.join(cur_taxonomy)))
         else:
             fout_inconsistent.write('%s\t%s\n' % (assembly_accesssion, ';'.join(taxonomy)))
 

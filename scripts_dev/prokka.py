@@ -17,7 +17,7 @@
 #                                                                             #
 ###############################################################################
 
-__prog_name__ = 'porkka_ncbi.py'
+__prog_name__ = 'prokka.py'
 __prog_desc__ = 'Run Prokka over a set of genomes.'
 
 __author__ = 'Donovan Parks'
@@ -32,6 +32,7 @@ __status__ = 'Development'
 import os
 import sys
 import argparse
+from shutil import copyfile
 import multiprocessing as mp
 
 from biolib.checksum import sha256
@@ -57,6 +58,8 @@ class Prokka(object):
     check_dependencies(['prokka'])
 
     self.genome_file_ext = '_genomic.fna'
+    self.protein_aa_file_ext = '_protein.faa'
+    self.protein_nt_file_ext = '_protein.fna'
 
   def __workerThread(self, domain, queueIn, queueOut):
     """Process each data item in parallel."""
@@ -66,10 +69,13 @@ class Prokka(object):
         break
 
       assembly_dir, filename = os.path.split(genome_file)
-      prefix = filename.replace(self.genome_file_ext, '_prokka')
+      prefix = filename.replace(self.genome_file_ext, '')
       output_dir = os.path.join(assembly_dir, 'prokka')
-      if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+      if os.path.exists(output_dir):
+        queueOut.put(genome_file)
+        continue
+        
+      os.makedirs(output_dir)
       prokka_out = os.path.join(output_dir, 'prokka.out')
 
       cmd = 'prokka --force --kingdom %s --prefix %s --outdir %s --cpus 1 %s 2> %s' % (domain, prefix, output_dir, genome_file, prokka_out)
@@ -81,7 +87,16 @@ class Prokka(object):
       fout = open(prokka_gene_file + '.sha256', 'w')
       fout.write(checksum)
       fout.close()
-
+      
+      # copy files
+      protein_nt_file = os.path.join(output_dir, prefix + '.ffn')
+      output_file = os.path.join(assembly_dir, prefix + self.protein_nt_file_ext)
+      copyfile(protein_nt_file, output_file)
+      
+      protein_aa_file = os.path.join(output_dir, prefix + '.faa')
+      output_file = os.path.join(assembly_dir, prefix + self.protein_aa_file_ext)
+      copyfile(protein_aa_file, output_file)
+      
       # allow results to be processed or written to file
       queueOut.put(genome_file)
 
@@ -109,9 +124,16 @@ class Prokka(object):
       if os.path.isdir(cur_genome_dir):
         for assembly_id in os.listdir(cur_genome_dir):
           assembly_dir = os.path.join(cur_genome_dir, assembly_id)
+          
+          protein_file = os.path.join(assembly_dir, assembly_id + self.protein_aa_file_ext)
+          if os.path.exists(protein_file):
+            continue
 
           prokka_dir = os.path.join(assembly_dir, 'prokka')
-          prokka_file = os.path.join(prokka_dir, assembly_id + '_prokka.faa')
+          if os.path.exists(prokka_dir):
+            continue
+            
+          prokka_file = os.path.join(prokka_dir, assembly_id + '.faa')
           if os.path.exists(prokka_file):
             # verify checksum
             checksum_file = prokka_file + '.sha256'

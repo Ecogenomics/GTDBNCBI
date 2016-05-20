@@ -65,8 +65,14 @@ class TaxonomyNCBI(object):
     d = {}
     with open(assembly_metadata_file) as f:
       headers = f.readline().split('\t')
-
-      taxid_index = headers.index('taxid')
+	
+      try:
+      	taxid_index = headers.index('taxid')
+      except:
+	# look for taxid on the next line as NCBI sometimes puts
+	# an extra comment on the first line
+        headers = f.readline().split('\t')
+        taxid_index = headers.index('taxid')
 
       for line in f:
         line_split = line.split('\t')
