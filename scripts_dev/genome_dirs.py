@@ -40,7 +40,7 @@ class GenomeDir(object):
   def __init__(self):
     pass
 
-  def run(self, ncbi_genome_dir, user_genome_dir, output_file):
+  def run(self, ncbi_genome_dir, user_genome_dir, db_prefix, output_file):
     """Create file indicating directory of each genome."""
 
     fout = open(output_file, 'w')
@@ -55,22 +55,24 @@ class GenomeDir(object):
 
             for assembly_dir in os.listdir(full_species_dir):
                 accession = assembly_dir[0:assembly_dir.find('_', 4)]
-                if db == 'genbank':
-                    accession = 'GB_' + accession
-                else:
-                    accession = 'RS_' + accession
+                if db_prefix:
+                    if db == 'genbank':
+                        accession = 'GB_' + accession
+                    else:
+                        accession = 'RS_' + accession
             
                 full_assembly_dir = os.path.join(full_species_dir, assembly_dir)
                 fout.write('%s\t%s\n' % (accession, os.path.abspath(full_assembly_dir)))
                 
-    for user in os.listdir(user_genome_dir):
-        user_dir = os.path.join(user_genome_dir, user)
-        if not os.path.isdir(user_dir):
-            continue
-            
-        for genome_id in os.listdir(user_dir):
-            full_path = os.path.join(user_dir, genome_id)
-            fout.write('%s\t%s\n' % (genome_id, os.path.abspath(full_path)))
+    if user_genome_dir != 'None':
+        for user in os.listdir(user_genome_dir):
+            user_dir = os.path.join(user_genome_dir, user)
+            if not os.path.isdir(user_dir):
+                continue
+                
+            for genome_id in os.listdir(user_dir):
+                full_path = os.path.join(user_dir, genome_id)
+                fout.write('%s\t%s\n' % (genome_id, os.path.abspath(full_path)))
 
     fout.close()
 
@@ -80,14 +82,15 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('ncbi_genome_dir', help='base directory leading to NCBI GenBank and RefSeq genomes.')
-  parser.add_argument('user_genome_dir', help='base directory leading to user genomes.')
+  parser.add_argument('user_genome_dir', help='base directory leading to user genomes; None to skip.')
   parser.add_argument('output_file', help='output metadata file')
+  parser.add_argument('--db_prefix', help='append GTDB source prefixes to genome accessions', action="store_true")
 
   args = parser.parse_args()
 
   try:
     p = GenomeDir()
-    p.run(args.ncbi_genome_dir, args.user_genome_dir, args.output_file)
+    p.run(args.ncbi_genome_dir, args.user_genome_dir, args.db_prefix, args.output_file)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:

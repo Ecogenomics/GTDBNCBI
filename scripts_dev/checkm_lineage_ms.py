@@ -34,6 +34,7 @@ import sys
 import argparse
 import tempfile
 import ntpath
+import shutil
 from string import maketrans
 
 import biolib.seq_io as seq_io
@@ -69,7 +70,7 @@ class RunCheckm(object):
         genomes_to_consider = set()
         for line in open(genome_report):
             line_split = line.strip().split('\t')
-            if line_split[2] == 'new' or line_split[2] == 'modified':
+            if line_split[2] == 'new' or line_split[2] == 'modified' or line_split[2] == 'prokka;new':
                 genomes_to_consider.add(line_split[1])
                 
         print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
@@ -96,13 +97,15 @@ class RunCheckm(object):
               assembly_ids[assembly_id] = assembly_dir
 
               gene_file = os.path.join(assembly_dir, assembly_id + '_protein.faa')
-              if os.path.exists(gene_file):
+              if os.stat(gene_file).st_size == 0:
+                print '[Warning] Ignoring file %s as it has a size of zero.' % (assembly_id + '_protein.faa')
+              elif os.path.exists(gene_file):
                 gene_files.append(gene_file)
 
         print '  Identified %d gene files.' % len(gene_files)
 
         # copy genomes in batches of 1000
-        ambiguous_aa = maketrans('BJZ', 'XXX')
+        #ambiguous_aa = maketrans('BJZ', 'XXX')
         
         print 'Partitioning genomes into chunks of 1000.'
         num_chunks = 0
@@ -115,10 +118,12 @@ class RunCheckm(object):
 
           # copy sequences and replace ambiguous bases with an X (unknown)
           # as pplacer is not compatible with these characters
-          fout = open(os.path.join(chunk_dir, ntpath.basename(gene_file)), 'w')
-          for seq_id, seq, annotation in  seq_io.read_seq(gene_file, True):
-              fout.write('>' + seq_id + ' ' + annotation + '\n')
-              fout.write(seq.translate(ambiguous_aa) + '\n')
+          #fout = open(os.path.join(chunk_dir, ntpath.basename(gene_file)), 'w')
+          #for seq_id, seq, annotation in  seq_io.read_seq(gene_file, True):
+          #    fout.write('>' + seq_id + ' ' + annotation + '\n')
+          #    fout.write(seq.translate(ambiguous_aa) + '\n')
+          
+          shutil.copy(gene_file, os.path.join(chunk_dir, ntpath.basename(gene_file)))
     else:
         # just determine number of "chunk" directories
         num_chunks = 0

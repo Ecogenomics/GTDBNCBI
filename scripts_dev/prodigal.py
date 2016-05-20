@@ -48,6 +48,7 @@ class RunProdigal(object):
   directories for each user:
 
   <user_id>/<genome_id>/<genome_id>_genomic.fna
+  <organism_dir>/<assembly_dir>/<genome_id>_genomic.fna
 
   where <genome_id>_genomic.fna is the genome file to be processed.
   """
