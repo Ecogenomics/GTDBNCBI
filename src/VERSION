@@ -1,9 +1,13 @@
 software_version=1.1.1
 ncbi_database_version=release 75
-gtdb_version=1.0.0
+gtdb_version=1.1.2
 
 GTDB versions
 -------------
+v1.1.2 (May 20, 2016):
+- updated GTDB taxonomy
+v1.1.1 (May 4, 2016):
+- updated GTDB taxonomy
 v1.1.0 (Apr. 9, 2016):
 - Parallel genome submission
 - Automatic assignment of GTDB taxonomy for clustered genomes

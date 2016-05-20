@@ -120,7 +120,6 @@ class Tigrfam(object):
 
           gene_file = os.path.join(assembly_dir, assembly_id + self.protein_file_ext)
           if os.path.exists(gene_file):
-            print gene_file
             gene_files.append(gene_file)
 
     print '  Number of unprocessed genomes: %d' % len(gene_files)
