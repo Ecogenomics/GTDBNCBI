@@ -47,7 +47,7 @@ class AddMetadata(object):
     # get genomes to process
     genome_list = set()
     if genome_list_file:
-      for line in genome_list_file:
+      for line in open(genome_list_file):
         genome_list.add(line.rstrip().split('\t')[0])
 
     # get database table and data type of each metadata field
