@@ -16,6 +16,7 @@
 ###############################################################################
 
 import logging
+import sys
 
 import psycopg2
 from psycopg2.extensions import AsIs
@@ -234,6 +235,15 @@ class MarkerSetManager(object):
                         query_del_set = ("DELETE FROM marker_sets WHERE id = {0} ").format(
                             marker_set_id)
                         self.cur.execute(query_del_set)
+
+                    # we deletethe aligned markers not associated with any marker_sets
+                    query_get_distinct_mkrs = "SELECT DISTINCT marker_id FROM marker_set_contents"
+                    self.cur.execute(query_get_distinct_mkrs)
+                    processed_results = [genome_id for (genome_id,) in self.cur.fetchall()]
+                    mkrs_to_del = [x for x in marker_ids if x not in processed_results]
+
+                    query_del_aligned_mkrs = "DELETE FROM aligned_markers where marker_id in %s"
+                    self.cur.execute(query_del_aligned_mkrs, (tuple(mkrs_to_del),))
 
                 else:
                     raise GenomeDatabaseError(

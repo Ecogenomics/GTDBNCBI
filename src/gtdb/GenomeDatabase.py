@@ -312,9 +312,7 @@ class GenomeDatabase(object):
             rep_genomes_to_delete = set(
                 db_rep_genome_ids).intersection(genome_ids)
             if len(rep_genomes_to_delete):
-                self.logger.warning(
-                    "The %d genome(s) marked as representatives will not be deleted." % len(rep_genomes_to_delete))
-                genome_ids = set(genome_ids).difference(rep_genomes_to_delete)
+                self.logger.warning("The %d genome(s) marked as representatives will be deleted." % len(rep_genomes_to_delete))
 
             # delete genomes
             genome_mngr.deleteGenomes(batchfile, list(set(genome_ids)), reason)
@@ -367,6 +365,19 @@ class GenomeDatabase(object):
             # copy data for each genome
             genome_mngr.copyGenomes(db_genome_ids, genomic, gene, out_dir, gtdb_header)
 
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+
+    def ExportSSUSequences(self, path):
+        try:
+            cur = self.conn.cursor()
+            genomeman = GenomeManager(cur, self.currentUser)
+            genomeman.exportSSUSequences(path)
+
+            self.conn.commit()
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
