@@ -188,6 +188,7 @@ class UpdateGenbankFolder(object):
                     outF.write(inF.read())
                     inF.close()
                     outF.close()
+                    os.remove(compressed_file)
             return False
         else:
             ftp_folder = False

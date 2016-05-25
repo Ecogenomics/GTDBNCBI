@@ -221,6 +221,10 @@ def PullGenomes(db, args):
                           args.gtdb_header)
 
 
+def ExportSSUSequences(db, args):
+    return db.ExportSSUSequences(args.outfile)
+
+
 def CreateGenomeList(db, args):
 
     external_ids = []
@@ -386,10 +390,7 @@ def viewMetadata(db, args):
 
 
 def exportMetadata(db, args):
-    if args.path:
-        return db.ExportGenomePaths(args.outfile)
-    else:
-        return db.ExportMetadata(args.outfile)
+    return db.ExportMetadata(args.outfile)
 
 
 def importMetadata(db, args):
@@ -434,6 +435,10 @@ def RunSanityCheck(db, args):
         return db.RunSanityCheck(args.outfile)
     else:
         return db.RunSanityCheck()
+
+
+def ExportGenomePaths(db, args):
+    return db.ExportGenomePaths(args.outfile)
 
 
 if __name__ == '__main__':
@@ -676,6 +681,22 @@ if __name__ == '__main__':
                                       help="Show help message.")
 
     parser_genome_view.set_defaults(func=ViewGenomes)
+
+    # export ssu sequences for all genomes
+    parser_genome_ssu_export = genome_category_subparser.add_parser('ssu_export',
+                                                                    add_help=False,
+                                                                    formatter_class=CustomHelpFormatter,
+                                                                    help='Export a fasta file containing the SSU sequence best match for all genomes ')
+
+    required_genome_ssu_export = parser_genome_ssu_export.add_argument_group('required arguments')
+    required_genome_ssu_export.add_argument('--output', dest='outfile', default=None, required=True,
+                                            help='Name of output file.')
+
+    optional_genome_ssu_export = parser_genome_ssu_export.add_argument_group('optional arguments')
+    optional_genome_ssu_export.add_argument('-h', '--help', action="help",
+                                            help="Show help message.")
+
+    parser_genome_ssu_export.set_defaults(func=ExportSSUSequences)
 
 # -------- Genome Lists Management subparsers
 
@@ -938,8 +959,6 @@ if __name__ == '__main__':
                                           help='Name of output file.')
 
     optional_metadata_export = parser_metadata_export.add_argument_group('optional arguments')
-    optional_metadata_export.add_argument('--path', default=False, action='store_true',
-                                          help="Export full path for all genomes.")
     optional_metadata_export.add_argument('-h', '--help', action="help",
                                           help="Show help message.")
 
@@ -1152,6 +1171,23 @@ if __name__ == '__main__':
                                      help="Show help message.")
 
     parser_power_tree_exception.set_defaults(func=RunTreeExceptions)
+
+# --------- Export genome folder paths
+
+    parser_power_genome_path = power_category_subparser.add_parser('genome_paths',
+                                                                   add_help=False,
+                                                                   formatter_class=CustomHelpFormatter,
+                                                                   help='Export all genome path options')
+
+    required_power_tree_genome_path = parser_power_genome_path.add_argument_group('required arguments')
+    required_power_tree_genome_path.add_argument('--output', dest='outfile', default=None, required=True,
+                                                 help='Name of output file.')
+
+    optional_power_genome_path_export = parser_power_genome_path.add_argument_group('optional arguments')
+    optional_power_genome_path_export.add_argument('-h', '--help', action="help",
+                                                   help="Show help message.")
+
+    parser_power_genome_path.set_defaults(func=ExportGenomePaths)
 
  # -------- Sanity check
     parser_sanity_exception = power_category_subparser.add_parser('sanity_check',

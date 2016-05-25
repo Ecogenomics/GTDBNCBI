@@ -59,7 +59,7 @@ class UpdateRefSeqFolder(object):
         self.allbutFasta = self.extensions + self.reports
 
         self.report_gcf = open(os.path.join(new_refseq_folder, "report_gcf.log"), "w")
-        self.stats_update = open(os.path.join(args.new_refseq_folder, "stats_update.log"), "w")
+        self.stats_update = open(os.path.join(new_refseq_folder, "stats_update.log"), "w")
 
     def runComparison(self, ftp_refseq, new_refseq, ftp_genome_dirs, old_genome_dirs):
         '''
@@ -181,7 +181,18 @@ class UpdateRefSeqFolder(object):
         # record as incomplete
         if len(list(set(ftpdict_fasta.keys()).symmetric_difference(set(gtdbdict_fasta.keys())))) > 0:
             status.append("incomplete")
-            return False
+            shutil.copytree(ftp_dir, target_dir, ignore=shutil.ignore_patterns("*_assembly_structure"))
+            # we unzip of gz file
+            for compressed_file in glob.glob(target_dir + "/*.gz"):
+                if os.path.isdir(compressed_file) == False:
+                    inF = gzip.open(compressed_file, 'rb')
+                    outF = open(
+                        self.rreplace(compressed_file, ".gz", "", 1), 'wb')
+                    outF.write(inF.read())
+                    inF.close()
+                    outF.close()
+                    os.remove(compressed_file)
+
         else:
             ftp_folder = False
             # check if genomic.fna.gz and protein.faa.gz are similar between
