@@ -1108,8 +1108,8 @@ if __name__ == '__main__':
 
     optional_markers_create_tree.add_argument('--min_perc_aa', type=float, default=50,
                                               help='Filter genomes with an insufficient percentage of AA in the MSA.')
-    optional_markers_create_tree.add_argument('--min_perc_taxa', type=float, default=50,
-                                              help='minimum percentage of taxa required required to retain column.')
+    optional_markers_create_tree.add_argument('--min_perc_taxa', type=float, default=80,
+                                              help='Minimum percentage of taxa required to retain column.')
     optional_markers_create_tree.add_argument('--excluded_genome_list_ids',
                                               help='Genome list IDs (comma separated) indicating genomes to exclude from the tree.')
     optional_markers_create_tree.add_argument('--excluded_genome_ids',
