@@ -131,7 +131,10 @@ class PfamSearch(object):
 
           gene_file = os.path.join(assembly_dir, assembly_id + self.protein_file_ext)
           if os.path.exists(gene_file):
-            gene_files.append(gene_file)
+            if os.stat(gene_file).st_size == 0:
+                print '[Warning] Protein file appears to be empty: %s' % gene_file
+            else:
+                gene_files.append(gene_file)
 
     print '  Number of unprocessed genomes: %d' % len(gene_files)
 
