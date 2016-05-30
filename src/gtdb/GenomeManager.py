@@ -134,13 +134,13 @@ class GenomeManager(object):
 
             self.logger.info("Calculating and storing metadata for each genome.")
             manager = multiprocessing.Manager()
-            
+
             progress_queue = multiprocessing.Queue()
-            progress_proc = multiprocessing.Process(target = self._progress, args = (len(genomic_files), progress_queue))
+            progress_proc = multiprocessing.Process(target=self._progress, args=(len(genomic_files), progress_queue))
             progress_proc.start()
-            
+
             out_q = multiprocessing.Manager().Queue()
-            
+
             procs = []
             nprocs = self.threads
             for item in splitchunks(genomic_files, nprocs):
@@ -149,7 +149,7 @@ class GenomeManager(object):
                     args=(item, file_paths, checkm_results_dict, study_id, out_q, progress_queue))
                 procs.append(p)
                 p.start()
-                
+
             # Pierre: why is this needed?
             while out_q.empty():
                 time.sleep(1)
@@ -157,7 +157,7 @@ class GenomeManager(object):
             # wait for all worker processes to finish
             for p in procs:
                 p.join()
-                
+
             self.logger.info("Waiting for progress process.")
             progress_queue.put(None)
             progress_proc.join()
@@ -178,22 +178,22 @@ class GenomeManager(object):
             raise
 
         return genomic_files.keys()
-        
+
     def _progress(self, num_genomes, progress_queue):
         """Track progress of large parallel jobs."""
-        
+
         processed_genomes = 0
         while True:
-          bin_id = progress_queue.get(block=True, timeout=None)
-          if bin_id == None:
-            break
+            bin_id = progress_queue.get(block=True, timeout=None)
+            if bin_id is None:
+                break
 
-          processed_genomes += 1
-          statusStr = '==> Finished processing %d of %d (%.2f%%) genomes.' % (processed_genomes, 
-                                                                                    num_genomes, 
-                                                                                    float(processed_genomes)*100/num_genomes)
-          sys.stdout.write('%s\r' % statusStr)
-          sys.stdout.flush()
+            processed_genomes += 1
+            statusStr = '==> Finished processing %d of %d (%.2f%%) genomes.' % (processed_genomes,
+                                                                                num_genomes,
+                                                                                float(processed_genomes) * 100 / num_genomes)
+            sys.stdout.write('%s\r' % statusStr)
+            sys.stdout.flush()
 
         sys.stdout.write('\n')
 
@@ -226,9 +226,9 @@ class GenomeManager(object):
                                       genome_file_paths["gff_path"],
                                       checkm_results_dict[bin_id],
                                       output_dir)
-                                      
+
             progress_queue.put(bin_id)
-            
+
         out_q.put("True")
         return True
 
@@ -804,6 +804,9 @@ class GenomeManager(object):
                 self.cur.execute("DELETE FROM genomes " +
                                  "WHERE id IN %s", (tuple(db_genome_ids),))
 
+                self.cur.execute("UPDATE metadata_taxonomy set gtdb_genome_representative = NULL where  " +
+                                 "gtdb_genome_representative in %s", (tuple(genomes_owners.keys()),))
+
                 for genome, info in genomes_owners.iteritems():
                     if str(username) != str(info.get("owner")):
                         logging.info('''Genome {0} has been deleted by {1} for the following reason '{2}'
@@ -1057,3 +1060,24 @@ class GenomeManager(object):
             raise e
 
         return header, rows
+
+    def exportSSUSequences(self, output_file):
+        '''
+        Exports all SSU sequences from GTDB to a fasta file.
+        The format of the sequence header will follow the format :><genome_id>~<contig_id> <gtdb_taxonomy>
+
+        :param path: Path to the output file
+        '''
+        try:
+            self.cur.execute("SELECT genome, gtdb_taxonomy,ms.ssu_gg_2013_08_query_id,ms.ssu_gg_2013_08_sequence FROM metadata_view " +
+                             "LEFT JOIN metadata_ssu ms USING (id) " +
+                             "WHERE ms.ssu_gg_2013_08_sequence is not NULL")
+
+            fout = open(output_file, 'w')
+            for genome, taxonomy, query, sequence in self.cur.fetchall():
+                fout.write('>{0}|{1} {2}\n'.format(genome, query, taxonomy))
+                fout.write('{0}\n'.format(sequence))
+            fout.close()
+            print 'Export successful'
+        except GenomeDatabaseError as e:
+            raise e

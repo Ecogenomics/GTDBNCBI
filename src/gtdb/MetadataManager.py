@@ -26,6 +26,7 @@ import Config
 from Exceptions import GenomeDatabaseError
 
 from biolib.taxonomy import Taxonomy
+from biolib.seq_io import read_fasta
 
 
 class MetadataManager(object):
@@ -319,8 +320,27 @@ class MetadataManager(object):
                 db_genome_id)
             metadata_ssu_gg_path = os.path.join(
                 genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
+            metadata_ssu_fna_gg_path = os.path.join(
+                genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
             genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
-                metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX)
+                metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX, metadata_ssu_fna_gg_path)
+            if genome_list_taxonomy:
+                for c, v in genome_list_taxonomy:
+                    try:
+                        v = float(v)
+                        self.cur.execute(query_taxonomy, [AsIs(c), v])
+                    except:
+                        self.cur.execute(query_taxonomy, [AsIs(c), v])
+
+            # Greengenes SSU metadata saved in metadata_ssu table
+            query_taxonomy = "UPDATE metadata_ssu SET %s = %s WHERE id = {0}".format(
+                db_genome_id)
+            metadata_ssu_gg_path = os.path.join(
+                genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
+            metadata_ssu_fna_gg_path = os.path.join(
+                genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE, ConfigMetadata.GTDB_SSU_FNA_FILE)
+            genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
+                metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX, metadata_ssu_fna_gg_path)
             if genome_list_taxonomy:
                 for c, v in genome_list_taxonomy:
                     try:
@@ -348,7 +368,7 @@ class MetadataManager(object):
         except psycopg2.Error as e:
             raise GenomeDatabaseError(e.pgerror)
 
-    def _parse_taxonomy_file(self, metadata_taxonomy_file, prefix):
+    def _parse_taxonomy_file(self, metadata_taxonomy_file, prefix, fna_file):
         """Parse metadata file with taxonomic information for 16S rRNA genes.
 
         Parameters
@@ -357,6 +377,8 @@ class MetadataManager(object):
           Full path to file containing 16S rRNA metadata.
         Prefix : str
           Prefix to append to metadata fields.
+        Fna file : str
+          Full path to file containing 16S rRNA sequences.
 
         Returns
         -------
@@ -375,6 +397,14 @@ class MetadataManager(object):
             headers = [
                 prefix + '_' + x.replace('ssu_', '') for x in header_line.split('\t')]
 
+            # Check the CheckM headers are consistent
+            split_headers = header_line.rstrip().split("\t")
+            for pos in range(0, len(split_headers)):
+                header = split_headers[pos]
+                if header == 'query_id':
+                    query_id_pos = pos
+                    break
+
             # Report hit to longest 16S rRNA gene. It is possible that
             # the HMMs identified a putative 16S rRNA gene, but that
             # there was no valid BLAST hit.
@@ -388,12 +418,18 @@ class MetadataManager(object):
                 if query_len > longest_query_len:
                     longest_query_len = query_len
                     longest_ssu_hit_info = line_split
+                    ssu_query_id = line_split[query_id_pos]
 
             if longest_ssu_hit_info:
                 metadata = [(headers[i], value)
                             for i, value in enumerate(longest_ssu_hit_info)]
 
-        return metadata, ssu_count
+                if fna_file is not None and os.path.exists(fna_file):
+                    all_genes_dict = read_fasta(fna_file, False)
+                    sequence = all_genes_dict[ssu_query_id]
+                    headers.append(('{0}_sequence'.format(prefix), sequence))
+
+                return metadata, ssu_count
 
     def _storeCheckM(self, db_genome_id, checkm_results):
         """Store CheckM results for genome.

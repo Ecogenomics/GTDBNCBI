@@ -1,6 +1,7 @@
 GTDB_NT_FILE = 'metadata.genome_nt.tsv'
 GTDB_GENE_FILE = 'metadata.genome_gene.tsv'
 GTDB_SSU_FILE = 'ssu.taxonomy.tsv'
+GTDB_SSU_FNA_FILE = 'ssu.fna'
 
 GTDB_SSU_SILVA_DB = '/srv/whitlam/bio/db/silva/119/SILVA_119.pintail_100.ncbi_ids.fna'
 GTDB_SSU_SILVA_TAXONOMY = '/srv/whitlam/bio/db/silva/119/ssuref_119_maria.2015-09-28.filled.ncbi_ids.tsv'
