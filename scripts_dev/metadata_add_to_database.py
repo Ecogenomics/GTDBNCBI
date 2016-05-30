@@ -47,9 +47,12 @@ class AddMetadata(object):
     # get genomes to process
     genome_list = set()
     if genome_list_file:
-      for line in genome_list_file:
-        genome_list.add(line.rstrip().split('\t')[0])
-
+      for line in open(genome_list_file):
+        if '\t' in line:
+            genome_list.add(line.rstrip().split('\t')[0])
+        else:
+            genome_list.add(line.rstrip().split(',')[0])
+            
     # get database table and data type of each metadata field
     metadata_type = {}
     metadata_table = {}
@@ -105,7 +108,6 @@ class AddMetadata(object):
 
       temp_file.close()
       cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % (table, field, data_type, temp_file.name)
-      print cmd
       os.system(cmd)
       os.remove(temp_file.name)
 

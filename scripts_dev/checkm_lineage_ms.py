@@ -67,13 +67,14 @@ class RunCheckm(object):
         os.makedirs(output_dir)
         
         # get list of genomes to consider
-        genomes_to_consider = set()
-        for line in open(genome_report):
-            line_split = line.strip().split('\t')
-            if line_split[2] == 'new' or line_split[2] == 'modified' or line_split[2] == 'prokka;new':
-                genomes_to_consider.add(line_split[1])
-                
-        print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
+        if genome_report != 'None':
+            genomes_to_consider = set()
+            for line in open(genome_report):
+                line_split = line.strip().split('\t')
+                if line_split[2] == 'new' or line_split[2] == 'modified' or line_split[2] == 'prokka;new':
+                    genomes_to_consider.add(line_split[1])
+                    
+            print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
                 
         # determine gene files
         gene_files = []
@@ -83,7 +84,7 @@ class RunCheckm(object):
           if os.path.isdir(cur_genome_dir):
             for assembly_id in os.listdir(cur_genome_dir):
               genome_id = assembly_id[0:assembly_id.find('_', 4)]
-              if genome_id not in genomes_to_consider:
+              if genome_report != 'None' and genome_id not in genomes_to_consider:
                 continue
                 
               assembly_dir = os.path.join(cur_genome_dir, assembly_id)
@@ -96,11 +97,12 @@ class RunCheckm(object):
 
               assembly_ids[assembly_id] = assembly_dir
 
-              gene_file = os.path.join(assembly_dir, assembly_id + '_protein.faa')
-              if os.stat(gene_file).st_size == 0:
-                print '[Warning] Ignoring file %s as it has a size of zero.' % (assembly_id + '_protein.faa')
-              elif os.path.exists(gene_file):
-                gene_files.append(gene_file)
+              gene_file = os.path.join(assembly_dir, assembly_id + '_protein.faa') 
+              if os.path.exists(gene_file):
+                if os.stat(gene_file).st_size == 0:
+                    print '[Warning] Protein file appears to be empty: %s' % gene_file
+                else:
+                    gene_files.append(gene_file)
 
         print '  Identified %d gene files.' % len(gene_files)
 
