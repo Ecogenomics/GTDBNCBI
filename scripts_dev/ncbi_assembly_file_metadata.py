@@ -63,8 +63,12 @@ class Metadata(object):
 
     with open(assembly_metadata_file) as f:
       headers = f.readline().rstrip().split('\t')
-
       indices = [i for i, header in enumerate(headers) if header in self.fields]
+      
+      if len(headers) == 1:
+        # NCBI sometimes throws an extra comment at the top of the file
+        headers = f.readline().rstrip().split('\t')
+        indices = [i for i, header in enumerate(headers) if header in self.fields]
 
       for line in f:
         line_split = line.rstrip().split('\t')

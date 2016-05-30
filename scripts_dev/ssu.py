@@ -69,7 +69,16 @@ class SSU(object):
                                                           total_items,
                                                           processed_items * 100.0 / total_items)
 
-  def run(self, ncbi_genome_dir, user_genome_dir, ssu_db, cpus):
+  def run(self, ncbi_genome_dir, user_genome_dir, cpus):
+    """Create metadata by parsing assembly stats files."""
+    
+    print 'Running with GreenGenes database'
+    self._run(ncbi_genome_dir, user_genome_dir, 'GG', cpus)
+    
+    print 'Running with SILVA database'
+    self._run(ncbi_genome_dir, user_genome_dir, 'SILVA', cpus)
+    
+  def _run(self, ncbi_genome_dir, user_genome_dir, ssu_db, cpus):
     """Create metadata by parsing assembly stats files."""
     
     if ssu_db == 'GG':
@@ -144,8 +153,6 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('ncbi_genome_dir', help='base directory leading to NCBI archaeal and bacterial genome assemblies')
   parser.add_argument('user_genome_dir', help='base directory leading to user genomes or NONE to skip')
-  parser.add_argument('ssu_db', choices=['GG', 'SILVA'], help='SSU database to use for assigning taxonomy')
-  
   parser.add_argument('-t', '--threads', help='number of CPUs to use', type=int, default=32)
 
   args = parser.parse_args()
@@ -154,7 +161,7 @@ if __name__ == '__main__':
 
   try:
     p = SSU()
-    p.run(args.ncbi_genome_dir, args.user_genome_dir, args.ssu_db, args.threads)
+    p.run(args.ncbi_genome_dir, args.user_genome_dir, args.threads)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:
