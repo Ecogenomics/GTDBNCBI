@@ -196,7 +196,6 @@ class MetadataManager(object):
             query = "SELECT v.field,v.table from view_list_meta_columns as v"
             self.cur.execute(query)
             all_col_dict = dict(self.cur.fetchall())
-            print all_col_dict
             for key, value in data_dict.iteritems():
                 if key in all_col_dict:
                     if all_col_dict.get(key) == value['table']:
