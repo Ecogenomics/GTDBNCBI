@@ -150,16 +150,20 @@ def AddGenomes(db, args):
 
 
 def CreateTreeData(db, args):
+    guaranteed_genomes = set()
 
-    genome_id_list = db.GetGenomeIds(args.all_dereplicated,
-                                     args.ncbi_dereplicated,
-                                     args.user_dereplicated,
-                                     args.all_genomes,
-                                     args.ncbi_genomes,
-                                     args.user_genomes,
-                                     args.genome_list_ids,
-                                     args.genome_ids,
-                                     args.genome_batchfile)
+    gid_list_and_garanteed_gid = db.GetGenomeIds(args.all_dereplicated,
+                                                 args.ncbi_dereplicated,
+                                                 args.user_dereplicated,
+                                                 args.all_genomes,
+                                                 args.ncbi_genomes,
+                                                 args.user_genomes,
+                                                 args.genome_list_ids,
+                                                 args.genome_ids,
+                                                 args.genome_batchfile)
+    genome_id_list = gid_list_and_garanteed_gid[0]
+
+    guaranteed_genomes.update(gid_list_and_garanteed_gid[1])
 
     marker_id_list = db.GetMarkerIds(args.marker_ids,
                                      args.marker_set_ids,
@@ -171,7 +175,7 @@ def CreateTreeData(db, args):
                            args.min_perc_aa, args.min_perc_taxa,
                            args.taxa_filter,
                            args.excluded_genome_list_ids, args.excluded_genome_ids,
-                           args.guaranteed_genome_list_ids, args.guaranteed_genome_ids,
+                           args.guaranteed_genome_list_ids, args.guaranteed_genome_ids, guaranteed_genomes,
                            not args.no_alignment,
                            args.individual,
                            not args.no_tree)
@@ -428,6 +432,8 @@ def RunTreeExceptions(db, args):
         return db.RunTreeExceptions(args.outfile, True)
     if args.raw:
         return db.RunTreeExceptions(args.outfile, False)
+    if args.weighted:
+        return db.RunTreeWeightedExceptions(args.outfile)
 
 
 def RunSanityCheck(db, args):
@@ -1108,7 +1114,7 @@ if __name__ == '__main__':
 
     optional_markers_create_tree.add_argument('--min_perc_aa', type=float, default=50,
                                               help='Filter genomes with an insufficient percentage of AA in the MSA.')
-    optional_markers_create_tree.add_argument('--min_perc_taxa', type=float, default=90,
+    optional_markers_create_tree.add_argument('--min_perc_taxa', type=float, default=80,
                                               help='minimum percentage of taxa required required to retain column.')
     optional_markers_create_tree.add_argument('--excluded_genome_list_ids',
                                               help='Genome list IDs (comma separated) indicating genomes to exclude from the tree.')
@@ -1165,6 +1171,8 @@ if __name__ == '__main__':
                              help='Run the tree exception with a set of filter ( bacterium,sp,lower case,candidatus).')
     mutex_group.add_argument('--raw', dest='raw', action="store_true", default=False,
                              help='Run the tree exception without filter')
+    mutex_group.add_argument('--weighted', dest='weighted', action="store_true", default=False,
+                             help='Run the tree exception with a weight matrice to find the uniqueness of the genome')
 
     optional_power_view = parser_power_tree_exception.add_argument_group('optional arguments')
     optional_power_view.add_argument('-h', '--help', action="help",

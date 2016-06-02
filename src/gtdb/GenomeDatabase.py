@@ -468,6 +468,8 @@ class GenomeDatabase(object):
                      genome_ids,
                      genome_batchfile):
         """Get all genome IDs of interest.
+        If dereplicated genome lists are called (all_dereplicated,ncbi_dereplicated,user_dereplicated),
+        Representative genomes of those lists are be treated like they are "guaranteed" genomes.
 
         Returns
         -------
@@ -476,6 +478,7 @@ class GenomeDatabase(object):
         """
 
         genome_id_list = set()
+        required_rep_genomes_ids = set()
 
         try:
             cur = self.conn.cursor()
@@ -483,6 +486,8 @@ class GenomeDatabase(object):
             genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
             genome_mngr = GenomeManager(cur, self.currentUser)
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
+
+            rep_genome_ids = genome_rep_mngr.representativeGenomes()
 
             if all_dereplicated:
                 ids = genome_rep_mngr.dereplicatedGenomes()
@@ -496,6 +501,8 @@ class GenomeDatabase(object):
             if user_dereplicated:
                 ids = genome_rep_mngr.userDereplicatedGenomes()
                 genome_id_list.update(ids)
+
+            required_rep_genomes_ids = genome_id_list.intersection(rep_genome_ids)
 
             if all_genomes:
                 ids = genome_mngr.allGenomeIds()
@@ -535,7 +542,7 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
-        return genome_id_list
+        return (genome_id_list, required_rep_genomes_ids)
 
     def GetMarkerIds(self, marker_ids, marker_set_ids, marker_batchfile):
         """Get marker IDs of interest.
@@ -589,7 +596,7 @@ class GenomeDatabase(object):
                      min_perc_aa, min_perc_taxa,
                      taxa_filter,
                      excluded_genome_list_ids, excluded_genome_ids,
-                     guaranteed_genome_list_ids, guaranteed_genome_ids,
+                     guaranteed_genome_list_ids, guaranteed_genome_ids, guaranteed_genomes,
                      alignment, individual,
                      build_tree=True):
 
@@ -620,6 +627,7 @@ class GenomeDatabase(object):
                                                                                               excluded_genome_ids,
                                                                                               guaranteed_genome_list_ids,
                                                                                               guaranteed_genome_ids,
+                                                                                              guaranteed_genomes,
                                                                                               directory,
                                                                                               prefix)
 
@@ -1308,6 +1316,27 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
+        return True
+
+    def RunTreeWeightedExceptions(self, path):
+        '''
+        Function: RunTreeWeightedException
+        Export excluded NCBI records for a tree creation (with all default parameters) to a csv file
+
+        :param path: Path to the output file
+        '''
+        try:
+            cur = self.conn.cursor()
+
+            # ensure all genomes have been assigned to a representatives
+            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr.runTreeWeightedExceptions(path)
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
         return True
 
     def RunTreeExceptions(self, path, filtered):
