@@ -35,98 +35,100 @@ import argparse
 import tempfile
 from collections import defaultdict
 
+
 class AddMetadata(object):
-  """Add all columns in a metadata file to the GTDB."""
+    """Add all columns in a metadata file to the GTDB."""
 
-  def __init__(self):
-    pass
+    def __init__(self):
+        pass
 
-  def run(self, metadata_file, metadata_desc_file, genome_list_file):
-    """Add metadata."""
+    def run(self, metadata_file, metadata_desc_file, genome_list_file):
+        """Add metadata."""
 
-    # get genomes to process
-    genome_list = set()
-    if genome_list_file:
-      for line in open(genome_list_file):
-        if '\t' in line:
-            genome_list.add(line.rstrip().split('\t')[0])
-        else:
-            genome_list.add(line.rstrip().split(',')[0])
-            
-    # get database table and data type of each metadata field
-    metadata_type = {}
-    metadata_table = {}
-    for line in open(metadata_desc_file):
-      line_split = line.strip().split('\t')
-      metadata_type[line_split[0]] = line_split[2]
-      metadata_table[line_split[0]] = line_split[3]
+        # get genomes to process
+        genome_list = set()
+        if genome_list_file:
+            for line in open(genome_list_file):
+                if '\t' in line:
+                    genome_list.add(line.rstrip().split('\t')[0])
+                else:
+                    genome_list.add(line.rstrip().split(',')[0])
 
-    # read metadata file
-    metadata = defaultdict(lambda : defaultdict(str))
-    with open(metadata_file) as f:
-      fields = [x.strip() for x in f.readline().split('\t')]
+        # get database table and data type of each metadata field
+        metadata_type = {}
+        metadata_table = {}
+        for line in open(metadata_desc_file):
+            line_split = line.strip().split('\t')
+            metadata_type[line_split[0]] = line_split[2]
+            metadata_table[line_split[0]] = line_split[3]
 
-      for line in f:
-        line_split = line.rstrip().split('\t')
+        # read metadata file
+        metadata = defaultdict(lambda: defaultdict(str))
+        with open(metadata_file) as f:
+            fields = [x.strip() for x in f.readline().split('\t')]
 
-        genome_id = line_split[0]
-        for i, value in enumerate(line_split[1:]):
-          metadata[fields[i+1]][genome_id] = value
+            for line in f:
+                line_split = line.rstrip().split('\t')
 
-    print metadata.keys()
+                genome_id = line_split[0]
+                for i, value in enumerate(line_split[1:]):
+                    metadata[fields[i + 1]][genome_id] = value
 
-    # add each field to the database
-    for field in metadata:
-      temp_file = tempfile.NamedTemporaryFile(delete=False)
+        print metadata.keys()
 
-      if field not in metadata_type:
-        continue
+        # add each field to the database
+        for field in metadata:
+            temp_file = tempfile.NamedTemporaryFile(delete=False)
 
-      data_type = metadata_type[field]
-      table = metadata_table[field]
+            if field not in metadata_type:
+                continue
 
-      for genome_id, value in metadata[field].iteritems():
-        if genome_id == 'GCF_000826165.1':
-          continue
+            data_type = metadata_type[field]
+            table = metadata_table[field]
 
-        try:
-          if float(value) and data_type in ['INT', 'INTEGER']:
-            # assume specified data type is correct and that we may need
-            # to cast floats to integers
-            value = str(int(float(value)))
-        except:
-          pass
+            for genome_id, value in metadata[field].iteritems():
+                if genome_id == 'GCF_000826165.1':
+                    continue
 
-        if value.strip():
-          if genome_id.startswith('GCA_'):
-            genome_id = 'GB_' + genome_id
-          elif genome_id.startswith('GCF_'):
-            genome_id = 'RS_' + genome_id
+                try:
+                    if float(value) and data_type in ['INT', 'INTEGER']:
+                        # assume specified data type is correct and that we may need
+                        # to cast floats to integers
+                        value = str(int(float(value)))
+                except:
+                    pass
 
-          if not genome_list or genome_id in genome_list:
-            temp_file.write('%s\t%s\n' % (genome_id, value))
+                if value.strip():
+                    if genome_id.startswith('GCA_'):
+                        genome_id = 'GB_' + genome_id
+                    elif genome_id.startswith('GCF_'):
+                        genome_id = 'RS_' + genome_id
 
-      temp_file.close()
-      cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % (table, field, data_type, temp_file.name)
-      os.system(cmd)
-      os.remove(temp_file.name)
+                    if not genome_list or genome_id in genome_list:
+                        temp_file.write('%s\t%s\n' % (genome_id, value))
+
+            temp_file.close()
+            cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % (table, field, data_type, temp_file.name)
+            os.system(cmd)
+            os.remove(temp_file.name)
+
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
+    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
-  parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  parser.add_argument('metadata_file', help='tab-separated values table with metadata')
-  parser.add_argument('metadata_desc_file', help='tab-separated values table with description of metadata fields')
-  parser.add_argument('--genome_list', help='only process genomes in this list', default=None)
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('metadata_file', help='tab-separated values table with metadata')
+    parser.add_argument('metadata_desc_file', help='tab-separated values table with description of metadata fields')
+    parser.add_argument('--genome_list', help='only process genomes in this list', default=None)
 
-  args = parser.parse_args()
+    args = parser.parse_args()
 
-  try:
-    p = AddMetadata()
-    p.run(args.metadata_file, args.metadata_desc_file, args.genome_list)
-  except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
-  except:
-    print "\nUnexpected error:", sys.exc_info()[0]
-    raise
+    try:
+        p = AddMetadata()
+        p.run(args.metadata_file, args.metadata_desc_file, args.genome_list)
+    except SystemExit:
+        print "\nControlled exit resulting from an unrecoverable error or warning."
+    except:
+        print "\nUnexpected error:", sys.exc_info()[0]
+        raise

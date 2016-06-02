@@ -59,6 +59,7 @@ class TreeManager(object):
                       excluded_genome_ids,
                       guaranteed_genome_list_ids,
                       guaranteed_genome_ids,
+                      guaranteed_genomes,
                       directory,
                       prefix):
         """Filter genomes based on provided criteria.
@@ -106,7 +107,6 @@ class TreeManager(object):
         self.logger.info('Identifying genomes to be excluded from filtering.')
         genome_mngr = GenomeManager(self.cur, self.currentUser)
         genome_list_mngr = GenomeListManager(self.cur, self.currentUser)
-        guaranteed_genomes = set()
         if guaranteed_genome_ids:
             list_genome_ids = [x.strip()
                                for x in guaranteed_genome_ids.split(",")]
@@ -348,7 +348,6 @@ class TreeManager(object):
                     sequence = chosen_markers[marker_id]['size'] * '-'
                 aligned_seq += sequence
             msa[external_genome_id] = aligned_seq
-
             multi_hits_outstr = '%s\t%s\n' % (
                 external_genome_id, '\t'.join(multi_hits_details[db_genome_id]))
             multi_hits_fh.write(multi_hits_outstr)
@@ -572,7 +571,7 @@ class TreeManager(object):
         fout.write("BEGIN\n")
         fout.write("db_name=%s\n" % external_genome_id)
         for col_header, value in zip(metadata_fields, metadata_values):
-            if type(value) is float:
+            if isinstance(value, float):
                 value = '%.4g' % value
 
             # replace equal signs as these are incompatible with the ARB parser
