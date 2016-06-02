@@ -40,6 +40,85 @@ class PowerUserManager(object):
         self.cur = cur
         self.currentUser = currentUser
 
+    def runTreeWeightedExceptions(self, path):
+        '''
+        Function: runTreeWeightedException
+        Export list of NCBI genomes that do comply the filter criteria but are of interest.
+
+        :param path: Path to the output file
+        '''
+        try:
+            if (not self.currentUser.isRootUser()):
+                raise GenomeDatabaseError("Only the root user can run this command")
+                return False
+            self.cur.execute("SELECT id,mt.ncbi_taxonomy FROM genomes g " +
+                             "LEFT JOIN metadata_genes mg USING (id) " +
+                             "LEFT JOIN metadata_taxonomy mt  USING (id) " +
+                             "LEFT JOIN metadata_ncbi mn  USING (id) " +
+                             "WHERE g.genome_source_id IN (2,3) and " +
+                             "mg.checkm_completeness > %s and mg.checkm_contamination < %s " +
+                             "and mg.checkm_completeness-4*mg.checkm_contamination > %s and mt.ncbi_taxonomy is not NULL",
+                             (DefaultValues.DEFAULT_CHECKM_COMPLETENESS, DefaultValues.DEFAULT_CHECKM_CONTAMINATION, DefaultValues.DEFAULT_QUALITY_THRESHOLD))
+            processed_results = zip(*self.cur)
+            existing_id = processed_results[0]
+            existing_taxonomy = processed_results[1]
+            order_list = [x.split(';')[3] for x in existing_taxonomy]
+
+            self.cur.execute("SELECT g.id,g.name,mg.checkm_completeness,mg.checkm_contamination,mt.ncbi_taxonomy,mnuc.genome_size,(mg.checkm_completeness-4*mg.checkm_contamination) as quality_threshold,mn.ncbi_organism_name " +
+                             "FROM genomes g " +
+                             "LEFT JOIN metadata_genes mg USING (id) " +
+                             "LEFT JOIN metadata_ncbi mn  USING (id) " +
+                             "LEFT JOIN metadata_nucleotide mnuc  USING (id) " +
+                             "LEFT JOIN metadata_taxonomy mt  USING (id) " +
+                             "WHERE g.genome_source_id IN (2,3) and " +
+                             "(mg.checkm_completeness > %s and  mg.checkm_contamination < %s " +
+                             "and mg.checkm_completeness-4*mg.checkm_contamination > %s) and mt.ncbi_taxonomy is not NULL and g.id not in %s",
+                             (DefaultValues.EXCEPTION_FILTER_ONE_CHECKM_COMPLETENESS, DefaultValues.EXCEPTION_FILTER_ONE_CHECKM_CONTAMINATION, DefaultValues.EXCEPTION_FILTER_ONE_QUALITY_THRESHOLD, existing_id))
+
+            dict_except_genus = {}
+            for (gid, name, compl, conta, ncbitax, size, qual, orga) in self.cur:
+                if self._checkTaxonomyUniqueness(ncbitax, order_list):
+                    if self._checkTaxonomyUniqueness(ncbitax, dict_except_genus):
+                        dict_except_genus[ncbitax] = {'quality': float(qual), 'id': gid, 'full_info': [name, compl, conta, ncbitax, size, qual, orga]}
+                    else:
+                        if dict_except_genus.get(ncbitax).get('quality') > float(qual):
+                            dict_except_genus[ncbitax] = {'quality': float(qual), 'id': gid, 'full_info': [name, compl, conta, ncbitax, size, qual, orga]}
+
+            list_exception_id = [info.get('id') for k, info in dict_except_genus.iteritems()]
+            combined_list = list_exception_id + list(existing_id)
+            self.cur.execute("SELECT g.name,mg.checkm_completeness,mg.checkm_contamination,mt.ncbi_taxonomy,mnuc.genome_size,(mg.checkm_completeness-4*mg.checkm_contamination) as quality_threshold,mn.ncbi_organism_name " +
+                             "FROM genomes g " +
+                             "LEFT JOIN metadata_genes mg USING (id) " +
+                             "LEFT JOIN metadata_ncbi mn  USING (id) " +
+                             "LEFT JOIN metadata_nucleotide mnuc  USING (id) " +
+                             "LEFT JOIN metadata_taxonomy mt  USING (id) " +
+                             "WHERE g.genome_source_id IN (2,3) and " +
+                             "(mg.checkm_completeness > %s and  mg.checkm_contamination < %s " +
+                             "and mg.checkm_completeness-4*mg.checkm_contamination > %s) and g.id not in %s",
+                             (DefaultValues.EXCEPTION_FILTER_TWO_CHECKM_COMPLETENESS, DefaultValues.EXCEPTION_FILTER_TWO_CHECKM_CONTAMINATION, DefaultValues.EXCEPTION_FILTER_TWO_QUALITY_THRESHOLD, tuple(combined_list)))
+            exception_2nd_filter = [[name, compl, conta, ncbitax, size, qual, orga] for (name, compl, conta, ncbitax, size, qual, orga) in self.cur]
+
+            fh = open(path, "w")
+            fh.write("Name,CheckM_Completeness,CheckM_Contamination,NCBI_Taxonomy,Genome_size,Quality_Threshold,Organism_name\n")
+            for k, item in dict_except_genus.iteritems():
+                fh.write(",".join(str(v) for v in item.get('full_info')) + "\n")
+            fh.close
+            for item in exception_2nd_filter:
+                fh.write(",".join(str(v) for v in item) + "\n")
+            fh.close
+
+        except GenomeDatabaseError as e:
+            raise e
+        return True
+
+    def _checkTaxonomyUniqueness(self, ncbitax, order_list):
+        print '_checkTaxonomyUniqueness'
+        ncbi_tax_order = ncbitax.split(';')[3]
+        if ncbi_tax_order in order_list:
+            return False
+
+        return True
+
     def runTreeExceptions(self, path, filtered):
         '''
         Function: RunTreeException

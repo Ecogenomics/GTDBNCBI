@@ -324,7 +324,7 @@ class MarkerSetManager(object):
 
         self.cur.execute("SELECT id, owner_id, owned_by_root, private " +
                          "FROM marker_sets " +
-                         "WHERE id = %s ", (tuple(marker_set_ids),))
+                         "WHERE id in %s ", (tuple(marker_set_ids),))
 
         result = self.cur.fetchone()
 
@@ -334,7 +334,7 @@ class MarkerSetManager(object):
 
         self.cur.execute("SELECT marker_id " +
                          "FROM marker_set_contents " +
-                         "WHERE set_id = %s ", (tuple(marker_set_ids),))
+                         "WHERE set_id in %s ", (tuple(marker_set_ids),))
 
         return [marker_id for (marker_id,) in self.cur.fetchall()]
 
