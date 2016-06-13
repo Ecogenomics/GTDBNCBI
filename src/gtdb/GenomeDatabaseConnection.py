@@ -16,13 +16,16 @@
 ###############################################################################
 
 import psycopg2 as pg
+from psycopg2.pool import ThreadedConnectionPool
 
 import Config
 
 
 class GenomeDatabaseConnection(object):
+
     def __init__(self):
         self.conn = None
+        self.conn_pool = None
 
     # Opens a connection to the PostgreSQL database
     #
