@@ -18,7 +18,6 @@
 import os
 import pwd
 import logging
-from multiprocessing import Pool
 
 import prettytable
 
@@ -45,13 +44,14 @@ class GenomeDatabase(object):
         self.logger = logging.getLogger()
 
         self.conn = GenomeDatabaseConnection()
+        self.conn_pool = GenomeDatabaseConnection()
+
         self.currentUser = None
         self.errorMessages = []
         self.warningMessages = []
         self.debugMode = False
 
         self.threads = threads
-        self.pool = Pool(threads)
 
         self.tab_table = tab_table
 
@@ -204,6 +204,7 @@ class GenomeDatabase(object):
             self.logger.info('Adding genomes to database.')
 
             cur = self.conn.cursor()
+
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
 
             if modify_genome_list_id is not None:
