@@ -127,7 +127,7 @@ class GenomeManager(object):
             checkm_results_dict = self._processCheckM(checkm_file)
 
             genomic_files = self._addGenomeBatch(batchfile, self.tmp_output_dir)
-
+	    
             self.logger.info("Running Prodigal to identify genes.")
             prodigal = Prodigal(self.threads)
             file_paths = prodigal.run(genomic_files)
@@ -143,7 +143,7 @@ class GenomeManager(object):
 
             procs = []
             nprocs = self.threads
-            for item in splitchunks(genomic_files, nprocs):
+            for item in splitchunks(genomic_files, 1):
                 p = multiprocessing.Process(
                     target=self._addGenomesWorker,
                     args=(item, file_paths, checkm_results_dict, study_id, out_q, progress_queue))

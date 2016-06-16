@@ -172,7 +172,7 @@ def CreateTreeData(db, args):
     return db.MakeTreeData(marker_id_list, genome_id_list,
                            args.out_dir, args.prefix,
                            args.quality_threshold, args.comp_threshold, args.cont_threshold,
-                           args.min_perc_aa, args.min_perc_taxa,
+                           args.min_perc_aa, args.min_perc_taxa, args.consensus,
                            args.taxa_filter,
                            args.excluded_genome_list_ids, args.excluded_genome_ids,
                            args.guaranteed_genome_list_ids, args.guaranteed_genome_ids, guaranteed_genomes,
@@ -1114,9 +1114,10 @@ if __name__ == '__main__':
 
     optional_markers_create_tree.add_argument('--min_perc_aa', type=float, default=50,
                                               help='Filter genomes with an insufficient percentage of AA in the MSA.')
-    optional_markers_create_tree.add_argument('--min_perc_taxa', type=float, default=80,
-                                              help='Minimum percentage of taxa required to retain column.')
-
+    optional_markers_create_tree.add_argument('--min_perc_taxa', type=float, default=50,
+                                              help='minimum percentage of taxa required required to retain column.')
+    optional_markers_create_tree.add_argument('--consensus', type=float, default=25,
+                                              help='minimum percentage of the same amino acid required to retain column.')
     optional_markers_create_tree.add_argument('--excluded_genome_list_ids',
                                               help='Genome list IDs (comma separated) indicating genomes to exclude from the tree.')
     optional_markers_create_tree.add_argument('--excluded_genome_ids',
