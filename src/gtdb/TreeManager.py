@@ -18,15 +18,15 @@
 import os
 import sys
 import logging
-from collections import defaultdict
-
 import psycopg2 as pg
 
 from biolib.taxonomy import Taxonomy
-import biolib.seq_tk as seq_tk
 
 from GenomeManager import GenomeManager
 from GenomeListManager import GenomeListManager
+
+from collections import Counter
+from collections import defaultdict
 
 
 class TreeManager(object):
@@ -238,6 +238,7 @@ class TreeManager(object):
                    marker_ids,
                    genomes_to_retain,
                    min_perc_taxa,
+                   consensus,
                    min_perc_aa,
                    chosen_markers_order,
                    chosen_markers,
@@ -356,8 +357,8 @@ class TreeManager(object):
 
         # filter columns without sufficient representation across taxa
         self.logger.info('Trimming columns with insufficient taxa.')
-        trimmed_seqs, pruned_seqs = seq_tk.trim_seqs(
-            msa, min_perc_taxa / 100.0, min_perc_aa / 100.0)
+        trimmed_seqs, pruned_seqs = self._trim_seqs(
+            msa, min_perc_taxa / 100.0, consensus / 100.0, min_perc_aa / 100.0)
         self.logger.info('Trimmed alignment from %d to %d AA.' % (len(msa[msa.keys()[0]]),
                                                                   len(trimmed_seqs[trimmed_seqs.keys()[0]])))
         self.logger.info('After trimming %d taxa have AA in <%.1f%% of columns.' % (
@@ -441,6 +442,59 @@ class TreeManager(object):
                 fasta_individual_fh.close()
 
         return fasta_concat_filename
+
+    def _trim_seqs(self, seqs, min_per_taxa, consensus, min_per_bp):
+        """Trim multiple sequence alignment.
+        Adapted from the biolib package
+        Parameters
+        ----------
+        seqs : d[seq_id] -> sequence
+            Aligned sequences.
+        min_per_taxa : float
+            Minimum percentage of taxa required to retain a column [0,1].
+        min_per_bp : float
+            Minimum percentage of base pairs required to keep trimmed sequence [0,1].
+        Returns
+        -------
+        dict : d[seq_id] -> sequence
+            Dictionary of trimmed sequences.
+        dict : d[seq_id] -> sequence
+            Dictionary of pruned sequences.
+        """
+
+        alignment_length = len(seqs.values()[0])
+
+        # count number of taxa represented in each column
+        column_count = [0] * alignment_length
+        column_chars = [list() for _ in xrange(alignment_length)]
+        for seq in seqs.values():
+            for i, ch in enumerate(seq):
+                if ch != '.' and ch != '-':
+                    column_count[i] += 1
+                    column_chars[i].append(ch)
+
+        mask = [False] * alignment_length
+        for i, count in enumerate(column_count):
+            if count >= min_per_taxa * len(seqs):
+                c = Counter(column_chars[i])
+                for letter, count in c.most_common(1):
+                    if float(count) / len(column_chars[i]) >= consensus:
+                        mask[i] = True
+
+        # trim columns
+        output_seqs = {}
+        pruned_seqs = {}
+        for seq_id, seq in seqs.iteritems():
+            masked_seq = ''.join([seq[i] for i in xrange(0, len(mask)) if mask[i]])
+
+            valid_bases = len(masked_seq) - masked_seq.count('.') - masked_seq.count('-')
+            if valid_bases < len(masked_seq) * min_per_bp:
+                pruned_seqs[seq_id] = masked_seq
+                continue
+
+            output_seqs[seq_id] = masked_seq
+
+        return output_seqs, pruned_seqs
 
     def _filterOnGenomeQuality(self, genome_ids, quality_threshold, comp_threshold, cont_threshold):
         """Filter genomes on completeness and contamination thresholds.
