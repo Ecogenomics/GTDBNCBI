@@ -325,4 +325,3 @@ class AlignedMarkerManager(object):
                 continue
             aligned_marker += hit_seq[pos]
         return aligned_marker
->>>>>>> Possibility to connect to previous database
