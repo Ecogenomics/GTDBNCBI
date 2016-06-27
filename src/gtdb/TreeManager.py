@@ -365,7 +365,7 @@ class TreeManager(object):
                                                                                                                 len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
         self.logger.info('After trimming %d taxa have amino acids in <%.1f%% of columns.' % (
             len(pruned_seqs), min_perc_aa))
-            
+
         # write out mask for MSA
         msa_mask_out = open(os.path.join(directory, prefix + "_mask.txt"), 'w')
         msa_mask_out.write(''.join(['1' if m else '0' for m in mask]))
