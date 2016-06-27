@@ -357,10 +357,10 @@ class TreeManager(object):
 
         # filter columns without sufficient representation across taxa
         self.logger.info('Trimming columns with insufficient taxa.')
-        trimmed_seqs, pruned_seqs = self._trim_seqs(
+        trimmed_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons = self._trim_seqs(
             msa, min_perc_taxa / 100.0, consensus / 100.0, min_perc_aa / 100.0)
-        self.logger.info('Trimmed alignment from %d to %d AA.' % (len(msa[msa.keys()[0]]),
-                                                                  len(trimmed_seqs[trimmed_seqs.keys()[0]])))
+        self.logger.info('Trimmed alignment from %d to %d AA (%d excluded by minimum taxa percent, %d excluded by consensus).' % (len(msa[msa.keys()[0]]),
+                                                                                                                                  len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
         self.logger.info('After trimming %d taxa have AA in <%.1f%% of columns.' % (
             len(pruned_seqs), min_perc_aa))
 
@@ -474,12 +474,22 @@ class TreeManager(object):
                     column_chars[i].append(ch)
 
         mask = [False] * alignment_length
+        count_wrong_pa = 0
+        count_wrong_cons = 0
         for i, count in enumerate(column_count):
             if count >= min_per_taxa * len(seqs):
                 c = Counter(column_chars[i])
-                for letter, count in c.most_common(1):
-                    if float(count) / len(column_chars[i]) >= consensus:
-                        mask[i] = True
+                if len(c.most_common(1)) == 0:
+                    ratio = 0
+                else:
+                    letter, count = c.most_common(1)[0]
+                    ratio = float(count) / len(column_chars[i])
+                if ratio >= consensus:
+                    mask[i] = True
+                else:
+                    count_wrong_cons += 1
+            else:
+                count_wrong_pa += 1
 
         # trim columns
         output_seqs = {}
@@ -494,7 +504,7 @@ class TreeManager(object):
 
             output_seqs[seq_id] = masked_seq
 
-        return output_seqs, pruned_seqs
+        return output_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons
 
     def _filterOnGenomeQuality(self, genome_ids, quality_threshold, comp_threshold, cont_threshold):
         """Filter genomes on completeness and contamination thresholds.
