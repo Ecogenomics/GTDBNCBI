@@ -18,7 +18,6 @@
 import os
 import pwd
 import logging
-from multiprocessing import Pool
 
 import prettytable
 
@@ -45,13 +44,14 @@ class GenomeDatabase(object):
         self.logger = logging.getLogger()
 
         self.conn = GenomeDatabaseConnection()
+        self.conn_pool = GenomeDatabaseConnection()
+
         self.currentUser = None
         self.errorMessages = []
         self.warningMessages = []
         self.debugMode = False
 
         self.threads = threads
-        self.pool = Pool(threads)
 
         self.tab_table = tab_table
 
@@ -204,6 +204,7 @@ class GenomeDatabase(object):
             self.logger.info('Adding genomes to database.')
 
             cur = self.conn.cursor()
+
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
 
             if modify_genome_list_id is not None:
@@ -593,7 +594,7 @@ class GenomeDatabase(object):
     def MakeTreeData(self, marker_ids, genome_ids,
                      directory, prefix,
                      quality_threshold, comp_threshold, cont_threshold,
-                     min_perc_aa, min_perc_taxa,
+                     min_perc_aa, min_perc_taxa, consensus,
                      taxa_filter,
                      excluded_genome_list_ids, excluded_genome_ids,
                      guaranteed_genome_list_ids, guaranteed_genome_ids, guaranteed_genomes,
@@ -638,6 +639,7 @@ class GenomeDatabase(object):
             msa_file = tree_mngr.writeFiles(marker_ids,
                                             genomes_to_retain,
                                             min_perc_taxa,
+                                            consensus,
                                             min_perc_aa,
                                             chosen_markers_order,
                                             chosen_markers,
