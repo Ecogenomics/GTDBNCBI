@@ -42,94 +42,99 @@ from biolib.checksum import sha256
 
 
 class RunProdigal(object):
-  """Runs prodigal over a set of genomes.
+    """Runs prodigal over a set of genomes.
 
-  This script assumes that genomes are stored in individual
-  directories for each user:
+    This script assumes that genomes are stored in individual
+    directories for each user:
 
-  <user_id>/<genome_id>/<genome_id>_genomic.fna
-  <organism_dir>/<assembly_dir>/<genome_id>_genomic.fna
+    <user_id>/<genome_id>/<genome_id>_genomic.fna
+    <organism_dir>/<assembly_dir>/<genome_id>_genomic.fna
 
-  where <genome_id>_genomic.fna is the genome file to be processed.
-  """
+    where <genome_id>_genomic.fna is the genome file to be processed.
+    """
 
-  def __init__(self):
-    check_dependencies(['prodigal'])
+    def __init__(self):
+        check_dependencies(['prodigal'])
 
-  def run(self, input_dir, tmp_dir, threads):
-    # get path to all unprocessed genome files
-    print 'Reading genomes.'
-    genome_files = []
-    for d in os.listdir(input_dir):
-      user_dir = os.path.join(input_dir, d)
-      if not os.path.isdir(user_dir):
-        continue
+    def run(self, input_dir, tmp_dir, threads):
+        # get path to all unprocessed genome files
+        print 'Reading genomes.'
+        genome_files = []
+        for genome_dir in os.listdir(input_dir):
+            cur_genome_dir = os.path.join(input_dir, genome_dir)
+            if not os.path.isdir(cur_genome_dir):
+                continue
+              
+            for assembly_id in os.listdir(cur_genome_dir):
+                assembly_dir = os.path.join(cur_genome_dir, assembly_id)
+                genome_id = assembly_id[0:assembly_id.find('_', 4)]
 
-      for genome_dir in os.listdir(user_dir):
-        cur_genome_dir = os.path.join(user_dir, genome_dir)
-        if not os.path.isdir(cur_genome_dir):
-          continue
+                # check if prodigal has already been called
+                aa_gene_file = os.path.join(assembly_dir, 'prodigal', genome_id + '_protein.faa')
+                if os.path.exists(aa_gene_file):
+                    # verify checksum
+                    checksum_file = aa_gene_file + '.sha256'
+                    if os.path.exists(checksum_file):
+                        checksum = sha256(aa_gene_file)
+                        cur_checksum = open(checksum_file).readline().strip()
+                        if checksum == cur_checksum:
+                            continue
 
-        # check if prodigal has already been called
-        aa_gene_file = os.path.join(cur_genome_dir, genome_dir + '_protein.faa')
-        if os.path.exists(aa_gene_file):
-          # verify checksum
-          checksum_file = aa_gene_file + '.sha256'
-          if os.path.exists(checksum_file):
-            checksum = sha256(aa_gene_file)
-            cur_checksum = open(checksum_file).readline().strip()
-            if checksum == cur_checksum:
-              continue
+                genome_file = os.path.join(assembly_dir, assembly_id + '_genomic.fna')
+                if os.path.exists(genome_file):
+                    if os.stat(genome_file).st_size == 0:
+                        print '[Warning] Genome file appears to be empty: %s' % genome_file
+                    else:
+                        genome_files.append(genome_file)
 
-        genome_file = os.path.join(cur_genome_dir, genome_dir + '_genomic.fna')
-        if os.path.exists(genome_file):
-          genome_files.append(genome_file)
+        print '  Number of unprocessed genomes: %d' % len(genome_files)
 
-    print '  Number of unprocessed genomes: %d' % len(genome_files)
+        # run prodigal on each genome
+        print 'Running prodigal.'
+        prodigal = Prodigal(cpus=threads)
+        summary_stats = prodigal.run(genome_files, output_dir=tmp_dir)
 
-    # run prodigal on each genome
-    print 'Running prodigal.'
-    prodigal = Prodigal(cpus=threads)
-    summary_stats = prodigal.run(genome_files, output_dir=tmp_dir)
+        # move results into individual genome directories
+        print 'Moving files and calculating checksums.'
+        for genome_file in genome_files:
+            genome_path, genome_id = ntpath.split(genome_file)
+            genome_id = remove_extension(genome_id)
+            
+            aa_gene_file = os.path.join(tmp_dir, genome_id + '_genes.faa')
+            nt_gene_file = os.path.join(tmp_dir, genome_id + '_genes.fna')
+            gff_file = os.path.join(tmp_dir, genome_id + '.gff')
 
-    # move results into individual genome directories
-    print 'Moving files and calculating checksums.'
-    for genome_file in genome_files:
-      genome_path, genome_id = ntpath.split(genome_file)
-      genome_id = remove_extension(genome_id)
+            genome_root = genome_id[0:genome_id.find('_', 4)]
+            prodigal_path = os.path.join(genome_path, 'prodigal')
+            if not os.path.exists(prodigal_path):
+                os.makedirs(prodigal_path)
+            new_aa_gene_file = os.path.join(prodigal_path, genome_root + '_protein.faa')
+            new_nt_gene_file = os.path.join(prodigal_path, genome_root + '_protein.fna')
+            new_gff_file = os.path.join(prodigal_path, genome_root + '_protein.gff')
 
-      aa_gene_file = os.path.join(tmp_dir, genome_id + '_genes.faa')
-      nt_gene_file = os.path.join(tmp_dir, genome_id + '_genes.fna')
-      gff_file = os.path.join(tmp_dir, genome_id + '.gff')
+            os.system('mv %s %s' % (aa_gene_file, new_aa_gene_file))
+            os.system('mv %s %s' % (nt_gene_file, new_nt_gene_file))
+            os.system('mv %s %s' % (gff_file, new_gff_file))
 
-      genome_root = genome_id.replace('_genomic', '')
-      new_aa_gene_file = os.path.join(genome_path, genome_root + '_protein.faa')
-      new_nt_gene_file = os.path.join(genome_path, genome_root + '_protein.fna')
-      new_gff_file = os.path.join(genome_path, genome_root + '_protein.gff')
+            # save translation table information
+            translation_table_file = os.path.join(prodigal_path, 'prodigal_translation_table.tsv')
+            fout = open(translation_table_file, 'w')
+            fout.write('%s\t%d\n' % ('best_translation_table', summary_stats[genome_id].best_translation_table))
+            fout.write('%s\t%.2f\n' % ('coding_density_4', summary_stats[genome_id].coding_density_4 * 100))
+            fout.write('%s\t%.2f\n' % ('coding_density_11', summary_stats[genome_id].coding_density_11 * 100))
+            fout.close()
 
-      os.system('mv %s %s' % (aa_gene_file, new_aa_gene_file))
-      os.system('mv %s %s' % (nt_gene_file, new_nt_gene_file))
-      os.system('mv %s %s' % (gff_file, new_gff_file))
-
-      # save translation table information
-      translation_table_file = os.path.join(genome_path, 'prodigal_translation_table.tsv')
-      fout = open(translation_table_file, 'w')
-      fout.write('%s\t%d\n' % ('best_translation_table', summary_stats[genome_id].best_translation_table))
-      fout.write('%s\t%.2f\n' % ('coding_density_4', summary_stats[genome_id].coding_density_4 * 100))
-      fout.write('%s\t%.2f\n' % ('coding_density_11', summary_stats[genome_id].coding_density_11 * 100))
-      fout.close()
-
-      checksum = sha256(new_aa_gene_file)
-      fout = open(new_aa_gene_file + '.sha256', 'w')
-      fout.write(checksum)
-      fout.close()
+            checksum = sha256(new_aa_gene_file)
+            fout = open(new_aa_gene_file + '.sha256', 'w')
+            fout.write(checksum)
+            fout.close()
 
 if __name__ == '__main__':
   print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
   print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  parser.add_argument('user_genome_dir', help='directory with genomes in individual user directories')
+  parser.add_argument('genome_dir', help='directory with genomes in individual directories')
   parser.add_argument('--tmp_dir', help='temporary directory for storing intermediate results', default='/tmp')
   parser.add_argument('-t', '--threads', type=int, help='number of threads', default=1)
 
@@ -137,7 +142,7 @@ if __name__ == '__main__':
 
   try:
     p = RunProdigal()
-    p.run(args.user_genome_dir, args.tmp_dir, args.threads)
+    p.run(args.genome_dir, args.tmp_dir, args.threads)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:

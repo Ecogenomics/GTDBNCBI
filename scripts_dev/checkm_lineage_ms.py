@@ -67,7 +67,7 @@ class RunCheckm(object):
         os.makedirs(output_dir)
         
         # get list of genomes to consider
-        if genome_report != 'None':
+        if genome_report.lower() != 'none':
             genomes_to_consider = set()
             for line in open(genome_report):
                 line_split = line.strip().split('\t')
@@ -97,7 +97,7 @@ class RunCheckm(object):
 
               assembly_ids[assembly_id] = assembly_dir
 
-              gene_file = os.path.join(assembly_dir, assembly_id + '_protein.faa') 
+              gene_file = os.path.join(assembly_dir, 'prodigal', genome_id + '_protein.faa') 
               if os.path.exists(gene_file):
                 if os.stat(gene_file).st_size == 0:
                     print '[Warning] Protein file appears to be empty: %s' % gene_file
@@ -144,7 +144,7 @@ class RunCheckm(object):
         continue
 
       os.makedirs(checkm_output_dir)
-      os.system('checkm lineage_wf --pplacer_threads 10 --genes -x faa -t %d %s %s' % (cpus, bin_dir, checkm_output_dir))
+      os.system('checkm lineage_wf --pplacer_threads %d --genes -x faa -t %d %s %s' % (cpus, cpus, bin_dir, checkm_output_dir))
 
       tree_qa_file = os.path.join(checkm_output_dir, 'tree_qa.o2.chunk%d.tsv' % i)
       os.system('checkm tree_qa -o 2 --tab_table -f %s %s' % (tree_qa_file, checkm_output_dir))
