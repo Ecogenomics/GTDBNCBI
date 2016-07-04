@@ -49,29 +49,41 @@ class AddCheckM(object):
                       '# markers': ['checkm_marker_count', 'INT'],
                       '# marker sets': ['checkm_marker_set_count', 'INT']}
 
-  def run(self, checkm_qa_file):
+  def run(self, checkm_qa_file, genome_list_file):
     """Add CheckM data to database."""
+    
+    # get genomes to process
+    genome_list = set()
+    if genome_list_file:
+        for line in open(genome_list_file):
+            if len(line.split('\t')) >= len(line.split(',')):
+                genome_list.add(line.rstrip().split('\t')[0])
+            else:
+                genome_list.add(line.rstrip().split(',')[0])
 
     for header, data in self.metadata.iteritems():
-      db_header, data_type = data
+        db_header, data_type = data
 
-      temp_file = tempfile.NamedTemporaryFile(delete=False)
-      with open(checkm_qa_file) as f:
-        headers = f.readline().rstrip().split('\t')
-        col_index = headers.index(header)
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        with open(checkm_qa_file) as f:
+            headers = f.readline().rstrip().split('\t')
+            col_index = headers.index(header)
 
-        for line in f:
-          line_split = line.split('\t')
-          genome_id = line_split[0]
-          genome_id = genome_id[0:genome_id.find('_', 4)]
+            for line in f:
+                line_split = line.split('\t')
+                genome_id = line_split[0]
+                genome_id = genome_id[0:genome_id.find('_', 4)]
 
-          if genome_id.startswith('GCA_'):
-            genome_id = 'GB_' + genome_id
-          elif genome_id.startswith('GCF_'):
-            genome_id = 'RS_' + genome_id
+                if genome_id.startswith('GCA_'):
+                    genome_id = 'GB_' + genome_id
+                elif genome_id.startswith('GCF_'):
+                    genome_id = 'RS_' + genome_id
+                    
+                if genome_id not in genome_list:
+                    continue
 
-          data = line_split[col_index]
-          temp_file.write('%s\t%s\n' % (genome_id, data))
+                data = line_split[col_index]
+                temp_file.write('%s\t%s\n' % (genome_id, data))
 
         temp_file.close()
         cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_genes', db_header, data_type, temp_file.name)
@@ -80,19 +92,20 @@ class AddCheckM(object):
         os.remove(temp_file.name)
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
+    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
-  parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  parser.add_argument('checkm_qa_file', help='CheckM QA file for all genomes of interest')
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('checkm_qa_file', help='CheckM QA file for all genomes of interest')
+    parser.add_argument('--genome_list', help='only process genomes in this list', default=None)
 
-  args = parser.parse_args()
+    args = parser.parse_args()
 
-  try:
-    p = AddCheckM()
-    p.run(args.checkm_qa_file)
-  except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
-  except:
-    print "\nUnexpected error:", sys.exc_info()[0]
-    raise
+    try:
+        p = AddCheckM()
+        p.run(args.checkm_qa_file, args.genome_list)
+    except SystemExit:
+        print "\nControlled exit resulting from an unrecoverable error or warning."
+    except:
+        print "\nUnexpected error:", sys.exc_info()[0]
+        raise
