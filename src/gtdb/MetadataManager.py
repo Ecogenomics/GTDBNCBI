@@ -17,6 +17,7 @@
 
 import os
 import logging
+import sys
 
 import psycopg2
 from psycopg2.extensions import AsIs
@@ -243,10 +244,13 @@ class MetadataManager(object):
             "INSERT INTO metadata_genes (id) VALUES ({0})".format(db_genome_id))
         self.cur.execute(
             "INSERT INTO metadata_taxonomy (id) VALUES ({0})".format(db_genome_id))
+        self.cur.execute(
+            "INSERT INTO metadata_ssu (id) VALUES ({0})".format(db_genome_id))
 
         self._calculateMetadata(genome_file, gff_file, output_dir)
         self._storeMetadata(db_genome_id, output_dir)
         self._storeCheckM(db_genome_id, checkm_results)
+        return True
 
     def _calculateMetadata(self, genome_file, gff_file, output_dir):
         """Calculate metadata for new genome.
@@ -260,7 +264,6 @@ class MetadataManager(object):
         output_dir : str
             Output directory.
         """
-
         os.system('genometk nucleotide --silent %s %s' %
                   (genome_file, output_dir))
         os.system('genometk gene --silent %s %s %s' %
@@ -273,6 +276,7 @@ class MetadataManager(object):
                                                          ConfigMetadata.GTDB_SSU_SILVA_DB,
                                                          ConfigMetadata.GTDB_SSU_SILVA_TAXONOMY,
                                                          os.path.join(output_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR)))
+        return True
 
     def _storeMetadata(self, db_genome_id, genome_dir):
         """Parse metadata files for genome and store in database.
@@ -284,22 +288,21 @@ class MetadataManager(object):
         genome_dir : str
             Directory containing metadata files to parse.
         """
-
-        # nucleotide metadata
-        metadata_nt_path = os.path.join(
-            genome_dir, ConfigMetadata.GTDB_NT_FILE)
-        genome_list_nt = [tuple(line.rstrip().split('\t'))
-                          for line in open(metadata_nt_path)]
-        query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(
-            db_genome_id)
-        for c, v in genome_list_nt:
-            try:
-                v = float(v)
-                self.cur.execute(query_nt, [AsIs(c), v])
-            except:
-                self.cur.execute(query_nt, [AsIs(c), v])
-
         try:
+            # nucleotide metadata
+            metadata_nt_path = os.path.join(
+                genome_dir, ConfigMetadata.GTDB_NT_FILE)
+            genome_list_nt = [tuple(line.rstrip().split('\t'))
+                              for line in open(metadata_nt_path)]
+            query_nt = "UPDATE metadata_nucleotide SET %s = %s WHERE id = {0}".format(
+                db_genome_id)
+            for c, v in genome_list_nt:
+                try:
+                    v = float(v)
+                    self.cur.execute(query_nt, [AsIs(c), v])
+                except:
+                    self.cur.execute(query_nt, [AsIs(c), v])
+
             # protein metadata
             metadata_gene_path = os.path.join(
                 genome_dir, ConfigMetadata.GTDB_GENE_FILE)
@@ -322,24 +325,7 @@ class MetadataManager(object):
             metadata_ssu_fna_gg_path = os.path.join(
                 genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
             genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
-                metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX, metadata_ssu_fna_gg_path)
-            if genome_list_taxonomy:
-                for c, v in genome_list_taxonomy:
-                    try:
-                        v = float(v)
-                        self.cur.execute(query_taxonomy, [AsIs(c), v])
-                    except:
-                        self.cur.execute(query_taxonomy, [AsIs(c), v])
-
-            # Greengenes SSU metadata saved in metadata_ssu table
-            query_taxonomy = "UPDATE metadata_ssu SET %s = %s WHERE id = {0}".format(
-                db_genome_id)
-            metadata_ssu_gg_path = os.path.join(
-                genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
-            metadata_ssu_fna_gg_path = os.path.join(
-                genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE, ConfigMetadata.GTDB_SSU_FNA_FILE)
-            genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
-                metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX, metadata_ssu_fna_gg_path)
+                metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX)
             if genome_list_taxonomy:
                 for c, v in genome_list_taxonomy:
                     try:
@@ -361,13 +347,35 @@ class MetadataManager(object):
                     except:
                         self.cur.execute(query_taxonomy, [AsIs(c), v])
 
+            # Greengenes SSU metadata saved in metadata_ssu table
+            query_taxonomy = "UPDATE metadata_ssu SET %s = %s WHERE id = {0}".format(
+                db_genome_id)
+            metadata_ssu_gg_path = os.path.join(
+                genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
+            metadata_ssu_fna_gg_path = os.path.join(
+                genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FNA_FILE)
+            genome_list_taxonomy, ssu_count_seq = self._parse_taxonomy_file(
+                metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX, metadata_ssu_fna_gg_path)
+            if genome_list_taxonomy:
+                for c, v in genome_list_taxonomy:
+                    try:
+                        v = float(v)
+                        self.cur.execute(query_taxonomy, [AsIs(c), v])
+                    except:
+                        self.cur.execute(query_taxonomy, [AsIs(c), v])
+
             query_gene_ssu = "UPDATE metadata_genes SET ssu_count = %s WHERE id = {0}".format(
                 db_genome_id)
             self.cur.execute(query_gene_ssu, (ssu_count,))
+            return True
         except psycopg2.Error as e:
+            print "error"
             raise GenomeDatabaseError(e.pgerror)
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
 
-    def _parse_taxonomy_file(self, metadata_taxonomy_file, prefix, fna_file):
+    def _parse_taxonomy_file(self, metadata_taxonomy_file, prefix, fna_file=None):
         """Parse metadata file with taxonomic information for 16S rRNA genes.
 
         Parameters
@@ -391,6 +399,11 @@ class MetadataManager(object):
             return None, 0
 
         metadata = []
+
+        num_lines = sum(1 for line in open(metadata_taxonomy_file))
+        if num_lines == 1:  # Empty file
+            return metadata, 0
+
         with open(metadata_taxonomy_file) as f:
             header_line = f.readline().rstrip()
             headers = [
@@ -426,7 +439,7 @@ class MetadataManager(object):
                 if fna_file is not None and os.path.exists(fna_file):
                     all_genes_dict = read_fasta(fna_file, False)
                     sequence = all_genes_dict[ssu_query_id]
-                    headers.append(('{0}_sequence'.format(prefix), sequence))
+                    metadata.append(('{0}_sequence'.format(prefix), sequence))
 
                 return metadata, ssu_count
 
@@ -440,17 +453,21 @@ class MetadataManager(object):
         checkm_results : dict
             CheckM metadata.
         """
+        try:
+            checkm_data = [('checkm_completeness', checkm_results['completeness']),
+                           ('checkm_contamination',
+                            checkm_results['contamination']),
+                           ('checkm_marker_count', checkm_results['marker_count']),
+                           ('checkm_marker_lineage', checkm_results['lineage']),
+                           ('checkm_genome_count', checkm_results['genome_count']),
+                           ('checkm_marker_set_count',
+                            checkm_results['set_count']),
+                           ('checkm_strain_heterogeneity', checkm_results['heterogeneity'])]
 
-        checkm_data = [('checkm_completeness', checkm_results['completeness']),
-                       ('checkm_contamination',
-                        checkm_results['contamination']),
-                       ('checkm_marker_count', checkm_results['marker_count']),
-                       ('checkm_marker_lineage', checkm_results['lineage']),
-                       ('checkm_genome_count', checkm_results['genome_count']),
-                       ('checkm_marker_set_count',
-                        checkm_results['set_count']),
-                       ('checkm_strain_heterogeneity', checkm_results['heterogeneity'])]
-
-        query = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(
-            db_genome_id)
-        self.cur.executemany(query, [(AsIs(c), v) for (c, v) in checkm_data])
+            query = "UPDATE metadata_genes SET %s = %s WHERE id = {0}".format(
+                db_genome_id)
+            self.cur.executemany(query, [(AsIs(c), v) for (c, v) in checkm_data])
+            return True
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
