@@ -49,7 +49,7 @@ class AddMetadata(object):
         genome_list = set()
         if genome_list_file:
             for line in open(genome_list_file):
-                if '\t' in line:
+                if len(line.split('\t')) >= len(line.split(',')):
                     genome_list.add(line.rstrip().split('\t')[0])
                 else:
                     genome_list.add(line.rstrip().split(',')[0])

@@ -1,9 +1,11 @@
 software_version=1.2.1
 ncbi_database_version=release 76
-gtdb_version=1.2.0
+gtdb_version=1.2.1
 
 GTDB versions
 -------------
+v1.2.1 (June 6, 2016):
+- updated CheckM estimates for all GenBank and RefSeq genomes; new estimates use genes called with Prodigal v2.6.3
 v1.2.0 (June 06,2016):
 - metadata_ssu table created
 v1.1.2 (May 20, 2016):
