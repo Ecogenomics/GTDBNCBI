@@ -25,6 +25,7 @@ from biolib.external.prodigal import (Prodigal as BioLibProdigal)
 from biolib.checksum import sha256
 
 import ConfigMetadata
+import Config
 
 
 class Prodigal(object):
@@ -37,6 +38,8 @@ class Prodigal(object):
 
         self.threads = threads
 
+        self.userAnnotationDir = Config.USER_ANNOTATION_DIR
+
     def _runProdigal(self, fasta_path):
         """Run Prodigal.
 
@@ -46,7 +49,8 @@ class Prodigal(object):
             Path to FASTA file to process.
         """
 
-        output_dir, fasta_file = os.path.split(fasta_path)
+        temp_dir, fasta_file = os.path.split(fasta_path)
+        output_dir = os.path.join(temp_dir, self.userAnnotationDir)
         genome_id = fasta_file[0:fasta_file.rfind('_')]
 
         prodigal = BioLibProdigal(1, False)
@@ -83,7 +87,7 @@ class Prodigal(object):
 
         while True:
             data = worker_queue.get(block=True, timeout=None)
-            if data == None:
+            if data is None:
                 break
 
             (db_genome_id, file_paths) = data
@@ -108,7 +112,7 @@ class Prodigal(object):
         processed_items = 0
         while processed_items < num_items:
             a = writer_queue.get(block=True, timeout=None)
-            if a == None:
+            if a is None:
                 break
 
             processed_items += 1
