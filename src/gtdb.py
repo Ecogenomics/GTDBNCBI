@@ -155,6 +155,7 @@ def CreateTreeData(db, args):
     gid_list_and_garanteed_gid = db.GetGenomeIds(args.all_dereplicated,
                                                  args.ncbi_dereplicated,
                                                  args.user_dereplicated,
+                                                 args.donovan_sra_representatives,
                                                  args.all_genomes,
                                                  args.ncbi_genomes,
                                                  args.user_genomes,
@@ -162,7 +163,6 @@ def CreateTreeData(db, args):
                                                  args.genome_ids,
                                                  args.genome_batchfile)
     genome_id_list = gid_list_and_garanteed_gid[0]
-
     guaranteed_genomes.update(gid_list_and_garanteed_gid[1])
 
     marker_id_list = db.GetMarkerIds(args.marker_ids,
@@ -1073,6 +1073,10 @@ if __name__ == '__main__':
                                                 help=('Include User representative genomes and User genomes without ' +
                                                       'a representative. Genomes are subject to filtering.'))
 
+    atleastone_genomes_create_tree.add_argument('--donovan_sra_representatives', default=False, action='store_true',
+                                                help=('Include SRA representative genomes generated from Donovan SRA bins.' +
+                                                      ' This is a temporary flag.'))
+
     atleastone_genomes_create_tree.add_argument('--all_genomes', default=False, action='store_true',
                                                 help='Include all genomes, subject to filtering.')
     atleastone_genomes_create_tree.add_argument('--ncbi_genomes', default=False, action='store_true',
@@ -1227,6 +1231,7 @@ if __name__ == '__main__':
         if (not args.all_dereplicated and
                 not args.ncbi_dereplicated and
                 not args.user_dereplicated and
+                not args.donovan_sra_representatives and
                 not args.all_genomes and
                 not args.ncbi_genomes and
                 not args.user_genomes and
@@ -1234,7 +1239,7 @@ if __name__ == '__main__':
                 not args.genome_ids and
                 not args.genome_batchfile):
             parser_tree_create.error(
-                'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_dereplicated, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
+                'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_dereplicated, --donovan_sra_representatives, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
 
         if (not args.marker_set_ids
                 and not args.marker_ids
