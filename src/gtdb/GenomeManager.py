@@ -77,6 +77,9 @@ class GenomeManager(object):
         self.deprecatedGBKDir = Config.GTDB_DPRCTD_GBK_DIR
         self.deprecatedRSQDir = Config.GTDB_DPRCTD_RSQ_DIR
 
+        self.ncbiAnnotationDir = Config.NCBI_ANNOTATION_DIR
+        self.userAnnotationDir = Config.USER_ANNOTATION_DIR
+
     def _loggerSetup(self, silent=False):
         """Set logging for application.
 
@@ -127,7 +130,7 @@ class GenomeManager(object):
             checkm_results_dict = self._processCheckM(checkm_file)
 
             genomic_files = self._addGenomeBatch(batchfile, self.tmp_output_dir)
-	    
+
             self.logger.info("Running Prodigal to identify genes.")
             prodigal = Prodigal(self.threads)
             file_paths = prodigal.run(genomic_files)
@@ -214,7 +217,7 @@ class GenomeManager(object):
 
             genome_file_paths = file_paths[db_genome_id]
             output_dir, _file = os.path.split(
-                genome_file_paths["aa_gene_path"])
+                genome_file_paths["fasta_path"])
 
             bin_id = values['checkm_bin_id']
             if bin_id not in checkm_results_dict:
@@ -354,11 +357,12 @@ class GenomeManager(object):
 
             shutil.move(tmp_genome_dir, genome_target_dir)
 
-            self.cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (
+            self.cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s , genes_file_sha256 = %s WHERE id = %s", (
                 os.path.join(
                     username, external_id, external_id + self.genomeFileSuffix),
                 os.path.join(
-                    username, external_id, external_id + self.proteinFileSuffix),
+                    username, external_id, self.userAnnotationDir, external_id + self.proteinFileSuffix),
+                sha256(os.path.join(genome_target_dir, self.userAnnotationDir, external_id + self.proteinFileSuffix)),
                 db_genome_id))
 
         shutil.rmtree(self.tmp_output_dir)
@@ -482,6 +486,9 @@ class GenomeManager(object):
             genome_output_dir = os.path.join(output_dir, external_genome_id)
             if not os.path.exists(genome_output_dir):
                 os.makedirs(genome_output_dir)
+            prodigal_output_dir = os.path.join(genome_output_dir, self.userAnnotationDir)
+            if not os.path.exists(prodigal_output_dir):
+                os.makedirs(prodigal_output_dir)
 
             fasta_target_file = os.path.join(
                 genome_output_dir, external_genome_id + self.genomeFileSuffix)
@@ -490,7 +497,7 @@ class GenomeManager(object):
             genes_target_file = None
             if abs_gene_path:
                 genes_target_file = os.path.join(
-                    output_dir, external_genome_id, external_genome_id + self.proteinFileSuffix)
+                    genome_output_dir, external_genome_id + self.proteinFileSuffix)
                 shutil.copy(abs_gene_path, genes_target_file)
 
             genomic_files[genome_id] = {"checkm_bin_id": os.path.splitext(os.path.basename(abs_fasta_path))[0],

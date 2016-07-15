@@ -69,9 +69,10 @@ class AlignedMarkerManager(object):
         '''
 
         self.logger.info('Aligning marker genes not already in the database.')
+        return True
 
         # We need to rebuild the path to each
-        genome_dirs_query = ("SELECT g.id, g.fasta_file_location,gs.external_id_prefix "
+        genome_dirs_query = ("SELECT g.id, g.genes_file_location,gs.external_id_prefix "
                              "FROM genomes g " +
                              "LEFT JOIN genome_sources gs ON gs.id = g.genome_source_id " +
                              "WHERE g.id in %s")
@@ -159,7 +160,7 @@ class AlignedMarkerManager(object):
             # get all gene sequences
             genome_path = str(path)
             tophit_path = genome_path.replace(
-                self.genome_file_suffix, marker_suffix)
+                self.protein_file_suffix, marker_suffix)
 
             # we load the list of all the genes detected in the genome
             protein_file = tophit_path.replace(

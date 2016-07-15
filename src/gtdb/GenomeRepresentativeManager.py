@@ -254,6 +254,24 @@ class GenomeRepresentativeManager(object):
 
         return derep_genome_ids
 
+    def sraRepresentatives(self):
+        """Get identifiers from the representatives SRA genomes.
+        Returns
+        -------
+        list
+            List of database genome identifiers.
+        """
+
+        try:
+
+            self.cur.execute("SELECT id from sra_reps")
+            sra_genome_ids = [genome_id[0] for genome_id in self.cur]
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return sra_genome_ids
+
     def representativeGenomes(self):
         """Get genome identifiers for all representative genomes.
 
