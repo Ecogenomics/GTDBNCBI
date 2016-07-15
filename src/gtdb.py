@@ -1163,6 +1163,10 @@ if __name__ == '__main__':
                                                 help=("Include SRA dereplicated genomes generated from Donovan's SRA bins." +
                                                       ' This is a temporary flag.'))
 
+    atleastone_genomes_create_tree.add_argument('--donovan_sra_representatives', default=False, action='store_true',
+                                                help=('Include SRA representative genomes generated from Donovan SRA bins.' +
+                                                      ' This is a temporary flag.'))
+
     atleastone_genomes_create_tree.add_argument('--all_genomes', default=False, action='store_true',
                                                 help='Include all genomes, subject to filtering.')
     atleastone_genomes_create_tree.add_argument('--ncbi_genomes', default=False, action='store_true',

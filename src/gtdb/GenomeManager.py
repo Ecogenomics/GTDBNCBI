@@ -79,6 +79,9 @@ class GenomeManager(object):
         
         self.userAnnotationDir = Config.USER_ANNOTATION_DIR
 
+        self.ncbiAnnotationDir = Config.NCBI_ANNOTATION_DIR
+        self.userAnnotationDir = Config.USER_ANNOTATION_DIR
+
     def _loggerSetup(self, silent=False):
         """Set logging for application.
 
