@@ -150,7 +150,6 @@ class TreeManager(object):
                                                   'Filtered on quality (completeness, contamination).',
                                                   quality[0],
                                                   quality[1]))
-
         self.logger.info('Filtered %d genomes based on completeness, contamination, and quality.' % len(final_filtered_genomes))
 
         genomes_to_retain -= final_filtered_genomes
@@ -221,6 +220,13 @@ class TreeManager(object):
 
         genomes_to_retain.difference_update(filter_on_aa)
         self.logger.info('Producing tree data for %d genomes.' % len(genomes_to_retain))
+
+        good_genomes_file = os.path.join(
+            directory, prefix + '_good_genomes.tsv')
+        good_genomes = open(good_genomes_file, 'w')
+        for item in genomes_to_retain:
+            good_genomes.write("{0}\n".format(item))
+        good_genomes.close()
 
         good_genomes_file = os.path.join(
             directory, prefix + '_good_genomes.tsv')

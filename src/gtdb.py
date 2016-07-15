@@ -115,7 +115,7 @@ def loggerSetup(output_dir, release, silent=False):
         logger.info("Deprecated version of GTDB : {0}".format(release))
     logger.info(ntpath.basename(sys.argv[0]) + ' ' + ' '.join(sys.argv[1:]))
 
-    
+
 def AddUser(db, args):
     log_has_root = False
     if args.login_as_root and args.has_root:
@@ -217,6 +217,7 @@ def ViewGenomes(db, args):
         if args.id_list:
             external_ids = args.id_list.split(",")
         return db.ViewGenomes(args.batchfile, external_ids)
+
 
 def StatGenomes(db, args):
     external_ids = None
@@ -453,11 +454,11 @@ def createMetadata(db, args):
 
     return db.CreateMetadata(args.metadatafile)
 
-    
+
 def exportTaxonomyGTDB(db, args):
     return db.ExportTaxonomy('GTDB', args.outfile)
 
-    
+
 def exportTaxonomyNCBI(db, args):
     return db.ExportTaxonomy('NCBI', args.outfile)
 
@@ -1176,6 +1177,10 @@ if __name__ == '__main__':
                                                 help=('Include SRA representative genomes generated from Donovan SRA bins.' +
                                                       ' This is a temporary flag.'))
 
+    atleastone_genomes_create_tree.add_argument('--donovan_sra_representatives', default=False, action='store_true',
+                                                help=('Include SRA representative genomes generated from Donovan SRA bins.' +
+                                                      ' This is a temporary flag.'))
+
     atleastone_genomes_create_tree.add_argument('--all_genomes', default=False, action='store_true',
                                                 help='Include all genomes, subject to filtering.')
     atleastone_genomes_create_tree.add_argument('--ncbi_genomes', default=False, action='store_true',
@@ -1378,8 +1383,13 @@ if __name__ == '__main__':
     if (args.category_parser_name == 'tree' and args.tree_subparser_name == 'create'):
         if (not args.all_dereplicated and
                 not args.ncbi_dereplicated and
+<<<<<<< HEAD
                 not args.user_genomes and
                 not args.donovan_sra_dereplicated and
+=======
+                not args.user_dereplicated and
+                not args.donovan_sra_representatives and
+>>>>>>> sra_donovan flags, taxa_filter new behaviours, script improvments
                 not args.all_genomes and
                 not args.ncbi_genomes and
                 not args.user_genomes and
@@ -1387,7 +1397,11 @@ if __name__ == '__main__':
                 not args.genome_ids and
                 not args.genome_batchfile):
             parser_tree_create.error(
+<<<<<<< HEAD
                 'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_genomes, --donovan_sra_dereplicated, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
+=======
+                'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_dereplicated, --donovan_sra_representatives, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
+>>>>>>> sra_donovan flags, taxa_filter new behaviours, script improvments
 
         if (not args.marker_set_ids
                 and not args.marker_ids
