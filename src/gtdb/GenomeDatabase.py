@@ -438,7 +438,7 @@ class GenomeDatabase(object):
             return False
 
         return True
-        
+
     def StatGenomes(self, batchfile, external_ids, stat_fields):
         try:
             cur = self.conn.cursor()
@@ -446,7 +446,7 @@ class GenomeDatabase(object):
 
             if external_ids is None:
                 external_ids = []
-                
+
             if batchfile:
                 try:
                     fh = open(batchfile, "rb")
@@ -619,6 +619,15 @@ class GenomeDatabase(object):
                 ids = genome_rep_mngr.sraRepresentatives()
                 genome_id_list.update(ids)
 
+<<<<<<< HEAD
+=======
+            if donovan_sra_representatives:
+                ids = genome_rep_mngr.sraRepresentatives()
+                genome_id_list.update(ids)
+
+            required_rep_genomes_ids = genome_id_list.intersection(rep_genome_ids)
+
+>>>>>>> sra_donovan flags, taxa_filter new behaviours, script improvments
             if all_genomes:
                 ids = genome_mngr.allGenomeIds()
                 genome_id_list.update(ids)
