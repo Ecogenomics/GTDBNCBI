@@ -48,7 +48,7 @@ class AlignedMarkerManager(object):
 
         self.logger = logging.getLogger()
         self.threads = threads
-	self.release = release
+        self.release = release
 
         # self.conn = GenomeDatabaseConnection()
         # self.conn.MakePostgresConnection()
@@ -62,7 +62,6 @@ class AlignedMarkerManager(object):
         self.protein_file_suffix = ConfigMetadata.PROTEIN_FILE_SUFFIX
 
     def calculateAlignedMarkerSets(self, db_genome_ids, marker_ids):
-	print 286174 in db_genome_ids
         '''
         Run Hmmalign for PFAM and TIGRFAM missing markers
 
