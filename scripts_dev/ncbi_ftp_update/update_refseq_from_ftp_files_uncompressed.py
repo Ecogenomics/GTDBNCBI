@@ -17,10 +17,11 @@
 #                                                                             #
 ###############################################################################
 
-__prog_name__ = 'update_refseq_from_ftp_files.py'
+__prog_name__ = 'update_refseq_from_ftp_files_uncompressed.py'
 __prog_desc__ = ('Update the Refseq folder with the latest genome downloaded from FTP.' +
+                 'This is an updated version of update_refseq_from_ftp_files where the checksum comparison is made on unarchived files.' +
                  'Before this update, make sure the genome folder is in RW mode to be able to delete or add genomes.' +
-                 'We assume that all paths are in the form bacteria_name/latest_assembly_Version/GCA or GCF number')
+                 'We assume that all paths are in the form bacteria_name/latest_assembly_Version/GCA or GCF number.')
 
 __author__ = 'Pierre Chaumeil'
 __copyright__ = 'Copyright 2016'
@@ -40,6 +41,7 @@ import gzip
 import sys
 import datetime
 import argparse
+import tempfile
 
 
 class UpdateRefSeqFolder(object):
@@ -49,16 +51,16 @@ class UpdateRefSeqFolder(object):
         self.domains = ["archaea", "bacteria"]
         #self.domains = ["bacteria"]
 
-        self.genomic_ext = "_genomic.fna.gz"
-        self.protein_ext = "_protein.faa.gz"
-        self.cds_ext = "_cds_from_genomic.fna.gz"
-        self.rna_ext = "_rna_from_genomic.fna.gz"
+        self.genomic_ext = "_genomic.fna"
+        self.protein_ext = "_protein.faa"
+        self.cds_ext = "_cds_from_genomic.fna"
+        self.rna_ext = "_rna_from_genomic.fna"
 
         self.fastaExts = (self.genomic_ext, self.protein_ext)
         self.extrafastaExts = (self.cds_ext, self.rna_ext)
 
-        self.extensions = ("_feature_table.txt.gz", "_genomic.gbff.gz",
-                           "_genomic.gff.gz", "_protein.gpff.gz", "_wgsmaster.gbff.gz")
+        self.extensions = ("_feature_table.txt", "_genomic.gbff",
+                           "_genomic.gff", "_protein.gpff", "_wgsmaster.gbff")
         self.reports = ("_assembly_report.txt", "_assembly_stats.txt", "_hashes.txt")
         self.allExts = self.fastaExts + self.extensions + self.reports
         self.allbutFasta = self.extensions + self.reports
@@ -179,24 +181,38 @@ class UpdateRefSeqFolder(object):
         target_pathnewmd5 = os.path.join(target_dir, "md5checksums.txt")
         status = []
 
-        ftpdict, ftpdict_fasta, ftpdict_extra_fasta = self.parse_checksum(pathftpmd5)
-        gtdbdict, gtdbdict_fasta, gtdbdict_extra_fasta = self.parse_checksum(pathgtdbmd5)
+        tmp_ftp_dir = tempfile.mkdtemp()
+        tmp_target = os.path.join(tmp_ftp_dir, os.path.basename(target_dir))
+        shutil.copytree(ftp_dir, tmp_target, symlinks=True, ignore=shutil.ignore_patterns("*_assembly_structure"))
+        for compressed_file in glob.glob(tmp_target + "/*.gz"):
+            if os.path.isdir(compressed_file) == False:
+                inF = gzip.open(compressed_file, 'rb')
+                try:
+                    outF = open(
+                        self.rreplace(compressed_file, ".gz", "", 1), 'wb')
+                except IOError:
+                    os.chmod(
+                        self.rreplace(compressed_file, ".gz", "", 1), 0o775)
+                    outF = open(
+                        self.rreplace(compressed_file, ".gz", "", 1), 'wb')
+                outF.write(inF.read())
+                inF.close()
+                outF.close()
+                os.remove(compressed_file)
+
+        ftpdict, ftpdict_fasta, ftpdict_faa, ftpdict_extra_fasta = self.parse_checksum(tmp_target)
+        gtdbdict, gtdbdict_fasta, gtdbdict_faa, gtdbdict_extra_fasta = self.parse_checksum(gtdb_dir)
 
         # if the genomic.fna.gz or the protein.faa.gz are missing, we set this
         # record as incomplete
         if len(list(set(ftpdict_fasta.keys()).symmetric_difference(set(gtdbdict_fasta.keys())))) > 0:
+            print tmp_target
+            print ftpdict_fasta.keys()
+            print gtdb_dir
+            print gtdbdict_fasta.keys()
             status.append("incomplete")
-            shutil.copytree(ftp_dir, target_dir, symlinks=True, ignore=shutil.ignore_patterns("*_assembly_structure"))
+            shutil.copytree(tmp_target, target_dir, symlinks=True, ignore=shutil.ignore_patterns("*_assembly_structure"))
             # we unzip of gz file
-            for compressed_file in glob.glob(target_dir + "/*.gz"):
-                if os.path.isdir(compressed_file) == False:
-                    inF = gzip.open(compressed_file, 'rb')
-                    outF = open(
-                        self.rreplace(compressed_file, ".gz", "", 1), 'wb')
-                    outF.write(inF.read())
-                    inF.close()
-                    outF.close()
-                    os.remove(compressed_file)
 
         else:
             ftp_folder = False
@@ -205,25 +221,14 @@ class UpdateRefSeqFolder(object):
             for key, value in ftpdict_fasta.iteritems():
                 if value != gtdbdict_fasta.get(key):
                     ftp_folder = True
-                print gcf_record + "\t" + key + "\tOLD:" + gtdbdict_fasta.get(key) + "\tNEW:" + ftpdict_fasta.get(key)
             # if one of the 2 files is different than the previous version , we
             # use the ftp record over the previous gtdb one , we then need to
             # re run the metadata generation
             if ftp_folder:
                 shutil.copytree(
-                    ftp_dir, target_dir, symlinks=True,
+                    tmp_target, target_dir, symlinks=True,
                     ignore=shutil.ignore_patterns("*_assembly_structure"))
                 status.append("modified")
-                # we unzip of gz file
-                for compressed_file in glob.glob(target_dir + "/*.gz"):
-                    if os.path.isdir(compressed_file) == False:
-                        inF = gzip.open(compressed_file, 'rb')
-                        outF = open(
-                            self.rreplace(compressed_file, ".gz", "", 1), 'wb')
-                        outF.write(inF.read())
-                        inF.close()
-                        outF.close()
-                        os.remove(compressed_file)
 
             else:
                 # The 2 main fasta files haven't changed so we can copy the old
@@ -235,48 +240,26 @@ class UpdateRefSeqFolder(object):
 
                 # We check if all other file of this folder are the same.
                 checksum_changed = False
+
+                for key, value in ftpdict_faa.iteritems():
+                    if value != gtdbdict_faa.get(key):
+                        checksum_changed = True
+                        shutil.copy2(
+                            os.path.join(tmp_target, key), os.path.join(target_dir, key))
+                        status.append("new_protein")
+
                 for key, value in ftpdict.iteritems():
                     if value != gtdbdict.get(key):
                         checksum_changed = True
-
                         shutil.copy2(
-                            os.path.join(ftp_dir, key), os.path.join(target_dir, key))
-                        if key.endswith(".gz"):
-                            inF = gzip.open(os.path.join(ftp_dir, key), 'rb')
-                            try:
-                                outF = open(
-                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 'wb')
-                            except IOError:
-                                os.chmod(
-                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 0o775)
-                                outF = open(
-                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 'wb')
-                            outF.write(inF.read())
-                            inF.close()
-                            outF.close()
-                            os.remove(os.path.join(target_dir, key))
+                            os.path.join(tmp_target, key), os.path.join(target_dir, key))
                         status.append("new_metadata")
 
                 for key, value in ftpdict_extra_fasta.iteritems():
                     if value != gtdbdict_extra_fasta.get(key):
                         checksum_changed = True
-
                         shutil.copy2(
-                            os.path.join(ftp_dir, key), os.path.join(target_dir, key))
-                        if key.endswith(".gz"):
-                            inF = gzip.open(os.path.join(ftp_dir, key), 'rb')
-                            try:
-                                outF = open(
-                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 'wb')
-                            except IOError:
-                                os.chmod(
-                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 0o775)
-                                outF = open(
-                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 'wb')
-                            outF.write(inF.read())
-                            inF.close()
-                            outF.close()
-                            os.remove(os.path.join(target_dir, key))
+                            os.path.join(tmp_target, key), os.path.join(target_dir, key))
                         status.append("new_cds_rna")
                 # we copy the new checksum
                 if checksum_changed:
@@ -293,11 +276,16 @@ class UpdateRefSeqFolder(object):
                         status = self.comparesha256(
                             ftp_files[0], target_files[0], status)
                     else:
+                        print "########"
+                        print target_dir
                         print target_files
+                        print ftp_dir
                         print ftp_files
                         print "IT SHOULDN'T HAPPEN"
+                        print "########"
         self.report_gcf.write("{0}\t{1}\t{2}\n".format(
             domain.upper(), gcf_record, ';'.join([x for x in set(status)])))
+        shutil.rmtree(tmp_ftp_dir)
 
 # Tools
 
@@ -346,27 +334,25 @@ class UpdateRefSeqFolder(object):
             status.append("new_metadata")
         return status
 
-    def parse_checksum(self, md5File):
+    def parse_checksum(self, pathtodir):
         '''
         parse_checksum function parses the md5 checksum file.
         It returns 2 dictionaries {file:size} : one for the fna and faa files, one for the genbank files
         :param md5File:
         '''
 
-        out_dict, out_dict_fasta, out_dict_extra_fasta = {}, {}, {}
+        out_dict, out_dict_fasta, out_dict_faa, out_dict_extra_fasta = {}, {}, {}, {}
 
-        with open(md5File) as f:
-            for line in f:
-                split_line = line.rstrip().split("  ")
-                header = split_line[1].replace("./", "")
-                chksum = split_line[0]
-                if header.endswith(self.extrafastaExts):
-                    out_dict_extra_fasta[header] = chksum
-                elif header.endswith(self.fastaExts):
-                    out_dict_fasta[header] = chksum
-                elif header.endswith(self.allbutFasta):
-                    out_dict[header] = chksum
-        return (out_dict, out_dict_fasta, out_dict_extra_fasta)
+        for name in glob.glob(os.path.join(pathtodir, '*')):
+            if name.endswith(self.extrafastaExts):
+                out_dict_extra_fasta[os.path.basename(name)] = self.sha256Calculator(name)
+            elif name.endswith(self.genomic_ext):
+                out_dict_fasta[os.path.basename(name)] = self.sha256Calculator(name)
+            elif name.endswith(self.protein_ext):
+                out_dict_faa[os.path.basename(name)] = self.sha256Calculator(name)
+            elif name.endswith(self.allbutFasta):
+                out_dict[os.path.basename(name)] = self.sha256Calculator(name)
+        return (out_dict, out_dict_fasta, out_dict_faa, out_dict_extra_fasta)
 
 
 if __name__ == "__main__":

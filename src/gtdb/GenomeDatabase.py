@@ -462,6 +462,7 @@ class GenomeDatabase(object):
     def GetGenomeIds(self, all_dereplicated,
                      ncbi_dereplicated,
                      user_dereplicated,
+                     donovan_sra_representatives,
                      all_genomes,
                      ncbi_genomes,
                      user_genomes,
@@ -501,6 +502,10 @@ class GenomeDatabase(object):
 
             if user_dereplicated:
                 ids = genome_rep_mngr.userDereplicatedGenomes()
+                genome_id_list.update(ids)
+
+            if donovan_sra_representatives:
+                ids = genome_rep_mngr.sraRepresentatives()
                 genome_id_list.update(ids)
 
             required_rep_genomes_ids = genome_id_list.intersection(rep_genome_ids)
