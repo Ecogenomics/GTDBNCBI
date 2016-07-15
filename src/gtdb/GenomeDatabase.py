@@ -1421,7 +1421,7 @@ class GenomeDatabase(object):
             genome_rep_mngr = GenomeRepresentativeManager(cur,
                                                           self.currentUser,
                                                           self.threads,
-							  self.db_release)
+                                                          self.db_release)
             genome_rep_mngr.assignToRepresentative()
 
             metaman = MetadataManager(cur, self.currentUser)
