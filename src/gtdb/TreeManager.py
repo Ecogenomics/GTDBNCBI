@@ -107,12 +107,15 @@ class TreeManager(object):
         self.logger.info('Identifying genomes to be excluded from filtering.')
         genome_mngr = GenomeManager(self.cur, self.currentUser)
         genome_list_mngr = GenomeListManager(self.cur, self.currentUser)
+
+        guaranteed_from_flags = set()
         if guaranteed_genome_ids:
             list_genome_ids = [x.strip()
                                for x in guaranteed_genome_ids.split(",")]
             db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(
                 list_genome_ids)
             guaranteed_genomes.update(db_genome_ids)
+            guaranteed_from_flags.update(db_genome_ids)
 
         if guaranteed_genome_list_ids:
             guaranteed_genome_list_ids = [x.strip()
@@ -120,6 +123,7 @@ class TreeManager(object):
             db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(
                 guaranteed_genome_list_ids)
             guaranteed_genomes.update(db_genome_ids)
+            guaranteed_from_flags.update(db_genome_ids)
 
         self.logger.info(
             'Identified %d genomes to be excluded from filtering.' % len(guaranteed_genomes))
@@ -151,9 +155,7 @@ class TreeManager(object):
             genome_ids_from_taxa = self._genomesFromTaxa(
                 genome_ids, taxa_to_retain)
 
-            new_genomes_to_retain = genomes_to_retain.intersection(
-                genome_ids_from_taxa).union(
-                guaranteed_genomes)
+            new_genomes_to_retain = genomes_to_retain.intersection(genome_ids_from_taxa).union(guaranteed_from_flags)
             self.logger.info('Filtered %d additional genomes based on taxonomic affiliations.' % (
                 len(genomes_to_retain) - len(new_genomes_to_retain)))
 
@@ -191,8 +193,10 @@ class TreeManager(object):
                                       % conflicting_genomes.pop())
 
         if genomes_to_exclude:
-            new_genomes_to_retain = genomes_to_retain.difference(
-                genomes_to_exclude).union(guaranteed_genomes)
+            if taxa_filter:
+                new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude)
+            else:
+                new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude).union(guaranteed_from_flags)
             self.logger.info('Filtered %d additional genomes explicitly indicated for exclusion.' % (
                 len(genomes_to_retain) - len(new_genomes_to_retain)))
             genomes_to_retain = new_genomes_to_retain
@@ -231,6 +235,13 @@ class TreeManager(object):
         genomes_to_retain.difference_update(filter_on_aa)
         self.logger.info(
             'Producing tree data for %d genomes.' % len(genomes_to_retain))
+
+        good_genomes_file = os.path.join(
+            directory, prefix + '_good_genomes.tsv')
+        good_genomes = open(good_genomes_file, 'w')
+        for item in genomes_to_retain:
+            good_genomes.write("{0}\n".format(item))
+        good_genomes.close()
 
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 
@@ -357,10 +368,10 @@ class TreeManager(object):
 
         # filter columns without sufficient representation across taxa
         self.logger.info('Trimming columns with insufficient taxa.')
-        trimmed_seqs, pruned_seqs = self._trim_seqs(
+        trimmed_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons = self._trim_seqs(
             msa, min_perc_taxa / 100.0, consensus / 100.0, min_perc_aa / 100.0)
-        self.logger.info('Trimmed alignment from %d to %d AA.' % (len(msa[msa.keys()[0]]),
-                                                                  len(trimmed_seqs[trimmed_seqs.keys()[0]])))
+        self.logger.info('Trimmed alignment from %d to %d AA (%d excluded by minimum taxa percent, %d excluded by consensus).' % (len(msa[msa.keys()[0]]),
+                                                                                                                                  len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
         self.logger.info('After trimming %d taxa have AA in <%.1f%% of columns.' % (
             len(pruned_seqs), min_perc_aa))
 
@@ -474,12 +485,22 @@ class TreeManager(object):
                     column_chars[i].append(ch)
 
         mask = [False] * alignment_length
+        count_wrong_pa = 0
+        count_wrong_cons = 0
         for i, count in enumerate(column_count):
             if count >= min_per_taxa * len(seqs):
                 c = Counter(column_chars[i])
-                for letter, count in c.most_common(1):
-                    if float(count) / len(column_chars[i]) >= consensus:
-                        mask[i] = True
+                if len(c.most_common(1)) == 0:
+                    ratio = 0
+                else:
+                    _letter, count = c.most_common(1)[0]
+                    ratio = float(count) / len(column_chars[i])
+                if ratio >= consensus:
+                    mask[i] = True
+                else:
+                    count_wrong_cons += 1
+            else:
+                count_wrong_pa += 1
 
         # trim columns
         output_seqs = {}
@@ -494,7 +515,7 @@ class TreeManager(object):
 
             output_seqs[seq_id] = masked_seq
 
-        return output_seqs, pruned_seqs
+        return output_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons
 
     def _filterOnGenomeQuality(self, genome_ids, quality_threshold, comp_threshold, cont_threshold):
         """Filter genomes on completeness and contamination thresholds.
