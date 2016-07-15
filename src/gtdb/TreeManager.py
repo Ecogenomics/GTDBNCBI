@@ -162,6 +162,7 @@ class TreeManager(object):
 
             new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude)
             self.logger.info('Filtered %d genomes explicitly indicated for exclusion.' % (
+
                 len(genomes_to_retain) - len(new_genomes_to_retain)))
             genomes_to_retain = new_genomes_to_retain
 
@@ -215,6 +216,13 @@ class TreeManager(object):
 
         genomes_to_retain.difference_update(filter_on_aa)
         self.logger.info('Producing tree data for %d genomes.' % len(genomes_to_retain))
+
+        good_genomes_file = os.path.join(
+            directory, prefix + '_good_genomes.tsv')
+        good_genomes = open(good_genomes_file, 'w')
+        for item in genomes_to_retain:
+            good_genomes.write("{0}\n".format(item))
+        good_genomes.close()
 
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 
@@ -359,7 +367,7 @@ class TreeManager(object):
                                                                                                                 len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
         self.logger.info('After trimming %d taxa have amino acids in <%.1f%% of columns.' % (
             len(pruned_seqs), min_perc_aa))
-            
+
         # write out mask for MSA
         msa_mask_out = open(os.path.join(directory, prefix + "_mask.txt"), 'w')
         msa_mask_out.write(''.join(['1' if m else '0' for m in mask]))
