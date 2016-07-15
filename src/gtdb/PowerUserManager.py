@@ -59,10 +59,20 @@ class PowerUserManager(object):
                              "mg.checkm_completeness > %s and mg.checkm_contamination < %s " +
                              "and mg.checkm_completeness-4*mg.checkm_contamination > %s and mt.ncbi_taxonomy is not NULL",
                              (DefaultValues.DEFAULT_CHECKM_COMPLETENESS, DefaultValues.DEFAULT_CHECKM_CONTAMINATION, DefaultValues.DEFAULT_QUALITY_THRESHOLD))
+	    print self.cur.mogrify("SELECT id,mt.ncbi_taxonomy FROM genomes g " +
+                             "LEFT JOIN metadata_genes mg USING (id) " +
+                             "LEFT JOIN metadata_taxonomy mt  USING (id) " +
+                             "LEFT JOIN metadata_ncbi mn  USING (id) " +
+                             "WHERE g.genome_source_id IN (2,3) and " +
+                             "mg.checkm_completeness > %s and mg.checkm_contamination < %s " +
+                             "and mg.checkm_completeness-4*mg.checkm_contamination > %s and mt.ncbi_taxonomy is not NULL",
+                             (DefaultValues.DEFAULT_CHECKM_COMPLETENESS, DefaultValues.DEFAULT_CHECKM_CONTAMINATION, DefaultValues.DEFAULT_QUALITY_THRESHOLD))
+
             processed_results = zip(*self.cur)
             existing_id = processed_results[0]
             existing_taxonomy = processed_results[1]
             order_list = [x.split(';')[3] for x in existing_taxonomy]
+	    print len(existing_id)
 
             self.cur.execute("SELECT g.id,g.name,mg.checkm_completeness,mg.checkm_contamination,mt.ncbi_taxonomy,mnuc.genome_size,(mg.checkm_completeness-4*mg.checkm_contamination) as quality_threshold,mn.ncbi_organism_name " +
                              "FROM genomes g " +
