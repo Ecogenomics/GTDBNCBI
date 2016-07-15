@@ -4,6 +4,9 @@ gtdb_version=1.2.2
 
 GTDB software versions
 ----------------------
+v2.1.0 (July 15, 2016):
+- new flag : --sra-donovan-representatives
+- new taxa_filter behaviour to remove data
 v2.0.0 (July 07, 2016):
 - The annotations are now store in a separated folder ( prodigal)
 - Addition of new Config variables (NCBI_ANNOTATION_DIR and USER_ANNOTATION_DIR)
