@@ -75,6 +75,7 @@ class PowerUserManager(object):
             existing_id = processed_results[0]
             existing_taxonomy = processed_results[1]
             order_list = [x.split(';')[3] for x in existing_taxonomy]
+	    print len(existing_id)
 
             self.cur.execute("SELECT g.id,g.name,mg.checkm_completeness,mg.checkm_contamination,mt.ncbi_taxonomy,mnuc.genome_size,(mg.checkm_completeness-4*mg.checkm_contamination) as quality_threshold,mn.ncbi_organism_name " +
                              "FROM genomes g " +

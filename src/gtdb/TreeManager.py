@@ -168,6 +168,7 @@ class TreeManager(object):
 
             new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude)
             self.logger.info('Filtered %d genomes explicitly indicated for exclusion.' % (
+
                 len(genomes_to_retain) - len(new_genomes_to_retain)))
             genomes_to_retain = new_genomes_to_retain
 

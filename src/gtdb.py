@@ -31,7 +31,7 @@ from biolib.misc.custom_help_formatter import CustomHelpFormatter
 from gtdb import GenomeDatabase
 from gtdb import DefaultValues
 from gtdb import Config
-from gtdb.Exceptions import GenomeDatabaseError
+from gtdb.Exceptions import GenomeDatabaseError,DumpDBErrors, DumpDBWarnings, ErrorReport
 
 from gtdb.Tools import confirm
 
@@ -217,7 +217,6 @@ def ViewGenomes(db, args):
         if args.id_list:
             external_ids = args.id_list.split(",")
         return db.ViewGenomes(args.batchfile, external_ids)
-
 
 def StatGenomes(db, args):
     external_ids = None
