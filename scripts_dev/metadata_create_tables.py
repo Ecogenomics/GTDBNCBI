@@ -211,6 +211,7 @@ class MetadataTable(object):
 
                         ssu_gg_taxonomy_file = os.path.join(full_assembly_dir, self.ssu_gg_taxonomy_file)
                         ssu_gg_fna_file = os.path.join(full_assembly_dir, self.ssu_gg_fna_file)
+                        print ssu_gg_fna_file
                         self._parse_taxonomy_file(accession, ssu_gg_taxonomy_file, fout_gg_taxonomy, 'ssu_gg_2013_08', ssu_gg_fna_file)
 
                         ssu_silva_taxonomy_file = os.path.join(full_assembly_dir, self.ssu_silva_taxonomy_file)

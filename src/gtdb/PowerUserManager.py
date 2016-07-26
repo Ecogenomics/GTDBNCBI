@@ -57,7 +57,7 @@ class PowerUserManager(object):
                              "LEFT JOIN metadata_ncbi mn  USING (id) " +
                              "WHERE g.genome_source_id IN (2,3) and " +
                              "mg.checkm_completeness > %s and mg.checkm_contamination < %s " +
-                             "and mg.checkm_completeness-4*mg.checkm_contamination > %s and mt.ncbi_taxonomy is not NULL",
+                             "and mg.checkm_completeness-5*mg.checkm_contamination > %s and mt.ncbi_taxonomy is not NULL",
                              (DefaultValues.DEFAULT_CHECKM_COMPLETENESS, DefaultValues.DEFAULT_CHECKM_CONTAMINATION, DefaultValues.DEFAULT_QUALITY_THRESHOLD))
 	    print self.cur.mogrify("SELECT id,mt.ncbi_taxonomy FROM genomes g " +
                              "LEFT JOIN metadata_genes mg USING (id) " +
@@ -65,7 +65,7 @@ class PowerUserManager(object):
                              "LEFT JOIN metadata_ncbi mn  USING (id) " +
                              "WHERE g.genome_source_id IN (2,3) and " +
                              "mg.checkm_completeness > %s and mg.checkm_contamination < %s " +
-                             "and mg.checkm_completeness-4*mg.checkm_contamination > %s and mt.ncbi_taxonomy is not NULL",
+                             "and mg.checkm_completeness-5*mg.checkm_contamination > %s and mt.ncbi_taxonomy is not NULL",
                              (DefaultValues.DEFAULT_CHECKM_COMPLETENESS, DefaultValues.DEFAULT_CHECKM_CONTAMINATION, DefaultValues.DEFAULT_QUALITY_THRESHOLD))
 
             processed_results = zip(*self.cur)
@@ -74,7 +74,7 @@ class PowerUserManager(object):
             order_list = [x.split(';')[3] for x in existing_taxonomy]
 	    print len(existing_id)
 
-            self.cur.execute("SELECT g.id,g.name,mg.checkm_completeness,mg.checkm_contamination,mt.ncbi_taxonomy,mnuc.genome_size,(mg.checkm_completeness-4*mg.checkm_contamination) as quality_threshold,mn.ncbi_organism_name " +
+            self.cur.execute("SELECT g.id,g.name,mg.checkm_completeness,mg.checkm_contamination,mt.ncbi_taxonomy,mnuc.genome_size,(mg.checkm_completeness-5*mg.checkm_contamination) as quality_threshold,mn.ncbi_organism_name " +
                              "FROM genomes g " +
                              "LEFT JOIN metadata_genes mg USING (id) " +
                              "LEFT JOIN metadata_ncbi mn  USING (id) " +
@@ -82,7 +82,7 @@ class PowerUserManager(object):
                              "LEFT JOIN metadata_taxonomy mt  USING (id) " +
                              "WHERE g.genome_source_id IN (2,3) and " +
                              "(mg.checkm_completeness > %s and  mg.checkm_contamination < %s " +
-                             "and mg.checkm_completeness-4*mg.checkm_contamination > %s) and mt.ncbi_taxonomy is not NULL and g.id not in %s",
+                             "and mg.checkm_completeness-5*mg.checkm_contamination > %s) and mt.ncbi_taxonomy is not NULL and g.id not in %s",
                              (DefaultValues.EXCEPTION_FILTER_ONE_CHECKM_COMPLETENESS, DefaultValues.EXCEPTION_FILTER_ONE_CHECKM_CONTAMINATION, DefaultValues.EXCEPTION_FILTER_ONE_QUALITY_THRESHOLD, existing_id))
 
             dict_except_genus = {}
@@ -96,7 +96,7 @@ class PowerUserManager(object):
 
             list_exception_id = [info.get('id') for k, info in dict_except_genus.iteritems()]
             combined_list = list_exception_id + list(existing_id)
-            self.cur.execute("SELECT g.name,mg.checkm_completeness,mg.checkm_contamination,mt.ncbi_taxonomy,mnuc.genome_size,(mg.checkm_completeness-4*mg.checkm_contamination) as quality_threshold,mn.ncbi_organism_name " +
+            self.cur.execute("SELECT g.name,mg.checkm_completeness,mg.checkm_contamination,mt.ncbi_taxonomy,mnuc.genome_size,(mg.checkm_completeness-5*mg.checkm_contamination) as quality_threshold,mn.ncbi_organism_name " +
                              "FROM genomes g " +
                              "LEFT JOIN metadata_genes mg USING (id) " +
                              "LEFT JOIN metadata_ncbi mn  USING (id) " +
@@ -104,7 +104,7 @@ class PowerUserManager(object):
                              "LEFT JOIN metadata_taxonomy mt  USING (id) " +
                              "WHERE g.genome_source_id IN (2,3) and " +
                              "(mg.checkm_completeness > %s and  mg.checkm_contamination < %s " +
-                             "and mg.checkm_completeness-4*mg.checkm_contamination > %s) and g.id not in %s",
+                             "and mg.checkm_completeness-5*mg.checkm_contamination > %s) and g.id not in %s",
                              (DefaultValues.EXCEPTION_FILTER_TWO_CHECKM_COMPLETENESS, DefaultValues.EXCEPTION_FILTER_TWO_CHECKM_CONTAMINATION, DefaultValues.EXCEPTION_FILTER_TWO_QUALITY_THRESHOLD, tuple(combined_list)))
             exception_2nd_filter = [[name, compl, conta, ncbitax, size, qual, orga] for (name, compl, conta, ncbitax, size, qual, orga) in self.cur]
 
@@ -145,10 +145,10 @@ class PowerUserManager(object):
                              "LEFT JOIN metadata_ncbi mn  USING (id) " +
                              "WHERE g.genome_source_id IN (2,3) and " +
                              "mg.checkm_completeness > %s and mg.checkm_contamination < %s " +
-                             "and mg.checkm_completeness-4*mg.checkm_contamination > %s and mn.ncbi_organism_name is not NULL",
+                             "and mg.checkm_completeness-5*mg.checkm_contamination > %s and mn.ncbi_organism_name is not NULL",
                              (DefaultValues.DEFAULT_CHECKM_COMPLETENESS, DefaultValues.DEFAULT_CHECKM_CONTAMINATION, DefaultValues.DEFAULT_QUALITY_THRESHOLD))
             existing_genus = [genus for (genus,) in self.cur]
-            self.cur.execute("SELECT g.name,mg.checkm_completeness,mg.checkm_contamination,mt.ncbi_taxonomy,mnuc.genome_size,(mg.checkm_completeness-4*mg.checkm_contamination) as quality_threshold,mn.ncbi_organism_name " +
+            self.cur.execute("SELECT g.name,mg.checkm_completeness,mg.checkm_contamination,mt.ncbi_taxonomy,mnuc.genome_size,(mg.checkm_completeness-5*mg.checkm_contamination) as quality_threshold,mn.ncbi_organism_name " +
                              "FROM genomes g " +
                              "LEFT JOIN metadata_genes mg USING (id) " +
                              "LEFT JOIN metadata_ncbi mn  USING (id) " +
@@ -156,7 +156,7 @@ class PowerUserManager(object):
                              "LEFT JOIN metadata_taxonomy mt  USING (id) " +
                              "WHERE g.genome_source_id IN (2,3) and " +
                              "(mg.checkm_completeness < %s or mg.checkm_contamination > %s " +
-                             "or mg.checkm_completeness-4*mg.checkm_contamination < %s) and mn.ncbi_organism_name is not NULL",
+                             "or mg.checkm_completeness-5*mg.checkm_contamination < %s) and mn.ncbi_organism_name is not NULL",
                              (DefaultValues.DEFAULT_CHECKM_COMPLETENESS, DefaultValues.DEFAULT_CHECKM_CONTAMINATION, DefaultValues.DEFAULT_QUALITY_THRESHOLD))
 
             fh = open(path, "w")
