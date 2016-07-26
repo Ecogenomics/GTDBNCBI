@@ -542,7 +542,7 @@ class TreeManager(object):
                          "WHERE id IN %s " +
                          "AND (checkm_completeness < %s " +
                          "OR checkm_contamination > %s " +
-                         "OR (checkm_completeness - 4*checkm_contamination) < %s)",
+                         "OR (checkm_completeness - 5*checkm_contamination) < %s)",
                          (tuple(genome_ids), comp_threshold, cont_threshold, quality_threshold))
 
         return set([x[0] for x in self.cur])
