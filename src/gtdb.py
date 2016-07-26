@@ -1131,7 +1131,7 @@ if __name__ == '__main__':
     optional_markers_create_tree.add_argument('--guaranteed_genome_ids',
                                               help='Genome IDs (comma separated) indicating genomes to retain in the tree independent of filtering criteria.')
     optional_markers_create_tree.add_argument('--taxa_filter',
-                                              help='Filter genomes to taxa (comma separated) within specific taxonomic groups (e.g., p__Proteobacteria, p__Actinobacteria).')
+                                              help='Filter genomes to taxa (comma separated) within specific taxonomic groups (e.g., d__Archaea or p__Proteobacteria, p__Actinobacteria).')
 
     optional_markers_create_tree.add_argument('--prefix', required=False, default='gtdb',
                                               help='Desired prefix for output files.')

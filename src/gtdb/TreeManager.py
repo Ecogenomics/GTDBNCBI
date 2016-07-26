@@ -124,36 +124,20 @@ class TreeManager(object):
                 guaranteed_genome_list_ids)
             guaranteed_genomes.update(db_genome_ids)
             guaranteed_from_flags.update(db_genome_ids)
+            
+        print 'guaranteed_genomes', len(guaranteed_genomes)
+        print 'guaranteed_from_flags', len(guaranteed_from_flags)
 
         self.logger.info(
             'Identified %d genomes to be excluded from filtering.' % len(guaranteed_genomes))
 
-        # find genomes that fail completeness, contamination, or genome quality
-        # thresholds
-        self.logger.info('Filtering genomes with completeness <%.1f%%, contamination >%.1f%%, or quality <%.1f%%.' % (
-            comp_threshold,
-            cont_threshold,
-            quality_threshold))
-        filtered_genomes = self._filterOnGenomeQuality(genome_ids,
-                                                       quality_threshold,
-                                                       comp_threshold,
-                                                       cont_threshold)
-        for genome_id in filtered_genomes:
-            fout_filtered.write(
-                '%s\t%s\n' % (external_ids[genome_id], 'Filtered on quality.'))
-
-        filtered_genomes -= guaranteed_genomes
-        self.logger.info(
-            'Filtered %d genomes based on completeness, contamination, and quality.' % len(filtered_genomes))
-
         # filter genomes based on taxonomy
-        genomes_to_retain = set(genome_ids) - filtered_genomes
+        genomes_to_retain = genome_ids
         if taxa_filter:
             self.logger.info(
                 'Filtering genomes outside taxonomic groups of interest.')
             taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
-            genome_ids_from_taxa = self._genomesFromTaxa(
-                genome_ids, taxa_to_retain)
+            genome_ids_from_taxa = self._genomesFromTaxa(genome_ids, taxa_to_retain)
 
             new_genomes_to_retain = genomes_to_retain.intersection(genome_ids_from_taxa).union(guaranteed_from_flags)
             self.logger.info('Filtered %d additional genomes based on taxonomic affiliations.' % (
@@ -164,6 +148,26 @@ class TreeManager(object):
                     '%s\t%s\n' % (external_ids[genome_id], 'Filtered on taxonomic affiliation.'))
 
             genomes_to_retain = new_genomes_to_retain
+            
+        # find genomes based on completeness, contamination, or genome quality
+        self.logger.info('Filtering genomes with completeness <%.1f%%, contamination >%.1f%%, or quality <%.1f%%.' % (
+            comp_threshold,
+            cont_threshold,
+            quality_threshold))
+        filtered_genomes = self._filterOnGenomeQuality(genomes_to_retain,
+                                                       quality_threshold,
+                                                       comp_threshold,
+                                                       cont_threshold)
+                                                       
+        filtered_genomes -= guaranteed_genomes
+        for genome_id in filtered_genomes:
+            fout_filtered.write(
+                '%s\t%s\n' % (external_ids[genome_id], 'Filtered on quality.'))
+
+        self.logger.info(
+            'Filtered %d genomes based on completeness, contamination, and quality.' % len(filtered_genomes))
+
+        genomes_to_retain -= filtered_genomes
 
         # filter genomes explicitly specified for exclusion
         genomes_to_exclude = set()
