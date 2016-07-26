@@ -602,7 +602,10 @@ class GenomeDatabase(object):
                      min_perc_aa, min_perc_taxa, consensus,
                      taxa_filter,
                      excluded_genome_list_ids, excluded_genome_ids,
-                     guaranteed_genome_list_ids, guaranteed_genome_ids, guaranteed_genomes,
+                     guaranteed_genome_list_ids, 
+                     guaranteed_genome_ids, 
+                     guaranteed_batchfile,
+                     guaranteed_genomes,
                      alignment, individual,
                      build_tree=True):
 
@@ -633,6 +636,7 @@ class GenomeDatabase(object):
                                                                                               excluded_genome_ids,
                                                                                               guaranteed_genome_list_ids,
                                                                                               guaranteed_genome_ids,
+                                                                                              guaranteed_batchfile,
                                                                                               guaranteed_genomes,
                                                                                               directory,
                                                                                               prefix)

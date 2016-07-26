@@ -59,6 +59,7 @@ class TreeManager(object):
                       excluded_genome_ids,
                       guaranteed_genome_list_ids,
                       guaranteed_genome_ids,
+                      guaranteed_batchfile,
                       guaranteed_genomes,
                       directory,
                       prefix):
@@ -124,9 +125,15 @@ class TreeManager(object):
                 guaranteed_genome_list_ids)
             guaranteed_genomes.update(db_genome_ids)
             guaranteed_from_flags.update(db_genome_ids)
-            
-        print 'guaranteed_genomes', len(guaranteed_genomes)
-        print 'guaranteed_from_flags', len(guaranteed_from_flags)
+
+        if guaranteed_batchfile:
+            batch_genome_id = []
+            for line in open(guaranteed_batchfile):
+                batch_genome_id.append(line.strip().split('\t')[0])
+                
+            db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(batch_genome_id)
+            guaranteed_genomes.update(db_genome_ids)
+            guaranteed_from_flags.update(db_genome_ids)
 
         self.logger.info(
             'Identified %d genomes to be excluded from filtering.' % len(guaranteed_genomes))
@@ -227,9 +234,13 @@ class TreeManager(object):
                 total_aa += len(sequence) - sequence.count('-')
 
             if total_aa < (min_perc_aa / 100.0) * total_alignment_len:
+                perc_alignment = total_aa * 100.0 / total_alignment_len
                 filter_on_aa.add(genome_id)
                 fout_filtered.write(
-                    '%s\t%s\n' % (external_ids[genome_id], 'Insufficient number of AA in MSA.'))
+                    '%s\t%s\t%d\t%.1f\n' % (external_ids[genome_id], 
+                                            'Insufficient number of AA in MSA (total AA, % alignment length)', 
+                                            total_aa, 
+                                            perc_alignment))
 
         fout_filtered.close()
 
