@@ -171,7 +171,10 @@ def CreateTreeData(db, args):
 
     return db.MakeTreeData(marker_id_list, genome_id_list,
                            args.out_dir, args.prefix,
-                           args.quality_threshold, args.comp_threshold, args.cont_threshold,
+                           args.quality_threshold, 
+                           args.quality_weight,
+                           args.comp_threshold, 
+                           args.cont_threshold,
                            args.min_perc_aa, args.min_perc_taxa, args.consensus,
                            args.taxa_filter,
                            args.excluded_genome_list_ids, args.excluded_genome_ids,
@@ -1113,7 +1116,10 @@ if __name__ == '__main__':
 
     optional_markers_create_tree = parser_tree_create.add_argument_group('optional arguments')
     optional_markers_create_tree.add_argument('--quality_threshold', type=float, default=DefaultValues.DEFAULT_QUALITY_THRESHOLD,
-                                              help='Filter genomes with a quality (completeness - 5*contamination) below threshold.')
+                                              help='Filter genomes with a quality (completeness - weight*contamination) below threshold.')
+    optional_markers_create_tree.add_argument('--quality_weight', type=float, default=DefaultValues.DEFAULT_QUALITY_WEIGHT,
+                                              help='Weighting used to assess genome quality (completeness - weight*contamination).')
+                                      
     optional_markers_create_tree.add_argument('--completeness_threshold', dest='comp_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_COMPLETENESS,
                                               help='Filter genomes below completeness threshold.')
     optional_markers_create_tree.add_argument('--contamination_threshold', dest='cont_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_CONTAMINATION,
