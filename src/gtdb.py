@@ -1110,7 +1110,7 @@ if __name__ == '__main__':
 
     optional_markers_create_tree = parser_tree_create.add_argument_group('optional arguments')
     optional_markers_create_tree.add_argument('--quality_threshold', type=float, default=DefaultValues.DEFAULT_QUALITY_THRESHOLD,
-                                              help='Filter genomes with a quality (completeness - 4*contamination) below threshold.')
+                                              help='Filter genomes with a quality (completeness - 5*contamination) below threshold.')
     optional_markers_create_tree.add_argument('--completeness_threshold', dest='comp_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_COMPLETENESS,
                                               help='Filter genomes below completeness threshold.')
     optional_markers_create_tree.add_argument('--contamination_threshold', dest='cont_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_CONTAMINATION,
