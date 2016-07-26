@@ -152,7 +152,7 @@ def AddGenomes(db, args):
 def CreateTreeData(db, args):
     guaranteed_genomes = set()
 
-    gid_list_and_garanteed_gid = db.GetGenomeIds(args.all_dereplicated,
+    gid_list_and_guaranteed_gid = db.GetGenomeIds(args.all_dereplicated,
                                                  args.ncbi_dereplicated,
                                                  args.user_dereplicated,
                                                  args.donovan_sra_representatives,
@@ -162,8 +162,8 @@ def CreateTreeData(db, args):
                                                  args.genome_list_ids,
                                                  args.genome_ids,
                                                  args.genome_batchfile)
-    genome_id_list = gid_list_and_garanteed_gid[0]
-    guaranteed_genomes.update(gid_list_and_garanteed_gid[1])
+    genome_id_list = gid_list_and_guaranteed_gid[0]
+    guaranteed_genomes.update(gid_list_and_guaranteed_gid[1])
 
     marker_id_list = db.GetMarkerIds(args.marker_ids,
                                      args.marker_set_ids,
@@ -175,7 +175,10 @@ def CreateTreeData(db, args):
                            args.min_perc_aa, args.min_perc_taxa, args.consensus,
                            args.taxa_filter,
                            args.excluded_genome_list_ids, args.excluded_genome_ids,
-                           args.guaranteed_genome_list_ids, args.guaranteed_genome_ids, guaranteed_genomes,
+                           args.guaranteed_genome_list_ids, 
+                           args.guaranteed_genome_ids, 
+                           args.guaranteed_batchfile,
+                           guaranteed_genomes,
                            not args.no_alignment,
                            args.individual,
                            not args.no_tree)
@@ -1130,6 +1133,9 @@ if __name__ == '__main__':
                                               help='Genome list IDs (comma separated) indicating genomes to retain in the tree independent of filtering criteria.')
     optional_markers_create_tree.add_argument('--guaranteed_genome_ids',
                                               help='Genome IDs (comma separated) indicating genomes to retain in the tree independent of filtering criteria.')
+    optional_markers_create_tree.add_argument('--guaranteed_batchfile',
+                                              help='File of genome IDs, one per line, indicating genomes to retain in the tree independent of filtering criteria.')
+    
     optional_markers_create_tree.add_argument('--taxa_filter',
                                               help='Filter genomes to taxa (comma separated) within specific taxonomic groups (e.g., d__Archaea or p__Proteobacteria, p__Actinobacteria).')
 
