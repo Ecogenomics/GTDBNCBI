@@ -51,6 +51,7 @@ class TreeManager(object):
     def filterGenomes(self, marker_ids,
                       genome_ids,
                       quality_threshold,
+                      quality_weight,
                       comp_threshold,
                       cont_threshold,
                       min_perc_aa,
@@ -157,24 +158,31 @@ class TreeManager(object):
             genomes_to_retain = new_genomes_to_retain
             
         # find genomes based on completeness, contamination, or genome quality
-        self.logger.info('Filtering genomes with completeness <%.1f%%, contamination >%.1f%%, or quality <%.1f%%.' % (
+        self.logger.info('Filtering genomes with completeness <%.1f%%, contamination >%.1f%%, or quality <%.1f%% (weight = %.1f).' % (
             comp_threshold,
             cont_threshold,
-            quality_threshold))
+            quality_threshold,
+            quality_weight))
         filtered_genomes = self._filterOnGenomeQuality(genomes_to_retain,
                                                        quality_threshold,
+                                                       quality_weight,
                                                        comp_threshold,
                                                        cont_threshold)
-                                                       
-        filtered_genomes -= guaranteed_genomes
-        for genome_id in filtered_genomes:
-            fout_filtered.write(
-                '%s\t%s\n' % (external_ids[genome_id], 'Filtered on quality.'))
+
+        final_filtered_genomes = set()
+        for genome_id, quality in filtered_genomes.iteritems():
+            if genome_id not in guaranteed_genomes:
+                final_filtered_genomes.add(genome_id)
+                fout_filtered.write(
+                    '%s\t%s\t%.2f\t%.2f\n' % (external_ids[genome_id], 
+                                    'Filtered on quality (completeness, contamination).',
+                                    quality[0],
+                                    quality[1]))
 
         self.logger.info(
-            'Filtered %d genomes based on completeness, contamination, and quality.' % len(filtered_genomes))
+            'Filtered %d genomes based on completeness, contamination, and quality.' % len(final_filtered_genomes))
 
-        genomes_to_retain -= filtered_genomes
+        genomes_to_retain -= final_filtered_genomes
 
         # filter genomes explicitly specified for exclusion
         genomes_to_exclude = set()
@@ -197,17 +205,13 @@ class TreeManager(object):
                 '%s\t%s\n' % (external_ids[genome_id], 'Explicitly marked for exclusion.'))
 
         # check if genomes are marker for retention and exclusion
-        conflicting_genomes = guaranteed_genomes.intersection(
-            genomes_to_exclude)
+        conflicting_genomes = guaranteed_from_flags.intersection(genomes_to_exclude)
         if conflicting_genomes:
             raise GenomeDatabaseError('Genomes marked for both retention and exclusion, e.g.: %s'
                                       % conflicting_genomes.pop())
 
         if genomes_to_exclude:
-            if taxa_filter:
-                new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude)
-            else:
-                new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude).union(guaranteed_from_flags)
+            new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude)
             self.logger.info('Filtered %d additional genomes explicitly indicated for exclusion.' % (
                 len(genomes_to_retain) - len(new_genomes_to_retain)))
             genomes_to_retain = new_genomes_to_retain
@@ -532,7 +536,7 @@ class TreeManager(object):
 
         return output_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons
 
-    def _filterOnGenomeQuality(self, genome_ids, quality_threshold, comp_threshold, cont_threshold):
+    def _filterOnGenomeQuality(self, genome_ids, quality_threshold, quality_weight, comp_threshold, cont_threshold):
         """Filter genomes on completeness and contamination thresholds.
 
         Parameters
@@ -541,6 +545,8 @@ class TreeManager(object):
             Database identifier for genomes of interest.
         quality_threshold : float
             Minimum required quality threshold.
+        quality_weight : float
+            Weighting factor for assessing genome quality.
         comp_threshold : float
             Minimum required completeness.
         cont_threshold : float
@@ -552,15 +558,15 @@ class TreeManager(object):
             Database identifier of genomes failing quality filtering.
         """
 
-        self.cur.execute("SELECT id " +
+        self.cur.execute("SELECT id, checkm_completeness, checkm_contamination " +
                          "FROM metadata_genes " +
                          "WHERE id IN %s " +
                          "AND (checkm_completeness < %s " +
                          "OR checkm_contamination > %s " +
-                         "OR (checkm_completeness - 5*checkm_contamination) < %s)",
-                         (tuple(genome_ids), comp_threshold, cont_threshold, quality_threshold))
+                         "OR (checkm_completeness - %s*checkm_contamination) < %s)",
+                         (tuple(genome_ids), comp_threshold, cont_threshold, quality_weight, quality_threshold))
 
-        return set([x[0] for x in self.cur])
+        return {x[0]: [x[1], x[2]] for x in self.cur}
 
     def _genomesFromTaxa(self, genome_ids, taxa_to_retain):
         """Filter genomes to those within specified taxonomic groups.

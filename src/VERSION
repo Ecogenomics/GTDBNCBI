@@ -1,9 +1,13 @@
-software_version=2.0.0
+software_version=2.1.1
 ncbi_database_version=release 76
 gtdb_version=1.2.2
 
 GTDB software versions
 ----------------------
+v2.1.1 (July 26, 2016):
+- genome quality filtering can now be done with any weighting factor
+- improved reporting of genomes filtered during tree creation
+- add flag to specify gauranteed genomes via a batchfile
 v2.1.0 (July 15, 2016):
 - new flag : --sra-donovan-representatives
 - new taxa_filter behaviour to remove data
