@@ -596,21 +596,26 @@ class GenomeDatabase(object):
 
         return marker_id_list
 
-    def MakeTreeData(self, marker_ids, genome_ids,
-                     directory, prefix,
-                     quality_threshold,
-                     quality_weight,
-                     comp_threshold, 
-                     cont_threshold,
-                     min_perc_aa, min_perc_taxa, consensus,
-                     taxa_filter,
-                     excluded_genome_list_ids, excluded_genome_ids,
-                     guaranteed_genome_list_ids, 
-                     guaranteed_genome_ids, 
-                     guaranteed_batchfile,
-                     guaranteed_genomes,
-                     alignment, individual,
-                     build_tree=True):
+    def MakeTreeData(self, marker_ids, 
+                        genome_ids,
+                        directory, prefix,
+                        quality_threshold,
+                        quality_weight,
+                        comp_threshold, 
+                        cont_threshold,
+                        min_perc_aa, 
+                        min_perc_taxa, 
+                        consensus,
+                        taxa_filter,
+                        excluded_genome_list_ids, 
+                        excluded_genome_ids,
+                        guaranteed_genome_list_ids, 
+                        guaranteed_genome_ids, 
+                        guaranteed_batchfile,
+                        guaranteed_genomes,
+                        alignment, 
+                        individual,
+                        build_tree=True):
 
         try:
             cur = self.conn.cursor()
