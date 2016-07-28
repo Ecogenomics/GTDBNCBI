@@ -1382,6 +1382,8 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
+            return False
+            
         return True
 
     def RunSanityCheck(self, path=None):
@@ -1403,4 +1405,29 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
+            return False
+            
+        return True
+        
+    def RunTaxonomyCheck(self, rank_depth):
+        '''
+        Function: RunTaxonomyCheck
+        Run some checks to verify GTDB taxonomy assignment.
+
+        :param rank_depth: Deepest taxonmoic rank to check.
+        '''
+        try:
+            cur = self.conn.cursor()
+
+            # ensure all genomes have been assigned to a representatives
+            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr.runTaxonomyCheck(rank_depth)
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+            
         return True

@@ -21,6 +21,8 @@ import logging
 import DefaultValues
 from Exceptions import GenomeDatabaseError
 
+from biolib.taxonomy import Taxonomy
+
 
 class PowerUserManager(object):
 
@@ -130,7 +132,7 @@ class PowerUserManager(object):
 
         return True
 
-    def runSanityCheck(self, path_file=None):
+    def runSanityCheck(self):
         try:
             if (not self.currentUser.isRootUser()):
                 raise GenomeDatabaseError("Only the root user can run this command")
@@ -189,25 +191,62 @@ class PowerUserManager(object):
                 else:
                     if dict_meta_nuc[genome]["gc"] is None or dict_meta_nuc[genome]["gc"] == '' or dict_meta_nuc[genome]["gc"] == 0:
                         print "{0} gc_count value in metadata_nucleotide is {1}".format(dict_all_ids[genome], dict_meta_nuc[genome]["gc"])
-
-            # Check is NCBI Taxonomy == gtdb_domain == gtdb_taxonomy:
-            query = ("SELECT g.id_at_source,mt.ncbi_taxonomy,mt.gtdb_domain,mt.gtdb_taxonomy FROM metadata_taxonomy mt LEFT JOIN genomes g using (id) where genome_source_id in (2,3) ")
-            self.cur.execute(query)
-            list_domain = [[a, b, c, d] for (a, b, c, d) in self.cur]
-            print "Conflicting Domains:"
-            for item in list_domain:
-                if item[2] not in item[1]:
-                    print "{0}\tNCBI_taxonomy:{1}\tgtdb_domain:{2}\tgtdb_taxonomy:{3}".format(item[0], item[1], item[2], item[3])
-                elif item[3] is not None and not item[3].startswith('d__;'):
-                    gtdb_tax_domain = item[3].split(";")[0]
-                    if gtdb_tax_domain != item[2]:
-                        print "{0}\tNCBI_taxonomy:{1}\tgtdb_domain:{2}\tgtdb_taxonomy:{3}".format(item[0], item[1], item[2], item[3])
-                    elif gtdb_tax_domain not in item[1]:
-                        print "{0}\tNCBI_taxonomy:{1}\tgtdb_domain:{2}\tgtdb_taxonomy:{3}".format(item[0], item[1], item[2], item[3])
-            print "###End###"
-
+                        
         except GenomeDatabaseError as e:
             raise e
+            
+        return True
+        
+    def runTaxonomyCheck(self, rank_depth):
+        """Compare GTDB taxonomy to NCBI taxonomy, and report differences."""
+        
+        try:
+            # Check if gtdb_domain is the same as the gtdb_taxonomy and ncbi_taxonomy domain
+            query = ("SELECT g.id_at_source, mt.gtdb_domain, mt.ncbi_taxonomy, mt.gtdb_taxonomy FROM metadata_taxonomy mt LEFT JOIN genomes g using (id) where genome_source_id in (2,3) ")
+            self.cur.execute(query)
+            list_domain = [[a, b, c, d] for (a, b, c, d) in self.cur]
+            print "#Conflicting Domains:"
+            for genome_id, gtdb_domain, ncbi_taxonomy, gtdb_taxonomy in list_domain:
+                if gtdb_taxonomy is not None and not gtdb_taxonomy.startswith('d__;'):
+                    if gtdb_domain is None or gtdb_domain == 'd__':
+                        print '{0}\tgtdb_domain:{1}\tncbi_taxonomy:{2}\tgtdb_taxonomy:{3}'.format(genome_id, gtdb_domain, ncbi_taxonomy, gtdb_taxonomy)
+                    elif gtdb_domain not in gtdb_taxonomy:
+                        print '{0}\tgtdb_domain:{1}\tncbi_taxonomy:{2}\tgtdb_taxonomy:{3}'.format(genome_id, gtdb_domain, ncbi_taxonomy, gtdb_taxonomy)
+                        
+                if ncbi_taxonomy is not None and not ncbi_taxonomy.startswith('d__;'):
+                    if gtdb_domain is None or gtdb_domain == 'd__':
+                        print '{0}\tgtdb_domain:{1}\tncbi_taxonomy:{2}\tgtdb_taxonomy:{3}'.format(genome_id, gtdb_domain, ncbi_taxonomy, gtdb_taxonomy)
+                    elif gtdb_domain not in ncbi_taxonomy:
+                        print '{0}\tgtdb_domain:{1}\tncbi_taxonomy:{2}\tgtdb_taxonomy:{3}'.format(genome_id, gtdb_domain, ncbi_taxonomy, gtdb_taxonomy)
+                        
+            print "#End"
+            
+            # Compare NCBI and GTDB taxonomy
+            query = ("SELECT g.id_at_source,mt.ncbi_taxonomy,mt.gtdb_taxonomy FROM metadata_taxonomy mt LEFT JOIN genomes g using (id) where genome_source_id in (2,3) ")
+            self.cur.execute(query)
+            list_domain = [[a, b, d] for (a, b, d) in self.cur]
+            print "#Conflicting Taxonomy:"
+            for genome_id, ncbi_taxonomy, gtdb_taxonomy in list_domain:
+                if ncbi_taxonomy is None or gtdb_taxonomy is None:
+                    continue
+
+                for r in xrange(0, rank_depth+1):
+                    ncbi_taxon = ncbi_taxonomy.split(';')[r]
+                    gtdb_taxon = gtdb_taxonomy.split(';')[r]
+                    if ncbi_taxon == Taxonomy.rank_prefixes[r] or gtdb_taxon == Taxonomy.rank_prefixes[r]:
+                        continue
+                        
+                    if ncbi_taxon != gtdb_taxon:
+                        print "{0}\tRank:{1}\tncbi_taxonomy:{2}\tgtdb_taxonomy:{3}".format(genome_id, 
+                                                                                            Taxonomy.rank_labels[r],
+                                                                                            ncbi_taxonomy,
+                                                                                            gtdb_taxonomy)
+                        break
+            print "#End"
+        
+        except GenomeDatabaseError as e:
+            raise e
+            
         return True
 
     def _chompRecord(self, record):

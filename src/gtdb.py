@@ -442,11 +442,10 @@ def RunTreeExceptions(db, args):
 
 
 def RunSanityCheck(db, args):
-    if args.outfile:
-        return db.RunSanityCheck(args.outfile)
-    else:
-        return db.RunSanityCheck()
+    return db.RunSanityCheck()
 
+def RunTaxonomyCheck(db, args):
+    return db.RunTaxonomyCheck(args.rank_depth)
 
 def ExportGenomePaths(db, args):
     return db.ExportGenomePaths(args.outfile)
@@ -1213,19 +1212,31 @@ if __name__ == '__main__':
 
     parser_power_genome_path.set_defaults(func=ExportGenomePaths)
 
- # -------- Sanity check
+    # -------- Sanity check
     parser_sanity_exception = power_category_subparser.add_parser('sanity_check',
                                                                   add_help=False,
                                                                   formatter_class=CustomHelpFormatter,
                                                                   help='Run some sanity checks to see if all records are properly stored')
 
     optional_sanity_view = parser_sanity_exception.add_argument_group('optional arguments')
-    optional_sanity_view.add_argument('--output', dest='outfile', default=None,
-                                      help='Name of output file.')
     optional_sanity_view.add_argument('-h', '--help', action="help",
                                       help="Show help message.")
 
     parser_sanity_exception.set_defaults(func=RunSanityCheck)
+
+    # -------- Taxonomy check
+    parser_taxonomy_check = power_category_subparser.add_parser('taxonomy_check',
+                                                                  add_help=False,
+                                                                  formatter_class=CustomHelpFormatter,
+                                                                  help='Compare GTDB to NCBI taxonomy and report differences.')
+
+    optional_taxonomy_check = parser_taxonomy_check.add_argument_group('optional arguments')
+    optional_taxonomy_check.add_argument('--rank_depth', type=int, default=0,
+                                      help='Deepest taxonomic rank to check: 0 (domain) to 6 (species).')
+    optional_taxonomy_check.add_argument('-h', '--help', action="help",
+                                      help="Show help message.")
+
+    parser_taxonomy_check.set_defaults(func=RunTaxonomyCheck)
 
     # Do the parsing
     args = parser.parse_args()
