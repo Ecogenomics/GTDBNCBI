@@ -264,7 +264,7 @@ class GenomeRepresentativeManager(object):
 
         try:
 
-            self.cur.execute("SELECT id from sra_reps")
+            self.cur.execute("SELECT id from sra_dereplicated")
             sra_genome_ids = [genome_id[0] for genome_id in self.cur]
 
         except GenomeDatabaseError as e:

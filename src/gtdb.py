@@ -153,15 +153,15 @@ def CreateTreeData(db, args):
     guaranteed_genomes = set()
 
     gid_list_and_guaranteed_gid = db.GetGenomeIds(args.all_dereplicated,
-                                                 args.ncbi_dereplicated,
-                                                 args.user_dereplicated,
-                                                 args.donovan_sra_representatives,
-                                                 args.all_genomes,
-                                                 args.ncbi_genomes,
-                                                 args.user_genomes,
-                                                 args.genome_list_ids,
-                                                 args.genome_ids,
-                                                 args.genome_batchfile)
+                                                  args.ncbi_dereplicated,
+                                                  args.user_dereplicated,
+                                                  args.donovan_sra_representatives,
+                                                  args.all_genomes,
+                                                  args.ncbi_genomes,
+                                                  args.user_genomes,
+                                                  args.genome_list_ids,
+                                                  args.genome_ids,
+                                                  args.genome_batchfile)
     genome_id_list = gid_list_and_guaranteed_gid[0]
     guaranteed_genomes.update(gid_list_and_guaranteed_gid[1])
 
@@ -171,15 +171,15 @@ def CreateTreeData(db, args):
 
     return db.MakeTreeData(marker_id_list, genome_id_list,
                            args.out_dir, args.prefix,
-                           args.quality_threshold, 
+                           args.quality_threshold,
                            args.quality_weight,
-                           args.comp_threshold, 
+                           args.comp_threshold,
                            args.cont_threshold,
                            args.min_perc_aa, args.min_perc_taxa, args.consensus,
                            args.taxa_filter,
                            args.excluded_genome_list_ids, args.excluded_genome_ids,
-                           args.guaranteed_genome_list_ids, 
-                           args.guaranteed_genome_ids, 
+                           args.guaranteed_genome_list_ids,
+                           args.guaranteed_genome_ids,
                            args.guaranteed_batchfile,
                            guaranteed_genomes,
                            not args.no_alignment,
@@ -434,12 +434,11 @@ def DatabaseStatsData(db, args):
 
 
 def RunTreeExceptions(db, args):
-    if args.filtered:
-        return db.RunTreeExceptions(args.outfile, True)
-    if args.raw:
-        return db.RunTreeExceptions(args.outfile, False)
-    if args.weighted:
-        return db.RunTreeWeightedExceptions(args.outfile)
+    return db.RunTreeWeightedExceptions(args.outfile,
+                                        args.comp_threshold,
+                                        args.cont_threshold,
+                                        args.quality_weight,
+                                        args.quality_threshold)
 
 
 def RunSanityCheck(db, args):
@@ -1119,7 +1118,7 @@ if __name__ == '__main__':
                                               help='Filter genomes with a quality (completeness - weight*contamination) below threshold.')
     optional_markers_create_tree.add_argument('--quality_weight', type=float, default=DefaultValues.DEFAULT_QUALITY_WEIGHT,
                                               help='Weighting used to assess genome quality (completeness - weight*contamination).')
-                                      
+
     optional_markers_create_tree.add_argument('--completeness_threshold', dest='comp_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_COMPLETENESS,
                                               help='Filter genomes below completeness threshold.')
     optional_markers_create_tree.add_argument('--contamination_threshold', dest='cont_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_CONTAMINATION,
@@ -1141,7 +1140,7 @@ if __name__ == '__main__':
                                               help='Genome IDs (comma separated) indicating genomes to retain in the tree independent of filtering criteria.')
     optional_markers_create_tree.add_argument('--guaranteed_batchfile',
                                               help='File of genome IDs, one per line, indicating genomes to retain in the tree independent of filtering criteria.')
-    
+
     optional_markers_create_tree.add_argument('--taxa_filter',
                                               help='Filter genomes to taxa (comma separated) within specific taxonomic groups (e.g., d__Archaea or p__Proteobacteria, p__Actinobacteria).')
 
@@ -1174,7 +1173,7 @@ if __name__ == '__main__':
 
 # Power user
 # -------- Find exceptions in the tree
-    parser_power_tree_exception = power_category_subparser.add_parser('tree_exceptions',
+    parser_power_tree_exception = power_category_subparser.add_parser('weighted_tree_exceptions',
                                                                       add_help=False,
                                                                       formatter_class=CustomHelpFormatter,
                                                                       help='View NCBI records where genus is not present in the final tree and the checkm_completeness and contamination are less significant than the default values ')
@@ -1183,16 +1182,15 @@ if __name__ == '__main__':
     required_power_tree_exceptions.add_argument('--output', dest='outfile', default=None, required=True,
                                                 help='Name of output file.')
 
-    mutual_power_tree = parser_power_tree_exception.add_argument_group('mutually exclusive optional arguments')
-    mutex_group = mutual_power_tree.add_mutually_exclusive_group(required=True)
-    mutex_group.add_argument('--filtered', dest='filtered', action="store_true", default=False,
-                             help='Run the tree exception with a set of filter ( bacterium,sp,lower case,candidatus).')
-    mutex_group.add_argument('--raw', dest='raw', action="store_true", default=False,
-                             help='Run the tree exception without filter')
-    mutex_group.add_argument('--weighted', dest='weighted', action="store_true", default=False,
-                             help='Run the tree exception with a weight matrice to find the uniqueness of the genome')
-
     optional_power_view = parser_power_tree_exception.add_argument_group('optional arguments')
+    optional_power_view.add_argument('--quality_threshold', type=float, default=DefaultValues.DEFAULT_QUALITY_THRESHOLD,
+                                     help='Filter genomes with a quality (completeness - weight*contamination) below threshold.')
+    optional_power_view.add_argument('--quality_weight', type=float, default=DefaultValues.DEFAULT_QUALITY_WEIGHT,
+                                     help='Weighting used to assess genome quality (completeness - weight*contamination).')
+    optional_power_view.add_argument('--completeness_threshold', dest='comp_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_COMPLETENESS,
+                                     help='Filter genomes below completeness threshold.')
+    optional_power_view.add_argument('--contamination_threshold', dest='cont_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_CONTAMINATION,
+                                     help='Filter genomes above contamination threshold.')
     optional_power_view.add_argument('-h', '--help', action="help",
                                      help="Show help message.")
 
