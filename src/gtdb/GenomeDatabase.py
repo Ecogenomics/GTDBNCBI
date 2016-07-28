@@ -596,26 +596,26 @@ class GenomeDatabase(object):
 
         return marker_id_list
 
-    def MakeTreeData(self, marker_ids, 
-                        genome_ids,
-                        directory, prefix,
-                        quality_threshold,
-                        quality_weight,
-                        comp_threshold, 
-                        cont_threshold,
-                        min_perc_aa, 
-                        min_perc_taxa, 
-                        consensus,
-                        taxa_filter,
-                        excluded_genome_list_ids, 
-                        excluded_genome_ids,
-                        guaranteed_genome_list_ids, 
-                        guaranteed_genome_ids, 
-                        guaranteed_batchfile,
-                        guaranteed_genomes,
-                        alignment, 
-                        individual,
-                        build_tree=True):
+    def MakeTreeData(self, marker_ids,
+                     genome_ids,
+                     directory, prefix,
+                     quality_threshold,
+                     quality_weight,
+                     comp_threshold,
+                     cont_threshold,
+                     min_perc_aa,
+                     min_perc_taxa,
+                     consensus,
+                     taxa_filter,
+                     excluded_genome_list_ids,
+                     excluded_genome_ids,
+                     guaranteed_genome_list_ids,
+                     guaranteed_genome_ids,
+                     guaranteed_batchfile,
+                     guaranteed_genomes,
+                     alignment,
+                     individual,
+                     build_tree=True):
 
         try:
             cur = self.conn.cursor()
@@ -1338,7 +1338,7 @@ class GenomeDatabase(object):
 
         return True
 
-    def RunTreeWeightedExceptions(self, path):
+    def RunTreeWeightedExceptions(self, path, comp_threshold, cont_threshold, quality_weight, quality_threshold):
         '''
         Function: RunTreeWeightedException
         Export excluded NCBI records for a tree creation (with all default parameters) to a csv file
@@ -1350,7 +1350,11 @@ class GenomeDatabase(object):
 
             # ensure all genomes have been assigned to a representatives
             power_user_mngr = PowerUserManager(cur, self.currentUser)
-            power_user_mngr.runTreeWeightedExceptions(path)
+            power_user_mngr.runTreeWeightedExceptions(path,
+                                                      comp_threshold,
+                                                      cont_threshold,
+                                                      quality_weight,
+                                                      quality_threshold)
 
             cur.close()
             self.conn.ClosePostgresConnection()

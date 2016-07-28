@@ -131,7 +131,7 @@ class TreeManager(object):
             batch_genome_id = []
             for line in open(guaranteed_batchfile):
                 batch_genome_id.append(line.strip().split('\t')[0])
-                
+
             db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(batch_genome_id)
             guaranteed_genomes.update(db_genome_ids)
             guaranteed_from_flags.update(db_genome_ids)
@@ -156,7 +156,7 @@ class TreeManager(object):
                     '%s\t%s\n' % (external_ids[genome_id], 'Filtered on taxonomic affiliation.'))
 
             genomes_to_retain = new_genomes_to_retain
-            
+
         # find genomes based on completeness, contamination, or genome quality
         self.logger.info('Filtering genomes with completeness <%.1f%%, contamination >%.1f%%, or quality <%.1f%% (weight = %.1f).' % (
             comp_threshold,
@@ -174,10 +174,10 @@ class TreeManager(object):
             if genome_id not in guaranteed_genomes:
                 final_filtered_genomes.add(genome_id)
                 fout_filtered.write(
-                    '%s\t%s\t%.2f\t%.2f\n' % (external_ids[genome_id], 
-                                    'Filtered on quality (completeness, contamination).',
-                                    quality[0],
-                                    quality[1]))
+                    '%s\t%s\t%.2f\t%.2f\n' % (external_ids[genome_id],
+                                              'Filtered on quality (completeness, contamination).',
+                                              quality[0],
+                                              quality[1]))
 
         self.logger.info(
             'Filtered %d genomes based on completeness, contamination, and quality.' % len(final_filtered_genomes))
@@ -241,9 +241,9 @@ class TreeManager(object):
                 perc_alignment = total_aa * 100.0 / total_alignment_len
                 filter_on_aa.add(genome_id)
                 fout_filtered.write(
-                    '%s\t%s\t%d\t%.1f\n' % (external_ids[genome_id], 
-                                            'Insufficient number of AA in MSA (total AA, % alignment length)', 
-                                            total_aa, 
+                    '%s\t%s\t%d\t%.1f\n' % (external_ids[genome_id],
+                                            'Insufficient number of AA in MSA (total AA, % alignment length)',
+                                            total_aa,
                                             perc_alignment))
 
         fout_filtered.close()
@@ -254,13 +254,6 @@ class TreeManager(object):
         genomes_to_retain.difference_update(filter_on_aa)
         self.logger.info(
             'Producing tree data for %d genomes.' % len(genomes_to_retain))
-
-        good_genomes_file = os.path.join(
-            directory, prefix + '_good_genomes.tsv')
-        good_genomes = open(good_genomes_file, 'w')
-        for item in genomes_to_retain:
-            good_genomes.write("{0}\n".format(item))
-        good_genomes.close()
 
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 
