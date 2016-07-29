@@ -64,6 +64,7 @@ class FillMissingDomain(object):
             if (not gtdb_domain or gtdb_domain == 'd__') and ncbi_taxonomy:
                 ncbi_domain = ncbi_taxonomy.split(';')[0]
                 if ncbi_domain != 'd__':
+                    print 'here'
                     temp_file.write('%s\t%s\n' % (genome_id, ncbi_domain))
                 else:
                     print '[WARNING] NCBI genomes has no GTDB domain or valid NCBI taxonomy: %s' % genome_id
@@ -73,7 +74,7 @@ class FillMissingDomain(object):
     cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_domain --type TEXT --metadatafile %s' % temp_file.name
     print cmd
     os.system(cmd)
-    #os.remove(temp_file.name)
+    os.remove(temp_file.name)
 
 if __name__ == '__main__':
   print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
