@@ -1431,3 +1431,26 @@ class GenomeDatabase(object):
             return False
             
         return True
+        
+    def RunDomainAssignmentReport(self, outfile):
+        '''
+        Function: RunDomainAssignmentReport
+        Reports results of automated domain assignment.
+
+        :param outfile: Output file.
+        '''
+        try:
+            cur = self.conn.cursor()
+
+            # ensure all genomes have been assigned to a representatives
+            grm = GenomeRepresentativeManager(cur, self.currentUser, 1)
+            grm.domainAssignmentReport(outfile)
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+            
+        return True

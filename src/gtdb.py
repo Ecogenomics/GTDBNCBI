@@ -447,6 +447,9 @@ def RunSanityCheck(db, args):
 def RunTaxonomyCheck(db, args):
     return db.RunTaxonomyCheck(args.rank_depth)
 
+def RunDomainAssignmentReport(db, args):
+    return db.RunDomainAssignmentReport(args.outfile)
+    
 def ExportGenomePaths(db, args):
     return db.ExportGenomePaths(args.outfile)
 
@@ -1237,6 +1240,22 @@ if __name__ == '__main__':
                                       help="Show help message.")
 
     parser_taxonomy_check.set_defaults(func=RunTaxonomyCheck)
+    
+    # -------- Taxonomy check
+    parser_domain_report = power_category_subparser.add_parser('domain_report',
+                                                                  add_help=False,
+                                                                  formatter_class=CustomHelpFormatter,
+                                                                  help='Reports results of automated domain assignment.')
+
+    required_domain_report = parser_domain_report.add_argument_group('required arguments')
+    required_domain_report.add_argument('--output', dest='outfile', default=None, required=True,
+                                                 help='Name of output file.')
+                                                 
+    optional_domain_report = parser_domain_report.add_argument_group('optional arguments')
+    optional_domain_report.add_argument('-h', '--help', action="help",
+                                      help="Show help message.")
+
+    parser_domain_report.set_defaults(func=RunDomainAssignmentReport)
 
     # Do the parsing
     args = parser.parse_args()
