@@ -1,9 +1,12 @@
-software_version=2.1.1
+software_version=2.1.2
 ncbi_database_version=release 76
 gtdb_version=1.2.2
 
 GTDB software versions
 ----------------------
+v2.1.2 (July 29, 2016):
+- improved method for automatically assigning genomes to a domain
+- added domain_report method to power menu for reporting results of automatic domain assignment
 v2.1.1 (July 26, 2016):
 - genome quality filtering can now be done with any weighting factor
 - improved reporting of genomes filtered during tree creation

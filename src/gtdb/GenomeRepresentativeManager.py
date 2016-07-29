@@ -339,6 +339,63 @@ class GenomeRepresentativeManager(object):
             raise e
 
         return user_rep_genome_ids
+        
+    def _domainAssignment(self, genome_id, len_arc_marker, len_bac_marker):
+        """Assign genome to domain based on present/absence of canonical marker genes."""
+        
+        query_al_mark = ("SELECT count(*) " +
+                             "FROM aligned_markers am " +
+                             "LEFT JOIN marker_set_contents msc ON msc.marker_id = am.marker_id " +
+                             "WHERE genome_id = %s and msc.set_id = %s and (evalue <> '') IS TRUE;")
+        
+        self.cur.execute(query_al_mark, (genome_id, 1))
+        aligned_bac_count = self.cur.fetchone()[0]
+
+        self.cur.execute(query_al_mark, (genome_id, 2))
+        aligned_arc_count = self.cur.fetchone()[0]
+
+        arc_aa_per = (aligned_arc_count * 100 / len_arc_marker)
+        bac_aa_per = (aligned_bac_count * 100 / len_bac_marker)
+        if arc_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD and bac_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
+            domain = None
+        elif bac_aa_per >= arc_aa_per:
+            domain = "d__Bacteria"
+        else:
+            domain = "d__Archaea"
+            
+        return domain, arc_aa_per, bac_aa_per
+        
+    def domainAssignmentReport(self, outfile):
+        """Reports results of automated domain assignment."""
+        
+        # identify genomes that have not been compared to representatives
+        self.cur.execute("SELECT id FROM metadata_taxonomy")
+        genome_ids = [genome_id[0] for genome_id in self.cur.fetchall()]
+   
+        # get concatenated alignments for all representatives
+        self.cur.execute("SELECT count(*) from marker_set_contents where set_id = 1;")
+        len_bac_marker = self.cur.fetchone()[0]
+
+        self.cur.execute("SELECT count(*) from marker_set_contents where set_id = 2;")
+        len_arc_marker = self.cur.fetchone()[0]
+        
+        genome_mngr = GenomeManager(self.cur, self.currentUser)
+
+        # process each genome
+        fout = open(outfile, 'w')
+        fout.write('Genome Id\tPredicted domain\tArchaeal Marker Percentage\tBacterial Marker Percentage\tNCBI taxonomy\tGTDB taxonomy\n')
+        for genome_id in genome_ids:
+            query_taxonomy_req = ("SELECT gtdb_domain, ncbi_taxonomy, gtdb_taxonomy " +
+                                      "FROM metadata_taxonomy WHERE id = %s;")
+            self.cur.execute(query_taxonomy_req, (genome_id,))
+            gtdb_domain, ncbi_taxonomy, gtdb_taxonomy = self.cur.fetchone()
+                                 
+            domain, arc_aa_per, bac_aa_per = self._domainAssignment(genome_id, len_arc_marker, len_bac_marker)
+
+            external_genome_id = genome_mngr.genomeIdsToExternalGenomeIds([genome_id])[genome_id]
+            fout.write('%s\t%s\t%.2f\t%.2f\t%s\t%s\n' % (external_genome_id, domain, arc_aa_per, bac_aa_per, ncbi_taxonomy, gtdb_taxonomy))
+            
+        fout.close()
 
     def assignToRepresentative(self):
         """Assign genomes to representatives.
@@ -453,29 +510,12 @@ class GenomeRepresentativeManager(object):
                                       "FROM metadata_taxonomy WHERE id = %s;")
                 self.cur.execute(query_taxonomy_req, (genome_id,))
                 if all(v is None or v == '' for v in self.cur.fetchone()):
-                    query_al_mark = ("SELECT count(*) " +
-                                     "FROM aligned_markers am " +
-                                     "LEFT JOIN marker_set_contents msc ON msc.marker_id = am.marker_id " +
-                                     "WHERE genome_id = %s and msc.set_id = %s and (evalue <> '') IS TRUE;")
-
-                    self.cur.execute(query_al_mark, (genome_id, 1))
-                    aligned_bac_count = self.cur.fetchone()[0]
-
-                    self.cur.execute(query_al_mark, (genome_id, 2))
-                    aligned_arc_count = self.cur.fetchone()[0]
-
-                    arc_aa_per = (aligned_arc_count * 100 / len_arc_marker)
-                    bac_aa_per = (aligned_bac_count * 100 / len_bac_marker)
-                    if arc_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD and bac_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
-                        continue
-                    elif bac_aa_per >= arc_aa_per:
-                        domain = "d__Bacteria"
-                    else:
-                        domain = "d__Archaea"
+                    domain, _arc_aa_per, _bac_aa_per = self._domainAssignment(genome_id, len_arc_marker, len_bac_marker)
                         
-                    self.cur.execute("UPDATE metadata_taxonomy " +
-                                     "SET gtdb_domain = %s " +
-                                     "WHERE id = %s", (domain, genome_id))
+                    if domain:
+                        self.cur.execute("UPDATE metadata_taxonomy " +
+                                         "SET gtdb_domain = %s " +
+                                         "WHERE id = %s", (domain, genome_id))
 
         self.logger.info("Assigned %d genomes to a representative." % assigned_to_rep_count)
 
