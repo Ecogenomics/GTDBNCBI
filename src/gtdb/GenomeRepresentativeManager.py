@@ -349,7 +349,7 @@ class GenomeRepresentativeManager(object):
         marker genes is done in independent database
         transactions.
         """
-
+        
         # identify genomes that have not been compared to representatives
         unprocessed_genome_ids = self._unprocessedGenomes()
         if not unprocessed_genome_ids:
@@ -374,7 +374,7 @@ class GenomeRepresentativeManager(object):
         # get external genome IDs for representative genomes
         genome_mngr = GenomeManager(self.cur, self.currentUser)
         external_ids = genome_mngr.genomeIdsToExternalGenomeIds(rep_genome_ids)
-
+        
         # define desired order of marker genes
         # (order doesn't matter, but must be consistent between genomes)
         bac_marker_index = {}
@@ -384,7 +384,7 @@ class GenomeRepresentativeManager(object):
         ar_marker_index = {}
         for i, marker_id in enumerate(ar_marker_ids):
             ar_marker_index[marker_id] = i
-
+            
         # get concatenated alignments for all representatives
         rep_bac_aligns = {}
         rep_ar_aligns = {}
@@ -447,7 +447,7 @@ class GenomeRepresentativeManager(object):
                                              "WHERE mt_repr.id = %s " +
                                              "AND mt_newg.id = %s")
                     self.cur.execute(query_taxonomy_update, (assigned_representative, genome_id))
-            else:
+            else: 
                 query_taxonomy_req = ("SELECT gtdb_class, gtdb_species, gtdb_taxonomy," +
                                       "gtdb_phylum, gtdb_family, gtdb_domain, gtdb_order, gtdb_genus " +
                                       "FROM metadata_taxonomy WHERE id = %s;")
@@ -464,12 +464,15 @@ class GenomeRepresentativeManager(object):
                     self.cur.execute(query_al_mark, (genome_id, 2))
                     aligned_arc_count = self.cur.fetchone()[0]
 
-                    if (aligned_arc_count * 100 / len_arc_marker) < DefaultValues.DEFAULT_DOMAIN_THRESHOLD and (aligned_bac_count * 100 / len_bac_marker) < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
+                    arc_aa_per = (aligned_arc_count * 100 / len_arc_marker)
+                    bac_aa_per = (aligned_bac_count * 100 / len_bac_marker)
+                    if arc_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD and bac_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
                         continue
-                    elif (aligned_arc_count * 100 / len_arc_marker) < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
+                    elif bac_aa_per >= arc_aa_per:
                         domain = "d__Bacteria"
-                    elif (aligned_bac_count * 100 / len_bac_marker) < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
+                    else:
                         domain = "d__Archaea"
+                        
                     self.cur.execute("UPDATE metadata_taxonomy " +
                                      "SET gtdb_domain = %s " +
                                      "WHERE id = %s", (domain, genome_id))

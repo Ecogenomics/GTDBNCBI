@@ -73,7 +73,7 @@ class FillMissingDomain(object):
     cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_domain --type TEXT --metadatafile %s' % temp_file.name
     print cmd
     os.system(cmd)
-    os.remove(temp_file.name)
+    #os.remove(temp_file.name)
 
 if __name__ == '__main__':
   print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
