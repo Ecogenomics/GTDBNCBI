@@ -462,7 +462,7 @@ class GenomeDatabase(object):
     def GetGenomeIds(self, all_dereplicated,
                      ncbi_dereplicated,
                      user_dereplicated,
-                     donovan_sra_representatives,
+                     donovan_sra_dereplicated,
                      all_genomes,
                      ncbi_genomes,
                      user_genomes,
@@ -504,7 +504,7 @@ class GenomeDatabase(object):
                 ids = genome_rep_mngr.userDereplicatedGenomes()
                 genome_id_list.update(ids)
 
-            if donovan_sra_representatives:
+            if donovan_sra_dereplicated:
                 ids = genome_rep_mngr.sraRepresentatives()
                 genome_id_list.update(ids)
 
@@ -1383,7 +1383,7 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-            
+
         return True
 
     def RunSanityCheck(self, path=None):
@@ -1406,9 +1406,9 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-            
+
         return True
-        
+
     def RunTaxonomyCheck(self, rank_depth):
         '''
         Function: RunTaxonomyCheck
@@ -1429,9 +1429,9 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-            
+
         return True
-        
+
     def RunDomainAssignmentReport(self, outfile):
         '''
         Function: RunDomainAssignmentReport
@@ -1452,5 +1452,5 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-            
+
         return True
