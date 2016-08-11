@@ -534,8 +534,8 @@ class GenomeDatabase(object):
             if genome_batchfile:
                 fh = open(genome_batchfile, "rb")
                 for line in fh:
-                    line = line.strip()
-                    genome_batchfile_ids.append(line)
+                    line = line.strip().split('\t')
+                    genome_batchfile_ids.append(line[0])
 
             if genome_batchfile_ids:
                 ids = genome_mngr.externalGenomeIdsToGenomeIds(genome_batchfile_ids)
