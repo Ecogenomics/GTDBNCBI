@@ -220,10 +220,7 @@ class TreeManager(object):
         self.logger.info('Filtering genomes with insufficient AA in the MSA.')
         filter_on_aa = set()
         for genome_id in genomes_to_retain:
-            if genome_id in guaranteed_genomes:
-                continue
-
-            aligned_marker_query = ("SELECT sequence " +
+            aligned_marker_query = ("SELECT sequence, multiple_hits " +
                                     "FROM aligned_markers " +
                                     "WHERE genome_id = %s " +
                                     "AND sequence is NOT NULL " +
@@ -233,9 +230,13 @@ class TreeManager(object):
                              (genome_id, tuple(marker_ids)))
 
             total_aa = 0
-            for row in self.cur:
-                sequence = row[0]
-                total_aa += len(sequence) - sequence.count('-')
+            for sequence, multiple_hits in self.cur:
+                if not multiple_hits:
+                    total_aa += len(sequence) - sequence.count('-')
+            
+            # should retain guaranteed genomes unless they have zero amino acids in MSA
+            if genome_id in guaranteed_genomes and total_aa != 0:
+                continue
 
             if total_aa < (min_perc_aa / 100.0) * total_alignment_len:
                 perc_alignment = total_aa * 100.0 / total_alignment_len
@@ -371,6 +372,7 @@ class TreeManager(object):
                 else:
                     sequence = chosen_markers[marker_id]['size'] * '-'
                 aligned_seq += sequence
+                
             msa[external_genome_id] = aligned_seq
             multi_hits_outstr = '%s\t%s\n' % (
                 external_genome_id, '\t'.join(multi_hits_details[db_genome_id]))
