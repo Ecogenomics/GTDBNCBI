@@ -155,7 +155,7 @@ def CreateTreeData(db, args):
     gid_list_and_guaranteed_gid = db.GetGenomeIds(args.all_dereplicated,
                                                   args.ncbi_dereplicated,
                                                   args.user_dereplicated,
-                                                  args.donovan_sra_representatives,
+                                                  args.donovan_sra_dereplicated,
                                                   args.all_genomes,
                                                   args.ncbi_genomes,
                                                   args.user_genomes,
@@ -444,12 +444,15 @@ def RunTreeExceptions(db, args):
 def RunSanityCheck(db, args):
     return db.RunSanityCheck()
 
+
 def RunTaxonomyCheck(db, args):
     return db.RunTaxonomyCheck(args.rank_depth)
 
+
 def RunDomainAssignmentReport(db, args):
     return db.RunDomainAssignmentReport(args.outfile)
-    
+
+
 def ExportGenomePaths(db, args):
     return db.ExportGenomePaths(args.outfile)
 
@@ -1080,8 +1083,8 @@ if __name__ == '__main__':
                                                 help=('Include User representative genomes and User genomes without ' +
                                                       'a representative. Genomes are subject to filtering.'))
 
-    atleastone_genomes_create_tree.add_argument('--donovan_sra_representatives', default=False, action='store_true',
-                                                help=('Include SRA representative genomes generated from Donovan SRA bins.' +
+    atleastone_genomes_create_tree.add_argument('--donovan_sra_dereplicated', default=False, action='store_true',
+                                                help=('Include SRA dereplicated genomes generated from Donovan SRA bins.' +
                                                       ' This is a temporary flag.'))
 
     atleastone_genomes_create_tree.add_argument('--all_genomes', default=False, action='store_true',
@@ -1229,31 +1232,31 @@ if __name__ == '__main__':
 
     # -------- Taxonomy check
     parser_taxonomy_check = power_category_subparser.add_parser('taxonomy_check',
-                                                                  add_help=False,
-                                                                  formatter_class=CustomHelpFormatter,
-                                                                  help='Compare GTDB to NCBI taxonomy and report differences.')
+                                                                add_help=False,
+                                                                formatter_class=CustomHelpFormatter,
+                                                                help='Compare GTDB to NCBI taxonomy and report differences.')
 
     optional_taxonomy_check = parser_taxonomy_check.add_argument_group('optional arguments')
     optional_taxonomy_check.add_argument('--rank_depth', type=int, default=0,
-                                      help='Deepest taxonomic rank to check: 0 (domain) to 6 (species).')
+                                         help='Deepest taxonomic rank to check: 0 (domain) to 6 (species).')
     optional_taxonomy_check.add_argument('-h', '--help', action="help",
-                                      help="Show help message.")
+                                         help="Show help message.")
 
     parser_taxonomy_check.set_defaults(func=RunTaxonomyCheck)
-    
+
     # -------- Taxonomy check
     parser_domain_report = power_category_subparser.add_parser('domain_report',
-                                                                  add_help=False,
-                                                                  formatter_class=CustomHelpFormatter,
-                                                                  help='Reports results of automated domain assignment.')
+                                                               add_help=False,
+                                                               formatter_class=CustomHelpFormatter,
+                                                               help='Reports results of automated domain assignment.')
 
     required_domain_report = parser_domain_report.add_argument_group('required arguments')
     required_domain_report.add_argument('--output', dest='outfile', default=None, required=True,
-                                                 help='Name of output file.')
-                                                 
+                                        help='Name of output file.')
+
     optional_domain_report = parser_domain_report.add_argument_group('optional arguments')
     optional_domain_report.add_argument('-h', '--help', action="help",
-                                      help="Show help message.")
+                                        help="Show help message.")
 
     parser_domain_report.set_defaults(func=RunDomainAssignmentReport)
 
@@ -1271,7 +1274,7 @@ if __name__ == '__main__':
         if (not args.all_dereplicated and
                 not args.ncbi_dereplicated and
                 not args.user_dereplicated and
-                not args.donovan_sra_representatives and
+                not args.donovan_sra_dereplicated and
                 not args.all_genomes and
                 not args.ncbi_genomes and
                 not args.user_genomes and
@@ -1279,7 +1282,7 @@ if __name__ == '__main__':
                 not args.genome_ids and
                 not args.genome_batchfile):
             parser_tree_create.error(
-                'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_dereplicated, --donovan_sra_representatives, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
+                'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_dereplicated, --donovan_sra_dereplicated, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
 
         if (not args.marker_set_ids
                 and not args.marker_ids

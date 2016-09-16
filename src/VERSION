@@ -1,6 +1,6 @@
 software_version=2.1.2
 ncbi_database_version=release 76
-gtdb_version=1.2.2
+gtdb_version=1.2.3
 
 GTDB software versions
 ----------------------
@@ -51,6 +51,8 @@ v0.0.1:
 
 GTDB database versions
 ----------------------
+v1.2.3 (July 30, 2016):
+- New representative Set
 v1.2.2 (July 13, 2016):
 - Updated bacterial taxonomy to final version for r75
 v1.2.1 (July 07, 2016):
