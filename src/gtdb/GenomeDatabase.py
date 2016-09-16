@@ -508,7 +508,9 @@ class GenomeDatabase(object):
                 ids = genome_rep_mngr.sraRepresentatives()
                 genome_id_list.update(ids)
 
-            required_rep_genomes_ids = genome_id_list.intersection(rep_genome_ids)
+            # ***DHP: removed since representative genomes have few, or no, markers under some marker sets (e.g., rps16)
+            #required_rep_genomes_ids = genome_id_list.intersection(rep_genome_ids)
+            required_rep_genomes_ids = set()
 
             if all_genomes:
                 ids = genome_mngr.allGenomeIds()
