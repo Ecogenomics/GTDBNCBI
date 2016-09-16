@@ -235,8 +235,11 @@ class TreeManager(object):
                     total_aa += len(sequence) - sequence.count('-')
             
             # should retain guaranteed genomes unless they have zero amino acids in MSA
-            if genome_id in guaranteed_genomes and total_aa != 0:
-                continue
+            if genome_id in guaranteed_genomes:
+                if total_aa != 0:
+                    continue
+                else:
+                    self.logger.warning('Filtered guaranteed genome %s with zero amino acids in MSA.' % external_ids[genome_id])
 
             if total_aa < (min_perc_aa / 100.0) * total_alignment_len:
                 perc_alignment = total_aa * 100.0 / total_alignment_len
