@@ -60,7 +60,7 @@ class SSU(object):
     if os.path.exists(log_file):
       os.remove(log_file)
 
-    os.system('genometk ssu --silent --cpus 1 %s %s %s %s' % (genome_file, self.ssu_db, self.ssu_taxonomy, output_dir))
+    os.system('genometk rna --silent --cpus 1 --db %s --taxonomy_file %s %s %s %s' % (self.db, self.taxonomy, genome_file, self.rna_gene, output_dir))
 
     return output_dir
 
@@ -69,28 +69,38 @@ class SSU(object):
                                                           total_items,
                                                           processed_items * 100.0 / total_items)
 
-  def run(self, ncbi_genome_dir, user_genome_dir, cpus):
+  def run(self, rna_gene, ncbi_genome_dir, user_genome_dir, cpus):
     """Create metadata by parsing assembly stats files."""
     
-    print 'Running with GreenGenes database'
-    self._run(ncbi_genome_dir, user_genome_dir, 'GG', cpus)
+    #***print 'Running with GreenGenes database'
+    #***self._run(rna_gene, ncbi_genome_dir, user_genome_dir, 'GG', cpus)
     
     print 'Running with SILVA database'
-    self._run(ncbi_genome_dir, user_genome_dir, 'SILVA', cpus)
+    self._run(rna_gene, ncbi_genome_dir, user_genome_dir, 'SILVA', cpus)
     
-  def _run(self, ncbi_genome_dir, user_genome_dir, ssu_db, cpus):
+  def _run(self, rna_gene, ncbi_genome_dir, user_genome_dir, ssu_db, cpus):
     """Create metadata by parsing assembly stats files."""
+    
+    self.rna_gene = rna_gene
     
     if ssu_db == 'GG':
         # Greengenes data files and desired output
-        self.ssu_db = '/srv/db/gg/2013_08/gg_13_8_otus/rep_set/99_otus.fasta'
-        self.ssu_taxonomy = '/srv/db/gg/2013_08/gg_13_8_otus/taxonomy/99_otu_taxonomy.txt'
-        self.output_dir = 'ssu_gg_2013_08'
+        if rna_gene == 'ssu':
+            self.db = '/srv/db/gg/2013_08/gg_13_8_otus/rep_set/99_otus.fasta'
+            self.taxonomy = '/srv/db/gg/2013_08/gg_13_8_otus/taxonomy/99_otu_taxonomy.txt'
+            self.output_dir = 'ssu_gg'
+        else:
+            print 'There is no LSU database for GG.'
+            sys.exit()
     elif ssu_db == 'SILVA':
         # Silva info
-        self.ssu_db = '/srv/whitlam/bio/db/silva/119/SILVA_119.pintail_100.ncbi_ids.fna'
-        self.ssu_taxonomy = '/srv/whitlam/bio/db/silva/119/ssuref_119_maria.2015-09-28.filled.ncbi_ids.tsv'
-        self.output_dir = 'ssu_silva_199_gg_taxonomy'
+        if rna_gene == 'ssu':
+            self.db = '/srv/whitlam/bio/db/silva/123.1/SILVA_123.1_SSURef_Nr99_tax_silva.fasta'
+            self.taxonomy = '/srv/whitlam/bio/db/silva/123.1/silva_taxonomy.ssu.tsv'
+        elif rna_gene == 'rna_gene':
+            self.db = '/srv/db/silva/123.1/SILVA_123.1_LSURef_tax_silva.fasta'
+            self.taxonomy = '/srv/whitlam/bio/db/silva/123.1/silva_taxonomy.lsu.tsv'
+        self.output_dir = 'rna_silva'
 
     input_files = []
 
@@ -113,8 +123,8 @@ class SSU(object):
 
           full_assembly_dir = os.path.join(full_species_dir, assembly_dir)
 
-          if os.path.exists(os.path.join(full_assembly_dir, self.output_dir)):
-            continue
+          #***if os.path.exists(os.path.join(full_assembly_dir, self.output_dir)):
+          #***  continue
 
           genome_file = os.path.join(full_assembly_dir, assembly_dir + '_genomic.fna')
           input_files.append(genome_file)
@@ -151,6 +161,7 @@ if __name__ == '__main__':
   print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+  parser.add_argument('rna_gene', choices=['ssu', 'lsu_23S'], help="rRNA gene to process")
   parser.add_argument('ncbi_genome_dir', help='base directory leading to NCBI archaeal and bacterial genome assemblies')
   parser.add_argument('user_genome_dir', help='base directory leading to user genomes or NONE to skip')
   parser.add_argument('-t', '--threads', help='number of CPUs to use', type=int, default=32)
@@ -161,7 +172,7 @@ if __name__ == '__main__':
 
   try:
     p = SSU()
-    p.run(args.ncbi_genome_dir, args.user_genome_dir, args.threads)
+    p.run(args.rna_gene, args.ncbi_genome_dir, args.user_genome_dir, args.threads)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:

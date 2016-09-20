@@ -268,14 +268,24 @@ class MetadataManager(object):
                   (genome_file, output_dir))
         os.system('genometk gene --silent %s %s %s' %
                   (genome_file, gff_file, output_dir))
-        os.system('genometk ssu --silent %s %s %s %s' % (genome_file,
+                  
+        os.system('genometk rna --silent --db %s --taxonomy_file %s %s ssu %s' % (
                                                          ConfigMetadata.GTDB_SSU_GG_DB,
                                                          ConfigMetadata.GTDB_SSU_GG_TAXONOMY,
+                                                         genome_file,
                                                          os.path.join(output_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR)))
-        os.system('genometk ssu --silent %s %s %s %s' % (genome_file,
+                                                         
+        os.system('genometk rna --silent --db %s --taxonomy_file %s %s ssu %s' % (
                                                          ConfigMetadata.GTDB_SSU_SILVA_DB,
                                                          ConfigMetadata.GTDB_SSU_SILVA_TAXONOMY,
+                                                         genome_file,
                                                          os.path.join(output_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR)))
+                                                         
+        os.system('genometk rna --silent --db %s --taxonomy_file %s %s lsu_23S %s' % (
+                                                         ConfigMetadata.GTDB_LSU_SILVA_DB,
+                                                         ConfigMetadata.GTDB_LSU_SILVA_TAXONOMY,
+                                                         genome_file,
+                                                         os.path.join(output_dir, ConfigMetadata.GTDB_LSU_SILVA_OUTPUT_DIR)))
         return True
 
     def _storeMetadata(self, db_genome_id, genome_dir):
@@ -346,16 +356,12 @@ class MetadataManager(object):
                         self.cur.execute(query_taxonomy, [AsIs(c), v])
                     except:
                         self.cur.execute(query_taxonomy, [AsIs(c), v])
-
-            # Greengenes SSU metadata saved in metadata_ssu table
-            query_taxonomy = "UPDATE metadata_ssu SET %s = %s WHERE id = {0}".format(
-                db_genome_id)
-            metadata_ssu_gg_path = os.path.join(
-                genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
-            metadata_ssu_fna_gg_path = os.path.join(
-                genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FNA_FILE)
-            genome_list_taxonomy, ssu_count_seq = self._parse_taxonomy_file(
-                metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX, metadata_ssu_fna_gg_path)
+                        
+            # SILVA LSU metadata
+            metadata_lsu_silva_path = os.path.join(
+                genome_dir, ConfigMetadata.GTDB_LSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_LSU_FILE)
+            genome_list_taxonomy, lsu_count = self._parse_taxonomy_file(
+                metadata_lsu_silva_path, ConfigMetadata.GTDB_LSU_SILVA_PREFIX)
             if genome_list_taxonomy:
                 for c, v in genome_list_taxonomy:
                     try:
@@ -364,9 +370,50 @@ class MetadataManager(object):
                     except:
                         self.cur.execute(query_taxonomy, [AsIs(c), v])
 
-            query_gene_ssu = "UPDATE metadata_genes SET ssu_count = %s WHERE id = {0}".format(
-                db_genome_id)
+            if False:
+                #*** Pierre, the relevant fields need to be added to the metadata_ssu table. Ideally, we should clean
+                # this up now if you have time. It is really awkward to have this information replicated in two tables.
+                
+                # SILVA SSU metadata saved in metadata_ssu table [HACK: eventually information will only be stored in this table]
+                query_taxonomy = "UPDATE metadata_ssu SET %s = %s WHERE id = {0}".format(
+                    db_genome_id)
+                metadata_ssu_silva_path = os.path.join(
+                    genome_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
+                metadata_ssu_fna_silva_path = os.path.join(
+                    genome_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FNA_FILE)
+                genome_list_taxonomy, ssu_count_seq = self._parse_taxonomy_file(
+                    metadata_ssu_silva_path, ConfigMetadata.GTDB_SSU_SILVA_PREFIX, metadata_ssu_fna_silva_path)
+                if genome_list_taxonomy:
+                    for c, v in genome_list_taxonomy:
+                        try:
+                            v = float(v)
+                            self.cur.execute(query_taxonomy, [AsIs(c), v])
+                        except:
+                            self.cur.execute(query_taxonomy, [AsIs(c), v])
+                            
+                # SILVA LSU metadata saved in metadata_ssu table [HACK: eventually information will only be stored in this table]
+                query_taxonomy = "UPDATE metadata_ssu SET %s = %s WHERE id = {0}".format(
+                    db_genome_id)
+                metadata_lsu_silva_path = os.path.join(
+                    genome_dir, ConfigMetadata.GTDB_LSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_LSU_FILE)
+                metadata_lsu_fna_silva_path = os.path.join(
+                    genome_dir, ConfigMetadata.GTDB_LSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_LSU_FNA_FILE)
+                genome_list_taxonomy, lsu_count_seq = self._parse_taxonomy_file(
+                    metadata_lsu_silva_path, ConfigMetadata.GTDB_LSU_SILVA_PREFIX, metadata_lsu_fna_silva_path)
+                if genome_list_taxonomy:
+                    for c, v in genome_list_taxonomy:
+                        try:
+                            v = float(v)
+                            self.cur.execute(query_taxonomy, [AsIs(c), v])
+                        except:
+                            self.cur.execute(query_taxonomy, [AsIs(c), v])
+
+            query_gene_ssu = "UPDATE metadata_genes SET ssu_count = %s WHERE id = {0}".format(db_genome_id)
             self.cur.execute(query_gene_ssu, (ssu_count,))
+            
+            query_gene_lsu = "UPDATE metadata_genes SET lsu_count = %s WHERE id = {0}".format(db_genome_id)
+            self.cur.execute(query_gene_lsu, (lsu_count,))
+            
             return True
         except psycopg2.Error as e:
             print "error"
@@ -406,10 +453,8 @@ class MetadataManager(object):
 
         with open(metadata_taxonomy_file) as f:
             header_line = f.readline().rstrip()
-            headers = [
-                prefix + '_' + x.replace('ssu_', '') for x in header_line.split('\t')]
+            headers = [prefix + '_' + x for x in header_line.split('\t')]
 
-            # Check the CheckM headers are consistent
             split_headers = header_line.rstrip().split("\t")
             for pos in range(0, len(split_headers)):
                 header = split_headers[pos]
