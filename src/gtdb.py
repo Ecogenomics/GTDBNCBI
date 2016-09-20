@@ -150,20 +150,16 @@ def AddGenomes(db, args):
 
 
 def CreateTreeData(db, args):
-    guaranteed_genomes = set()
-
-    gid_list_and_guaranteed_gid = db.GetGenomeIds(args.all_dereplicated,
-                                                  args.ncbi_dereplicated,
-                                                  args.user_dereplicated,
-                                                  args.donovan_sra_dereplicated,
-                                                  args.all_genomes,
-                                                  args.ncbi_genomes,
-                                                  args.user_genomes,
-                                                  args.genome_list_ids,
-                                                  args.genome_ids,
-                                                  args.genome_batchfile)
-    genome_id_list = gid_list_and_guaranteed_gid[0]
-    guaranteed_genomes.update(gid_list_and_guaranteed_gid[1])
+    genome_id_list, rep_genome_ids = db.GetGenomeIds(args.all_dereplicated,
+                                                      args.ncbi_dereplicated,
+                                                      args.user_dereplicated,
+                                                      args.donovan_sra_dereplicated,
+                                                      args.all_genomes,
+                                                      args.ncbi_genomes,
+                                                      args.user_genomes,
+                                                      args.genome_list_ids,
+                                                      args.genome_ids,
+                                                      args.genome_batchfile)
 
     marker_id_list = db.GetMarkerIds(args.marker_ids,
                                      args.marker_set_ids,
@@ -181,7 +177,7 @@ def CreateTreeData(db, args):
                            args.guaranteed_genome_list_ids,
                            args.guaranteed_genome_ids,
                            args.guaranteed_batchfile,
-                           guaranteed_genomes,
+                           rep_genome_ids,
                            not args.no_alignment,
                            args.individual,
                            not args.no_tree)
@@ -803,7 +799,7 @@ if __name__ == '__main__':
     optional_gl_edit.add_argument('--genome_ids', dest='genome_ids',
                                   help='List of genome IDs to add/remove from list.')
     optional_gl_edit.add_argument('--operation', dest='operation', choices=('add', 'remove'),
-                                  help='What to do with the tree_ids with regards to the genome list. If all genomes are removed from a list, the list will be deleted.')
+                                  help='What to do with the genome_ids with regards to the genome list. If all genomes are removed from a list, the list will be deleted.')
     optional_gl_edit.add_argument('--name', dest='name',
                                   help='Modify the name of the list to this.')
     optional_gl_edit.add_argument('--description', dest='description',

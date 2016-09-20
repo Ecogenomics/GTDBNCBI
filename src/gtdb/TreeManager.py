@@ -56,12 +56,9 @@ class TreeManager(object):
                       cont_threshold,
                       min_perc_aa,
                       taxa_filter,
-                      excluded_genome_list_ids,
-                      excluded_genome_ids,
-                      guaranteed_genome_list_ids,
-                      guaranteed_genome_ids,
-                      guaranteed_batchfile,
-                      guaranteed_genomes,
+                      genomes_to_exclude,
+                      guaranteed_ids,
+                      rep_ids,
                       directory,
                       prefix):
         """Filter genomes based on provided criteria.
@@ -81,14 +78,12 @@ class TreeManager(object):
         # get mapping from db genome IDs to external IDs
         genome_mngr = GenomeManager(self.cur, self.currentUser)
         external_ids = genome_mngr.genomeIdsToExternalGenomeIds(genome_ids)
-        filter_genome_file = os.path.join(
-            directory, prefix + '_filtered_genomes.tsv')
+        filter_genome_file = os.path.join(directory, prefix + '_filtered_genomes.tsv')
         fout_filtered = open(filter_genome_file, 'w')
 
-        self.logger.info(
-            'Filtering initial set of %d genomes.' % len(genome_ids))
+        self.logger.info('Filtering initial set of %d genomes.' % len(genome_ids))
 
-        # For all of the markers, get the expected marker size.
+        # for all markers, get the expected marker size
         self.cur.execute("SELECT markers.id, markers.name, description, id_in_database, size, external_id_prefix " +
                          "FROM markers, marker_databases " +
                          "WHERE markers.id in %s "
@@ -110,50 +105,22 @@ class TreeManager(object):
         genome_mngr = GenomeManager(self.cur, self.currentUser)
         genome_list_mngr = GenomeListManager(self.cur, self.currentUser)
 
-        guaranteed_from_flags = set()
-        if guaranteed_genome_ids:
-            list_genome_ids = [x.strip()
-                               for x in guaranteed_genome_ids.split(",")]
-            db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(
-                list_genome_ids)
-            guaranteed_genomes.update(db_genome_ids)
-            guaranteed_from_flags.update(db_genome_ids)
-
-        if guaranteed_genome_list_ids:
-            guaranteed_genome_list_ids = [x.strip()
-                                          for x in guaranteed_genome_list_ids.split(",")]
-            db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(
-                guaranteed_genome_list_ids)
-            guaranteed_genomes.update(db_genome_ids)
-            guaranteed_from_flags.update(db_genome_ids)
-
-        if guaranteed_batchfile:
-            batch_genome_id = []
-            for line in open(guaranteed_batchfile):
-                batch_genome_id.append(line.strip().split('\t')[0])
-
-            db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(batch_genome_id)
-            guaranteed_genomes.update(db_genome_ids)
-            guaranteed_from_flags.update(db_genome_ids)
-
-        self.logger.info(
-            'Identified %d genomes to be excluded from filtering.' % len(guaranteed_genomes))
+        self.logger.info('Identified %d genomes to be excluded from filtering.' % len(guaranteed_ids))
 
         # filter genomes based on taxonomy
         genomes_to_retain = genome_ids
         if taxa_filter:
-            self.logger.info(
-                'Filtering genomes outside taxonomic groups of interest.')
+            self.logger.info('Filtering genomes outside taxonomic groups of interest.')
             taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
             genome_ids_from_taxa = self._genomesFromTaxa(genome_ids, taxa_to_retain)
 
             new_genomes_to_retain = genomes_to_retain.intersection(genome_ids_from_taxa).union(guaranteed_from_flags)
-            self.logger.info('Filtered %d additional genomes based on taxonomic affiliations.' % (
+            self.logger.info('Filtered %d genomes based on taxonomic affiliations.' % (
                 len(genomes_to_retain) - len(new_genomes_to_retain)))
 
             for genome_id in genomes_to_retain - new_genomes_to_retain:
-                fout_filtered.write(
-                    '%s\t%s\n' % (external_ids[genome_id], 'Filtered on taxonomic affiliation.'))
+                rep_str = 'Representative' if genome_id in rep_ids else ''
+                fout_filtered.write('%s\t%s\t%s\n' % (external_ids[genome_id], 'Filtered on taxonomic affiliation.', rep_str))
 
             genomes_to_retain = new_genomes_to_retain
 
@@ -171,49 +138,36 @@ class TreeManager(object):
 
         final_filtered_genomes = set()
         for genome_id, quality in filtered_genomes.iteritems():
-            if genome_id not in guaranteed_genomes:
+            if genome_id not in guaranteed_ids:
+                rep_str = ''
+                if genome_id in rep_ids:
+                    rep_str = 'Representative'
+                    self.logger.warning('Filtered representative genome %s due to genome quality.' % external_ids[genome_id])
                 final_filtered_genomes.add(genome_id)
                 fout_filtered.write(
-                    '%s\t%s\t%.2f\t%.2f\n' % (external_ids[genome_id],
+                    '%s\t%s\t%.2f\t%.2f\t%s\n' % (external_ids[genome_id],
                                               'Filtered on quality (completeness, contamination).',
                                               quality[0],
-                                              quality[1]))
+                                              quality[1],
+                                              rep_str))
 
-        self.logger.info(
-            'Filtered %d genomes based on completeness, contamination, and quality.' % len(final_filtered_genomes))
+        self.logger.info('Filtered %d genomes based on completeness, contamination, and quality.' % len(final_filtered_genomes))
 
         genomes_to_retain -= final_filtered_genomes
 
         # filter genomes explicitly specified for exclusion
-        genomes_to_exclude = set()
-        if excluded_genome_ids:
-            excluded_genome_ids = [x.strip()
-                                   for x in excluded_genome_ids.split(",")]
-            db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(
-                excluded_genome_ids)
-            genomes_to_exclude.update(db_genome_ids)
-
-        if excluded_genome_list_ids:
-            excluded_genome_list_ids = [x.strip()
-                                        for x in excluded_genome_list_ids.split(",")]
-            db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(
-                excluded_genome_list_ids)
-            genomes_to_exclude.update(db_genome_ids)
-
-        for genome_id in genomes_to_exclude:
-            fout_filtered.write(
-                '%s\t%s\n' % (external_ids[genome_id], 'Explicitly marked for exclusion.'))
-
-        # check if genomes are marker for retention and exclusion
-        conflicting_genomes = guaranteed_from_flags.intersection(genomes_to_exclude)
-        if conflicting_genomes:
-            raise GenomeDatabaseError('Genomes marked for both retention and exclusion, e.g.: %s'
-                                      % conflicting_genomes.pop())
-
         if genomes_to_exclude:
+            for genome_id in genomes_to_exclude:
+                fout_filtered.write('%s\t%s\n' % (external_ids[genome_id], 'Explicitly marked for exclusion.'))
+
+            conflicting_genomes = guaranteed_from_flags.intersection(genomes_to_exclude)
+            if conflicting_genomes:
+                raise GenomeDatabaseError('Genomes marked for both retention and exclusion, e.g.: %s'
+                                          % conflicting_genomes.pop())
+
             new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude)
-            self.logger.info('Filtered %d additional genomes explicitly indicated for exclusion.' % (
-                len(genomes_to_retain) - len(new_genomes_to_retain)))
+            self.logger.info('Filtered %d genomes explicitly indicated for exclusion.' % (
+                                len(genomes_to_retain) - len(new_genomes_to_retain)))
             genomes_to_retain = new_genomes_to_retain
 
         # filter genomes with insufficient number of amino acids in MSA
@@ -235,7 +189,7 @@ class TreeManager(object):
                     total_aa += len(sequence) - sequence.count('-')
             
             # should retain guaranteed genomes unless they have zero amino acids in MSA
-            if genome_id in guaranteed_genomes:
+            if genome_id in guaranteed_ids:
                 if total_aa != 0:
                     continue
                 else:
@@ -244,20 +198,25 @@ class TreeManager(object):
             if total_aa < (min_perc_aa / 100.0) * total_alignment_len:
                 perc_alignment = total_aa * 100.0 / total_alignment_len
                 filter_on_aa.add(genome_id)
+                
+                rep_str = ''
+                if genome_id in rep_ids:
+                    rep_str = 'Representative'
+                    self.logger.warning('Filtered representative genome %s due to lack of aligned amino acids.' % external_ids[genome_id])
+                
                 fout_filtered.write(
-                    '%s\t%s\t%d\t%.1f\n' % (external_ids[genome_id],
+                    '%s\t%s\t%d\t%.1f\t%s\n' % (external_ids[genome_id],
                                             'Insufficient number of AA in MSA (total AA, % alignment length)',
                                             total_aa,
-                                            perc_alignment))
+                                            perc_alignment,
+                                            rep_str))
 
         fout_filtered.close()
 
-        self.logger.info(
-            'Filtered %d genomes with insufficient AA in the MSA.' % len(filter_on_aa))
+        self.logger.info('Filtered %d genomes with insufficient AA in the MSA.' % len(filter_on_aa))
 
         genomes_to_retain.difference_update(filter_on_aa)
-        self.logger.info(
-            'Producing tree data for %d genomes.' % len(genomes_to_retain))
+        self.logger.info('Producing tree data for %d genomes.' % len(genomes_to_retain))
 
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 
@@ -356,13 +315,16 @@ class TreeManager(object):
             aligned_seq = ''
             for marker_id in chosen_markers_order:
                 multiple_hits = genome_info['multiple_hits'][marker_id]
-                multi_hits_details[db_genome_id].append(
-                    'Multiple' if multiple_hits else 'Single')
-
+                
                 if (marker_id in genome_info['markers']):
                     ubiquitous[marker_id] += 1
                     if not multiple_hits:
                         single_copy[marker_id] += 1
+                        multi_hits_details[db_genome_id].append('Single')
+                    else:
+                        multi_hits_details[db_genome_id].append('Multiple')
+                else:
+                    multi_hits_details[db_genome_id].append('Missing')
 
                 if (marker_id in genome_info['markers']) and not multiple_hits:
                     sequence = genome_info['markers'][marker_id]
@@ -421,6 +383,8 @@ class TreeManager(object):
             # write out ARB record
             multiple_hit_count = sum(
                 [1 if x == "Multiple" else 0 for x in multi_hits_details[db_genome_id]])
+            msa_gene_count = sum(
+                [1 if x == "Single" else 0 for x in multi_hits_details[db_genome_id]])
 
             aligned_seq = trimmed_seqs[external_genome_id]
             if not alignment:
@@ -430,6 +394,7 @@ class TreeManager(object):
                             col_headers,
                             genome_metadata,
                             multiple_hit_count,
+                            msa_gene_count,
                             len(chosen_markers_order),
                             aligned_seq)
 
@@ -473,7 +438,9 @@ class TreeManager(object):
 
     def _trim_seqs(self, seqs, min_per_taxa, consensus, min_per_bp):
         """Trim multiple sequence alignment.
-        Adapted from the biolib package
+        
+        Adapted from the biolib package.
+        
         Parameters
         ----------
         seqs : d[seq_id] -> sequence
@@ -634,7 +601,12 @@ class TreeManager(object):
         fout.write('\tSRT "*\\=="\n')
         fout.write('\tWRITE "%s"\n\n' % 'organism_name')
 
-        for field in metadata_fields + ['multiple_homologs']:
+        fields = metadata_fields + ['msa_gene_count', 
+                                    'msa_num_marker_genes', 
+                                    'msa_aa_count', 
+                                    'msa_length', 
+                                    'multiple_homologs']
+        for field in fields:
             if field != 'organism_name':
                 fout.write('MATCH\t"%s\\=*"\n' % field)
                 fout.write('\tSRT "*\\=="\n')
@@ -647,20 +619,22 @@ class TreeManager(object):
 
         fout.close()
 
-    def _arbRecord(self, fout, external_genome_id,
-                   metadata_fields, metadata_values,
-                   multiple_hit_count, num_marker_genes,
-                   aligned_seq):
+    def _arbRecord(self, fout, 
+                    external_genome_id,
+                    metadata_fields, 
+                    metadata_values,
+                    multiple_hit_count, 
+                    msa_gene_count,
+                    num_marker_genes,
+                    aligned_seq):
         """Write out ARB record for genome."""
 
         # customize output relative to raw database table
         if external_genome_id.startswith('GB') or external_genome_id.startswith('RS'):
             metadata_values = list(metadata_values)
             organism_name_index = metadata_fields.index('organism_name')
-            ncbi_organism_name_index = metadata_fields.index(
-                'ncbi_organism_name')
-            metadata_values[organism_name_index] = metadata_values[
-                ncbi_organism_name_index]
+            ncbi_organism_name_index = metadata_fields.index('ncbi_organism_name')
+            metadata_values[organism_name_index] = metadata_values[ncbi_organism_name_index]
 
         fout.write("BEGIN\n")
         fout.write("db_name=%s\n" % external_genome_id)
@@ -674,7 +648,11 @@ class TreeManager(object):
                 value = value.replace('=', '/')
 
             fout.write("%s=%s\n" % (col_header, value))
-        fout.write("multiple_homologs=%i/%i\n" %
-                   (multiple_hit_count, num_marker_genes))
+        
+        fout.write("msa_gene_count=%d\n" % msa_gene_count)
+        fout.write("msa_num_marker_genes=%d\n" % num_marker_genes)
+        fout.write("msa_aa_count=%d\n" % (len(aligned_seq) - aligned_seq.count('-')))
+        fout.write("msa_length=%d\n" % len(aligned_seq))
+        fout.write("multiple_homologs=%d\n" % multiple_hit_count)
         fout.write("aligned_seq=%s\n" % (aligned_seq))
         fout.write("END\n\n")

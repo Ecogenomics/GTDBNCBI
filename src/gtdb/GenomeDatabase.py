@@ -470,8 +470,6 @@ class GenomeDatabase(object):
                      genome_ids,
                      genome_batchfile):
         """Get all genome IDs of interest.
-        If dereplicated genome lists are called (all_dereplicated,ncbi_dereplicated,user_dereplicated),
-        Representative genomes of those lists are be treated like they are "guaranteed" genomes.
 
         Returns
         -------
@@ -507,10 +505,6 @@ class GenomeDatabase(object):
             if donovan_sra_dereplicated:
                 ids = genome_rep_mngr.sraRepresentatives()
                 genome_id_list.update(ids)
-
-            # ***DHP: removed since representative genomes have few, or no, markers under some marker sets (e.g., rps16)
-            #required_rep_genomes_ids = genome_id_list.intersection(rep_genome_ids)
-            required_rep_genomes_ids = set()
 
             if all_genomes:
                 ids = genome_mngr.allGenomeIds()
@@ -550,7 +544,7 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
-        return (genome_id_list, required_rep_genomes_ids)
+        return (genome_id_list, rep_genome_ids)
 
     def GetMarkerIds(self, marker_ids, marker_set_ids, marker_batchfile):
         """Get marker IDs of interest.
@@ -614,7 +608,7 @@ class GenomeDatabase(object):
                      guaranteed_genome_list_ids,
                      guaranteed_genome_ids,
                      guaranteed_batchfile,
-                     guaranteed_genomes,
+                     rep_genome_ids,
                      alignment,
                      individual,
                      build_tree=True):
@@ -623,9 +617,48 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            genome_rep_mngr = GenomeRepresentativeManager(
-                cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
             genome_rep_mngr.assignToRepresentative()
+            
+            # get all guaranteed genomes
+            guaranteed_ids = set()
+            if guaranteed_genome_ids:
+                list_genome_ids = [x.strip()
+                                   for x in guaranteed_genome_ids.split(",")]
+                db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(list_genome_ids)
+                guaranteed_genomes.update(db_genome_ids)
+                guaranteed_ids.update(db_genome_ids)
+
+            if guaranteed_genome_list_ids:
+                guaranteed_genome_list_ids = [x.strip()
+                                              for x in guaranteed_genome_list_ids.split(",")]
+                db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(
+                    guaranteed_genome_list_ids)
+                guaranteed_genomes.update(db_genome_ids)
+                guaranteed_ids.update(db_genome_ids)
+
+            if guaranteed_batchfile:
+                batch_genome_id = []
+                for line in open(guaranteed_batchfile):
+                    batch_genome_id.append(line.strip().split('\t')[0])
+
+                db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(batch_genome_id)
+                guaranteed_genomes.update(db_genome_ids)
+                guaranteed_ids.update(db_genome_ids)
+                
+            # genome all genomes marked for exclusion
+            genomes_to_exclude = set()
+            if excluded_genome_ids:
+                excluded_genome_ids = [x.strip()
+                                       for x in excluded_genome_ids.split(",")]
+                db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(excluded_genome_ids)
+                genomes_to_exclude.update(db_genome_ids)
+
+            if excluded_genome_list_ids:
+                excluded_genome_list_ids = [x.strip()
+                                            for x in excluded_genome_list_ids.split(",")]
+                db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(excluded_genome_list_ids)
+                genomes_to_exclude.update(db_genome_ids)
 
             # create tree data
             self.logger.info('Creating tree data for %d genomes using %d marker genes.' %
@@ -643,12 +676,9 @@ class GenomeDatabase(object):
                                                                                               cont_threshold,
                                                                                               min_perc_aa,
                                                                                               taxa_filter,
-                                                                                              excluded_genome_list_ids,
-                                                                                              excluded_genome_ids,
-                                                                                              guaranteed_genome_list_ids,
-                                                                                              guaranteed_genome_ids,
-                                                                                              guaranteed_batchfile,
-                                                                                              guaranteed_genomes,
+                                                                                              genomes_to_exclude,
+                                                                                              guaranteed_ids,
+                                                                                              rep_genome_ids,
                                                                                               directory,
                                                                                               prefix)
 

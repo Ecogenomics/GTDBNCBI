@@ -1,9 +1,14 @@
-software_version=2.1.2
+software_version=2.1.3
 ncbi_database_version=release 76
 gtdb_version=1.2.3
 
 GTDB software versions
 ----------------------
+v2.1.3 (Sept. 19, 2016):
+- permitted filtering of representative genomes
+- filtering of representatives is now indicated as a warning and in filtering log
+- added msa_gene_count, msa_num_marker_genes, msa_aa_count, msa_length to ARB metadata file
+- modifications to support storing LSU and SSU data
 v2.1.2 (July 29, 2016):
 - improved method for automatically assigning genomes to a domain
 - added domain_report method to power menu for reporting results of automatic domain assignment
