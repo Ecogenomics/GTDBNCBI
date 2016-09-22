@@ -114,7 +114,7 @@ class TreeManager(object):
             taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
             genome_ids_from_taxa = self._genomesFromTaxa(genome_ids, taxa_to_retain)
 
-            new_genomes_to_retain = genomes_to_retain.intersection(genome_ids_from_taxa).union(guaranteed_from_flags)
+            new_genomes_to_retain = genomes_to_retain.intersection(genome_ids_from_taxa).union(guaranteed_ids)
             self.logger.info('Filtered %d genomes based on taxonomic affiliations.' % (
                 len(genomes_to_retain) - len(new_genomes_to_retain)))
 

@@ -621,12 +621,12 @@ class GenomeDatabase(object):
             genome_rep_mngr.assignToRepresentative()
             
             # get all guaranteed genomes
+	    genome_mngr = GenomeManager(cur, self.currentUser)
             guaranteed_ids = set()
             if guaranteed_genome_ids:
                 list_genome_ids = [x.strip()
                                    for x in guaranteed_genome_ids.split(",")]
                 db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(list_genome_ids)
-                guaranteed_genomes.update(db_genome_ids)
                 guaranteed_ids.update(db_genome_ids)
 
             if guaranteed_genome_list_ids:
@@ -634,7 +634,6 @@ class GenomeDatabase(object):
                                               for x in guaranteed_genome_list_ids.split(",")]
                 db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(
                     guaranteed_genome_list_ids)
-                guaranteed_genomes.update(db_genome_ids)
                 guaranteed_ids.update(db_genome_ids)
 
             if guaranteed_batchfile:
@@ -643,7 +642,6 @@ class GenomeDatabase(object):
                     batch_genome_id.append(line.strip().split('\t')[0])
 
                 db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(batch_genome_id)
-                guaranteed_genomes.update(db_genome_ids)
                 guaranteed_ids.update(db_genome_ids)
                 
             # genome all genomes marked for exclusion
