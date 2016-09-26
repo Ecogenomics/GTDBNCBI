@@ -384,15 +384,16 @@ class GenomeManager(object):
 
         # get database genome identifiers
         try:
-            self.cur.execute("SELECT external_id_prefix, fasta_file_location, genes_file_location " +
+            self.cur.execute("SELECT external_id_prefix, id_at_source, fasta_file_location, genes_file_location " +
                              "FROM genomes, genome_sources " +
                              "WHERE genome_source_id = genome_sources.id " +
                              "AND genomes.id in %s", (tuple(db_genome_ids),))
 
-            for (external_id_prefix, fasta_file_location, genes_file_location) in self.cur:
+            for (external_id_prefix, id_at_source, fasta_file_location, genes_file_location) in self.cur:
                 dir_prefix = None
                 if external_id_prefix == 'U':
                     dir_prefix = Config.GTDB_GENOME_USR_DIR
+                    id_at_source = 'U_' + id_at_source
                 elif external_id_prefix == 'RS':
                     dir_prefix = Config.GTDB_GENOME_RSQ_DIR
                 elif external_id_prefix == 'GB':
@@ -404,20 +405,22 @@ class GenomeManager(object):
                 if genomic:
                     genomic_file = os.path.join(dir_prefix, fasta_file_location)
                     if gtdb_header and external_id_prefix != 'U':
-                        gtdb_filename = external_id_prefix + "_" + os.path.basename(genomic_file)
-                        out_dir_with_header = os.path.join(out_dir, gtdb_filename)
-                        shutil.copy(genomic_file, out_dir_with_header)
+                        gtdb_filename = external_id_prefix + "_" + id_at_source + '_genomic.fna'
                     else:
-                        shutil.copy(genomic_file, out_dir)
+                        gtdb_filename = id_at_source + '_genomic.fna'
+                        
+                    out_file = os.path.join(out_dir, gtdb_filename)  
+                    shutil.copy(genomic_file, out_file)
 
-                elif gene:
+                if gene:
                     gene_file = os.path.join(dir_prefix, genes_file_location)
                     if gtdb_header and external_id_prefix != 'U':
-                        gtdb_filename = external_id_prefix + "_" + os.path.basename(gene_file)
-                        out_dir_with_header = os.path.join(out_dir, gtdb_filename)
-                        shutil.copy(gene_file, out_dir_with_header)
+                        gtdb_filename = external_id_prefix + "_" + id_at_source + '_gene.faa'
                     else:
-                        shutil.copy(gene_file, out_dir)
+                        gtdb_filename = id_at_source + '_gene.faa'
+                        
+                    out_file = os.path.join(out_dir, gtdb_filename)  
+                    shutil.copy(genomic_file, out_file)
 
         except GenomeDatabaseError as e:
             raise e
@@ -1076,13 +1079,34 @@ class GenomeManager(object):
         :param path: Path to the output file
         '''
         try:
-            self.cur.execute("SELECT genome, gtdb_taxonomy,ms.ssu_gg_query_id,ms.ssu_gg_sequence FROM metadata_view " +
+            self.cur.execute("SELECT genome, gtdb_taxonomy, ms.ssu_silva_query_id, ms.ssu_silva_length, ms.ssu_silva_contig_len, ms.ssu_silva_sequence FROM metadata_view " +
                              "LEFT JOIN metadata_rna ms USING (id) " +
-                             "WHERE ms.ssu_gg_sequence is not NULL")
+                             "WHERE ms.ssu_silva_sequence is not NULL")
 
             fout = open(output_file, 'w')
-            for genome, taxonomy, query, sequence in self.cur.fetchall():
-                fout.write('>{0}|{1} {2}\n'.format(genome, query, taxonomy))
+            for genome, taxonomy, query, gene_len, contig_len, sequence in self.cur.fetchall():
+                fout.write('>{0}~{1} {2} {3} {4}\n'.format(genome, query, taxonomy, gene_len, contig_len))
+                fout.write('{0}\n'.format(sequence))
+            fout.close()
+            print 'Export successful'
+        except GenomeDatabaseError as e:
+            raise e
+
+    def exportLSUSequences(self, output_file):
+        '''
+        Exports all LSU sequences from GTDB to a FASTA file.
+        The format of the sequence header will follow the format :><genome_id>~<contig_id> <gtdb_taxonomy>
+
+        :param path: Path to the output file
+        '''
+        try:
+            self.cur.execute("SELECT genome, gtdb_taxonomy, ms.lsu_silva_query_id, ms.lsu_silva_length, ms.lsu_silva_contig_len, ms.lsu_silva_sequence FROM metadata_view " +
+                             "LEFT JOIN metadata_rna ms USING (id) " +
+                             "WHERE ms.lsu_silva_sequence is not NULL")
+
+            fout = open(output_file, 'w')
+            for genome, taxonomy, query, gene_len, contig_len, sequence in self.cur.fetchall():
+                fout.write('>{0}~{1} {2} {3} {4}\n'.format(genome, query, taxonomy, gene_len, contig_len))
                 fout.write('{0}\n'.format(sequence))
             fout.close()
             print 'Export successful'
