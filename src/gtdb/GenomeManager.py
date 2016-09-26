@@ -1076,9 +1076,9 @@ class GenomeManager(object):
         :param path: Path to the output file
         '''
         try:
-            self.cur.execute("SELECT genome, gtdb_taxonomy,ms.ssu_gg_2013_08_query_id,ms.ssu_gg_2013_08_sequence FROM metadata_view " +
-                             "LEFT JOIN metadata_ssu ms USING (id) " +
-                             "WHERE ms.ssu_gg_2013_08_sequence is not NULL")
+            self.cur.execute("SELECT genome, gtdb_taxonomy,ms.ssu_gg_query_id,ms.ssu_gg_sequence FROM metadata_view " +
+                             "LEFT JOIN metadata_rna ms USING (id) " +
+                             "WHERE ms.ssu_gg_sequence is not NULL")
 
             fout = open(output_file, 'w')
             for genome, taxonomy, query, sequence in self.cur.fetchall():
