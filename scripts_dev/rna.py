@@ -142,7 +142,10 @@ class RNA(object):
             full_genome_dir = os.path.join(full_user_dir, genome_id)
 
             if os.path.exists(os.path.join(full_genome_dir, self.output_dir)):
-                continue
+                if 's4181091' in full_genome_dir or 'uqdwait1' in full_genome_dir:
+                    pass
+                else:
+                    continue
 
             genome_file = os.path.join(full_genome_dir, genome_id + '_genomic.fna')
             input_files.append(genome_file)
