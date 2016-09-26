@@ -229,6 +229,9 @@ def PullGenomes(db, args):
 
 def ExportSSUSequences(db, args):
     return db.ExportSSUSequences(args.outfile)
+    
+def ExportLSUSequences(db, args):
+    return db.ExportLSUSequences(args.outfile)
 
 
 def CreateGenomeList(db, args):
@@ -694,11 +697,11 @@ if __name__ == '__main__':
 
     parser_genome_view.set_defaults(func=ViewGenomes)
 
-    # export ssu sequences for all genomes
+    # export SSU sequences for all genomes
     parser_genome_ssu_export = genome_category_subparser.add_parser('ssu_export',
                                                                     add_help=False,
                                                                     formatter_class=CustomHelpFormatter,
-                                                                    help='Export a fasta file containing the SSU sequence best match for all genomes ')
+                                                                    help='Export FASTA file containing an LSU sequence for each genome.')
 
     required_genome_ssu_export = parser_genome_ssu_export.add_argument_group('required arguments')
     required_genome_ssu_export.add_argument('--output', dest='outfile', default=None, required=True,
@@ -709,6 +712,22 @@ if __name__ == '__main__':
                                             help="Show help message.")
 
     parser_genome_ssu_export.set_defaults(func=ExportSSUSequences)
+    
+    # export LSU sequences for all genomes
+    parser_genome_lsu_export = genome_category_subparser.add_parser('lsu_export',
+                                                                    add_help=False,
+                                                                    formatter_class=CustomHelpFormatter,
+                                                                    help='Export FASTA file containing an LSU sequence for each genome.')
+
+    required_genome_lsu_export = parser_genome_lsu_export.add_argument_group('required arguments')
+    required_genome_lsu_export.add_argument('--output', dest='outfile', default=None, required=True,
+                                            help='Name of output file.')
+
+    optional_genome_lsu_export = parser_genome_lsu_export.add_argument_group('optional arguments')
+    optional_genome_lsu_export.add_argument('-h', '--help', action="help",
+                                            help="Show help message.")
+
+    parser_genome_lsu_export.set_defaults(func=ExportLSUSequences)
 
 # -------- Genome Lists Management subparsers
 

@@ -384,6 +384,19 @@ class GenomeDatabase(object):
             return False
 
         return True
+        
+    def ExportLSUSequences(self, path):
+        try:
+            cur = self.conn.cursor()
+            genomeman = GenomeManager(cur, self.currentUser)
+            genomeman.exportLSUSequences(path)
+
+            self.conn.commit()
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
 
     # True on success. False on failure/error.
     def ViewGenomes(self, batchfile=None, external_ids=None):
