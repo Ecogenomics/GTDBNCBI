@@ -4,6 +4,8 @@ GTDB_SSU_FILE = 'ssu.taxonomy.tsv'
 GTDB_SSU_FNA_FILE = 'ssu.fna'
 GTDB_LSU_FILE = 'lsu_23S.taxonomy.tsv'
 GTDB_LSU_FNA_FILE = 'lsu_23S.fna'
+GTDB_LSU_SILVA_SUMMARY_FILE = 'lsu_23S.hmm_summary.tsv'
+GTDB_SSU_SILVA_SUMMARY_FILE = 'ssu.hmm_summary.tsv'
 
 GTDB_SSU_SILVA_DB = '/srv/whitlam/bio/db/silva/123.1/SILVA_123.1_SSURef_Nr99_tax_silva.fasta'
 GTDB_SSU_SILVA_TAXONOMY = '/srv/whitlam/bio/db/silva/123.1/silva_taxonomy.ssu.tsv'
