@@ -82,6 +82,8 @@ class TreeManager(object):
         fout_filtered = open(filter_genome_file, 'w')
 
         self.logger.info('Filtering initial set of %d genomes.' % len(genome_ids))
+        self.logger.info('Identified %d genomes to be excluded from filtering.' % len(guaranteed_ids))
+
 
         # for all markers, get the expected marker size
         self.cur.execute("SELECT markers.id, markers.name, description, id_in_database, size, external_id_prefix " +
@@ -99,13 +101,6 @@ class TreeManager(object):
                                          'description': marker_description, 'id_in_database': id_in_database, 'size': size}
             chosen_markers_order.append(marker_id)
             total_alignment_len += size
-
-        # find genomes that are in the guaranteed list
-        self.logger.info('Identifying genomes to be excluded from filtering.')
-        genome_mngr = GenomeManager(self.cur, self.currentUser)
-        genome_list_mngr = GenomeListManager(self.cur, self.currentUser)
-
-        self.logger.info('Identified %d genomes to be excluded from filtering.' % len(guaranteed_ids))
 
         # filter genomes based on taxonomy
         genomes_to_retain = genome_ids
