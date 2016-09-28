@@ -634,7 +634,9 @@ class GenomeDatabase(object):
             genome_rep_mngr.assignToRepresentative()
             
             # get all guaranteed genomes
-	    genome_mngr = GenomeManager(cur, self.currentUser)
+            genome_mngr = GenomeManager(cur, self.currentUser)
+            genome_list_mngr = GenomeListManager(cur, self.currentUser)
+            
             guaranteed_ids = set()
             if guaranteed_genome_ids:
                 list_genome_ids = [x.strip()
