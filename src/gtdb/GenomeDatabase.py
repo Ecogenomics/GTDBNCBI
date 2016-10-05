@@ -201,6 +201,10 @@ class GenomeDatabase(object):
             True if genomes added without error.
         """
         try:
+            if Config.DB_UPDATE:
+                print "During maintenance, users can not add genomes."
+                return True
+
             self.logger.info('Adding genomes to database.')
 
             cur = self.conn.cursor()
@@ -282,6 +286,11 @@ class GenomeDatabase(object):
             True if genomes deleted without error.
         '''
         try:
+
+            if Config.DB_UPDATE:
+                print "During maintenance, users can not delete genomes."
+                return True
+
             cur = self.conn.cursor()
             genome_ids = []
 
@@ -384,7 +393,7 @@ class GenomeDatabase(object):
             return False
 
         return True
-        
+
     def ExportLSUSequences(self, path):
         try:
             cur = self.conn.cursor()
@@ -632,11 +641,11 @@ class GenomeDatabase(object):
             # ensure all genomes have been assigned to a representatives
             genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
             genome_rep_mngr.assignToRepresentative()
-            
+
             # get all guaranteed genomes
             genome_mngr = GenomeManager(cur, self.currentUser)
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
-            
+
             guaranteed_ids = set()
             if guaranteed_genome_ids:
                 list_genome_ids = [x.strip()
@@ -658,7 +667,7 @@ class GenomeDatabase(object):
 
                 db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(batch_genome_id)
                 guaranteed_ids.update(db_genome_ids)
-                
+
             # genome all genomes marked for exclusion
             genomes_to_exclude = set()
             if excluded_genome_ids:
@@ -1459,7 +1468,7 @@ class GenomeDatabase(object):
         Function: RunTaxonomyCheck
         Run some checks to verify GTDB taxonomy assignment.
 
-        :param rank_depth: Deepest taxonmoic rank to check.
+        :param rank_depth: Deepest taxonomic rank to check.
         '''
         try:
             cur = self.conn.cursor()
@@ -1467,6 +1476,27 @@ class GenomeDatabase(object):
             # ensure all genomes have been assigned to a representatives
             power_user_mngr = PowerUserManager(cur, self.currentUser)
             power_user_mngr.runTaxonomyCheck(rank_depth)
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+
+    def CheckUserIDsDuplicates(self):
+        '''
+        Function: CheckUserIDsDuplicates
+        Check if User genome Ids are present multiple times in the User genome path
+
+        '''
+        try:
+            cur = self.conn.cursor()
+            # ensure all genomes have been assigned to a representatives
+            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr.CheckUserIDsDuplicates()
 
             cur.close()
             self.conn.ClosePostgresConnection()
