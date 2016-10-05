@@ -106,6 +106,11 @@ class MetadataTable(object):
         fout.write('\n')
 
     def _parse_taxonomy_file(self, genome_id, metadata_taxonomy_file, fout, prefix, fna_file, summary_file=None):
+        if genome_id == "U_65409":
+            print genome_id
+            print metadata_taxonomy_file
+            print fna_file
+            print summary_file
         """Parse metadata file with taxonomic information for 16S rRNA genes.
 
         Parameters
@@ -126,7 +131,6 @@ class MetadataTable(object):
         """
 
         if not os.path.exists(metadata_taxonomy_file):
-            # print "{0} does not exist".format(metadata_taxonomy_file)
             return 0
 
         with open(metadata_taxonomy_file) as f:
@@ -226,23 +230,21 @@ class MetadataTable(object):
                         metadata_gene_file = os.path.join(full_assembly_dir, self.metadata_gene_file)
                         self._parse_gene(accession, metadata_gene_file, fout_gene)
 
-#===============================================================================
-#                         ssu_gg_taxonomy_file = os.path.join(full_assembly_dir, self.ssu_gg_taxonomy_file)
-#                         ssu_gg_fna_file = os.path.join(full_assembly_dir, self.ssu_gg_fna_file)
-#                         self._parse_taxonomy_file(accession, ssu_gg_taxonomy_file, fout_gg_taxonomy, 'ssu_gg', ssu_gg_fna_file)
-#
-#                         ssu_silva_taxonomy_file = os.path.join(full_assembly_dir, self.ssu_silva_taxonomy_file)
-#                         ssu_silva_fna_file = os.path.join(full_assembly_dir, self.ssu_silva_fna_file)
-#                         ssu_silva_summary_file = os.path.join(full_assembly_dir, self.ssu_silva_summary_file)
-#                         ssu_count = self._parse_taxonomy_file(accession, ssu_silva_taxonomy_file, fout_ssu_silva_taxonomy, 'ssu_silva', ssu_silva_fna_file, ssu_silva_summary_file)
-#===============================================================================
+                        ssu_gg_taxonomy_file = os.path.join(full_assembly_dir, self.ssu_gg_taxonomy_file)
+                        ssu_gg_fna_file = os.path.join(full_assembly_dir, self.ssu_gg_fna_file)
+                        self._parse_taxonomy_file(accession, ssu_gg_taxonomy_file, fout_gg_taxonomy, 'ssu_gg', ssu_gg_fna_file)
+
+                        ssu_silva_taxonomy_file = os.path.join(full_assembly_dir, self.ssu_silva_taxonomy_file)
+                        ssu_silva_fna_file = os.path.join(full_assembly_dir, self.ssu_silva_fna_file)
+                        ssu_silva_summary_file = os.path.join(full_assembly_dir, self.ssu_silva_summary_file)
+                        ssu_count = self._parse_taxonomy_file(accession, ssu_silva_taxonomy_file, fout_ssu_silva_taxonomy, 'ssu_silva', ssu_silva_fna_file, ssu_silva_summary_file)
 
                         lsu_silva_taxonomy_file = os.path.join(full_assembly_dir, self.lsu_silva_taxonomy_file)
                         lsu_silva_fna_file = os.path.join(full_assembly_dir, self.lsu_silva_fna_file)
                         lsu_silva_summary_file = os.path.join(full_assembly_dir, self.lsu_silva_summary_file)
                         lsu_count = self._parse_taxonomy_file(accession, lsu_silva_taxonomy_file, fout_lsu_silva_taxonomy, 'lsu_silva', lsu_silva_fna_file, lsu_silva_summary_file)
 
-#                        fout_ssu_silva_count.write('%s\t%d\n' % (accession, ssu_count))
+                        fout_ssu_silva_count.write('%s\t%d\n' % (accession, ssu_count))
                         fout_lsu_silva_count.write('%s\t%d\n' % (accession, lsu_count))
 
         # generate metadata for user genomes
@@ -254,6 +256,7 @@ class MetadataTable(object):
                     continue
 
                 for genome_id in os.listdir(full_user_dir):
+                    # for genome_id in ["U_65402", "U_65403", "U_65404", "U_65405", "U_65406", "U_65407", "U_65408", "U_65409", "U_65410"]:
                     full_genome_dir = os.path.join(full_user_dir, genome_id)
 
                     metadata_nt_file = os.path.join(full_genome_dir, self.metadata_nt_file)
@@ -262,23 +265,21 @@ class MetadataTable(object):
                     metadata_gene_file = os.path.join(full_genome_dir, self.metadata_gene_file)
                     self._parse_gene(genome_id, metadata_gene_file, fout_gene)
 
-#===============================================================================
-#                     ssu_gg_taxonomy_file = os.path.join(full_genome_dir, self.ssu_gg_taxonomy_file)
-#                     ssu_gg_fna_file = os.path.join(full_genome_dir, self.ssu_gg_fna_file)
-#                     self._parse_taxonomy_file(genome_id, ssu_gg_taxonomy_file, fout_gg_taxonomy, 'ssu_gg', ssu_gg_fna_file)
-#
-#                     ssu_silva_taxonomy_file = os.path.join(full_genome_dir, self.ssu_silva_taxonomy_file)
-#                     ssu_silva_fna_file = os.path.join(full_genome_dir, self.ssu_silva_fna_file)
-#                     ssu_silva_summary_file = os.path.join(full_genome_dir, self.ssu_silva_summary_file)
-#                     ssu_count = self._parse_taxonomy_file(genome_id, ssu_silva_taxonomy_file, fout_ssu_silva_taxonomy, 'ssu_silva', ssu_silva_fna_file, ssu_silva_summary_file)
-#===============================================================================
+                    ssu_gg_taxonomy_file = os.path.join(full_genome_dir, self.ssu_gg_taxonomy_file)
+                    ssu_gg_fna_file = os.path.join(full_genome_dir, self.ssu_gg_fna_file)
+                    self._parse_taxonomy_file(genome_id, ssu_gg_taxonomy_file, fout_gg_taxonomy, 'ssu_gg', ssu_gg_fna_file)
+
+                    ssu_silva_taxonomy_file = os.path.join(full_genome_dir, self.ssu_silva_taxonomy_file)
+                    ssu_silva_fna_file = os.path.join(full_genome_dir, self.ssu_silva_fna_file)
+                    ssu_silva_summary_file = os.path.join(full_genome_dir, self.ssu_silva_summary_file)
+                    ssu_count = self._parse_taxonomy_file(genome_id, ssu_silva_taxonomy_file, fout_ssu_silva_taxonomy, 'ssu_silva', ssu_silva_fna_file, ssu_silva_summary_file)
 
                     lsu_silva_taxonomy_file = os.path.join(full_genome_dir, self.lsu_silva_taxonomy_file)
                     lsu_silva_fna_file = os.path.join(full_genome_dir, self.lsu_silva_fna_file)
                     lsu_silva_summary_file = os.path.join(full_genome_dir, self.lsu_silva_summary_file)
                     lsu_count = self._parse_taxonomy_file(genome_id, lsu_silva_taxonomy_file, fout_lsu_silva_taxonomy, 'lsu_silva', lsu_silva_fna_file, lsu_silva_summary_file)
 
- #                   fout_ssu_silva_count.write('%s\t%d\n' % (genome_id, ssu_count))
+                    fout_ssu_silva_count.write('%s\t%d\n' % (genome_id, ssu_count))
                     fout_lsu_silva_count.write('%s\t%d\n' % (genome_id, lsu_count))
 
         fout_nt.close()

@@ -19,6 +19,7 @@ import os
 import logging
 
 import DefaultValues
+import Config
 from Exceptions import GenomeDatabaseError
 
 from biolib.taxonomy import Taxonomy
@@ -191,15 +192,15 @@ class PowerUserManager(object):
                 else:
                     if dict_meta_nuc[genome]["gc"] is None or dict_meta_nuc[genome]["gc"] == '' or dict_meta_nuc[genome]["gc"] == 0:
                         print "{0} gc_count value in metadata_nucleotide is {1}".format(dict_all_ids[genome], dict_meta_nuc[genome]["gc"])
-                        
+
         except GenomeDatabaseError as e:
             raise e
-            
+
         return True
-        
+
     def runTaxonomyCheck(self, rank_depth):
         """Compare GTDB taxonomy to NCBI taxonomy, and report differences."""
-        
+
         try:
             # Check if gtdb_domain is the same as the gtdb_taxonomy and ncbi_taxonomy domain
             query = ("SELECT g.id_at_source, mt.gtdb_domain, mt.ncbi_taxonomy, mt.gtdb_taxonomy FROM metadata_taxonomy mt LEFT JOIN genomes g using (id) where genome_source_id in (2,3) ")
@@ -212,15 +213,15 @@ class PowerUserManager(object):
                         print '{0}\tgtdb_domain:{1}\tncbi_taxonomy:{2}\tgtdb_taxonomy:{3}'.format(genome_id, gtdb_domain, ncbi_taxonomy, gtdb_taxonomy)
                     elif gtdb_domain not in gtdb_taxonomy:
                         print '{0}\tgtdb_domain:{1}\tncbi_taxonomy:{2}\tgtdb_taxonomy:{3}'.format(genome_id, gtdb_domain, ncbi_taxonomy, gtdb_taxonomy)
-                        
+
                 if ncbi_taxonomy is not None and not ncbi_taxonomy.startswith('d__;'):
                     if gtdb_domain is None or gtdb_domain == 'd__':
                         print '{0}\tgtdb_domain:{1}\tncbi_taxonomy:{2}\tgtdb_taxonomy:{3}'.format(genome_id, gtdb_domain, ncbi_taxonomy, gtdb_taxonomy)
                     elif gtdb_domain not in ncbi_taxonomy:
                         print '{0}\tgtdb_domain:{1}\tncbi_taxonomy:{2}\tgtdb_taxonomy:{3}'.format(genome_id, gtdb_domain, ncbi_taxonomy, gtdb_taxonomy)
-                        
+
             print "#End"
-            
+
             # Compare NCBI and GTDB taxonomy
             query = ("SELECT g.id_at_source,mt.ncbi_taxonomy,mt.gtdb_taxonomy FROM metadata_taxonomy mt LEFT JOIN genomes g using (id) where genome_source_id in (2,3) ")
             self.cur.execute(query)
@@ -230,23 +231,23 @@ class PowerUserManager(object):
                 if ncbi_taxonomy is None or gtdb_taxonomy is None:
                     continue
 
-                for r in xrange(0, rank_depth+1):
+                for r in xrange(0, rank_depth + 1):
                     ncbi_taxon = ncbi_taxonomy.split(';')[r]
                     gtdb_taxon = gtdb_taxonomy.split(';')[r]
                     if ncbi_taxon == Taxonomy.rank_prefixes[r] or gtdb_taxon == Taxonomy.rank_prefixes[r]:
                         continue
-                        
+
                     if ncbi_taxon != gtdb_taxon:
-                        print "{0}\tRank:{1}\tncbi_taxonomy:{2}\tgtdb_taxonomy:{3}".format(genome_id, 
-                                                                                            Taxonomy.rank_labels[r],
-                                                                                            ncbi_taxonomy,
-                                                                                            gtdb_taxonomy)
+                        print "{0}\tRank:{1}\tncbi_taxonomy:{2}\tgtdb_taxonomy:{3}".format(genome_id,
+                                                                                           Taxonomy.rank_labels[r],
+                                                                                           ncbi_taxonomy,
+                                                                                           gtdb_taxonomy)
                         break
             print "#End"
-        
+
         except GenomeDatabaseError as e:
             raise e
-            
+
         return True
 
     def _chompRecord(self, record):
@@ -254,3 +255,25 @@ class PowerUserManager(object):
             return record[3:]
         if record.startswith("U_"):
             return record[2:]
+
+    def CheckUserIDsDuplicates(self):
+        list_genome_ids = {}
+        list_duplicates = []
+        user_genome_dir = Config.GTDB_GENOME_USR_DIR
+        for user_id in os.listdir(user_genome_dir):
+            full_user_dir = os.path.join(user_genome_dir, user_id)
+            if not os.path.isdir(full_user_dir):
+                continue
+            for genome_id in os.listdir(full_user_dir):
+                if genome_id in list_genome_ids:
+                    list_genome_ids[genome_id].append(full_user_dir)
+                    list_duplicates.append(genome_id)
+                else:
+                    list_genome_ids[genome_id] = [full_user_dir]
+
+        set_duplicates = set(list_duplicates)
+        for dup in set_duplicates:
+            print "Genome {0}:".format(dup)
+            for path in list_genome_ids[dup]:
+                print "- {0}".format(path)
+        print "#############"

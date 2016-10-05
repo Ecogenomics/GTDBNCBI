@@ -327,52 +327,6 @@ class MetadataManager(object):
                 except:
                     self.cur.execute(query_gene, [AsIs(c), v])
 
-#===============================================================================
-#             # Greengenes SSU metadata
-#             query_taxonomy = "UPDATE metadata_taxonomy SET %s = %s WHERE id = {0}".format(
-#                 db_genome_id)
-#             metadata_ssu_gg_path = os.path.join(
-#                 genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
-#             genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
-#                 metadata_ssu_gg_path, ConfigMetadata.GTDB_SSU_GG_PREFIX)
-#             if genome_list_taxonomy:
-#                 for c, v in genome_list_taxonomy:
-#                     try:
-#                         v = float(v)
-#                         self.cur.execute(query_taxonomy, [AsIs(c), v])
-#                     except:
-#                         self.cur.execute(query_taxonomy, [AsIs(c), v])
-#
-#             # SILVA SSU metadata
-#             metadata_ssu_silva_path = os.path.join(
-#                 genome_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
-#             genome_list_taxonomy, ssu_count = self._parse_taxonomy_file(
-#                 metadata_ssu_silva_path, ConfigMetadata.GTDB_SSU_SILVA_PREFIX)
-#             if genome_list_taxonomy:
-#                 for c, v in genome_list_taxonomy:
-#                     try:
-#                         v = float(v)
-#                         self.cur.execute(query_taxonomy, [AsIs(c), v])
-#                     except:
-#                         self.cur.execute(query_taxonomy, [AsIs(c), v])
-#
-#             # SILVA LSU metadata
-#             metadata_lsu_silva_path = os.path.join(
-#                 genome_dir, ConfigMetadata.GTDB_LSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_LSU_FILE)
-#             genome_list_taxonomy, lsu_count = self._parse_taxonomy_file(
-#                 metadata_lsu_silva_path, ConfigMetadata.GTDB_LSU_SILVA_PREFIX)
-#             if genome_list_taxonomy:
-#                 for c, v in genome_list_taxonomy:
-#                     try:
-#                         v = float(v)
-#                         self.cur.execute(query_taxonomy, [AsIs(c), v])
-#                     except:
-#                         self.cur.execute(query_taxonomy, [AsIs(c), v])
-#===============================================================================
-
-            #*** Pierre, the relevant fields need to be added to the metadata_ssu table. Ideally, we should clean
-            # this up now if you have time. It is really awkward to have this information replicated in two tables.
-
             # Greengenes SSU metadata
             query_taxonomy = "UPDATE metadata_rna SET %s = %s WHERE id = {0}".format(
                 db_genome_id)
@@ -385,7 +339,8 @@ class MetadataManager(object):
             if genome_list_taxonomy:
                 for c, v in genome_list_taxonomy:
                     try:
-                        v = float(v)
+                        if "blast_subject_id" not in c:
+                            v = float(v)
                         self.cur.execute(query_taxonomy, [AsIs(c), v])
                     except:
                         self.cur.execute(query_taxonomy, [AsIs(c), v])
@@ -404,7 +359,8 @@ class MetadataManager(object):
             if genome_list_taxonomy:
                 for c, v in genome_list_taxonomy:
                     try:
-                        v = float(v)
+                        if "blast_subject_id" not in c:
+                            v = float(v)
                         self.cur.execute(query_taxonomy, [AsIs(c), v])
                     except:
                         self.cur.execute(query_taxonomy, [AsIs(c), v])
@@ -422,7 +378,8 @@ class MetadataManager(object):
             if genome_list_taxonomy:
                 for c, v in genome_list_taxonomy:
                     try:
-                        v = float(v)
+                        if "blast_subject_id" not in c:
+                            v = float(v)
                         self.cur.execute(query_taxonomy, [AsIs(c), v])
                     except:
                         self.cur.execute(query_taxonomy, [AsIs(c), v])
