@@ -408,8 +408,8 @@ class GenomeManager(object):
                         gtdb_filename = external_id_prefix + "_" + id_at_source + '_genomic.fna'
                     else:
                         gtdb_filename = id_at_source + '_genomic.fna'
-                        
-                    out_file = os.path.join(out_dir, gtdb_filename)  
+
+                    out_file = os.path.join(out_dir, gtdb_filename)
                     shutil.copy(genomic_file, out_file)
 
                 if gene:
@@ -418,8 +418,8 @@ class GenomeManager(object):
                         gtdb_filename = external_id_prefix + "_" + id_at_source + '_gene.faa'
                     else:
                         gtdb_filename = id_at_source + '_gene.faa'
-                        
-                    out_file = os.path.join(out_dir, gtdb_filename)  
+
+                    out_file = os.path.join(out_dir, gtdb_filename)
                     shutil.copy(genomic_file, out_file)
 
         except GenomeDatabaseError as e:
@@ -810,6 +810,10 @@ class GenomeManager(object):
                                  "WHERE id IN %s", (tuple(db_genome_ids),))
                 self.cur.execute("DELETE FROM metadata_taxonomy " +
                                  "WHERE id IN %s", (tuple(db_genome_ids),))
+                self.cur.execute("DELETE FROM metadata_rna " +
+                                 "WHERE id IN %s", (tuple(db_genome_ids),))
+                self.cur.execute("DELETE FROM metadata_sequence " +
+                                 "WHERE id IN %s", (tuple(db_genome_ids),))
 
                 self.cur.execute("DELETE FROM genomes " +
                                  "WHERE id IN %s", (tuple(db_genome_ids),))
@@ -1079,8 +1083,9 @@ class GenomeManager(object):
         :param path: Path to the output file
         '''
         try:
-            self.cur.execute("SELECT genome, gtdb_taxonomy, ms.ssu_silva_query_id, ms.ssu_silva_length, ms.ssu_silva_contig_len, ms.ssu_silva_sequence FROM metadata_view " +
-                             "LEFT JOIN metadata_rna ms USING (id) " +
+            self.cur.execute("SELECT genome, gtdb_taxonomy, mr.ssu_silva_query_id, mr.ssu_silva_length, mr.ssu_silva_contig_len, ms.ssu_silva_sequence FROM metadata_view " +
+                             "LEFT JOIN metadata_rna mr USING (id) " +
+                             "LEFT JOIN metadata_sequence ms USING (id) " +
                              "WHERE ms.ssu_silva_sequence is not NULL")
 
             fout = open(output_file, 'w')
@@ -1100,8 +1105,9 @@ class GenomeManager(object):
         :param path: Path to the output file
         '''
         try:
-            self.cur.execute("SELECT genome, gtdb_taxonomy, ms.lsu_silva_query_id, ms.lsu_silva_length, ms.lsu_silva_contig_len, ms.lsu_silva_sequence FROM metadata_view " +
-                             "LEFT JOIN metadata_rna ms USING (id) " +
+            self.cur.execute("SELECT genome, gtdb_taxonomy, mr.lsu_silva_query_id, mr.lsu_silva_length, mr.lsu_silva_contig_len, ms.lsu_silva_sequence FROM metadata_view " +
+                             "LEFT JOIN metadata_rna mr USING (id) " +
+                             "LEFT JOIN metadata_sequence ms USING (id) " +
                              "WHERE ms.lsu_silva_sequence is not NULL")
 
             fout = open(output_file, 'w')
