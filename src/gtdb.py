@@ -151,15 +151,15 @@ def AddGenomes(db, args):
 
 def CreateTreeData(db, args):
     genome_id_list, rep_genome_ids = db.GetGenomeIds(args.all_dereplicated,
-                                                      args.ncbi_dereplicated,
-                                                      args.user_dereplicated,
-                                                      args.donovan_sra_dereplicated,
-                                                      args.all_genomes,
-                                                      args.ncbi_genomes,
-                                                      args.user_genomes,
-                                                      args.genome_list_ids,
-                                                      args.genome_ids,
-                                                      args.genome_batchfile)
+                                                     args.ncbi_dereplicated,
+                                                     args.user_dereplicated,
+                                                     args.donovan_sra_dereplicated,
+                                                     args.all_genomes,
+                                                     args.ncbi_genomes,
+                                                     args.user_genomes,
+                                                     args.genome_list_ids,
+                                                     args.genome_ids,
+                                                     args.genome_batchfile)
 
     marker_id_list = db.GetMarkerIds(args.marker_ids,
                                      args.marker_set_ids,
@@ -454,6 +454,10 @@ def RunDomainAssignmentReport(db, args):
 
 def ExportGenomePaths(db, args):
     return db.ExportGenomePaths(args.outfile)
+
+
+def CheckUserIDsDuplicates(db, args):
+    return db.CheckUserIDsDuplicates()
 
 
 if __name__ == '__main__':
@@ -1215,6 +1219,20 @@ if __name__ == '__main__':
                                      help="Show help message.")
 
     parser_power_tree_exception.set_defaults(func=RunTreeExceptions)
+
+
+# --------- Check if there is User genome duplicate IDs
+    duplicates_power_genome_path = power_category_subparser.add_parser('check_folder_duplicates',
+                                                                       add_help=False,
+                                                                       formatter_class=CustomHelpFormatter,
+                                                                       help='Check if User genome Ids are present multiple times in the User genome path')
+
+    optional_duplicates_power_genome_path = duplicates_power_genome_path.add_argument_group('optional arguments')
+    optional_duplicates_power_genome_path.add_argument('-h', '--help', action="help",
+                                                       help="Show help message.")
+
+    duplicates_power_genome_path.set_defaults(func=CheckUserIDsDuplicates)
+
 
 # --------- Export genome folder paths
 
