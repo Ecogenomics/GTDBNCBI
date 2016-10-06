@@ -99,27 +99,10 @@ class PowerUserManager(object):
                 else:
                     dict_except_order[gid] = {'quality': float(qual), 'id': gid, 'full_info': [name, compl, conta, ncbitax, size, qual, orga, 'unknown order']}
 
-#             list_exception_id = [info.get('id') for _k, info in dict_except_order.iteritems()]
-#             combined_list = list_exception_id + list(existing_id)
-#
-#             self.cur.execute("SELECT g.name,mg.checkm_completeness,mg.checkm_contamination,mt.ncbi_taxonomy,mnuc.genome_size,(mg.checkm_completeness-4*mg.checkm_contamination) as quality_threshold,mn.ncbi_organism_name " +
-#                              "FROM genomes g " +
-#                              "LEFT JOIN metadata_genes mg USING (id) " +
-#                              "LEFT JOIN metadata_ncbi mn  USING (id) " +
-#                              "LEFT JOIN metadata_nucleotide mnuc  USING (id) " +
-#                              "LEFT JOIN metadata_taxonomy mt  USING (id) " +
-#                              "WHERE g.genome_source_id IN (2,3) and " +
-#                              "(mg.checkm_completeness > %s and  mg.checkm_contamination < %s " +
-#                              "and mg.checkm_completeness-4*mg.checkm_contamination > %s) and mt.gtdb_genome_representative is NULL and mt.gtdb_representative is FALSE and  g.id not in %s",
-#                              (DefaultValues.EXCEPTION_FILTER_TWO_CHECKM_COMPLETENESS, DefaultValues.EXCEPTION_FILTER_TWO_CHECKM_CONTAMINATION, DefaultValues.EXCEPTION_FILTER_TWO_QUALITY_THRESHOLD, tuple(combined_list)))
-#             exception_2nd_filter = [[name, compl, conta, ncbitax, size, qual, orga, "Second"] for (name, compl, conta, ncbitax, size, qual, orga) in self.cur]
-
             fh = open(path, "w")
             fh.write("Name,CheckM_Completeness,CheckM_Contamination,NCBI_Taxonomy,Genome_size,Quality_Threshold,Organism_name,Filter_passed\n")
             for _k, item in dict_except_order.iteritems():
                 fh.write(",".join(str(v) for v in item.get('full_info')) + "\n")
-#             for item in exception_2nd_filter:
-#                 fh.write(",".join(str(v) for v in item) + "\n")
             fh.close()
 
         except GenomeDatabaseError as e:
