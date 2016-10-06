@@ -275,6 +275,11 @@ class UpdateRefSeqFolder(object):
                     if len(target_files) == 1 and len(ftp_files) == 1:
                         status = self.comparesha256(
                             ftp_files[0], target_files[0], status)
+                    elif len(target_files) == 0 and len(ftp_files) == 0 and report == '_hashes.txt':
+                        status.append("old_folder_dir")
+                    elif len(target_files) == 0 and len(ftp_files) == 1 and report == '_hashes.txt':
+                        shutil.copy2(ftp_dir[0], ftp_dir[0].replace(ftp_dir.target_dir))
+                        status.append("new_hashes")
                     else:
                         print "########"
                         print target_dir
@@ -283,6 +288,7 @@ class UpdateRefSeqFolder(object):
                         print ftp_files
                         print "IT SHOULDN'T HAPPEN"
                         print "########"
+                        sys.exit()
         self.report_gcf.write("{0}\t{1}\t{2}\n".format(
             domain.upper(), gcf_record, ';'.join([x for x in set(status)])))
         shutil.rmtree(tmp_ftp_dir)
