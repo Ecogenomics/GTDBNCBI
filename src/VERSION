@@ -1,6 +1,6 @@
 software_version=2.1.4
 ncbi_database_version=release 76
-gtdb_version=1.2.3
+gtdb_version=1.2.4
 
 GTDB software versions
 ----------------------
@@ -60,6 +60,10 @@ v0.0.1:
 
 GTDB database versions
 ----------------------
+v1.2.4 (October 10, 2016):
+- New parsed metadata in the database
+- New table metadata_sequence
+- metadata_ssu renamed to metadata_rna
 v1.2.3 (July 30, 2016):
 - New representative Set
 v1.2.2 (July 13, 2016):
