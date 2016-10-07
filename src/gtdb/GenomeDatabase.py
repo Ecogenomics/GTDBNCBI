@@ -1452,7 +1452,7 @@ class GenomeDatabase(object):
 
             # ensure all genomes have been assigned to a representatives
             power_user_mngr = PowerUserManager(cur, self.currentUser)
-            power_user_mngr.runSanityCheck(path)
+            power_user_mngr.runSanityCheck()
 
             cur.close()
             self.conn.ClosePostgresConnection()
