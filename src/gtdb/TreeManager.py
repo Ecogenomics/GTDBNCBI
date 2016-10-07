@@ -24,6 +24,7 @@ from biolib.taxonomy import Taxonomy
 
 from GenomeManager import GenomeManager
 from GenomeListManager import GenomeListManager
+from Exceptions import GenomeDatabaseError
 
 from collections import Counter
 from collections import defaultdict
@@ -84,7 +85,6 @@ class TreeManager(object):
         self.logger.info('Filtering initial set of %d genomes.' % len(genome_ids))
         self.logger.info('Identified %d genomes to be excluded from filtering.' % len(guaranteed_ids))
 
-
         # for all markers, get the expected marker size
         self.cur.execute("SELECT markers.id, markers.name, description, id_in_database, size, external_id_prefix " +
                          "FROM markers, marker_databases " +
@@ -141,10 +141,10 @@ class TreeManager(object):
                 final_filtered_genomes.add(genome_id)
                 fout_filtered.write(
                     '%s\t%s\t%.2f\t%.2f\t%s\n' % (external_ids[genome_id],
-                                              'Filtered on quality (completeness, contamination).',
-                                              quality[0],
-                                              quality[1],
-                                              rep_str))
+                                                  'Filtered on quality (completeness, contamination).',
+                                                  quality[0],
+                                                  quality[1],
+                                                  rep_str))
 
         self.logger.info('Filtered %d genomes based on completeness, contamination, and quality.' % len(final_filtered_genomes))
 
@@ -162,7 +162,7 @@ class TreeManager(object):
 
             new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude)
             self.logger.info('Filtered %d genomes explicitly indicated for exclusion.' % (
-                                len(genomes_to_retain) - len(new_genomes_to_retain)))
+                len(genomes_to_retain) - len(new_genomes_to_retain)))
             genomes_to_retain = new_genomes_to_retain
 
         # filter genomes with insufficient number of amino acids in MSA
@@ -182,7 +182,7 @@ class TreeManager(object):
             for sequence, multiple_hits in self.cur:
                 if not multiple_hits:
                     total_aa += len(sequence) - sequence.count('-')
-            
+
             # should retain guaranteed genomes unless they have zero amino acids in MSA
             if genome_id in guaranteed_ids:
                 if total_aa != 0:
@@ -193,18 +193,18 @@ class TreeManager(object):
             if total_aa < (min_perc_aa / 100.0) * total_alignment_len:
                 perc_alignment = total_aa * 100.0 / total_alignment_len
                 filter_on_aa.add(genome_id)
-                
+
                 rep_str = ''
                 if genome_id in rep_ids:
                     rep_str = 'Representative'
                     self.logger.warning('Filtered representative genome %s due to lack of aligned amino acids.' % external_ids[genome_id])
-                
+
                 fout_filtered.write(
                     '%s\t%s\t%d\t%.1f\t%s\n' % (external_ids[genome_id],
-                                            'Insufficient number of AA in MSA (total AA, % alignment length)',
-                                            total_aa,
-                                            perc_alignment,
-                                            rep_str))
+                                                'Insufficient number of AA in MSA (total AA, % alignment length)',
+                                                total_aa,
+                                                perc_alignment,
+                                                rep_str))
 
         fout_filtered.close()
 
@@ -310,7 +310,7 @@ class TreeManager(object):
             aligned_seq = ''
             for marker_id in chosen_markers_order:
                 multiple_hits = genome_info['multiple_hits'][marker_id]
-                
+
                 if (marker_id in genome_info['markers']):
                     ubiquitous[marker_id] += 1
                     if not multiple_hits:
@@ -332,7 +332,7 @@ class TreeManager(object):
                 else:
                     sequence = chosen_markers[marker_id]['size'] * '-'
                 aligned_seq += sequence
-                
+
             msa[external_genome_id] = aligned_seq
             multi_hits_outstr = '%s\t%s\n' % (
                 external_genome_id, '\t'.join(multi_hits_details[db_genome_id]))
@@ -433,9 +433,9 @@ class TreeManager(object):
 
     def _trim_seqs(self, seqs, min_per_taxa, consensus, min_per_bp):
         """Trim multiple sequence alignment.
-        
+
         Adapted from the biolib package.
-        
+
         Parameters
         ----------
         seqs : d[seq_id] -> sequence
@@ -596,10 +596,10 @@ class TreeManager(object):
         fout.write('\tSRT "*\\=="\n')
         fout.write('\tWRITE "%s"\n\n' % 'organism_name')
 
-        fields = metadata_fields + ['msa_gene_count', 
-                                    'msa_num_marker_genes', 
-                                    'msa_aa_count', 
-                                    'msa_length', 
+        fields = metadata_fields + ['msa_gene_count',
+                                    'msa_num_marker_genes',
+                                    'msa_aa_count',
+                                    'msa_length',
                                     'multiple_homologs']
         for field in fields:
             if field != 'organism_name':
@@ -614,14 +614,14 @@ class TreeManager(object):
 
         fout.close()
 
-    def _arbRecord(self, fout, 
-                    external_genome_id,
-                    metadata_fields, 
-                    metadata_values,
-                    multiple_hit_count, 
-                    msa_gene_count,
-                    num_marker_genes,
-                    aligned_seq):
+    def _arbRecord(self, fout,
+                   external_genome_id,
+                   metadata_fields,
+                   metadata_values,
+                   multiple_hit_count,
+                   msa_gene_count,
+                   num_marker_genes,
+                   aligned_seq):
         """Write out ARB record for genome."""
 
         # customize output relative to raw database table
@@ -643,7 +643,7 @@ class TreeManager(object):
                 value = value.replace('=', '/')
 
             fout.write("%s=%s\n" % (col_header, value))
-        
+
         fout.write("msa_gene_count=%d\n" % msa_gene_count)
         fout.write("msa_num_marker_genes=%d\n" % num_marker_genes)
         fout.write("msa_aa_count=%d\n" % (len(aligned_seq) - aligned_seq.count('-')))
