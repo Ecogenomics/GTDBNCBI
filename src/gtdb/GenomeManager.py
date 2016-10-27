@@ -367,7 +367,7 @@ class GenomeManager(object):
 
         shutil.rmtree(self.tmp_output_dir)
 
-    def copyGenomes(self, db_genome_ids, genomic, gene, out_dir, gtdb_header):
+    def copyGenomes(self, db_genome_ids, genomic, gene, gene_nt, out_dir, gtdb_header):
         """Copy genome data files to specified directory.
 
         Parameters
@@ -377,7 +377,9 @@ class GenomeManager(object):
         genomic : boolean
             Flag indicating if genomic data should be copied.
         gene : boolean
-            Flag indicating if gene data should be copied.
+            Flag indicating if amino acid gene data should be copied.
+        gene_nt : boolean
+            Flag indicating if nucleotide gene data should be copied.
         out_dir : str
             Output directory for data.
         """
@@ -420,7 +422,17 @@ class GenomeManager(object):
                         gtdb_filename = id_at_source + '_gene.faa'
 
                     out_file = os.path.join(out_dir, gtdb_filename)
-                    shutil.copy(genomic_file, out_file)
+                    shutil.copy(gene_file, out_file)
+                 
+                if gene_nt:
+                    gene_file = os.path.join(dir_prefix, genes_file_location)
+                    if gtdb_header and external_id_prefix != 'U':
+                        gtdb_filename = external_id_prefix + "_" + id_at_source + '_gene.fna'
+                    else:
+                        gtdb_filename = id_at_source + '_gene.fna'
+
+                    out_file = os.path.join(out_dir, gtdb_filename)
+                    shutil.copy(gene_file, out_file)
 
         except GenomeDatabaseError as e:
             raise e

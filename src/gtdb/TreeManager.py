@@ -137,7 +137,7 @@ class TreeManager(object):
         for genome_id, quality in filtered_genomes.iteritems():
             if genome_id not in guaranteed_ids:
                 if genome_id in rep_ids:
-                    self.logger.warning('Retaining representative genome %s despite poor estimated quality (comp=%.1f, cont=%.1f).' % (external_ids[genome_id], quality[0], quality[1]))
+                    self.logger.warning('Retaining representative genome %s despite poor estimated quality (comp=%.1f%%, cont=%.1f%%).' % (external_ids[genome_id], quality[0], quality[1]))
                 else:
                     final_filtered_genomes.add(genome_id)
                     fout_filtered.write(
