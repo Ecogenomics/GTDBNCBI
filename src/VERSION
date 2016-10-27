@@ -1,9 +1,11 @@
-software_version=2.1.4
+software_version=2.1.5
 ncbi_database_version=release 76
 gtdb_version=1.2.4
 
 GTDB software versions
 ----------------------
+v2.1.5 (Oct. 27, 2016):
+- changed criteria for filtering representatives from MSA
 v2.1.4 (Sept. 26, 2016):
 - added lsu_export to genomes CLI
 - modified name of files produced by pull command in genomes CLI

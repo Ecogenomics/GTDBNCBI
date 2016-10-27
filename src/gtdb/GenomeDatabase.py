@@ -497,6 +497,8 @@ class GenomeDatabase(object):
         -------
         list
             Requested genome IDs
+        list
+            Representative genome IDs
         """
 
         genome_id_list = set()
@@ -622,6 +624,7 @@ class GenomeDatabase(object):
                      comp_threshold,
                      cont_threshold,
                      min_perc_aa,
+                     min_rep_perc_aa,
                      min_perc_taxa,
                      consensus,
                      taxa_filter,
@@ -681,13 +684,15 @@ class GenomeDatabase(object):
                                             for x in excluded_genome_list_ids.split(",")]
                 db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(excluded_genome_list_ids)
                 genomes_to_exclude.update(db_genome_ids)
+                
+            # make sure all markers are aligned
+            aligned_mngr = AlignedMarkerManager(cur, self.threads)
+            aligned_mngr.calculateAlignedMarkerSets(genome_ids, marker_ids)
 
             # create tree data
             self.logger.info('Creating tree data for %d genomes using %d marker genes.' %
                              (len(genome_ids), len(marker_ids)))
-
-            aligned_mngr = AlignedMarkerManager(cur, self.threads)
-            aligned_mngr.calculateAlignedMarkerSets(genome_ids, marker_ids)
+            self.logger.info('Tree contains %d representative genomes.' % len(rep_genome_ids))
 
             tree_mngr = TreeManager(cur, self.currentUser)
             genomes_to_retain, chosen_markers_order, chosen_markers = tree_mngr.filterGenomes(marker_ids,
@@ -697,6 +702,7 @@ class GenomeDatabase(object):
                                                                                               comp_threshold,
                                                                                               cont_threshold,
                                                                                               min_perc_aa,
+                                                                                              min_rep_perc_aa,
                                                                                               taxa_filter,
                                                                                               genomes_to_exclude,
                                                                                               guaranteed_ids,

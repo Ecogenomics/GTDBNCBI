@@ -255,7 +255,8 @@ class GenomeRepresentativeManager(object):
         return derep_genome_ids
 
     def sraRepresentatives(self):
-        """Get identifiers from the representatives SRA genomes.
+        """Get identifiers for representatives SRA genomes.
+        
         Returns
         -------
         list
