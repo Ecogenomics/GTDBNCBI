@@ -136,17 +136,15 @@ class TreeManager(object):
         final_filtered_genomes = set()
         for genome_id, quality in filtered_genomes.iteritems():
             if genome_id not in guaranteed_ids:
-                rep_str = ''
                 if genome_id in rep_ids:
-                    rep_str = 'Representative'
-                    self.logger.warning('Filtered representative genome %s due to genome quality.' % external_ids[genome_id])
-                final_filtered_genomes.add(genome_id)
-                fout_filtered.write(
-                    '%s\t%s\t%.2f\t%.2f\t%s\n' % (external_ids[genome_id],
-                                                  'Filtered on quality (completeness, contamination).',
-                                                  quality[0],
-                                                  quality[1],
-                                                  rep_str))
+                    self.logger.warning('Retaining representative genome %s despite poor estimated quality (comp=%.1f, cont=%.1f).' % (external_ids[genome_id], quality[0], quality[1]))
+                else:
+                    final_filtered_genomes.add(genome_id)
+                    fout_filtered.write(
+                        '%s\t%s\t%.2f\t%.2f\n' % (external_ids[genome_id],
+                                                      'Filtered on quality (completeness, contamination).',
+                                                      quality[0],
+                                                      quality[1]))
 
         self.logger.info('Filtered %d genomes based on completeness, contamination, and quality.' % len(final_filtered_genomes))
 
