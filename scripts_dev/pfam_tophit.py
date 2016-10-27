@@ -94,7 +94,6 @@ class PfamTopHit(object):
                     hit_str.append(hmm_id + ',' + ','.join(map(str, stats)))
                 fout.write('%s\t%s\n' % (gene_id, ';'.join(hit_str)))
             fout.close()
-            print output_tophit_file
 
             # calculate checksum
             checksum = sha256(output_tophit_file)

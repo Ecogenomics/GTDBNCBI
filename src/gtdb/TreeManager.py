@@ -56,6 +56,7 @@ class TreeManager(object):
                       comp_threshold,
                       cont_threshold,
                       min_perc_aa,
+                      min_rep_perc_aa,
                       taxa_filter,
                       genomes_to_exclude,
                       guaranteed_ids,
@@ -105,7 +106,7 @@ class TreeManager(object):
         # filter genomes based on taxonomy
         genomes_to_retain = genome_ids
         if taxa_filter:
-            self.logger.info('Filtering genomes outside taxonomic groups of interest.')
+            self.logger.info('Filtering genomes outside taxonomic groups of interest (%s).' % taxa_filter)
             taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
             genome_ids_from_taxa = self._genomesFromTaxa(genome_ids, taxa_to_retain)
 
@@ -130,7 +131,8 @@ class TreeManager(object):
                                                        quality_weight,
                                                        comp_threshold,
                                                        cont_threshold)
-
+                                                       
+        # sanity check representatives are not of poor quality
         final_filtered_genomes = set()
         for genome_id, quality in filtered_genomes.iteritems():
             if genome_id not in guaranteed_ids:
@@ -166,7 +168,7 @@ class TreeManager(object):
             genomes_to_retain = new_genomes_to_retain
 
         # filter genomes with insufficient number of amino acids in MSA
-        self.logger.info('Filtering genomes with insufficient AA in the MSA.')
+        self.logger.info('Filtering genomes with insufficient amino acids in the MSA.')
         filter_on_aa = set()
         for genome_id in genomes_to_retain:
             aligned_marker_query = ("SELECT sequence, multiple_hits " +
@@ -190,25 +192,28 @@ class TreeManager(object):
                 else:
                     self.logger.warning('Filtered guaranteed genome %s with zero amino acids in MSA.' % external_ids[genome_id])
 
-            if total_aa < (min_perc_aa / 100.0) * total_alignment_len:
-                perc_alignment = total_aa * 100.0 / total_alignment_len
-                filter_on_aa.add(genome_id)
-
+            perc_alignment = total_aa * 100.0 / total_alignment_len
+            if perc_alignment < min_perc_aa:
                 rep_str = ''
                 if genome_id in rep_ids:
-                    rep_str = 'Representative'
-                    self.logger.warning('Filtered representative genome %s due to lack of aligned amino acids.' % external_ids[genome_id])
-
+                    if perc_alignment < min_rep_perc_aa:
+                        rep_str = 'Representative'
+                        self.logger.warning('Filtered representative genome %s due to lack of aligned amino acids (%.1f%%).' % (external_ids[genome_id], perc_alignment))
+                    else:
+                        self.logger.warning('Retaining representative genome %s despite small numbers of aligned amino acids (%.1f%%).' % (external_ids[genome_id], perc_alignment))
+                        continue
+                        
+                filter_on_aa.add(genome_id)
                 fout_filtered.write(
                     '%s\t%s\t%d\t%.1f\t%s\n' % (external_ids[genome_id],
-                                                'Insufficient number of AA in MSA (total AA, % alignment length)',
+                                                'Insufficient number of amino acids in MSA (total AA, % alignment length)',
                                                 total_aa,
                                                 perc_alignment,
                                                 rep_str))
 
         fout_filtered.close()
 
-        self.logger.info('Filtered %d genomes with insufficient AA in the MSA.' % len(filter_on_aa))
+        self.logger.info('Filtered %d genomes with insufficient amino acids in the MSA.' % len(filter_on_aa))
 
         genomes_to_retain.difference_update(filter_on_aa)
         self.logger.info('Producing tree data for %d genomes.' % len(genomes_to_retain))
@@ -341,12 +346,12 @@ class TreeManager(object):
         multi_hits_fh.close()
 
         # filter columns without sufficient representation across taxa
-        self.logger.info('Trimming columns with insufficient taxa.')
+        self.logger.info('Trimming columns with insufficient taxa or poor consensus.')
         trimmed_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons = self._trim_seqs(
             msa, min_perc_taxa / 100.0, consensus / 100.0, min_perc_aa / 100.0)
-        self.logger.info('Trimmed alignment from %d to %d AA (%d excluded by minimum taxa percent, %d excluded by consensus).' % (len(msa[msa.keys()[0]]),
+        self.logger.info('Trimmed alignment from %d to %d AA (%d by minimum taxa percent, %d by consensus).' % (len(msa[msa.keys()[0]]),
                                                                                                                                   len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
-        self.logger.info('After trimming %d taxa have AA in <%.1f%% of columns.' % (
+        self.logger.info('After trimming %d taxa have amino acids in <%.1f%% of columns.' % (
             len(pruned_seqs), min_perc_aa))
 
         # write out MSA

@@ -165,22 +165,28 @@ def CreateTreeData(db, args):
                                      args.marker_set_ids,
                                      args.marker_batchfile)
 
-    return db.MakeTreeData(marker_id_list, genome_id_list,
-                           args.out_dir, args.prefix,
-                           args.quality_threshold,
-                           args.quality_weight,
-                           args.comp_threshold,
-                           args.cont_threshold,
-                           args.min_perc_aa, args.min_perc_taxa, args.consensus,
-                           args.taxa_filter,
-                           args.excluded_genome_list_ids, args.excluded_genome_ids,
-                           args.guaranteed_genome_list_ids,
-                           args.guaranteed_genome_ids,
-                           args.guaranteed_batchfile,
-                           rep_genome_ids,
-                           not args.no_alignment,
-                           args.individual,
-                           not args.no_tree)
+    return db.MakeTreeData(marker_id_list, 
+                            genome_id_list,
+                            args.out_dir, 
+                            args.prefix,
+                            args.quality_threshold,
+                            args.quality_weight,
+                            args.comp_threshold,
+                            args.cont_threshold,
+                            args.min_perc_aa, 
+                            args.min_rep_perc_aa,
+                            args.min_perc_taxa, 
+                            args.consensus,
+                            args.taxa_filter,
+                            args.excluded_genome_list_ids, 
+                            args.excluded_genome_ids,
+                            args.guaranteed_genome_list_ids,
+                            args.guaranteed_genome_ids,
+                            args.guaranteed_batchfile,
+                            rep_genome_ids,
+                            not args.no_alignment,
+                            args.individual,
+                            not args.no_tree)
 
 
 def ViewGenomes(db, args):
@@ -1150,6 +1156,8 @@ if __name__ == '__main__':
 
     optional_markers_create_tree.add_argument('--min_perc_aa', type=float, default=50,
                                               help='Filter genomes with an insufficient percentage of AA in the MSA.')
+    optional_markers_create_tree.add_argument('--min_rep_perc_aa', type=float, default=20,
+                                              help='Filter representative genomes with an insufficient percentage of AA in the MSA.')
     optional_markers_create_tree.add_argument('--min_perc_taxa', type=float, default=50,
                                               help='minimum percentage of taxa required required to retain column.')
     optional_markers_create_tree.add_argument('--consensus', type=float, default=25,
