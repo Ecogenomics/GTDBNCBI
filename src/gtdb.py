@@ -229,6 +229,7 @@ def PullGenomes(db, args):
                           list_ids,
                           args.genomic,
                           args.gene,
+                          args.gene_nt,
                           args.out_dir,
                           args.gtdb_header)
 
@@ -675,6 +676,8 @@ if __name__ == '__main__':
                                              help='Pull genomic sequences.')
     atleastone_genome_pull_data.add_argument('--gene', default=None, action='store_true',
                                              help='Pull called genes in amino acid space.')
+    atleastone_genome_pull_data.add_argument('--gene_nt', default=None, action='store_true',
+                                             help='Pull called genes in nucleotide space.')
 
     required_markers_genome_pull = parser_genome_pull.add_argument_group('required arguments')
     required_markers_genome_pull.add_argument('--output', dest='out_dir', required=True,

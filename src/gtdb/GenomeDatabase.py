@@ -337,7 +337,7 @@ class GenomeDatabase(object):
 
     def PullGenomes(self,
                     batchfile, external_ids, list_of_list_id,
-                    genomic, gene, out_dir, gtdb_header):
+                    genomic, gene, gene_nt, out_dir, gtdb_header):
         '''
         Copy genomic and gene data to specifed output directory
 
@@ -345,7 +345,8 @@ class GenomeDatabase(object):
         :param external_ids: List of ids describing genomes to pull.
         :param list_of_list_id: List of genome list IDs of genomes to pull.
         :param genomic: Flag indicating if genomic data should be pulled.
-        :param gene: Flag indicating if gene data should be pulled.
+        :param gene: Flag indicating if amino acid gene data should be pulled.
+        :param gene_nt: Flag indicating if nucleotide gene data should be pulled.
         :param out_dir: Desired directory to copy data to.
         '''
         try:
@@ -373,7 +374,7 @@ class GenomeDatabase(object):
                     genome_list_mngr.getGenomeIdsFromGenomeListIds(list_of_list_id))
 
             # copy data for each genome
-            genome_mngr.copyGenomes(db_genome_ids, genomic, gene, out_dir, gtdb_header)
+            genome_mngr.copyGenomes(db_genome_ids, genomic, gene, gene_nt, out_dir, gtdb_header)
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
