@@ -169,11 +169,11 @@ class GenomeManager(object):
             self.logger.info("Identifying TIGRfam protein families.")
             gene_files = [file_paths[db_genome_id]['aa_gene_path']
                           for db_genome_id in genomic_files]
-            tigr_search = TigrfamSearch(self.threads)
+            tigr_search = TigrfamSearch(self.cur, self.currentUser, self.threads)
             tigr_search.run(gene_files)
 
             self.logger.info("Identifying Pfam protein families.")
-            pfam_search = PfamSearch(self.threads)
+            pfam_search = PfamSearch(self.cur, self.currentUser, self.threads)
             pfam_search.run(gene_files)
         except:
             if os.path.exists(self.tmp_output_dir):
@@ -423,7 +423,7 @@ class GenomeManager(object):
 
                     out_file = os.path.join(out_dir, gtdb_filename)
                     shutil.copy(gene_file, out_file)
-                 
+
                 if gene_nt:
                     gene_file = os.path.join(dir_prefix, genes_file_location)
                     if gtdb_header and external_id_prefix != 'U':
