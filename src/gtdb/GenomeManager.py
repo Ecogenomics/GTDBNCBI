@@ -425,7 +425,7 @@ class GenomeManager(object):
                     shutil.copy(gene_file, out_file)
                  
                 if gene_nt:
-                    gene_file = os.path.join(dir_prefix, genes_file_location)
+                    gene_file = os.path.join(dir_prefix, genes_file_location.replace('.faa', '.fna'))
                     if gtdb_header and external_id_prefix != 'U':
                         gtdb_filename = external_id_prefix + "_" + id_at_source + '_gene.fna'
                     else:

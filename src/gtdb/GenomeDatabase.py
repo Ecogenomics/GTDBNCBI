@@ -555,6 +555,8 @@ class GenomeDatabase(object):
             if genome_batchfile:
                 fh = open(genome_batchfile, "rb")
                 for line in fh:
+                    if line[0] == '#':
+                        continue
                     line = line.strip().split('\t')
                     genome_batchfile_ids.append(line[0])
 
@@ -667,6 +669,8 @@ class GenomeDatabase(object):
             if guaranteed_batchfile:
                 batch_genome_id = []
                 for line in open(guaranteed_batchfile):
+                    if line[0] == '#':
+                        continue
                     batch_genome_id.append(line.strip().split('\t')[0])
 
                 db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(batch_genome_id)

@@ -31,6 +31,7 @@ __status__ = 'Development'
 
 import os
 import sys
+import shutil
 import ntpath
 import argparse
 import multiprocessing as mp
@@ -70,15 +71,18 @@ class RunProdigal(object):
                 genome_id = assembly_id[0:assembly_id.find('_', 4)]
 
                 # check if prodigal has already been called
-                aa_gene_file = os.path.join(assembly_dir, 'prodigal', genome_id + '_protein.faa')
-                if os.path.exists(aa_gene_file):
-                    # verify checksum
-                    checksum_file = aa_gene_file + '.sha256'
-                    if os.path.exists(checksum_file):
-                        checksum = sha256(aa_gene_file)
-                        cur_checksum = open(checksum_file).readline().strip()
-                        if checksum == cur_checksum:
-                            continue
+                if False:
+                    # for safety, I am just recalling genes for all genomes right now,
+                    # but this is very efficient
+                    aa_gene_file = os.path.join(assembly_dir, 'prodigal', genome_id + '_protein.faa')
+                    if os.path.exists(aa_gene_file):
+                        # verify checksum
+                        checksum_file = aa_gene_file + '.sha256'
+                        if os.path.exists(checksum_file):
+                            checksum = sha256(aa_gene_file)
+                            cur_checksum = open(checksum_file).readline().strip()
+                            if checksum == cur_checksum:
+                                continue
 
                 genome_file = os.path.join(assembly_dir, assembly_id + '_genomic.fna')
                 if os.path.exists(genome_file):
@@ -106,8 +110,10 @@ class RunProdigal(object):
 
             genome_root = genome_id[0:genome_id.find('_', 4)]
             prodigal_path = os.path.join(genome_path, 'prodigal')
-            if not os.path.exists(prodigal_path):
-                os.makedirs(prodigal_path)
+            if os.path.exists(prodigal_path):
+                shutil.rmtree(prodigal_path)
+
+            os.makedirs(prodigal_path)
             new_aa_gene_file = os.path.join(prodigal_path, genome_root + '_protein.faa')
             new_nt_gene_file = os.path.join(prodigal_path, genome_root + '_protein.fna')
             new_gff_file = os.path.join(prodigal_path, genome_root + '_protein.gff')
