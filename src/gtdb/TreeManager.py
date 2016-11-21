@@ -288,8 +288,8 @@ class TreeManager(object):
             external_genome_id = genome_metadata[genome_name_index]
 
             # get aligned markers
-            aligned_marker_query = ("SELECT aligned_markers.marker_id, sequence, multiple_hits, evalue " +
-                                    "FROM aligned_markers " +
+            aligned_marker_query = ("SELECT am.marker_id, sequence, multiple_hits, evalue " +
+                                    "FROM aligned_markers am " +
                                     "LEFT JOIN markers m on m.id=am.marker_id " +
                                     "WHERE genome_id = %s " +
                                     "AND sequence is NOT NULL " +
