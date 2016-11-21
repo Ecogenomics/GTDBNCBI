@@ -131,7 +131,7 @@ class TreeManager(object):
                                                        quality_weight,
                                                        comp_threshold,
                                                        cont_threshold)
-                                                       
+
         # sanity check representatives are not of poor quality
         final_filtered_genomes = set()
         for genome_id, quality in filtered_genomes.iteritems():
@@ -142,9 +142,9 @@ class TreeManager(object):
                     final_filtered_genomes.add(genome_id)
                     fout_filtered.write(
                         '%s\t%s\t%.2f\t%.2f\n' % (external_ids[genome_id],
-                                                      'Filtered on quality (completeness, contamination).',
-                                                      quality[0],
-                                                      quality[1]))
+                                                  'Filtered on quality (completeness, contamination).',
+                                                  quality[0],
+                                                  quality[1]))
 
         self.logger.info('Filtered %d genomes based on completeness, contamination, and quality.' % len(final_filtered_genomes))
 
@@ -200,7 +200,7 @@ class TreeManager(object):
                     else:
                         self.logger.warning('Retaining representative genome %s despite small numbers of aligned amino acids (%.1f%%).' % (external_ids[genome_id], perc_alignment))
                         continue
-                        
+
                 filter_on_aa.add(genome_id)
                 fout_filtered.write(
                     '%s\t%s\t%d\t%.1f\t%s\n' % (external_ids[genome_id],
@@ -290,9 +290,11 @@ class TreeManager(object):
             # get aligned markers
             aligned_marker_query = ("SELECT aligned_markers.marker_id, sequence, multiple_hits, evalue " +
                                     "FROM aligned_markers " +
+                                    "LEFT JOIN markers m on m.id=am.marker_id " +
                                     "WHERE genome_id = %s " +
                                     "AND sequence is NOT NULL " +
-                                    "AND marker_id in %s ")
+                                    "AND marker_id in %s " +
+                                    "ORDER BY m.id_in_database")
 
             self.cur.execute(aligned_marker_query,
                              (db_genome_id, tuple(marker_ids)))
@@ -348,7 +350,7 @@ class TreeManager(object):
         trimmed_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons = self._trim_seqs(
             msa, min_perc_taxa / 100.0, consensus / 100.0, min_perc_aa / 100.0)
         self.logger.info('Trimmed alignment from %d to %d AA (%d by minimum taxa percent, %d by consensus).' % (len(msa[msa.keys()[0]]),
-                                                                                                                                  len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
+                                                                                                                len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
         self.logger.info('After trimming %d taxa have amino acids in <%.1f%% of columns.' % (
             len(pruned_seqs), min_perc_aa))
 
