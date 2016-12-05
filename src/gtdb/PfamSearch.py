@@ -28,8 +28,11 @@ import ConfigMetadata
 class PfamSearch(object):
     """Runs pfam_search.pl over a set of genomes."""
 
-    def __init__(self, threads):
+    def __init__(self, cur, currentUser, threads):
         """Initialization."""
+
+        self.cur = cur
+        self.currentUser = currentUser
 
         self.threads = threads
 
@@ -96,7 +99,7 @@ class PfamSearch(object):
         """Process each data item in parallel."""
         while True:
             gene_file = queueIn.get(block=True, timeout=None)
-            if gene_file == None:
+            if gene_file is None:
                 break
 
             genome_dir, filename = os.path.split(gene_file)
@@ -125,7 +128,7 @@ class PfamSearch(object):
         processedItems = 0
         while True:
             a = writerQueue.get(block=True, timeout=None)
-            if a == None:
+            if a is None:
                 break
 
             processedItems += 1
@@ -135,6 +138,21 @@ class PfamSearch(object):
             sys.stdout.write('%s\r' % statusStr)
             sys.stdout.flush()
 
+            #===============================================================================
+            # During the TigrFam and Pfam searches no call is made to the database.
+            # The transaction is in an open state but idle and after a certain time Postgres or a Firewall is stopping the connection (Timeout error).
+            # When the searches are done , GTDB try to submit data to Watson thinking the connection is still open and it crashes.
+            # This error does not happen for smaller datasets because the searches are way quicker and pass through the Firewall/PostgresQL timeout threshold.
+            # To avoid this crash, we are running a dummy request (SELECT 1) every 'n' searches (here 200) to keep the connection open
+            # by resetting the timeout connection countdown to 0.
+            #===============================================================================
+            if (processedItems % 200) == 0:
+                try:
+                    self.cur.execute("SELECT 1")
+                except:
+                    raise
+
+        self.cur.execute("SELECT 1")
         sys.stdout.write('\n')
 
     def run(self, gene_files):

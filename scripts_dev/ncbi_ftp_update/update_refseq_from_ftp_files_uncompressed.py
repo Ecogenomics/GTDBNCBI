@@ -352,12 +352,16 @@ class UpdateRefSeqFolder(object):
         for name in glob.glob(os.path.join(pathtodir, '*')):
             if name.endswith(self.extrafastaExts):
                 out_dict_extra_fasta[os.path.basename(name)] = self.sha256Calculator(name)
+                os.chmod(name, 0o664)
             elif name.endswith(self.genomic_ext):
                 out_dict_fasta[os.path.basename(name)] = self.sha256Calculator(name)
+                os.chmod(name, 0o664)
             elif name.endswith(self.protein_ext):
                 out_dict_faa[os.path.basename(name)] = self.sha256Calculator(name)
+                os.chmod(name, 0o664)
             elif name.endswith(self.allbutFasta):
                 out_dict[os.path.basename(name)] = self.sha256Calculator(name)
+                os.chmod(name, 0o664)
         return (out_dict, out_dict_fasta, out_dict_faa, out_dict_extra_fasta)
 
 
