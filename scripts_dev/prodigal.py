@@ -110,10 +110,8 @@ class RunProdigal(object):
 
             genome_root = genome_id[0:genome_id.find('_', 4)]
             prodigal_path = os.path.join(genome_path, 'prodigal')
-            if os.path.exists(prodigal_path):
-                shutil.rmtree(prodigal_path)
-
-            os.makedirs(prodigal_path)
+            if not os.path.exists(prodigal_path):
+                os.makedirs(prodigal_path)
             new_aa_gene_file = os.path.join(prodigal_path, genome_root + '_protein.faa')
             new_nt_gene_file = os.path.join(prodigal_path, genome_root + '_protein.fna')
             new_gff_file = os.path.join(prodigal_path, genome_root + '_protein.gff')

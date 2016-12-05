@@ -68,17 +68,26 @@ class Tigrfam(object):
         break
 
       assembly_dir, filename = os.path.split(gene_file)
-      output_hit_file = os.path.join(assembly_dir, filename.replace(self.protein_file_ext, '_tigrfam.tsv'))
-      hmmsearch_out = os.path.join(assembly_dir, filename.replace(self.protein_file_ext, '_tigrfam.out'))
-      if not os.path.exists(hmmsearch_out):
+      
+      running_file = os.path.join(assembly_dir, filename.replace(self.protein_file_ext, '_tigrfam.running'))
+      if not os.path.exists(running_file):
+        fout = open(running_file, 'w')
+        fout.write('running')
+        fout.close()
+        
+        output_hit_file = os.path.join(assembly_dir, filename.replace(self.protein_file_ext, '_tigrfam.tsv'))
+        hmmsearch_out = os.path.join(assembly_dir, filename.replace(self.protein_file_ext, '_tigrfam.out'))
         cmd = 'hmmsearch -o %s --tblout %s --noali --notextw --cut_nc --cpu 1 %s %s' % (hmmsearch_out, output_hit_file, self.tigrfam_hmms, gene_file)
         os.system(cmd)
 
-      # calculate checksum
-      checksum = sha256(output_hit_file)
-      fout = open(output_hit_file + '.sha256', 'w')
-      fout.write(checksum)
-      fout.close()
+        # calculate checksum
+        checksum = sha256(output_hit_file)
+        fout = open(output_hit_file + '.sha256', 'w')
+        fout.write(checksum)
+        fout.close()
+
+        if os.path.exists(running_file):
+            os.remove(running_file)
 
       # allow results to be processed or written to file
       queueOut.put(gene_file)
@@ -115,13 +124,14 @@ class Tigrfam(object):
     # get path to all unprocessed genome gene files
     print 'Reading genomes.'
     gene_files = []
-    for genome_id in os.listdir(genome_dir):
-      cur_genome_dir = os.path.join(genome_dir, genome_id)
+    for species_dir in os.listdir(genome_dir):
+      cur_genome_dir = os.path.join(genome_dir, species_dir)
       if os.path.isdir(cur_genome_dir):
         for assembly_id in os.listdir(cur_genome_dir):
-          assembly_dir = os.path.join(cur_genome_dir, assembly_id)
+          prodigal_dir = os.path.join(cur_genome_dir, assembly_id, 'prodigal')
+          genome_id = assembly_id[0:assembly_id.find('_', 4)]
 
-          tigrfam_file = os.path.join(assembly_dir, assembly_id + '_tigrfam.tsv')
+          tigrfam_file = os.path.join(prodigal_dir, genome_id + '_tigrfam.tsv')
           if os.path.exists(tigrfam_file):
             # verify checksum
             checksum_file = tigrfam_file + '.sha256'
@@ -129,9 +139,19 @@ class Tigrfam(object):
               checksum = sha256(tigrfam_file)
               cur_checksum = open(checksum_file).readline().strip()
               if checksum == cur_checksum:
+                if genome_id in genomes_to_consider:
+                    print '[WARNING] Genome %s is marked as new or modified, but already has TIGRfam annotations.' % genome_id
+                    print '[WARNING] Genome is being skipped!'
                 continue
+                
+            print '[WARNING] Genome %s has TIGRfam annotations, but an invalid checksum and was not marked for reannotation.' % genome_id
+            print '[WARNING] Genome will be reannotated.'
+      
+          elif genome_id not in genomes_to_consider:
+            print '[WARNING] Genome %s has no TIGRfam annotations, but is also not marked for processing?' % genome_id
+            print '[WARNING] Genome will be reannotated!'
 
-          gene_file = os.path.join(assembly_dir, assembly_id + self.protein_file_ext)
+          gene_file = os.path.join(prodigal_dir, genome_id + self.protein_file_ext)
           if os.path.exists(gene_file):
             if os.stat(gene_file).st_size == 0:
                 print '[Warning] Protein file appears to be empty: %s' % gene_file
