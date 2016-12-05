@@ -72,8 +72,8 @@ class SSU(object):
   def run(self, rna_gene, ncbi_genome_dir, user_genome_dir, cpus):
     """Create metadata by parsing assembly stats files."""
     
-    #***print 'Running with GreenGenes database'
-    #***self._run(rna_gene, ncbi_genome_dir, user_genome_dir, 'GG', cpus)
+    print 'Running with GreenGenes database'
+    self._run(rna_gene, ncbi_genome_dir, user_genome_dir, 'GG', cpus)
     
     print 'Running with SILVA database'
     self._run(rna_gene, ncbi_genome_dir, user_genome_dir, 'SILVA', cpus)
