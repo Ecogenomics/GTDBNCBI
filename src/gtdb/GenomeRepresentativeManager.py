@@ -226,34 +226,6 @@ class GenomeRepresentativeManager(object):
 
         return derep_genome_ids
 
-    def userDereplicatedGenomes(self):
-        """Get identifiers from the dereplicated set of User genome.
-
-        Identifiers are return for User representative genomes
-        and User genomes without a representative.
-
-        Returns
-        -------
-        list
-            List of database genome identifiers.
-        """
-
-        try:
-            genome_mngr = GenomeManager(self.cur, self.currentUser)
-            user_genomes_ids = genome_mngr.userGenomeIds()
-
-            self.cur.execute("SELECT id " +
-                             "FROM metadata_taxonomy " +
-                             "WHERE (gtdb_representative = 'TRUE' " +
-                             "OR gtdb_genome_representative IS NULL) " +
-                             "AND id = ANY(%s)", (user_genomes_ids,))
-            derep_genome_ids = [genome_id[0] for genome_id in self.cur]
-
-        except GenomeDatabaseError as e:
-            raise e
-
-        return derep_genome_ids
-
     def sraRepresentatives(self):
         """Get identifiers for representatives SRA genomes.
         
