@@ -31,6 +31,7 @@ __status__ = 'Development'
 
 import os
 import sys
+import csv
 import argparse
 import tempfile
 from collections import defaultdict
@@ -46,12 +47,12 @@ class AddRepresentativeGenomes(object):
     
     # initially mark all genomes as not being representatives 
     is_rep = {}
-    with open(gtdb_metadata_file) as f:
-        f.readline() # read header
-        
-        for line in f:
-            line_split = line.split(',')
-            is_rep[line_split[0]] = False
+    header = True
+    for row in csv.reader(open(gtdb_metadata_file, 'rb')):
+        if header:
+            header = False
+        else:
+            is_rep[row[0]] = False
             
     print len(is_rep)
     
