@@ -484,7 +484,6 @@ class GenomeDatabase(object):
 
     def GetGenomeIds(self, all_dereplicated,
                      ncbi_dereplicated,
-                     user_dereplicated,
                      donovan_sra_dereplicated,
                      all_genomes,
                      ncbi_genomes,
@@ -519,12 +518,8 @@ class GenomeDatabase(object):
                 genome_id_list.update(ids)
 
             if ncbi_dereplicated:
-                include_user_reps = not (all_dereplicated or user_dereplicated)
+                include_user_reps = not (all_dereplicated or donovan_sra_dereplicated)
                 ids = genome_rep_mngr.ncbiDereplicatedGenomes(include_user_reps)
-                genome_id_list.update(ids)
-
-            if user_dereplicated:
-                ids = genome_rep_mngr.userDereplicatedGenomes()
                 genome_id_list.update(ids)
 
             if donovan_sra_dereplicated:
