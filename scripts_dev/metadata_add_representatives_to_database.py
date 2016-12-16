@@ -36,6 +36,8 @@ import argparse
 import tempfile
 from collections import defaultdict
 
+csv.field_size_limit(sys.maxsize)
+
 class AddRepresentativeGenomes(object):
   """Populate 'gtdb_genome_representative' and 'gtdb_representative' fields in database."""
 
