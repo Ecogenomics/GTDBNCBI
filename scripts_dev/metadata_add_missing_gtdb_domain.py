@@ -38,6 +38,8 @@ from collections import defaultdict
 
 from biolib.taxonomy import Taxonomy
 
+csv.field_size_limit(sys.maxsize)
+
 class FillMissingDomain(object):
   def __init__(self):
     pass
@@ -60,11 +62,11 @@ class FillMissingDomain(object):
             genome_id = row[genome_index]
             gtdb_domain = row[gtdb_domain_index]
             ncbi_taxonomy = row[ncbi_taxonomy_index]
-            
+
             if (not gtdb_domain or gtdb_domain == 'd__') and ncbi_taxonomy:
                 ncbi_domain = ncbi_taxonomy.split(';')[0]
                 if ncbi_domain != 'd__':
-                    print 'here'
+                    print genome_id, ncbi_domain
                     temp_file.write('%s\t%s\n' % (genome_id, ncbi_domain))
                 else:
                     print '[WARNING] NCBI genomes has no GTDB domain or valid NCBI taxonomy: %s' % genome_id
