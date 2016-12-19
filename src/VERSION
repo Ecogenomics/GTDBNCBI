@@ -1,9 +1,11 @@
-software_version=2.1.7
+software_version=2.1.8
 ncbi_database_version=release 78
-gtdb_version=1.2.4
+gtdb_version=1.2.5
 
 GTDB software versions
 ----------------------
+v2.1.7 (Dec. 19, 2016):
+- bug fixes
 v2.1.7 (Dec. 9, 2016):
 - starting with RefSeq r78 User genomes were no longer eligable to be GTDB representatives
 - updated CLI and code to reflect absence of User representative genomes 
