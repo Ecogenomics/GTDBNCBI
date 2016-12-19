@@ -37,7 +37,7 @@ from PfamSearch import PfamSearch
 
 from biolib.checksum import sha256
 from biolib.common import make_sure_path_exists
-from Tools import splitchunks
+from Tools import splitchunks, confirm
 from psycopg2.extensions import AsIs
 
 
@@ -765,14 +765,6 @@ class GenomeManager(object):
 
         return study_id
 
-    # TODO: This should not be here, techincally the backend is agnostic so
-    # shouldn't assume command line.
-    def _confirm(self, msg):
-        raw = raw_input(msg + " (y/N): ")
-        if raw.upper() == "Y":
-            return True
-        return False
-
     def deleteGenomes(self, batchfile=None, db_genome_ids=None, reason=None):
         '''
         Delete Genomes
@@ -803,7 +795,7 @@ class GenomeManager(object):
                     "Unable to delete genomes. Insufficient permissions.")
 
             if db_genome_ids:
-                if not self._confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(db_genome_ids)):
+                if not confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(db_genome_ids)):
                     raise GenomeDatabaseError("User aborted database action.")
 
                 self.cur.execute("DELETE FROM aligned_markers " +

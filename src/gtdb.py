@@ -32,6 +32,8 @@ from gtdb import GenomeDatabase
 from gtdb import DefaultValues
 from gtdb.Exceptions import GenomeDatabaseError
 
+from gtdb.Tools import confirm
+
 
 def version():
     """Read software and NCBI version information from file.
@@ -160,32 +162,55 @@ def CreateTreeData(db, args):
                                                      args.genome_ids,
                                                      args.genome_batchfile)
 
+    print len(genome_id_list)
+
+    #===========================================================================
+    # Warning
+    # When one of the 2 main marker sets is chosen (Archaeal or Bacterial)
+    # AND the taxa filter is absent AND the force flag is not selected.
+    # A message is sent to the user to confirm the tree creation command
+    #===========================================================================
+    if args.marker_set_ids and not args.taxa_filter and not args.force:
+        list_ids = args.marker_set_ids.split(",")
+        if len(list_ids) == 1:
+            check = False
+            if list_ids[0] == '1':
+                marker_domain = ("Bacterial", "d__Bacteria")
+                check = True
+            elif list_ids[0] == '2':
+                marker_domain = ("Archaeal", "d__Archaea")
+                check = True
+            if check:
+                if not confirm("{0} marker set has been selected but --taxa_filter has not been specified ({1} recommended). continue with no taxa filter".format(marker_domain[0], marker_domain[1])):
+                    db.ReportError("User aborted tree creation.")
+                    return False
+
     marker_id_list = db.GetMarkerIds(args.marker_ids,
                                      args.marker_set_ids,
                                      args.marker_batchfile)
 
-    return db.MakeTreeData(marker_id_list, 
-                            genome_id_list,
-                            args.out_dir, 
-                            args.prefix,
-                            args.quality_threshold,
-                            args.quality_weight,
-                            args.comp_threshold,
-                            args.cont_threshold,
-                            args.min_perc_aa, 
-                            args.min_rep_perc_aa,
-                            args.min_perc_taxa, 
-                            args.consensus,
-                            args.taxa_filter,
-                            args.excluded_genome_list_ids, 
-                            args.excluded_genome_ids,
-                            args.guaranteed_genome_list_ids,
-                            args.guaranteed_genome_ids,
-                            args.guaranteed_batchfile,
-                            rep_genome_ids,
-                            not args.no_alignment,
-                            args.individual,
-                            not args.no_tree)
+    return db.MakeTreeData(marker_id_list,
+                           genome_id_list,
+                           args.out_dir,
+                           args.prefix,
+                           args.quality_threshold,
+                           args.quality_weight,
+                           args.comp_threshold,
+                           args.cont_threshold,
+                           args.min_perc_aa,
+                           args.min_rep_perc_aa,
+                           args.min_perc_taxa,
+                           args.consensus,
+                           args.taxa_filter,
+                           args.excluded_genome_list_ids,
+                           args.excluded_genome_ids,
+                           args.guaranteed_genome_list_ids,
+                           args.guaranteed_genome_ids,
+                           args.guaranteed_batchfile,
+                           rep_genome_ids,
+                           not args.no_alignment,
+                           args.individual,
+                           not args.no_tree)
 
 
 def ViewGenomes(db, args):
@@ -235,7 +260,8 @@ def PullGenomes(db, args):
 
 def ExportSSUSequences(db, args):
     return db.ExportSSUSequences(args.outfile)
-    
+
+
 def ExportLSUSequences(db, args):
     return db.ExportLSUSequences(args.outfile)
 
@@ -724,7 +750,7 @@ if __name__ == '__main__':
                                             help="Show help message.")
 
     parser_genome_ssu_export.set_defaults(func=ExportSSUSequences)
-    
+
     # export LSU sequences for all genomes
     parser_genome_lsu_export = genome_category_subparser.add_parser('lsu_export',
                                                                     add_help=False,

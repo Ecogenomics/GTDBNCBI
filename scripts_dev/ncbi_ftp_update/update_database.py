@@ -39,7 +39,9 @@ import gzip
 import sys
 import argparse
 import datetime
+import ntpath
 
+from biolib.common import remove_extension
 from dateutil.parser import parse
 from database_configuration import GenomeDatabaseConnectionFTPUpdate
 
@@ -160,8 +162,9 @@ class UpdateGTDBDatabase(object):
         list_genome_details.append(update_date)
         list_genome_details.append(True)
         list_genome_details.append(update_date)
-        gene_file_path = os.path.join(genome_dirs_dict[checkm_record],
-                                      os.path.basename(genome_dirs_dict[checkm_record]) + "_protein.faa")
+        _genome_path, genome_id = ntpath.split(genome_dirs_dict[checkm_record])
+        genome_id = genome_id[0:genome_id.find('_', 4)]
+        gene_file_path = os.path.join(genome_dirs_dict[checkm_record], "prodigal", genome_id + "_protein.faa")
         gene_file_path_shorten = re.sub(r"(.+/)(archaea\/|bacteria\/)", r"\g<2>", gene_file_path)
         list_genome_details.append(gene_file_path_shorten)
         list_genome_details.append(self.sha256Calculator(gene_file_path))
@@ -215,7 +218,10 @@ class UpdateGTDBDatabase(object):
                     query = "update genomes set fasta_file_sha256 = '{0}' where name like '{1}'".format(
                         new_md5_genomic, checkm_record)
                     self.temp_cur.execute(query)
-                gene_files = glob.glob(genome_dirs_dict[checkm_record] + "/*_protein.faa")
+                _genome_path, genome_id = ntpath.split(genome_dirs_dict[checkm_record])
+                genome_id = genome_id[0:genome_id.find('_', 4)]
+                gene_file_path = os.path.join(genome_dirs_dict[checkm_record], "prodigal")
+                gene_files = glob.glob(gene_file_path + "/*_protein.faa")
                 if len(gene_files) == 1:
                     gene_file = gene_files[0]
                     new_md5_gene = self.sha256Calculator(gene_file)

@@ -148,14 +148,6 @@ class GenomeDatabase(object):
     def SetDebugMode(self, debug_mode):
         self.debugMode = debug_mode
 
-    # TODO: This should not be here, technically the backend is agnostic so
-    # shouldn't assume command line.
-    def Confirm(self, msg):
-        raw = raw_input(msg + " (y/N): ")
-        if raw.upper() == "Y":
-            return True
-        return False
-
     def addUser(self, username, role, login_has_root):
         try:
             cur = self.conn.cursor()
@@ -684,9 +676,11 @@ class GenomeDatabase(object):
                                             for x in excluded_genome_list_ids.split(",")]
                 db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(excluded_genome_list_ids)
                 genomes_to_exclude.update(db_genome_ids)
-                
+
             # make sure all markers are aligned
             aligned_mngr = AlignedMarkerManager(cur, self.threads)
+            print "in GenomeDatabase:"
+            print len(genome_ids)
             aligned_mngr.calculateAlignedMarkerSets(genome_ids, marker_ids)
 
             # create tree data

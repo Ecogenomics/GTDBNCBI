@@ -139,7 +139,7 @@ class PowerUserManager(object):
                 if representative not in all_source_ids:
                     print "REPRESENTATIVE {0} has been removed from the database".format(representative)
 
-            query = ("SELECT id,ncbi_protein_count,ncbi_submitter from metadata_ncbi WHERE id in (SELECT id from genomes where genome_source_id in (2,3));")
+            query = ("SELECT id,protein_count,ncbi_submitter from metadata_genes LEFT JOIN metadata_ncbi using (id) WHERE id in (SELECT id from genomes where genome_source_id in (2,3));")
             self.cur.execute(query)
             dict_meta_ncbi = {gid: {"count": count, "submitter": project} for (gid, count, project) in self.cur}
 
@@ -148,7 +148,7 @@ class PowerUserManager(object):
                     print "{0} has no metadata in metadata_ncbi".format(dict_all_ids[ncbi_genome])
                 else:
                     if dict_meta_ncbi[ncbi_genome]["count"] is None or dict_meta_ncbi[ncbi_genome]["count"] == '' or dict_meta_ncbi[ncbi_genome]["count"] == 0:
-                        print "{0} ncbi_protein_count value in metadata_ncbi is {1}".format(dict_all_ids[ncbi_genome], dict_meta_ncbi[ncbi_genome]["count"])
+                        print "{0} ncbi_protein_count value in metadata_nucleotide is {1}".format(dict_all_ids[ncbi_genome], dict_meta_ncbi[ncbi_genome]["count"])
                     if dict_meta_ncbi[ncbi_genome]["submitter"] is None or dict_meta_ncbi[ncbi_genome]["submitter"] == '':
                         print "{0} ncbi_submitter value in metadata_ncbi is {1}".format(dict_all_ids[ncbi_genome], dict_meta_ncbi[ncbi_genome]["submitter"])
 
