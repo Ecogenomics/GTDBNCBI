@@ -67,6 +67,9 @@ v0.0.1:
 
 GTDB database versions
 ----------------------
+v1.2.5 (December 19, 2016):
+- New representative Set
+- Official release for R78
 v1.2.4 (October 10, 2016):
 - New parsed metadata in the database
 - New table metadata_sequence

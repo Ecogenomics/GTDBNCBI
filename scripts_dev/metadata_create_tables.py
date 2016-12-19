@@ -106,11 +106,6 @@ class MetadataTable(object):
         fout.write('\n')
 
     def _parse_taxonomy_file(self, genome_id, metadata_taxonomy_file, fout, prefix, fna_file, summary_file=None):
-        if genome_id == "U_65409":
-            print genome_id
-            print metadata_taxonomy_file
-            print fna_file
-            print summary_file
         """Parse metadata file with taxonomic information for 16S rRNA genes.
 
         Parameters
@@ -202,8 +197,8 @@ class MetadataTable(object):
         fout_lsu_silva_count.write('%s\t%s\n' % ('genome_id', 'lsu_count'))
 
         # generate metadata for NCBI assemblies
-        for ncbi_genome_dir in [genbank_genome_dir, refseq_genome_dir]:
-            # for ncbi_genome_dir in [genbank_genome_dir]:
+        # for ncbi_genome_dir in [genbank_genome_dir, refseq_genome_dir]:
+        for ncbi_genome_dir in [genbank_genome_dir]:
             processed_assemblies = defaultdict(list)
             print 'Reading NCBI assembly directories: %s' % ncbi_genome_dir
             processed_assemblies = defaultdict(list)
@@ -212,16 +207,24 @@ class MetadataTable(object):
                 for species_dir in os.listdir(domain_dir):
                     full_species_dir = os.path.join(domain_dir, species_dir)
                     for assembly_dir in os.listdir(full_species_dir):
+                        no_gc = ("GCA_000820785.2", "GCA_001059375.1", "GCA_001642695.1", "GCA_001642875.1", "GCA_001643385.1", "GCA_001643435.1", "GCA_001643455.1", "GCA_001643475.1", "GCA_001643485.1", "GCA_001643515.1", "GCA_001643535.1", "GCA_001643555.1", "GCA_001643565.1", "GCA_001643585.1", "GCA_001643615.1", "GCA_001643635.1", "GCA_001647515.1", "GCA_001649695.1", "GCA_001649735.1", "GCA_001649885.1", "GCA_001649915.1", "GCA_001655195.1", "GCA_001657295.1", "GCA_001657305.1", "GCA_001657315.1", "GCA_001657325.1", "GCA_001657375.1", "GCA_001657385.1", "GCA_001657395.1", "GCA_001657925.1", "GCA_001674955.1", "GCA_001678045.1", "GCA_001678065.1", "GCA_001683835.1", "GCA_001683845.1", "GCA_001683895.1", "GCA_001683905.1", "GCA_001683985.1", "GCA_001684155.1", "GCA_001684175.1", "GCA_001686345.1", "GCA_001686385.1", "GCA_001689405.1", "GCA_001689415.1", "GCA_001689425.1", "GCA_001689445.1", "GCA_001689485.1", "GCA_001689495.1", "GCA_001689515.1", "GCA_001689535.1", "GCA_001689565.1", "GCA_001689575.1", "GCA_001689585.1", "GCA_001689615.1", "GCA_001689645.1", "GCA_001689655.1", "GCA_001689665.1", "GCA_001689685.1", "GCA_001689725.1", "GCA_001700485.1", "GCA_001700545.1", "GCA_001701065.1", "GCA_001701075.1", "GCA_001701105.1", "GCA_001701115.1", "GCA_001701135.1", "GCA_001701165.1", "GCA_001701175.1", "GCA_001701195.1", "GCA_001701225.1", "GCA_001701235.1", "GCA_001701255.1", "GCA_001701285.1", "GCA_001701295.1", "GCA_001701305.1", "GCA_001702075.1", "GCA_001707145.1", "GCA_001707235.1", "GCA_001714685.1", "GCA_001717005.1", "GCA_001717015.1", "GCA_001717025.1", "GCA_001717035.1", "GCA_001717085.1", "GCA_001719265.1", "GCA_001719315.1", "GCA_001719375.1", "GCA_001719405.1", "GCA_001719445.1", "GCA_001719465.1", "GCA_001719545.1", "GCA_001723875.1", "GCA_001726005.1", "GCA_001726145.1", "GCA_001730645.1", "GCA_001735855.1", "GCA_001735875.1", "GCA_001735895.1", "GCA_001735915.1", "GCA_001742805.1", "GCA_001743105.1", "GCA_001743115.1", "GCA_001743125.1", "GCA_001743135.1", "GCA_001743185.1", "GCA_001743195.1", "GCA_001743215.1", "GCA_001743235.1", "GCA_001743265.1", "GCA_001743275.1", "GCA_001743285.1", "GCA_001743305.1", "GCA_001743345.1", "GCA_001743355.1", "GCA_001743375.1", "GCA_001743385.1", "GCA_001743425.1", "GCA_001743435.1", "GCA_001743455.1", "GCA_001743465.1", "GCA_001743495.1", "GCA_001746265.1", "GCA_001746285.1", "GCA_001746295.1", "GCA_001746305.1", "GCA_001746315.1", "GCA_001746365.1", "GCA_900002425.1", "GCA_900002435.1", "GCA_900002475.1", "GCA_900002485.1", "GCA_900002525.1", "GCA_900005695.1", "GCA_900006345.1", "GCA_900007725.1", "GCA_900007735.1", "GCA_900007745.1", "GCA_900007815.1", "GCA_900007825.1", "GCA_900007835.1", "GCA_900007845.1", "GCA_900007855.1", "GCA_900007865.1", "GCA_900007875.1", "GCA_900007885.1", "GCA_900007895.1", "GCA_900007905.1", "GCA_900007915.1", "GCA_900007925.1", "GCA_900007935.1", "GCA_900007945.1", "GCA_900007955.1", "GCA_900007965.1", "GCA_900007975.1", "GCA_900007985.1", "GCA_900007995.1", "GCA_900008005.1", "GCA_900008015.1", "GCA_900008025.1", "GCA_900008035.1", "GCA_900008045.1", "GCA_900008055.1", "GCA_900008065.1", "GCA_900008865.1", "GCA_900009155.1", "GCA_900009165.1", "GCA_900009175.1", "GCA_900009185.1", "GCA_900009195.1", "GCA_900009205.1", "GCA_900009285.1", "GCA_900009295.1", "GCA_900009305.1", "GCA_900009315.1", "GCA_900009565.1", "GCA_900009575.1", "GCA_900009585.1", "GCA_900009595.1", "GCA_900009605.1", "GCA_900009615.1", "GCA_900009625.1", "GCA_900009635.1", "GCA_900009645.1", "GCA_900009745.1", "GCA_900009755.1", "GCA_900009765.1", "GCA_900009775.1", "GCA_900009785.1", "GCA_900009835.1", "GCA_900009865.1", "GCA_900009875.1", "GCA_900009885.1", "GCA_900009895.1", "GCA_900009905.1", "GCA_900009915.1", "GCA_900009985.1", "GCA_900010075.1", "GCA_900010085.1", "GCA_900010095.1", "GCA_900010195.1", "GCA_900010245.1", "GCA_900010255.1", "GCA_900010265.1", "GCA_900010275.1", "GCA_900010285.1", "GCA_900010435.1", "GCA_900010445.1", "GCA_900010455.1", "GCA_900010555.1", "GCA_900010565.1", "GCA_900010735.1", "GCA_900010745.1", "GCA_900011035.1", "GCA_900011045.1", "GCA_900011205.1", "GCA_900011215.1", "GCA_900011445.1", "GCA_900011455.1", "GCA_900011465.1", "GCA_900011475.1", "GCA_900011485.1", "GCA_900011545.1", "GCA_900011555.1", "GCA_900011765.1", "GCA_900011775.1", "GCA_900012315.1", "GCA_900012395.1", "GCA_900012665.1", "GCA_900013145.1", "GCA_900013295.1", "GCA_900013305.1", "GCA_900013315.1", "GCA_900013565.1", "GCA_900013575.1", "GCA_900014835.1", "GCA_900015085.1", "GCA_900015985.1", "GCA_900015995.1", "GCA_900016005.1", "GCA_900016015.1", "GCA_900016025.1", "GCA_900016035.1", "GCA_900016045.1", "GCA_900016055.1", "GCA_900016065.1", "GCA_900016075.1", "GCA_900016085.1", "GCA_900016095.1", "GCA_900016105.1", "GCA_900016115.1", "GCA_900016125.1", "GCA_900016135.1", "GCA_900016365.1", "GCA_900016375.1", "GCA_900019265.1", "GCA_900064405.1", "GCA_900064415.1", "GCA_900064425.1", "GCA_900064775.1", "GCA_900073015.1", "GCA_900074625.1", "GCA_900074875.1", "GCA_900080205.1", "GCA_900086605.1", "GCA_900086705.1", "GCA_900087555.1", "GCA_900087565.1", "GCA_900087675.1", "GCA_900087705.1", "GCA_900087745.1", "GCA_900087775.1", "GCA_900088145.1", "GCA_900089525.1", "GCA_900089535.1", "GCA_900089545.1", "GCA_900089555.1", "GCA_900089565.1", "GCA_900089575.1", "GCA_900089785.1", "GCA_900089995.1", "GCA_900091325.1", "GCA_900092645.1", "GCA_900092655.1", "GCA_900095705.1", "GCA_900095825.1", "GCA_900095835.1", "GCA_900095845.1", "GCA_900095855.1", "GCA_900095875.1")
+
                         accession = assembly_dir[0:assembly_dir.find('_', 4)]
 
                         processed_assemblies[accession].append(species_dir)
-                        if len(processed_assemblies[accession]) >= 2:
+                        if len(processed_assemblies[accession]) >= 2 and assembly_dir.startswith(no_gc):
+                            print assembly_dir
+                            print "processed assemblies"
                             continue
 
                         full_assembly_dir = os.path.join(full_species_dir, assembly_dir)
 
-                        protein_file = os.path.join(full_assembly_dir, assembly_dir + '_protein.faa')
-                        if not os.path.exists(protein_file):
+                        #protein_file = os.path.join(full_assembly_dir, assembly_dir + '_protein.faa')
+                        genome_id = assembly_dir[0:assembly_dir.find('_', 4)]
+                        protein_file = os.path.join(full_assembly_dir, "prodigal", genome_id + "_protein.faa")
+                        if not os.path.exists(protein_file) and assembly_dir.startswith(no_gc):
+                            print assembly_dir
+                            print "protein file"
                             continue
 
                         metadata_nt_file = os.path.join(full_assembly_dir, self.metadata_nt_file)
