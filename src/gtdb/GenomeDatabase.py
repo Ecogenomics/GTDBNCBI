@@ -679,8 +679,6 @@ class GenomeDatabase(object):
 
             # make sure all markers are aligned
             aligned_mngr = AlignedMarkerManager(cur, self.threads)
-            print "in GenomeDatabase:"
-            print len(genome_ids)
             aligned_mngr.calculateAlignedMarkerSets(genome_ids, marker_ids)
 
             # create tree data
