@@ -37,59 +37,60 @@ from collections import defaultdict
 
 from biolib.taxonomy import Taxonomy
 
+
 class AddCheckM(object):
-  """Add CheckM information for NCBI genomes to database."""
+    """Add CheckM information for NCBI genomes to database."""
 
-  def __init__(self):
-    self.metadata = {'Completeness': ['checkm_completeness', 'FLOAT'],
-                      'Contamination': ['checkm_contamination', 'FLOAT'],
-                      'Strain heterogeneity': ['checkm_strain_heterogeneity', 'FLOAT'],
-                      'Marker lineage': ['checkm_marker_lineage', 'TEXT'],
-                      '# genomes': ['checkm_genome_count', 'INT'],
-                      '# markers': ['checkm_marker_count', 'INT'],
-                      '# marker sets': ['checkm_marker_set_count', 'INT']}
+    def __init__(self):
+        self.metadata = {'Completeness': ['checkm_completeness', 'FLOAT'],
+                         'Contamination': ['checkm_contamination', 'FLOAT'],
+                         'Strain heterogeneity': ['checkm_strain_heterogeneity', 'FLOAT'],
+                         'Marker lineage': ['checkm_marker_lineage', 'TEXT'],
+                         '# genomes': ['checkm_genome_count', 'INT'],
+                         '# markers': ['checkm_marker_count', 'INT'],
+                         '# marker sets': ['checkm_marker_set_count', 'INT']}
 
-  def run(self, checkm_qa_file, genome_list_file):
-    """Add CheckM data to database."""
-    
-    # get genomes to process
-    genome_list = set()
-    if genome_list_file:
-        for line in open(genome_list_file):
-            if len(line.split('\t')) >= len(line.split(',')):
-                genome_list.add(line.rstrip().split('\t')[0])
-            else:
-                genome_list.add(line.rstrip().split(',')[0])
+    def run(self, checkm_qa_file, genome_list_file):
+        """Add CheckM data to database."""
 
-    for header, data in self.metadata.iteritems():
-        db_header, data_type = data
+        # get genomes to process
+        genome_list = set()
+        if genome_list_file:
+            for line in open(genome_list_file):
+                if len(line.split('\t')) >= len(line.split(',')):
+                    genome_list.add(line.rstrip().split('\t')[0])
+                else:
+                    genome_list.add(line.rstrip().split(',')[0])
 
-        temp_file = tempfile.NamedTemporaryFile(delete=False)
-        with open(checkm_qa_file) as f:
-            headers = f.readline().rstrip().split('\t')
-            col_index = headers.index(header)
+        for header, data in self.metadata.iteritems():
+            db_header, data_type = data
 
-            for line in f:
-                line_split = line.split('\t')
-                genome_id = line_split[0]
-                genome_id = genome_id[0:genome_id.find('_', 4)]
+            temp_file = tempfile.NamedTemporaryFile(delete=False)
+            with open(checkm_qa_file) as f:
+                headers = f.readline().rstrip().split('\t')
+                col_index = headers.index(header)
 
-                if genome_id.startswith('GCA_'):
-                    genome_id = 'GB_' + genome_id
-                elif genome_id.startswith('GCF_'):
-                    genome_id = 'RS_' + genome_id
-                    
-                if genome_id not in genome_list:
-                    continue
+                for line in f:
+                    line_split = line.split('\t')
+                    genome_id = line_split[0]
+                    genome_id = genome_id[0:genome_id.find('_', 4)]
 
-                data = line_split[col_index]
-                temp_file.write('%s\t%s\n' % (genome_id, data))
+                    if genome_id.startswith('GCA_'):
+                        genome_id = 'GB_' + genome_id
+                    elif genome_id.startswith('GCF_'):
+                        genome_id = 'RS_' + genome_id
 
-        temp_file.close()
-        cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_genes', db_header, data_type, temp_file.name)
-        print cmd
-        os.system(cmd)
-        os.remove(temp_file.name)
+                    if genome_id not in genome_list:
+                        continue
+
+                    data = line_split[col_index]
+                    temp_file.write('%s\t%s\n' % (genome_id, data))
+
+            temp_file.close()
+            cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_genes', db_header, data_type, temp_file.name)
+            print cmd
+            os.system(cmd)
+            os.remove(temp_file.name)
 
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
