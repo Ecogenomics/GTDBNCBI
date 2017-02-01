@@ -1036,7 +1036,7 @@ class GenomeManager(object):
         return result_ids
 
     def printGenomeDetails(self, genome_id_list):
-        """Print genome details.
+        """Print database details of genomes.
 
         Parameters
         ----------
@@ -1078,6 +1078,42 @@ class GenomeManager(object):
             raise e
 
         return header, rows
+        
+    def printGenomeStats(self, genome_id_list, stat_fields):
+        """Print statistics details of genomes.
+
+        Parameters
+        ----------
+        genome_id_list : iterable
+            Unique identifier of genomes in database.
+
+        Returns
+        -------
+        list
+            Column headers.
+        list
+            Content for each row.
+        """
+
+        try:
+            if not genome_id_list:
+                raise GenomeDatabaseError(
+                    "Unable to print genomes. No genomes found.")
+   
+            stat_fields = ['id', 'genome'] + stat_fields
+            stat_fields_str = ','.join(stat_fields)
+
+            self.cur.execute("SELECT " + stat_fields_str + " FROM metadata_view " +
+                             "WHERE id in %s", (tuple(genome_id_list),))
+
+            rows = []
+            for d in self.cur:
+                rows.append(d[1:])
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return stat_fields[1:], rows
 
     def exportSSUSequences(self, output_file):
         '''

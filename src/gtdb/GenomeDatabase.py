@@ -420,16 +420,54 @@ class GenomeDatabase(object):
                             "Cannot open batchfile: " + batchfile)
 
                     for line in fh:
-                        line = line.rstrip()
-                        external_ids.append(line)
+                        if line[0] == '#':
+                            continue
+                        external_id = line.strip().split('\t')[0]
+                        external_ids.append(external_id)
 
                 genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(
                     external_ids)
                 if genome_ids is None:
-                    raise GenomeDatabaseError("Can not retrieve genome ids.")
+                    raise GenomeDatabaseError("Could not retrieve genome ids.")
 
             # print genome details
             header, rows = genome_mngr.printGenomeDetails(genome_ids)
+            self.PrintTable(header, rows)
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+        
+    def StatGenomes(self, batchfile, external_ids, stat_fields):
+        try:
+            cur = self.conn.cursor()
+            genome_mngr = GenomeManager(cur, self.currentUser)
+
+            if external_ids is None:
+                external_ids = []
+                
+            if batchfile:
+                try:
+                    fh = open(batchfile, "rb")
+                except:
+                    raise GenomeDatabaseError(
+                        "Cannot open batchfile: " + batchfile)
+
+                for line in fh:
+                    if line[0] == '#':
+                        continue
+                    external_id = line.strip().split('\t')[0]
+                    external_ids.append(external_id)
+
+            genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(
+                external_ids)
+            if genome_ids is None:
+                raise GenomeDatabaseError("Could not retrieve genome IDs.")
+
+            # print genome details
+            header, rows = genome_mngr.printGenomeStats(genome_ids, stat_fields)
             self.PrintTable(header, rows)
 
         except GenomeDatabaseError as e:
