@@ -162,8 +162,6 @@ def CreateTreeData(db, args):
                                                      args.genome_ids,
                                                      args.genome_batchfile)
 
-    print len(genome_id_list)
-
     #===========================================================================
     # Warning
     # When one of the 2 main marker sets is chosen (Archaeal or Bacterial)
