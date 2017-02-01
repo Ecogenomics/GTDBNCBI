@@ -221,6 +221,13 @@ def ViewGenomes(db, args):
         if args.id_list:
             external_ids = args.id_list.split(",")
         return db.ViewGenomes(args.batchfile, external_ids)
+        
+
+def StatGenomes(db, args):
+    external_ids = None
+    if args.id_list:
+        external_ids = args.id_list.split(",")
+    return db.StatGenomes(args.batchfile, external_ids, args.stat_fields.split(","))
 
 
 def DeleteGenomes(db, args):
@@ -720,7 +727,7 @@ if __name__ == '__main__':
     parser_genome_view = genome_category_subparser.add_parser('view',
                                                               add_help=False,
                                                               formatter_class=CustomHelpFormatter,
-                                                              help='View the details of genomes in the database.')
+                                                              help='View database details of genomes.')
     atleastone_genome_view = parser_genome_view.add_argument_group('At least one argument required')
     atleastone_genome_view.add_argument('--batchfile', dest='batchfile', default=None,
                                         help='Batchfile of genome IDs (one per line) to view.')
@@ -734,6 +741,28 @@ if __name__ == '__main__':
                                       help="Show help message.")
 
     parser_genome_view.set_defaults(func=ViewGenomes)
+    
+    # genome stats parser
+    parser_genome_stats = genome_category_subparser.add_parser('stats',
+                                                              add_help=False,
+                                                              formatter_class=CustomHelpFormatter,
+                                                              help='View statistics of genome.')
+                                                              
+    required_genome_stats = parser_genome_stats.add_argument_group('required arguments')
+    required_genome_stats.add_argument('--stat_fields', required=True,
+                                            help='GTDB fields to report (comma separated).')
+                                                              
+    atleastone_genome_view = parser_genome_stats.add_argument_group('At least one argument required')
+    atleastone_genome_view.add_argument('--batchfile', dest='batchfile', default=None,
+                                        help='Batchfile of genome IDs (one per line) to view.')
+    atleastone_genome_view.add_argument('--genome_ids', dest='id_list', default=None,
+                                        help='Provide a list of genome IDs (comma separated) to view.')
+                                        
+    optional_genome_view = parser_genome_stats.add_argument_group('optional arguments')
+    optional_genome_view.add_argument('-h', '--help', action="help",
+                                      help="Show help message.")
+
+    parser_genome_stats.set_defaults(func=StatGenomes)
 
     # export SSU sequences for all genomes
     parser_genome_ssu_export = genome_category_subparser.add_parser('ssu_export',
