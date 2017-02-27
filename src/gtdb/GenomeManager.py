@@ -37,7 +37,7 @@ from PfamSearch import PfamSearch
 
 from biolib.checksum import sha256
 from biolib.common import make_sure_path_exists
-from Tools import splitchunks
+from Tools import splitchunks, confirm
 from psycopg2.extensions import AsIs
 
 
@@ -366,6 +366,33 @@ class GenomeManager(object):
                 db_genome_id))
 
         shutil.rmtree(self.tmp_output_dir)
+        
+    def genomeDirs(self, db_genome_ids):
+        """Get path to genomes."""
+        
+        try:
+            self.cur.execute("SELECT genomes.id, external_id_prefix, fasta_file_location " +
+                             "FROM genomes, genome_sources " +
+                             "WHERE genome_source_id = genome_sources.id " +
+                             "AND genomes.id in %s", (tuple(db_genome_ids),))
+
+            genome_dirs = {}
+            for (genome_id, external_id_prefix, fasta_file_location) in self.cur:
+                dir_prefix = None
+                if external_id_prefix == 'U':
+                    dir_prefix = Config.GTDB_GENOME_USR_DIR
+                elif external_id_prefix == 'RS':
+                    dir_prefix = Config.GTDB_GENOME_RSQ_DIR
+                elif external_id_prefix == 'GB':
+                    dir_prefix = Config.GTDB_GENOME_GBK_DIR
+                    
+                genome_dir = os.path.join(dir_prefix, os.path.split(fasta_file_location)[0])
+                genome_dirs[genome_id] = genome_dir
+                
+            return genome_dirs
+        
+        except GenomeDatabaseError as e:
+            raise e
 
     def copyGenomes(self, db_genome_ids, genomic, gene, gene_nt, out_dir, gtdb_header):
         """Copy genome data files to specified directory.
@@ -765,14 +792,6 @@ class GenomeManager(object):
 
         return study_id
 
-    # TODO: This should not be here, techincally the backend is agnostic so
-    # shouldn't assume command line.
-    def _confirm(self, msg):
-        raw = raw_input(msg + " (y/N): ")
-        if raw.upper() == "Y":
-            return True
-        return False
-
     def deleteGenomes(self, batchfile=None, db_genome_ids=None, reason=None):
         '''
         Delete Genomes
@@ -803,7 +822,7 @@ class GenomeManager(object):
                     "Unable to delete genomes. Insufficient permissions.")
 
             if db_genome_ids:
-                if not self._confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(db_genome_ids)):
+                if not confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(db_genome_ids)):
                     raise GenomeDatabaseError("User aborted database action.")
 
                 self.cur.execute("DELETE FROM aligned_markers " +
@@ -1044,7 +1063,7 @@ class GenomeManager(object):
         return result_ids
 
     def printGenomeDetails(self, genome_id_list):
-        """Print genome details.
+        """Print database details of genomes.
 
         Parameters
         ----------
@@ -1086,6 +1105,42 @@ class GenomeManager(object):
             raise e
 
         return header, rows
+        
+    def printGenomeStats(self, genome_id_list, stat_fields):
+        """Print statistics details of genomes.
+
+        Parameters
+        ----------
+        genome_id_list : iterable
+            Unique identifier of genomes in database.
+
+        Returns
+        -------
+        list
+            Column headers.
+        list
+            Content for each row.
+        """
+
+        try:
+            if not genome_id_list:
+                raise GenomeDatabaseError(
+                    "Unable to print genomes. No genomes found.")
+   
+            stat_fields = ['id', 'genome'] + stat_fields
+            stat_fields_str = ','.join(stat_fields)
+
+            self.cur.execute("SELECT " + stat_fields_str + " FROM metadata_view " +
+                             "WHERE id in %s", (tuple(genome_id_list),))
+
+            rows = []
+            for d in self.cur:
+                rows.append(d[1:])
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return stat_fields[1:], rows
 
     def exportSSUSequences(self, output_file):
         '''
