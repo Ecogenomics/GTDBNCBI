@@ -52,7 +52,16 @@ class Metadata(object):
       if line[0] == '#':
         continue
 
-      genome_id = line.strip().split(',')[0]
+      if '\t' in line:
+        genome_id = line.strip().split('\t')[0]
+      else:
+        genome_id = line.strip().split(',')[0]
+        
+      if genome_id.startswith('GCA_'):
+          genome_id = 'GB_' + genome_id
+      elif genome_id.startswith('GCF_'):
+          genome_id = 'RS_' + genome_id
+          
       genome_ids.add(genome_id)
 
     # write out metadata
