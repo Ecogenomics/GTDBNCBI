@@ -366,6 +366,33 @@ class GenomeManager(object):
                 db_genome_id))
 
         shutil.rmtree(self.tmp_output_dir)
+        
+    def genomeDirs(self, db_genome_ids):
+        """Get path to genomes."""
+        
+        try:
+            self.cur.execute("SELECT genomes.id, external_id_prefix, fasta_file_location " +
+                             "FROM genomes, genome_sources " +
+                             "WHERE genome_source_id = genome_sources.id " +
+                             "AND genomes.id in %s", (tuple(db_genome_ids),))
+
+            genome_dirs = {}
+            for (genome_id, external_id_prefix, fasta_file_location) in self.cur:
+                dir_prefix = None
+                if external_id_prefix == 'U':
+                    dir_prefix = Config.GTDB_GENOME_USR_DIR
+                elif external_id_prefix == 'RS':
+                    dir_prefix = Config.GTDB_GENOME_RSQ_DIR
+                elif external_id_prefix == 'GB':
+                    dir_prefix = Config.GTDB_GENOME_GBK_DIR
+                    
+                genome_dir = os.path.join(dir_prefix, os.path.split(fasta_file_location)[0])
+                genome_dirs[genome_id] = genome_dir
+                
+            return genome_dirs
+        
+        except GenomeDatabaseError as e:
+            raise e
 
     def copyGenomes(self, db_genome_ids, genomic, gene, gene_nt, out_dir, gtdb_header):
         """Copy genome data files to specified directory.
