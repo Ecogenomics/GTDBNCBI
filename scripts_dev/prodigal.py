@@ -31,6 +31,7 @@ __status__ = 'Development'
 
 import os
 import sys
+import shutil
 import ntpath
 import argparse
 import multiprocessing as mp

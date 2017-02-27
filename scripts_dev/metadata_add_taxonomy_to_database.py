@@ -49,10 +49,10 @@ class AddTaxonomy(object):
     genome_list = set()
     if genome_list_file:
         for line in open(genome_list_file):
-	  if '\t' in line:
-            genome_list.add(line.rstrip().split('\t')[0])
-	  else:
-	    genome_list.add(line.rstrip().split(',')[0])
+            if '\t' in line:
+                genome_list.add(line.rstrip().split('\t')[0])
+            else:
+                genome_list.add(line.rstrip().split(',')[0])
 
     # read taxonomy file
     taxonomy = Taxonomy().read(taxonomy_file)
@@ -80,11 +80,6 @@ class AddTaxonomy(object):
           continue
 
         rank_str = taxa[i]
-        if Taxonomy.rank_labels[i] == 'species':
-          # ensure species name includes genus
-          if taxa[i-1][3:] not in taxa[i]:
-            rank_str = 's__' + taxa[i-1][3:] + ' ' + taxa[i][3:]
-
         temp_file.write('%s\t%s\n' % (genome_id, rank_str))
 
       temp_file.close()

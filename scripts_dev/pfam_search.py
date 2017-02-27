@@ -106,30 +106,51 @@ class PfamSearch(object):
 
     sys.stdout.write('\n')
 
-  def run(self, genome_dir, threads):
+  def run(self, genome_dir, genome_report, threads):
+    # get list of genomes to consider
+    genomes_to_consider = set()
+    for line in open(genome_report):
+        line_split = line.strip().split('\t')
+        genome_id = line_split[1]
+        
+        attributes = line_split[2].split(';')
+        for attribute in attributes:
+            if attribute == 'new' or attribute == 'modified':
+                genomes_to_consider.add(genome_id)
+
+    print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
+            
     # get path to all unprocessed genome gene files
     print 'Reading genomes.'
     gene_files = []
-    for genome_id in os.listdir(genome_dir):
-      cur_genome_dir = os.path.join(genome_dir, genome_id)
+    for species_dir in os.listdir(genome_dir):
+      cur_genome_dir = os.path.join(genome_dir, species_dir)
       if os.path.isdir(cur_genome_dir):
         for assembly_id in os.listdir(cur_genome_dir):
-          assembly_dir = os.path.join(cur_genome_dir, assembly_id)
-
-          pfam_file = os.path.join(assembly_dir, assembly_id + '_pfam.tsv')
+          prodigal_dir = os.path.join(cur_genome_dir, assembly_id, 'prodigal')
+          genome_id = assembly_id[0:assembly_id.find('_', 4)]
+          
+          pfam_file = os.path.join(prodigal_dir, genome_id + '_pfam.tsv')
           if os.path.exists(pfam_file):
-            # verify checksum
-            checksum_file = pfam_file + '.sha256'
-            if os.path.exists(checksum_file):
-              checksum = sha256(pfam_file)
-              cur_checksum = open(checksum_file).readline().strip()
-              if checksum == cur_checksum:
-                continue
-              else:
-                os.remove(checksum_file)
-                os.remove(pfam_file)
+                # verify checksum
+                checksum_file = pfam_file + '.sha256'
+                if os.path.exists(checksum_file):
+                  checksum = sha256(pfam_file)
+                  cur_checksum = open(checksum_file).readline().strip()
+                  if checksum == cur_checksum:
+                    if genome_id in genomes_to_consider:
+                        print '[WARNING] Genome %s is marked as new or modified, but already has Pfam annotations.' % genome_id
+                        print '[WARNING] Genome is being skipped!'
+                    continue
+                    
+                print '[WARNING] Genome %s has Pfam annotations, but an invalid checksum and was not marked for reannotation.' % genome_id
+                print '[WARNING] Genome will be reannotated.'
+      
+          elif genome_id not in genomes_to_consider:
+            print '[WARNING] Genome %s has no Pfam annotations, but is also not marked for processing?' % genome_id
+            print '[WARNING] Genome will be reannotated!'
 
-          gene_file = os.path.join(assembly_dir, assembly_id + self.protein_file_ext)
+          gene_file = os.path.join(prodigal_dir, genome_id + self.protein_file_ext)
           if os.path.exists(gene_file):
             if os.stat(gene_file).st_size == 0:
                 print '[Warning] Protein file appears to be empty: %s' % gene_file
@@ -174,13 +195,14 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('genome_dir', help='directory containing genomes in individual directories')
+  parser.add_argument('genome_report', help='report log indicating new, modified, unmodified, ..., genomes')
   parser.add_argument('-t', '--threads', type=int, help='number of threads', default=1)
 
   args = parser.parse_args()
 
   try:
     p = PfamSearch()
-    p.run(args.genome_dir, args.threads)
+    p.run(args.genome_dir, args.genome_report, args.threads)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:
