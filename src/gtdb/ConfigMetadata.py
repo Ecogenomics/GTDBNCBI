@@ -24,6 +24,7 @@ GTDB_SSU_GG_PREFIX = 'ssu_gg'
 
 TIGRFAM_HMMS = '/srv/whitlam/bio/db/tigrfam/15.0/TIGRFAMs_15.0_HMM/tigrfam.hmm'
 PFAM_HMM_DIR = '/srv/db/pfam/27/'
+PFAM_HMM_FILE = 'Pfam-A.hmm'
 
 GENOME_FILE_SUFFIX = "_genomic.fna"
 PROTEIN_FILE_SUFFIX = "_protein.faa"

@@ -32,6 +32,7 @@ from GenomeListManager import GenomeListManager
 from MarkerManager import MarkerManager
 from MarkerSetManager import MarkerSetManager
 from MetadataManager import MetadataManager
+from AnnotationManager import AnnotationManager
 from TreeManager import TreeManager
 from AlignedMarkerManager import AlignedMarkerManager
 from GenomeRepresentativeManager import GenomeRepresentativeManager
@@ -1294,6 +1295,41 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
+            
+    def AnnotateKEGG(self, genome_ids):
+        pass
+    
+    
+    
+    def ExportAnnotations(self, export_db, genome_ids, output_dir):
+        """Export genome annotations.
+
+        Parameters
+        ----------
+        export_db : str
+          Annotations to export (kegg, pfam, or tigrfam).
+        genome_ids : list
+          Genomes for which annotations should be exported.
+        output_dir : str
+          Output directory.
+        """
+        
+        self.logger.info('Exporting annotations for %d genomes.' % len(genome_ids))
+        
+        try:
+            cur = self.conn.cursor()
+            
+            annotation_mngr = AnnotationManager(cur,
+                                                self.currentUser,
+                                                self.threads)
+                                                
+            annotation_mngr.export(export_db, genome_ids, output_dir)
+                                                
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
 
     def ExportTaxonomy(self, taxonomy_src, output_file):
         """Write taxonomy to file.
