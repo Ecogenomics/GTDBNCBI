@@ -72,8 +72,8 @@ class SSU(object):
   def run(self, rna_gene, ncbi_genome_dir, user_genome_dir, cpus):
     """Create metadata by parsing assembly stats files."""
     
-    #***print 'Running with GreenGenes database'
-    #***self._run(rna_gene, ncbi_genome_dir, user_genome_dir, 'GG', cpus)
+    print 'Running with GreenGenes database'
+    self._run(rna_gene, ncbi_genome_dir, user_genome_dir, 'GG', cpus)
     
     print 'Running with SILVA database'
     self._run(rna_gene, ncbi_genome_dir, user_genome_dir, 'SILVA', cpus)
@@ -91,13 +91,13 @@ class SSU(object):
             self.output_dir = 'ssu_gg'
         else:
             print 'There is no LSU database for GG.'
-            sys.exit()
+            return
     elif ssu_db == 'SILVA':
         # Silva info
         if rna_gene == 'ssu':
             self.db = '/srv/whitlam/bio/db/silva/123.1/SILVA_123.1_SSURef_Nr99_tax_silva.fasta'
             self.taxonomy = '/srv/whitlam/bio/db/silva/123.1/silva_taxonomy.ssu.tsv'
-        elif rna_gene == 'rna_gene':
+        elif rna_gene == 'lsu_23S':
             self.db = '/srv/db/silva/123.1/SILVA_123.1_LSURef_tax_silva.fasta'
             self.taxonomy = '/srv/whitlam/bio/db/silva/123.1/silva_taxonomy.lsu.tsv'
         self.output_dir = 'rna_silva'
@@ -123,8 +123,8 @@ class SSU(object):
 
           full_assembly_dir = os.path.join(full_species_dir, assembly_dir)
 
-          #***if os.path.exists(os.path.join(full_assembly_dir, self.output_dir)):
-          #***  continue
+          if os.path.exists(os.path.join(full_assembly_dir, self.output_dir)):
+            continue
 
           genome_file = os.path.join(full_assembly_dir, assembly_dir + '_genomic.fna')
           input_files.append(genome_file)

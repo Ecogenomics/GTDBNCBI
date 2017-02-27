@@ -149,14 +149,6 @@ class GenomeDatabase(object):
     def SetDebugMode(self, debug_mode):
         self.debugMode = debug_mode
 
-    # TODO: This should not be here, technically the backend is agnostic so
-    # shouldn't assume command line.
-    def Confirm(self, msg):
-        raw = raw_input(msg + " (y/N): ")
-        if raw.upper() == "Y":
-            return True
-        return False
-
     def addUser(self, username, role, login_has_root):
         try:
             cur = self.conn.cursor()
@@ -429,16 +421,54 @@ class GenomeDatabase(object):
                             "Cannot open batchfile: " + batchfile)
 
                     for line in fh:
-                        line = line.rstrip()
-                        external_ids.append(line)
+                        if line[0] == '#':
+                            continue
+                        external_id = line.strip().split('\t')[0]
+                        external_ids.append(external_id)
 
                 genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(
                     external_ids)
                 if genome_ids is None:
-                    raise GenomeDatabaseError("Can not retrieve genome ids.")
+                    raise GenomeDatabaseError("Could not retrieve genome ids.")
 
             # print genome details
             header, rows = genome_mngr.printGenomeDetails(genome_ids)
+            self.PrintTable(header, rows)
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+        
+    def StatGenomes(self, batchfile, external_ids, stat_fields):
+        try:
+            cur = self.conn.cursor()
+            genome_mngr = GenomeManager(cur, self.currentUser)
+
+            if external_ids is None:
+                external_ids = []
+                
+            if batchfile:
+                try:
+                    fh = open(batchfile, "rb")
+                except:
+                    raise GenomeDatabaseError(
+                        "Cannot open batchfile: " + batchfile)
+
+                for line in fh:
+                    if line[0] == '#':
+                        continue
+                    external_id = line.strip().split('\t')[0]
+                    external_ids.append(external_id)
+
+            genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(
+                external_ids)
+            if genome_ids is None:
+                raise GenomeDatabaseError("Could not retrieve genome IDs.")
+
+            # print genome details
+            header, rows = genome_mngr.printGenomeStats(genome_ids, stat_fields)
             self.PrintTable(header, rows)
 
         except GenomeDatabaseError as e:
@@ -551,6 +581,8 @@ class GenomeDatabase(object):
             if genome_batchfile:
                 fh = open(genome_batchfile, "rb")
                 for line in fh:
+                    if line[0] == '#':
+                        continue
                     line = line.strip().split('\t')
                     genome_batchfile_ids.append(line[0])
 
@@ -663,6 +695,8 @@ class GenomeDatabase(object):
             if guaranteed_batchfile:
                 batch_genome_id = []
                 for line in open(guaranteed_batchfile):
+                    if line[0] == '#':
+                        continue
                     batch_genome_id.append(line.strip().split('\t')[0])
 
                 db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(batch_genome_id)
@@ -681,7 +715,7 @@ class GenomeDatabase(object):
                                             for x in excluded_genome_list_ids.split(",")]
                 db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(excluded_genome_list_ids)
                 genomes_to_exclude.update(db_genome_ids)
-                
+
             # make sure all markers are aligned
             aligned_mngr = AlignedMarkerManager(cur, self.threads)
             aligned_mngr.calculateAlignedMarkerSets(genome_ids, marker_ids)

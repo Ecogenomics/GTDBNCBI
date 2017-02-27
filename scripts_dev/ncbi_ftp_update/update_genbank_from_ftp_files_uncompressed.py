@@ -17,11 +17,10 @@
 #                                                                             #
 ###############################################################################
 
-__prog_name__ = 'update_refseq_from_ftp_files_uncompressed.py'
-__prog_desc__ = ('Update the Refseq folder with the latest genome downloaded from FTP.' +
-                 'This is an updated version of update_refseq_from_ftp_files where the checksum comparison is made on unarchived files.' +
-                 'Before this update, make sure the genome folder is in RW mode to be able to delete or add genomes.' +
-                 'We assume that all paths are in the form bacteria_name/latest_assembly_Version/GCA or GCF number.')
+__prog_name__ = 'update_genbank_from_ftp_files.py'
+__prog_desc__ = ('Check which genomes are not present in Refseq but present in Genbank.' +
+                 'If the genome is in Genbank, it is copied either from the ftp website for a new genome' +
+                 ' or from the previous genbank folder if it\'s an existing genome')
 
 __author__ = 'Pierre Chaumeil'
 __copyright__ = 'Copyright 2016'
@@ -33,85 +32,83 @@ __email__ = 'p.chaumeil@qfab.org'
 __status__ = 'Development'
 
 import os
+import sys
+import collections
 import shutil
-import hashlib
-import re
 import glob
 import gzip
-import sys
+import hashlib
 import datetime
 import argparse
 import tempfile
 
 
-class UpdateRefSeqFolder(object):
+class UpdateGenbankFolder(object):
 
-    def __init__(self, new_refseq_folder):
-
+    def __init__(self, new_genbank_folder):
         self.domains = ["archaea", "bacteria"]
-        #self.domains = ["bacteria"]
 
-        self.genomic_ext = "_genomic.fna"
-        self.protein_ext = "_protein.faa"
-        self.cds_ext = "_cds_from_genomic.fna"
-        self.rna_ext = "_rna_from_genomic.fna"
+        self.genomic_ext = "_genomic.fna.gz"
+        self.protein_ext = "_protein.faa.gz"
+        self.cds_ext = "_cds_from_genomic.fna.gz"
+        self.rna_ext = "_rna_from_genomic.fna.gz"
 
         self.fastaExts = (self.genomic_ext, self.protein_ext)
         self.extrafastaExts = (self.cds_ext, self.rna_ext)
 
-        self.extensions = ("_feature_table.txt", "_genomic.gbff",
-                           "_genomic.gff", "_protein.gpff", "_wgsmaster.gbff")
+        self.extensions = ("_feature_table.txt.gz", "_genomic.gbff.gz",
+                           "_genomic.gff.gz", "_protein.gpff.gz", "_wgsmaster.gbff.gz")
         self.reports = ("_assembly_report.txt", "_assembly_stats.txt", "_hashes.txt")
         self.allExts = self.fastaExts + self.extensions + self.reports
         self.allbutFasta = self.extensions + self.reports
 
-        self.report_gcf = open(os.path.join(new_refseq_folder, "report_gcf.log"), "w", 1)
-        self.stats_update = open(os.path.join(new_refseq_folder, "stats_update.log"), "w")
+        self.log = open(os.path.join(new_genbank_folder, "extra_gbk_report_gcf.log"), "w")
+        self.select_gca = open(os.path.join(new_genbank_folder, "gca_selection.log"), "w")
 
-    def runComparison(self, ftp_refseq, new_refseq, ftp_genome_dirs, old_genome_dirs):
+    def runComparison(self, ftp_genbank, new_genbank, ftp_genbank_genome_dirs, old_genbank_genome_dirs, new_refseq_genome_dirs):
         '''
         runComparison function is walking across all directories recursively
         only folder containing latest_assembly_versions but not containing _assembly_structure
         are of interest
         '''
 
-        # for each domain
         for domain in self.domains:
 
             # old_dict lists all records from the previous gtdb update
-            with open(old_genome_dirs, 'r') as old_file:
+            with open(old_genbank_genome_dirs, 'r') as old_file:
                 old_dict = {old_line.split("\t")[0]: old_line.split("\t")[1].strip()
                             for old_line in old_file if "/{0}/".format(domain) in old_line.split("\t")[1]}
 
-            # new list list all records from the ftp folder and considered as
-            # latest
-            ftp_assembly_summary = os.path.join(
-                ftp_refseq, domain, "assembly_summary.txt")
-            with open(ftp_assembly_summary, 'r') as ftp_assembly_summary_file:
-                ftp_assembly_summary_file.readline()
-                new_list = [new_line.split(
-                    "\t")[0] for new_line in ftp_assembly_summary_file if new_line.split("\t")[10] == "latest"]
+            listGCA = self.parseAssemblySummary(
+                domain, ftp_genbank, new_refseq_genome_dirs)
             # new dict lists all records from FTP which are in new_list
-            with open(ftp_genome_dirs, 'r') as new_genome_dirs_file:
+            with open(ftp_genbank_genome_dirs, 'r') as new_genome_dirs_file:
                 new_dict = {new_line.split("\t")[0]: new_line.split("\t")[1].strip()
-                            for new_line in new_genome_dirs_file if "/{0}/".format(domain) in new_line.split("\t")[1] and new_line.split("\t")[0] in new_list}
+                            for new_line in new_genome_dirs_file if "/{0}/".format(domain) in new_line.split("\t")[1] and new_line.split("\t")[0] in listGCA}
+
+            
 
             # new genomes in FTP
             added_dict = {added_key: new_dict[added_key] for added_key in list(
                 set(new_dict.keys()) - set(old_dict.keys()))}
-            self.addGenomes(added_dict, ftp_refseq, new_refseq, domain)
+            print "{0} genomes to add for {1}".format(len(added_dict), domain)
+            self.addGenomes(added_dict, ftp_genbank, new_genbank, domain)
 
             # delete genomes from the Database
             removed_dict = {removed_key: old_dict[removed_key] for removed_key in list(
                 set(old_dict.keys()) - set(new_dict.keys()))}
+            print "{0} genomes to remove for {1}".format(len(removed_dict), domain)
             self.removeGenomes(removed_dict, domain)
 
             intersect_list = list(
                 set(old_dict.keys()).intersection(set(new_dict.keys())))
+            print "{0} genomes to compare for {1}".format(len(intersect_list), domain)
             self.compareGenomes(
-                intersect_list, old_dict, new_dict, ftp_refseq, new_refseq, domain)
+                intersect_list, old_dict, new_dict, ftp_genbank, new_genbank, domain)
+        self.select_gca.close()
+        self.log.close()
 
-    def addGenomes(self, added_dict, ftp_refseq, new_refseq, domain):
+    def addGenomes(self, added_dict, ftp_genbank, new_genbank, domain):
         '''
         addGenomes function insert new genomes in the GTDB database. New genomes are present in the FTP folder
         but not in the previous version of GTDB.
@@ -122,17 +119,17 @@ class UpdateRefSeqFolder(object):
 
 
         :param added_dict: dictionary of genomes to be added (genome_id:path to genome)
-        :param ftp_refseq: base directory leading the the FTP repository for refseq
-        :param new_refseq:base directory leading the new repository for refseq
-        :param update_date:Date when the FTP download has been run (format YYYY-MM-DD)
+        :param ftp_genbank: base directory leading the the FTP repository for refseq
+        :param new_genbank:base directory leading the new repository for refseq
+        :param domain:archaea or bacteria
         '''
 
         for gcf_record in added_dict:
-            target_dir = added_dict[gcf_record].replace(ftp_refseq, new_refseq).replace(
+            target_dir = added_dict[gcf_record].replace(ftp_genbank, new_genbank).replace(
                 "/latest_assembly_versions", "")
             shutil.copytree(added_dict[
-                            gcf_record], target_dir, symlinks=True, ignore=shutil.ignore_patterns("*_assembly_structure"))
-            self.report_gcf.write(
+                            gcf_record], target_dir, ignore=shutil.ignore_patterns("*_assembly_structure"))
+            self.log.write(
                 "{0}\t{1}\tnew\n".format(domain.upper(), gcf_record))
             for compressed_file in glob.glob(target_dir + "/*.gz"):
                 if os.path.isdir(compressed_file) == False:
@@ -153,10 +150,10 @@ class UpdateRefSeqFolder(object):
         '''
 
         for gcf_record in removed_dict:
-            self.report_gcf.write(
+            self.log.write(
                 "{0}\t{1}\tremoved\n".format(domain.upper(), gcf_record))
 
-    def compareGenomes(self, intersect_list, old_dict, new_dict, ftp_refseq, new_refseq, domain):
+    def compareGenomes(self, intersect_list, old_dict, new_dict, ftp_genbank, new_genbank, domain):
         '''
         compare the genomes existing in both folders ( FTP folder and previous gtdb update).
 
@@ -167,7 +164,7 @@ class UpdateRefSeqFolder(object):
         for gcf_record in intersect_list:
             gtdb_dir = old_dict.get(gcf_record)
             ftp_dir = new_dict.get(gcf_record)
-            target_dir = ftp_dir.replace(ftp_refseq, new_refseq).replace(
+            target_dir = ftp_dir.replace(ftp_genbank, new_genbank).replace(
                 "latest_assembly_versions/", "")
             self.readmd5Checksum(
                 gtdb_dir, ftp_dir, target_dir, gcf_record, domain)
@@ -289,36 +286,53 @@ class UpdateRefSeqFolder(object):
                         print "IT SHOULDN'T HAPPEN"
                         print "########"
                         sys.exit()
-        self.report_gcf.write("{0}\t{1}\t{2}\n".format(
+        self.log.write("{0}\t{1}\t{2}\n".format(
             domain.upper(), gcf_record, ';'.join([x for x in set(status)])))
         shutil.rmtree(tmp_ftp_dir)
 
 # Tools
 
-    def rreplace(self, s, old, new, occurrence):
-        '''
-         Instead of using the normal replace function, we need to implement our own.
-         Some folder are named with a .gz in the middle so we only need to replace the last .gz in the string name
-        :param s:
-        :param old:
-        :param new:
-        :param occurrence:
-        '''
-        li = s.rsplit(old, occurrence)
-        return new.join(li)
+    def parseAssemblySummary(self, domain, ftp_genbank, new_refseq_genome_dirs):
+        listGCA = []
+        dictGCF = self._populateGenomesDict(new_refseq_genome_dirs)
+        print "parsing of dictionary is done"
+        with open(os.path.join(ftp_genbank, domain, "assembly_summary.txt"), "r") as sumf:
+            # we discard the first line
+            sumf.readline()
+            for line in sumf:
+                split_line = line.split("\t")
+                gcf_access = split_line[17]
+                full_gca_access = split_line[0]
+		###########
+		#if full_gca_access == 'GCA_900092125.1':
+		#    print full_gca_access
+		    #sys.exit()
+		#else:
+		#    continue
+		###########
+                latest = split_line[10]
 
-    def sha256Calculator(self, file_path):
-
-        try:
-            filereader = open(file_path, "rb")
-        except:
-            raise Exception("Cannot open Fasta file: " + file_path)
-        m = hashlib.sha256()
-        for line in filereader:
-            m.update(line)
-        sha256_checksum = m.hexdigest()
-        filereader.close()
-        return sha256_checksum
+                if latest == "latest":
+		    print 'latest'
+                    if not gcf_access.startswith("GCF"):
+                        listGCA.append(full_gca_access)
+                        self.select_gca.write("{0}\tNo GCF\n".format(
+                            full_gca_access))
+                    else:
+                        # if the Refseq folder is empty, we copy the genbank
+                        # folder
+                        if gcf_access in dictGCF:
+                            protein_files = glob.glob(
+                                os.path.join(dictGCF.get(gcf_access), "*_protein.faa"))
+                            if len(protein_files) == 0:
+                                self.select_gca.write(
+                                    "{0} associated with {1} : {1} missed files in FTP folder\n".format(full_gca_access, gcf_access))
+                                listGCA.append(full_gca_access)
+                        else:
+                            self.select_gca.write(
+                                "{0} associated with {1} : {1} not present in FTP folder\n".format(full_gca_access, gcf_access))
+                            listGCA.append(full_gca_access)
+        return listGCA
 
     def comparesha256(self, ftp_file, target_file, status):
         '''
@@ -339,6 +353,39 @@ class UpdateRefSeqFolder(object):
                 shutil.copy2(ftp_file, target_file)
             status.append("new_metadata")
         return status
+
+    def sha256Calculator(self, file_path):
+
+        try:
+            filereader = open(file_path, "rb")
+        except:
+            raise Exception("Cannot open Fasta file: " + file_path)
+        m = hashlib.sha256()
+        for line in filereader:
+            m.update(line)
+        sha256_checksum = m.hexdigest()
+        filereader.close()
+        return sha256_checksum
+
+    def _populateGenomesDict(self, genome_dirs_file):
+        temp_dict = {}
+        with open(genome_dirs_file, "r") as list_dirs:
+            for line in list_dirs:
+                temp_dict[line.split("\t")[0]] = line.split(
+                    "\t")[1].rstrip()
+        return temp_dict
+
+    def rreplace(self, s, old, new, occurrence):
+        '''
+         Instead of using the normal replace function, we need to implement our own.
+         Some folder are named with a .gz in the middle so we only need to replace the last .gz in the string name
+        :param s:
+        :param old:
+        :param new:
+        :param occurrence:
+        '''
+        li = s.rsplit(old, occurrence)
+        return new.join(li)
 
     def parse_checksum(self, pathtodir):
         '''
@@ -371,21 +418,23 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--ftp_refseq_directory', dest="ftp_refseq", required=True,
-                        help='base directory leading the the FTP repository for refseq')
-    parser.add_argument('--new_refseq_directory', dest="new_refseq",
-                        required=True, help='base directory leading the new repository for refseq')
-    parser.add_argument('--ftp_genome_dirs_file', dest="ftp_genome_dirs", required=True,
-                        help='metadata file listing all directories for the FTP folder (generated by genome_dirs.py)')
-    parser.add_argument('--old_genome_dirs_file', dest="old_genome_dirs", required=True,
+    parser.add_argument('--ftp_genbank_directory', dest="ftp_genbank", required=True,
+                        help='base directory leading the the FTP repository for genbank')
+    parser.add_argument('--new_genbank_directory', dest="new_genbank",
+                        required=True, help='base directory leading the new repository for genbank')
+    parser.add_argument('--ftp_genbank_genome_dirs_file', dest="ftp_genbank_genome_dirs", required=True,
+                        help='metadata file listing all directories for the FTP folder (generated by ncbi_genome_dirs.py)')
+    parser.add_argument('--old_genbank_genome_dirs_file', dest="old_genbank_genome_dirs", required=True,
                         help='metadata file listing all directories from the previous NCBI update date  (generated by genome_dirs.py)')
-
+    parser.add_argument('--new_refseq_genome_dirs_file', dest="new_refseq_genome_dirs", required=True,
+                        help='metadata file listing all directories from the previous NCBI update date  (generated by genome_dirs.py)')
     args = parser.parse_args()
 
     try:
-        update_mngr = UpdateRefSeqFolder(args.new_refseq)
-        update_mngr.runComparison(
-            args.ftp_refseq, args.new_refseq, args.ftp_genome_dirs, args.old_genome_dirs)
+        update_manager = UpdateGenbankFolder(args.new_genbank)
+        update_manager.runComparison(
+            args.ftp_genbank, args.new_genbank, args.ftp_genbank_genome_dirs, args.old_genbank_genome_dirs, args.new_refseq_genome_dirs)
+
     except SystemExit:
         print "\nControlled exit resulting from an unrecoverable error or warning."
     except:

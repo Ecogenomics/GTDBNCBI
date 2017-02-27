@@ -78,8 +78,8 @@ sub parse_genus_html {
         #<span class="genusspecies"><a name="lacus" id="lacus"></a>Methylohalomonas</span> <span class="specificepithet">lacus</span> Sorokin <i>et al.</i> 2007, sp. nov. (Type species of the genus.)
 
 
-        my $genusspecies_span_match = '<span class="genusspecies">([^<]*)</span>(.*)';
-        my $species_span_match = '<span class="specificepithet">([^<]*)</span>(.*)';
+        my $genusspecies_span_match = 'span class=(?:\'|\")genusspecies(?:\'|\")>([^<]*)<\/span>(.*?(?=<br>)|(.*))';
+        my $species_span_match = '<span class=(?:\'|\")specificepithet(?:\'|\")>([^<]*)<\/span>(.*?(?=<br>)|(.*))';
         my $subspecies_span_match = '<span class="subspecificepithet">([^<]*)</span>';
 
         #my $genusspecies_span_start = '(<span class="genusspecies(-subspecies)?">)([^<]+)';

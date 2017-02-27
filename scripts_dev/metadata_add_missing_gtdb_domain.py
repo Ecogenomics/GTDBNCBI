@@ -51,6 +51,7 @@ class FillMissingDomain(object):
     
     csv_reader = csv.reader(open(metadata_file, 'rt'))
     bHeader = True
+    update_count = 0 
     for row in csv_reader:
         if bHeader:
             headers = row
@@ -66,12 +67,14 @@ class FillMissingDomain(object):
             if (not gtdb_domain or gtdb_domain == 'd__') and ncbi_taxonomy:
                 ncbi_domain = ncbi_taxonomy.split(';')[0]
                 if ncbi_domain != 'd__':
-                    print genome_id, ncbi_domain
+                    update_count += 1
                     temp_file.write('%s\t%s\n' % (genome_id, ncbi_domain))
                 else:
-                    print '[WARNING] NCBI genomes has no GTDB domain or valid NCBI taxonomy: %s' % genome_id
+                    print '[WARNING] NCBI genome has no GTDB domain or valid NCBI taxonomy: %s' % genome_id
 
     temp_file.close()
+    
+    print 'Updating %d genomes with gtdb_domain information.' % update_count
 
     cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_domain --type TEXT --metadatafile %s' % temp_file.name
     print cmd
