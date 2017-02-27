@@ -166,6 +166,12 @@ class AlignedMarkerManager(object):
                 marker_suffix, self.protein_file_suffix)
             all_genes_dict = read_fasta(protein_file, False)
 
+            # Prodigal adds an asterisks at the end of each called genes,
+            # These asterisks sometimes appear in the MSA, which can be an issue for some softwares downstream
+            for seq_id, seq in all_genes_dict.iteritems():
+                if seq[-1] == '*':
+                    all_genes_dict[seq_id] = seq[:-1]
+
             # we store the tophit file line by line and store the
             # information in a dictionary
             with open(tophit_path) as tp:

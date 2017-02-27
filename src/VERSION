@@ -1,6 +1,7 @@
 software_version=2.1.8
 ncbi_database_version=release 78
 gtdb_version=1.2.5
+taxonomy_version=v78.0
 
 GTDB software versions
 ----------------------
@@ -85,3 +86,7 @@ v1.2.1 (July 07, 2016):
 -New representative Set
 -Reassignement of User genomes to reps (starting from 31st of May 2016)
 
+Taxonomy versions
+----------------------
+v78.0 (December 19, 2016):
+- V76.final propagated to Release 78
