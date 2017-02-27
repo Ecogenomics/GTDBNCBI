@@ -198,7 +198,7 @@ class MetadataTable(object):
 
         # generate metadata for NCBI assemblies
         # for ncbi_genome_dir in [genbank_genome_dir, refseq_genome_dir]:
-        for ncbi_genome_dir in [genbank_genome_dir]:
+        for ncbi_genome_dir in [genbank_genome_dir, refseq_genome_dir]:
             processed_assemblies = defaultdict(list)
             print 'Reading NCBI assembly directories: %s' % ncbi_genome_dir
             processed_assemblies = defaultdict(list)
