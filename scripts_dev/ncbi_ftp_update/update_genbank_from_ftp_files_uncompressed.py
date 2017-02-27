@@ -86,6 +86,8 @@ class UpdateGenbankFolder(object):
                 new_dict = {new_line.split("\t")[0]: new_line.split("\t")[1].strip()
                             for new_line in new_genome_dirs_file if "/{0}/".format(domain) in new_line.split("\t")[1] and new_line.split("\t")[0] in listGCA}
 
+            
+
             # new genomes in FTP
             added_dict = {added_key: new_dict[added_key] for added_key in list(
                 set(new_dict.keys()) - set(old_dict.keys()))}
@@ -301,9 +303,17 @@ class UpdateGenbankFolder(object):
                 split_line = line.split("\t")
                 gcf_access = split_line[17]
                 full_gca_access = split_line[0]
+		###########
+		#if full_gca_access == 'GCA_900092125.1':
+		#    print full_gca_access
+		    #sys.exit()
+		#else:
+		#    continue
+		###########
                 latest = split_line[10]
 
                 if latest == "latest":
+		    print 'latest'
                     if not gcf_access.startswith("GCF"):
                         listGCA.append(full_gca_access)
                         self.select_gca.write("{0}\tNo GCF\n".format(
