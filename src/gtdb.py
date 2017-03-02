@@ -1118,7 +1118,6 @@ if __name__ == '__main__':
                                           help="Show help message.")
 
     parser_metadata_import.set_defaults(func=importMetadata)
-    
 
 # -------- Taxonomy subparsers
 
