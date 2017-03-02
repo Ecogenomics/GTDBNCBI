@@ -40,7 +40,7 @@ from PowerUserManager import PowerUserManager
 
 class GenomeDatabase(object):
 
-    def __init__(self, threads=1, tab_table=False):
+    def __init__(self, threads=1, tab_table=False, db_release=None):
         self.logger = logging.getLogger()
 
         self.conn = GenomeDatabaseConnection()
@@ -54,6 +54,8 @@ class GenomeDatabase(object):
         self.threads = threads
 
         self.tab_table = tab_table
+
+        self.dbLock = True if db_release != Config.LATEST_DB else False
 
         self.genomeCopyUserDir = None
         if Config.GTDB_GENOME_USR_DIR:
@@ -196,6 +198,9 @@ class GenomeDatabase(object):
             if Config.DB_UPDATE:
                 print "During maintenance, users can not add genomes."
                 return True
+            if self.dbLock:
+                print "Users can not add genomes in deprecated gtdb releases."
+                return True
 
             self.logger.info('Adding genomes to database.')
 
@@ -280,6 +285,9 @@ class GenomeDatabase(object):
 
             if Config.DB_UPDATE:
                 print "During maintenance, users can not delete genomes."
+                return True
+            if self.dbLock:
+                print "Users can not delete genomes in deprecated gtdb releases."
                 return True
 
             cur = self.conn.cursor()
@@ -1347,7 +1355,7 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
-    def ExportMetadata(self, path):
+    def ExportMetadata(self, path, outformat):
         try:
             cur = self.conn.cursor()
 
@@ -1356,7 +1364,7 @@ class GenomeDatabase(object):
             genome_rep_mngr.assignToRepresentative()
 
             metaman = MetadataManager(cur, self.currentUser)
-            metaman.exportMetadata(path)
+            metaman.exportMetadata(path, outformat)
 
             self.conn.commit()
         except GenomeDatabaseError as e:

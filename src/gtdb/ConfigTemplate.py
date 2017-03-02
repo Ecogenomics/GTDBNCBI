@@ -20,7 +20,16 @@ GTDB_DPRCTD_USR_DIR = GTDB_DPRCTD_ROOT
 GTDB_DPRCTD_GBK_DIR = GTDB_DPRCTD_ROOT
 GTDB_DPRCTD_RSQ_DIR = GTDB_DPRCTD_ROOT
 
+# Annotation folder
+NCBI_ANNOTATION_DIR = 'prodigal'
+USER_ANNOTATION_DIR = NCBI_ANNOTATION_DIR
+
 # Block Insertion/Deletion of genomes during updates
 # True : Stops Add/Delete
 # False : Allows Add/Delete
 DB_UPDATE = False
+
+# List of available database and the server associated with each of them.
+DB_SERVERS = {'deprecated_gtdb_version': 'hostname',
+              'latest_gtdb_version': 'hostname'}
+LATEST_DB = 'latest_gtdb_version'  # WHERE ADD AND DELETE CAN HAPPEN
