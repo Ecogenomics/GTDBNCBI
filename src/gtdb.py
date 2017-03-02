@@ -30,7 +30,8 @@ from biolib.misc.custom_help_formatter import CustomHelpFormatter
 
 from gtdb import GenomeDatabase
 from gtdb import DefaultValues
-from gtdb.Exceptions import GenomeDatabaseError, DumpDBErrors, DumpDBWarnings, ErrorReport
+from gtdb import Config
+from gtdb.Exceptions import GenomeDatabaseError,DumpDBErrors, DumpDBWarnings, ErrorReport
 
 from gtdb.Tools import confirm
 
@@ -58,7 +59,10 @@ def version():
     gtdb_version = version_file.readline().strip()
     gtdb_version = gtdb_version[gtdb_version.find('=') + 1:]
 
-    return software_version, ncbi_version, gtdb_version
+    taxonomy_version = version_file.readline().strip()
+    taxonomy_version = taxonomy_version[taxonomy_version.find('=') + 1:]
+
+    return software_version, ncbi_version, gtdb_version, taxonomy_version
 
 
 def versionInfo():
@@ -70,11 +74,11 @@ def versionInfo():
         String indication software and NCBI version information.
     """
 
-    software_version, ncbi_version, gtdb_version = version()
-    return 'GTDB v%s (NCBI RefSeq %s; Internal database v%s)' % (software_version, ncbi_version, gtdb_version)
+    software_version, ncbi_version, gtdb_version, taxonomy_version = version()
+    return 'GTDB v{0} (NCBI RefSeq {1}; Internal database v{2}; Taxonomy {3})'.format(software_version, ncbi_version, gtdb_version, taxonomy_version)
 
 
-def loggerSetup(output_dir, silent=False):
+def loggerSetup(output_dir, release, silent=False):
     """Set logging for application.
 
     Parameters
@@ -105,7 +109,10 @@ def loggerSetup(output_dir, silent=False):
         file_logger.setFormatter(log_format)
         logger.addHandler(file_logger)
 
-    logger.info(versionInfo())
+    if release == Config.LATEST_DB:
+        logger.info(versionInfo())
+    else:
+        logger.info("Deprecated version of GTDB : {0}".format(release))
     logger.info(ntpath.basename(sys.argv[0]) + ' ' + ' '.join(sys.argv[1:]))
 
     
@@ -420,7 +427,7 @@ def viewMetadata(db, args):
 
 
 def exportMetadata(db, args):
-    return db.ExportMetadata(args.outfile)
+    return db.ExportMetadata(args.outfile, args.outmetaformat)
 
 
 def importMetadata(db, args):
@@ -494,6 +501,8 @@ if __name__ == '__main__':
                         help='Logon as this user (implies -r).'),
     parser.add_argument('-t', dest='threads', type=int, default=1,
                         help='Maximum number of threads/cpus to use.')
+    parser.add_argument('-db', dest='release', default=Config.LATEST_DB, choices=Config.DB_SERVERS.keys(),
+                        help='Database version to connect to. Please notice that previous versions are unstable and are locked (no user genomes can be added and deleted) ')
     parser.add_argument('-f', dest='force', action='store_true',
                         help='Force all action (required to override warnings for certain actions).')
     parser.add_argument('-y', dest='assume_yes', action='store_true',
@@ -723,23 +732,23 @@ if __name__ == '__main__':
                                       help="Show help message.")
 
     parser_genome_view.set_defaults(func=ViewGenomes)
-    
+
     # genome stats parser
     parser_genome_stats = genome_category_subparser.add_parser('stats',
-                                                              add_help=False,
-                                                              formatter_class=CustomHelpFormatter,
-                                                              help='View statistics of genome.')
-                                                              
+                                                               add_help=False,
+                                                               formatter_class=CustomHelpFormatter,
+                                                               help='View statistics of genome.')
+
     required_genome_stats = parser_genome_stats.add_argument_group('required arguments')
     required_genome_stats.add_argument('--stat_fields', required=True,
-                                            help='GTDB fields to report (comma separated).')
-                                                              
+                                       help='GTDB fields to report (comma separated).')
+
     atleastone_genome_view = parser_genome_stats.add_argument_group('At least one argument required')
     atleastone_genome_view.add_argument('--batchfile', dest='batchfile', default=None,
                                         help='Batchfile of genome IDs (one per line) to view.')
     atleastone_genome_view.add_argument('--genome_ids', dest='id_list', default=None,
                                         help='Provide a list of genome IDs (comma separated) to view.')
-                                        
+
     optional_genome_view = parser_genome_stats.add_argument_group('optional arguments')
     optional_genome_view.add_argument('-h', '--help', action="help",
                                       help="Show help message.")
@@ -1039,6 +1048,8 @@ if __name__ == '__main__':
                                           help='Name of output file.')
 
     optional_metadata_export = parser_metadata_export.add_argument_group('optional arguments')
+    optional_metadata_export.add_argument('--format', dest='outmetaformat', choices=['csv', 'tab'], default='csv',
+                                          help="Select the output format of the Metadata file.")
     optional_metadata_export.add_argument('-h', '--help', action="help",
                                           help="Show help message.")
 
@@ -1093,7 +1104,6 @@ if __name__ == '__main__':
                                           help="Show help message.")
 
     parser_metadata_import.set_defaults(func=importMetadata)
-    
 
 # -------- Taxonomy subparsers
 
@@ -1346,9 +1356,9 @@ if __name__ == '__main__':
 
     # setup logger
     if hasattr(args, 'out_dir'):
-        loggerSetup(args.out_dir, args.silent)
+        loggerSetup(args.out_dir, args.release, args.silent)
     else:
-        loggerSetup(None, args.silent)
+        loggerSetup(None, args.release, args.silent)
 
     # Special parser checks
     if (args.category_parser_name == 'tree' and args.tree_subparser_name == 'create'):
@@ -1395,8 +1405,8 @@ if __name__ == '__main__':
                 'Need to specify at least one of --all, --batchfile or --marker_ids.')
 
     # initialise the backend
-    db = GenomeDatabase.GenomeDatabase(args.threads, args.tab_table)
-    db.conn.MakePostgresConnection()
+    db = GenomeDatabase.GenomeDatabase(args.threads, args.tab_table, args.release)
+    db.conn.MakePostgresConnection(args.release)
 
     if args.debug:
         db.SetDebugMode(True)
