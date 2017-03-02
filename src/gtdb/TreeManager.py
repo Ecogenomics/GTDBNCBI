@@ -146,12 +146,19 @@ class TreeManager(object):
                                                   quality[0],
                                                   quality[1]))
 
+<<<<<<< HEAD
         self.logger.info('Filtered %d genomes based on completeness, contamination, and quality.' % len(final_filtered_genomes))
+=======
+            new_genomes_to_retain = genomes_to_retain.intersection(genome_ids_from_taxa).union(guaranteed_from_flags)
+            self.logger.info('Filtered %d additional genomes based on taxonomic affiliations.' % (
+                len(genomes_to_retain) - len(new_genomes_to_retain)))
+>>>>>>> 4de4456148fe6614fe423ec799785ec543233dd6
 
         genomes_to_retain -= final_filtered_genomes
 
         # filter genomes explicitly specified for exclusion
         if genomes_to_exclude:
+<<<<<<< HEAD
             for genome_id in genomes_to_exclude:
                 fout_filtered.write('%s\t%s\n' % (external_ids[genome_id], 'Explicitly marked for exclusion.'))
 
@@ -162,6 +169,13 @@ class TreeManager(object):
 
             new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude)
             self.logger.info('Filtered %d genomes explicitly indicated for exclusion.' % (
+=======
+            if taxa_filter:
+                new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude)
+            else:
+                new_genomes_to_retain = genomes_to_retain.difference(genomes_to_exclude).union(guaranteed_from_flags)
+            self.logger.info('Filtered %d additional genomes explicitly indicated for exclusion.' % (
+>>>>>>> 4de4456148fe6614fe423ec799785ec543233dd6
                 len(genomes_to_retain) - len(new_genomes_to_retain)))
             genomes_to_retain = new_genomes_to_retain
 
@@ -215,6 +229,13 @@ class TreeManager(object):
 
         genomes_to_retain.difference_update(filter_on_aa)
         self.logger.info('Producing tree data for %d genomes.' % len(genomes_to_retain))
+
+        good_genomes_file = os.path.join(
+            directory, prefix + '_good_genomes.tsv')
+        good_genomes = open(good_genomes_file, 'w')
+        for item in genomes_to_retain:
+            good_genomes.write("{0}\n".format(item))
+        good_genomes.close()
 
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 
@@ -346,12 +367,21 @@ class TreeManager(object):
         multi_hits_fh.close()
 
         # filter columns without sufficient representation across taxa
+<<<<<<< HEAD
         self.logger.info('Trimming columns with insufficient taxa or poor consensus.')
         trimmed_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons, mask = self._trim_seqs(
             msa, min_perc_taxa / 100.0, consensus / 100.0, min_perc_aa / 100.0)
         self.logger.info('Trimmed alignment from %d to %d AA (%d by minimum taxa percent, %d by consensus).' % (len(msa[msa.keys()[0]]),
                                                                                                                 len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
         self.logger.info('After trimming %d taxa have amino acids in <%.1f%% of columns.' % (
+=======
+        self.logger.info('Trimming columns with insufficient taxa.')
+        trimmed_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons = self._trim_seqs(
+            msa, min_perc_taxa / 100.0, consensus / 100.0, min_perc_aa / 100.0)
+        self.logger.info('Trimmed alignment from %d to %d AA (%d excluded by minimum taxa percent, %d excluded by consensus).' % (len(msa[msa.keys()[0]]),
+                                                                                                                                  len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
+        self.logger.info('After trimming %d taxa have AA in <%.1f%% of columns.' % (
+>>>>>>> 4de4456148fe6614fe423ec799785ec543233dd6
             len(pruned_seqs), min_perc_aa))
             
         # write out mask for MSA
@@ -504,7 +534,11 @@ class TreeManager(object):
 
             output_seqs[seq_id] = masked_seq
 
+<<<<<<< HEAD
         return output_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons, mask
+=======
+        return output_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons
+>>>>>>> 4de4456148fe6614fe423ec799785ec543233dd6
 
     def _filterOnGenomeQuality(self, genome_ids, quality_threshold, quality_weight, comp_threshold, cont_threshold):
         """Filter genomes on completeness and contamination thresholds.
