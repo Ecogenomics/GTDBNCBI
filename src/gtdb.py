@@ -31,7 +31,10 @@ from biolib.misc.custom_help_formatter import CustomHelpFormatter
 from gtdb import GenomeDatabase
 from gtdb import DefaultValues
 from gtdb import Config
+<<<<<<< HEAD
 
+=======
+>>>>>>> Connection to different databases. TAB-format available for Metadata export.
 from gtdb.Exceptions import GenomeDatabaseError,DumpDBErrors, DumpDBWarnings, ErrorReport
 
 from gtdb.Tools import confirm
@@ -218,10 +221,7 @@ def ViewGenomes(db, args):
         if args.id_list:
             external_ids = args.id_list.split(",")
         return db.ViewGenomes(args.batchfile, external_ids)
-<<<<<<< HEAD
 
-=======
->>>>>>> sra_donovan flags, taxa_filter new behaviours, script improvments
 
 def StatGenomes(db, args):
     external_ids = None
