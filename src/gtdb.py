@@ -1174,6 +1174,10 @@ if __name__ == '__main__':
                                                 help=("Include SRA dereplicated genomes generated from Donovan's SRA bins." +
                                                       ' This is a temporary flag.'))
 
+    atleastone_genomes_create_tree.add_argument('--donovan_sra_representatives', default=False, action='store_true',
+                                                help=('Include SRA representative genomes generated from Donovan SRA bins.' +
+                                                      ' This is a temporary flag.'))
+
     atleastone_genomes_create_tree.add_argument('--all_genomes', default=False, action='store_true',
                                                 help='Include all genomes, subject to filtering.')
     atleastone_genomes_create_tree.add_argument('--ncbi_genomes', default=False, action='store_true',
@@ -1376,8 +1380,13 @@ if __name__ == '__main__':
     if (args.category_parser_name == 'tree' and args.tree_subparser_name == 'create'):
         if (not args.all_dereplicated and
                 not args.ncbi_dereplicated and
+<<<<<<< HEAD
                 not args.user_genomes and
                 not args.donovan_sra_dereplicated and
+=======
+                not args.user_dereplicated and
+                not args.donovan_sra_representatives and
+>>>>>>> 4de4456148fe6614fe423ec799785ec543233dd6
                 not args.all_genomes and
                 not args.ncbi_genomes and
                 not args.user_genomes and
@@ -1385,7 +1394,11 @@ if __name__ == '__main__':
                 not args.genome_ids and
                 not args.genome_batchfile):
             parser_tree_create.error(
+<<<<<<< HEAD
                 'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_genomes, --donovan_sra_dereplicated, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
+=======
+                'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_dereplicated, --donovan_sra_representatives, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
+>>>>>>> 4de4456148fe6614fe423ec799785ec543233dd6
 
         if (not args.marker_set_ids
                 and not args.marker_ids

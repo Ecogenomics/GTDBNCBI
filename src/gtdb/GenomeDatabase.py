@@ -564,6 +564,15 @@ class GenomeDatabase(object):
                 ids = genome_rep_mngr.sraRepresentatives()
                 genome_id_list.update(ids)
 
+<<<<<<< HEAD
+=======
+            if donovan_sra_representatives:
+                ids = genome_rep_mngr.sraRepresentatives()
+                genome_id_list.update(ids)
+
+            required_rep_genomes_ids = genome_id_list.intersection(rep_genome_ids)
+
+>>>>>>> 4de4456148fe6614fe423ec799785ec543233dd6
             if all_genomes:
                 ids = genome_mngr.allGenomeIds()
                 genome_id_list.update(ids)
