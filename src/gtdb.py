@@ -31,6 +31,7 @@ from biolib.misc.custom_help_formatter import CustomHelpFormatter
 from gtdb import GenomeDatabase
 from gtdb import DefaultValues
 from gtdb import Config
+
 from gtdb.Exceptions import GenomeDatabaseError,DumpDBErrors, DumpDBWarnings, ErrorReport
 
 from gtdb.Tools import confirm
