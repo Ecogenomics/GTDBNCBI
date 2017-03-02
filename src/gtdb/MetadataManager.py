@@ -69,12 +69,13 @@ class MetadataManager(object):
         except GenomeDatabaseError as e:
             raise e
 
-    def exportMetadata(self, path):
+    def exportMetadata(self, path, outformat=None):
         '''
         Function: exportMetadata
-        Export metadata for all genomes to a csv file
+        Export metadata for all genomes to either a tab-delimited or csv file
 
         :param path: Path to the output file
+        :param outformat : CSV or Tab-delimited output
         '''
 
         try:
@@ -82,7 +83,10 @@ class MetadataManager(object):
             query_tmp += "ALTER TABLE temp_tb DROP COLUMN id;ALTER TABLE temp_tb DROP COLUMN study_id;"
             self.cur.execute(query_tmp)
             query = "SELECT * FROM temp_tb"
-            outputquery = 'copy ({0}) to stdout with csv header'.format(query)
+            if outformat == 'csv':
+                outputquery = 'copy ({0}) to stdout with csv header'.format(query)
+            elif outformat == 'tab':
+                outputquery = "copy ({0}) to stdout with DELIMITER '\t' NULL AS 'none' csv header;".format(query)
             with open(path, 'w') as f:
                 self.cur.copy_expert(outputquery, f)
             print "Export Successful"
@@ -91,7 +95,7 @@ class MetadataManager(object):
 
     def ExportGenomePaths(self, path):
         '''
-        Function: exportMetadata
+        Function: ExportGenomePaths
         Export the full path for all genomes to a csv file
 
         :param path: Path to the output file
