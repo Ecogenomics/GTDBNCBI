@@ -31,11 +31,10 @@ class GenomeDatabaseConnection(object):
     #
     # Returns:
     #   No return value.
-    def MakePostgresConnection(self):
-        db_name = Config.GTDB_DB_NAME
+    def MakePostgresConnection(self, release):
         conn_string = "dbname=%s user=%s host=%s password=%s" % (
-            db_name, Config.GTDB_USERNAME,
-            Config.GTDB_HOST, Config.GTDB_PASSWORD
+            release, Config.GTDB_USERNAME,
+            Config.DB_SERVERS.get(release), Config.GTDB_PASSWORD
         )
         self.conn = pg.connect(conn_string)
 
