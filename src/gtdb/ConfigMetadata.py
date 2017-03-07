@@ -22,9 +22,12 @@ GTDB_SSU_GG_TAXONOMY = '/srv/db/gg/2013_08/gg_13_8_otus/taxonomy/99_otu_taxonomy
 GTDB_SSU_GG_OUTPUT_DIR = 'ssu_gg'
 GTDB_SSU_GG_PREFIX = 'ssu_gg'
 
-TIGRFAM_HMMS = '/srv/whitlam/bio/db/tigrfam/15.0/TIGRFAMs_15.0_HMM/tigrfam.hmm'
+TIGRFAM_HMMS = '/srv/db/tigrfam/15.0/TIGRFAMs_15.0_HMM/tigrfam.hmm'
+TIGRFAM_INFO_DIR = '/srv/db/tigrfam/15.0/TIGRFAMs_15.0_INFO'
 PFAM_HMM_DIR = '/srv/db/pfam/27/'
 PFAM_HMM_FILE = 'Pfam-A.hmm'
+PFAMM_HMM_DAT_FILE = 'Pfam-A.hmm.dat'
+KEGG_HMMS = '/srv/whitlam/bio/db/kegg/???/kegg.hmm'
 
 GENOME_FILE_SUFFIX = "_genomic.fna"
 PROTEIN_FILE_SUFFIX = "_protein.faa"
@@ -37,3 +40,5 @@ TIGRFAM_SUFFIX = "_tigrfam.tsv"
 TIGRFAM_TOP_HIT_SUFFIX = "_tigrfam_tophit.tsv"
 PFAM_SUFFIX = "_pfam.tsv"
 PFAM_TOP_HIT_SUFFIX = "_pfam_tophit.tsv"
+KEGG_SUFFIX = "_kegg.tsv"
+KEGG_TOP_HIT_SUFFIX = "_kegg_tophit.tsv"
