@@ -76,8 +76,7 @@ class GenomeManager(object):
         self.deprecatedUserDir = Config.GTDB_DPRCTD_USR_DIR
         self.deprecatedGBKDir = Config.GTDB_DPRCTD_GBK_DIR
         self.deprecatedRSQDir = Config.GTDB_DPRCTD_RSQ_DIR
-
-        self.ncbiAnnotationDir = Config.NCBI_ANNOTATION_DIR
+        
         self.userAnnotationDir = Config.USER_ANNOTATION_DIR
 
     def _loggerSetup(self, silent=False):
@@ -366,6 +365,24 @@ class GenomeManager(object):
                 db_genome_id))
 
         shutil.rmtree(self.tmp_output_dir)
+        
+    def proteinFiles(self, db_genome_ids):
+        """Get called genes for genomes."""
+        
+        genome_dirs = self.genomeDirs(db_genome_ids)
+        genome_id_map = self.genomeIdsToExternalGenomeIds(db_genome_ids)
+        
+        protein_files = {}
+        for db_genome_id, genome_dir in genome_dirs.iteritems():
+            gene_dir = os.path.join(genome_dirs[db_genome_id], 
+                                            Config.NCBI_ANNOTATION_DIR)
+            raw_genome_id = genome_id_map[db_genome_id].replace('GB_', '').replace('RS_', '')
+            protein_file = os.path.join(gene_dir, 
+                                        raw_genome_id + ConfigMetadata.PROTEIN_FILE_SUFFIX)
+        
+            protein_files[db_genome_id] = protein_file
+            
+        return protein_files
         
     def genomeDirs(self, db_genome_ids):
         """Get path to genomes."""
