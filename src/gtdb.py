@@ -30,7 +30,7 @@ from biolib.misc.custom_help_formatter import CustomHelpFormatter
 
 from gtdb import GenomeDatabase
 from gtdb import DefaultValues
-from gtdb.Exceptions import GenomeDatabaseError
+from gtdb.Exceptions import GenomeDatabaseError, DumpDBErrors, DumpDBWarnings, ErrorReport
 
 from gtdb.Tools import confirm
 
@@ -108,22 +108,7 @@ def loggerSetup(output_dir, silent=False):
     logger.info(versionInfo())
     logger.info(ntpath.basename(sys.argv[0]) + ' ' + ' '.join(sys.argv[1:]))
 
-
-def DumpDBErrors(db):
-    ErrorReport("\n".join(["\t" + x for x in db.GetErrors()]) + "\n")
-    db.ClearErrors()
-
-
-def DumpDBWarnings(db):
-    ErrorReport("\n".join(["\t" + x for x in db.GetWarnings()]) + "\n")
-    db.ClearWarnings()
-
-
-def ErrorReport(msg):
-    sys.stderr.write(msg)
-    sys.stderr.flush()
-
-
+    
 def AddUser(db, args):
     log_has_root = False
     if args.login_as_root and args.has_root:
@@ -457,34 +442,6 @@ def createMetadata(db, args):
     return db.CreateMetadata(args.metadatafile)
 
     
-def annotateKEGG(db, args):
-    genome_id_list, rep_genome_ids = db.GetGenomeIds(False,
-                                                     False,
-                                                     False,
-                                                     False,
-                                                     False,
-                                                     False,
-                                                     args.genome_list_ids,
-                                                     args.genome_ids,
-                                                     args.genome_batchfile)
-                                                     
-    return db.AnnotateKEGG(db, genome_id_list)
-   
-   
-def exportAnnotations(db, args):
-    genome_id_list, rep_genome_ids = db.GetGenomeIds(False,
-                                                     False,
-                                                     False,
-                                                     args.all_genomes,
-                                                     False,
-                                                     False,
-                                                     args.genome_list_ids,
-                                                     args.genome_ids,
-                                                     args.genome_batchfile)
-                                                     
-    return db.ExportAnnotations(args.db, genome_id_list, args.out_dir)
-
-    
 def exportTaxonomyGTDB(db, args):
     return db.ExportTaxonomy('GTDB', args.outfile)
 
@@ -591,13 +548,6 @@ if __name__ == '__main__':
     metadata_category_subparser = metadata_category_parser.add_subparsers(help='Metadata command help.',
                                                                           dest='metadata_subparser_name')
 
-    annotate_category_parser = category_parser.add_parser('annotate',
-                                                          formatter_class=CustomHelpFormatter,
-                                                          help='Commands for annotating genomes.')
-    annotate_category_subparser = annotate_category_parser.add_subparsers(help='Annotate command help.',
-                                                                          dest='annotate_subparser_name')
-    
-    
     taxonomy_category_parser = category_parser.add_parser('taxonomy',
                                                           formatter_class=CustomHelpFormatter,
                                                           help='Commands for exporting the taxonomic information.')
@@ -1145,63 +1095,6 @@ if __name__ == '__main__':
 
     parser_metadata_import.set_defaults(func=importMetadata)
     
-# -------- Annotate subparsers
-
-    annotate_kegg = annotate_category_subparser.add_parser('kegg',
-                                                                  add_help=False,
-                                                                  formatter_class=CustomHelpFormatter,
-                                                                  help='Annotate genomes using KEGG.')
-    atleastone_annotate_kegg = annotate_kegg.add_argument_group('minimum of one argument required')
-
-    atleastone_annotate_kegg.add_argument('--genome_list_ids', default=None,
-                                                help=('Genome list IDs (comma separated) of ' +
-                                                      'genomes to annotate.'))
-    atleastone_annotate_kegg.add_argument('--genome_ids', default=None,
-                                                help=('Genome IDs (comma separated) of ' +
-                                                      'genomes to annotate.'))
-    atleastone_annotate_kegg.add_argument('--genome_batchfile', default=None,
-                                                help=('File of genome IDs, one per line, of in ' +
-                                                      'genomes to annotate.'))
-    
-    required_annotate_kegg = annotate_kegg.add_argument_group('required arguments')
-    required_annotate_kegg.add_argument('--output', dest='outfile', default=None, required=True,
-                                               help='Name of output file.')
-
-    optional_annotate_kegg = annotate_kegg.add_argument_group('optional arguments')
-    optional_annotate_kegg.add_argument('-h', '--help', action="help",
-                                               help="Show help message.")
-
-    annotate_kegg.set_defaults(func=annotateKEGG)
-
-    # Export Pfam, TIGRfam, or KEGG annotations
-    annotate_export = annotate_category_subparser.add_parser('export',
-                                                                  add_help=False,
-                                                                  formatter_class=CustomHelpFormatter,
-                                                                  help='Export annotations.')
-    required_annotate_export = annotate_export.add_argument_group('required arguments')
-    required_annotate_export.add_argument('--db', required=True, choices=['kegg', 'pfam', 'tigrfam'],
-                                               help='Database annotations to export.')
-    required_annotate_export.add_argument('--output', dest='out_dir', required=True,
-                                              help='Directory to output files.')
-                                               
-    atleastone_annotate_kegg = annotate_export.add_argument_group('minimum of one argument required')
-
-    atleastone_annotate_kegg.add_argument('--all_genomes', default=False, action='store_true',
-                                                help='Export annotations for all genomes.')
-    atleastone_annotate_kegg.add_argument('--genome_list_ids', default=None,
-                                                help=('Export annotations for genomes in' +
-                                                      'specified genome list IDs (comma separated).'))
-    atleastone_annotate_kegg.add_argument('--genome_ids', default=None,
-                                                help=('Export annotations for specified genome IDs (comma separated).'))
-    atleastone_annotate_kegg.add_argument('--genome_batchfile', default=None,
-                                                help=('Export annotations for genomes listed in' +
-                                                      'file, one per line.'))
-
-    optional_annotate_export = annotate_export.add_argument_group('optional arguments')
-    optional_annotate_export.add_argument('-h', '--help', action="help",
-                                               help="Show help message.")
-
-    annotate_export.set_defaults(func=exportAnnotations)
 
 # -------- Taxonomy subparsers
 

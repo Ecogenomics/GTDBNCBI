@@ -32,7 +32,6 @@ from GenomeListManager import GenomeListManager
 from MarkerManager import MarkerManager
 from MarkerSetManager import MarkerSetManager
 from MetadataManager import MetadataManager
-from AnnotationManager import AnnotationManager
 from TreeManager import TreeManager
 from AlignedMarkerManager import AlignedMarkerManager
 from GenomeRepresentativeManager import GenomeRepresentativeManager
@@ -253,7 +252,6 @@ class GenomeDatabase(object):
             genome_mngr.moveGenomes(genome_ids)
 
             self.conn.commit()
-
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
@@ -512,6 +510,61 @@ class GenomeDatabase(object):
             return False
 
         return True
+        
+    def GetRequestedGenomeIds(self, 
+                                 all_genomes,
+                                 genome_list_ids,
+                                 genome_ids,
+                                 genome_batchfile):
+        """Get genome IDs of interest.
+
+        Returns
+        -------
+        list
+            Requested genome IDs
+        """
+
+        genome_id_list = set()
+
+        try:
+            cur = self.conn.cursor()
+
+            genome_mngr = GenomeManager(cur, self.currentUser)
+            genome_list_mngr = GenomeListManager(cur, self.currentUser)
+
+            if all_genomes:
+                ids = genome_mngr.allGenomeIds()
+                genome_id_list.update(ids)
+
+            if genome_list_ids:
+                ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(genome_list_ids.split(","))
+                genome_id_list.update(ids)
+
+            if genome_ids:
+                ids = genome_mngr.externalGenomeIdsToGenomeIds(genome_ids.split(","))
+                genome_id_list.update(ids)
+
+            genome_batchfile_ids = []
+            if genome_batchfile:
+                fh = open(genome_batchfile, "rb")
+                for line in fh:
+                    if line[0] == '#':
+                        continue
+                    line = line.strip().split('\t')
+                    genome_batchfile_ids.append(line[0])
+
+            if genome_batchfile_ids:
+                ids = genome_mngr.externalGenomeIdsToGenomeIds(genome_batchfile_ids)
+                genome_id_list.update(ids)
+
+            if (len(genome_id_list) == 0):
+                raise GenomeDatabaseError("No genomes found from the information provided.")
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return genome_id_list
 
     def GetGenomeIds(self, all_dereplicated,
                      ncbi_dereplicated,
@@ -1329,41 +1382,6 @@ class GenomeDatabase(object):
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
-            
-    def AnnotateKEGG(self, genome_ids):
-        pass
-    
-    
-    
-    def ExportAnnotations(self, export_db, genome_ids, output_dir):
-        """Export genome annotations.
-
-        Parameters
-        ----------
-        export_db : str
-          Annotations to export (kegg, pfam, or tigrfam).
-        genome_ids : list
-          Genomes for which annotations should be exported.
-        output_dir : str
-          Output directory.
-        """
-        
-        self.logger.info('Exporting annotations for %d genomes.' % len(genome_ids))
-        
-        try:
-            cur = self.conn.cursor()
-            
-            annotation_mngr = AnnotationManager(cur,
-                                                self.currentUser,
-                                                self.threads)
-                                                
-            annotation_mngr.export(export_db, genome_ids, output_dir)
-                                                
-        except GenomeDatabaseError as e:
-            self.ReportError(e.message)
-            return False
-
-        return True
 
     def ExportTaxonomy(self, taxonomy_src, output_file):
         """Write taxonomy to file.
