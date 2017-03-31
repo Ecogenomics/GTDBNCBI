@@ -32,7 +32,7 @@ import DefaultValues
 class GenomeRepresentativeManager(object):
     ''''Manage genome representatives.'''
 
-    def __init__(self, cur, currentUser, threads):
+    def __init__(self, cur, currentUser, threads, db_release):
         """Initialize.
 
         Parameters
@@ -48,6 +48,8 @@ class GenomeRepresentativeManager(object):
         self.cur = cur
         self.currentUser = currentUser
         self.threads = threads
+
+	self.db_release = db_release
 
         # threshold used to assign genome to representative
         self.aai_threshold = DefaultValues.AAI_CLUSTERING_THRESHOLD
@@ -403,6 +405,8 @@ class GenomeRepresentativeManager(object):
         if not unprocessed_genome_ids:
             return
 
+	print len(unprocessed_genome_ids)
+
         # get canonical bacterial and archaeal markers
         marker_set_mngr = MarkerSetManager(self.cur, self.currentUser)
         bac_marker_ids = marker_set_mngr.canonicalBacterialMarkers()
@@ -410,7 +414,7 @@ class GenomeRepresentativeManager(object):
 
         # identify and align genes from canonical bacterial and archaeal marker sets
         all_markers = set(bac_marker_ids).union(ar_marker_ids)
-        aligned_mngr = AlignedMarkerManager(self.cur, self.threads)
+        aligned_mngr = AlignedMarkerManager(self.cur, self.threads,self.db_release)
         aligned_mngr.calculateAlignedMarkerSets(unprocessed_genome_ids, all_markers)
 
         # get list of representative genomes
