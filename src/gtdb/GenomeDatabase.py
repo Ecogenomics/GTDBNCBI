@@ -52,6 +52,7 @@ class GenomeDatabase(object):
         self.debugMode = False
 
         self.threads = threads
+	self.db_release = db_release
 
         self.tab_table = tab_table
 
@@ -317,7 +318,7 @@ class GenomeDatabase(object):
 
             # restrict deletion of representative genomes
             genome_rep_mngr = GenomeRepresentativeManager(
-                cur, self.currentUser, self.threads)
+                cur, self.currentUser, self.threads,self.db_release)
             db_rep_genome_ids = genome_rep_mngr.representativeGenomes()
             rep_genomes_to_delete = set(
                 db_rep_genome_ids).intersection(genome_ids)
@@ -545,7 +546,7 @@ class GenomeDatabase(object):
         try:
             cur = self.conn.cursor()
 
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads,self.db_release)
             genome_mngr = GenomeManager(cur, self.currentUser)
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
 
@@ -564,15 +565,6 @@ class GenomeDatabase(object):
                 ids = genome_rep_mngr.sraRepresentatives()
                 genome_id_list.update(ids)
 
-<<<<<<< HEAD
-=======
-            if donovan_sra_representatives:
-                ids = genome_rep_mngr.sraRepresentatives()
-                genome_id_list.update(ids)
-
-            required_rep_genomes_ids = genome_id_list.intersection(rep_genome_ids)
-
->>>>>>> 4de4456148fe6614fe423ec799785ec543233dd6
             if all_genomes:
                 ids = genome_mngr.allGenomeIds()
                 genome_id_list.update(ids)
@@ -687,7 +679,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads,self.db_release)
             genome_rep_mngr.assignToRepresentative()
 
             # get all guaranteed genomes
@@ -733,7 +725,7 @@ class GenomeDatabase(object):
                 genomes_to_exclude.update(db_genome_ids)
 
             # make sure all markers are aligned
-            aligned_mngr = AlignedMarkerManager(cur, self.threads)
+            aligned_mngr = AlignedMarkerManager(cur, self.threads, self.db_release)
             aligned_mngr.calculateAlignedMarkerSets(genome_ids, marker_ids)
 
             # create tree data
@@ -1297,7 +1289,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads,self.db_release)
             genome_rep_mngr.assignToRepresentative()
 
             metaman = MetadataManager(cur, self.currentUser)
@@ -1365,7 +1357,8 @@ class GenomeDatabase(object):
             # ensure all genomes have been assigned to a representatives
             genome_rep_mngr = GenomeRepresentativeManager(cur,
                                                           self.currentUser,
-                                                          self.threads)
+                                                          self.threads,
+							  self.db_release)
             genome_rep_mngr.assignToRepresentative()
 
             metaman = MetadataManager(cur, self.currentUser)
@@ -1386,7 +1379,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # make sure representative have been determine for all genomes
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads,self.db_release)
             genome_rep_mngr.assignToRepresentative()
 
             # determine number of genomes from different database sources
@@ -1571,7 +1564,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            grm = GenomeRepresentativeManager(cur, self.currentUser, 1)
+            grm = GenomeRepresentativeManager(cur, self.currentUser, 1,self.db_release)
             grm.domainAssignmentReport(outfile)
 
             cur.close()

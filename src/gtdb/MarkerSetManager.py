@@ -81,11 +81,15 @@ class MarkerSetManager(object):
                  "WHERE genome_id = %s AND marker_id = ANY(%s)")
         self.cur.execute(query, (db_genome_id, marker_id_index.keys()))
 
+	#print "GENOME {0}".format(db_genome_id)
         concatenated_align = [None] * len(marker_id_index)
         for marker_id, sequence in self.cur:
+	    #print marker_id
+	    #print sequence
             index = marker_id_index[marker_id]
+	    #print index
             concatenated_align[index] = sequence
-
+	#print concatenated_align
         return ''.join(concatenated_align)
 
     def createMarkerSet(self, marker_id_list, name, description, owner_id=None, private=None):
