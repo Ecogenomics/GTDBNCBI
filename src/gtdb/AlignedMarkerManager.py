@@ -35,7 +35,7 @@ from biolib.seq_io import read_fasta
 class AlignedMarkerManager(object):
     ''''Manage the processing of Aligned Markers and querying marker information.'''
 
-    def __init__(self, cur, threads):
+    def __init__(self, cur, threads, release):
         """Initialize.
 
         Parameters
@@ -48,6 +48,7 @@ class AlignedMarkerManager(object):
 
         self.logger = logging.getLogger()
         self.threads = threads
+	self.release = release
 
         # self.conn = GenomeDatabaseConnection()
         # self.conn.MakePostgresConnection()
@@ -61,6 +62,7 @@ class AlignedMarkerManager(object):
         self.protein_file_suffix = ConfigMetadata.PROTEIN_FILE_SUFFIX
 
     def calculateAlignedMarkerSets(self, db_genome_ids, marker_ids):
+	print 286174 in db_genome_ids
         '''
         Run Hmmalign for PFAM and TIGRFAM missing markers
 
@@ -69,7 +71,7 @@ class AlignedMarkerManager(object):
         '''
 
         self.logger.info('Aligning marker genes not already in the database.')
-        return True
+        #return True
 
         # We need to rebuild the path to each
         genome_dirs_query = ("SELECT g.id, g.genes_file_location,gs.external_id_prefix "
@@ -113,6 +115,8 @@ class AlignedMarkerManager(object):
         '''
 
         for db_genome_id, path in subdict_genomes.items():
+	    if db_genome_id == 286174:
+		print "HERE"
             self._runHmmMultiAlign(db_genome_id, path, marker_ids)
         out_q.put("True")
         return True
@@ -127,7 +131,7 @@ class AlignedMarkerManager(object):
         '''
 
         temp_con = GenomeDatabaseConnection()
-        temp_con.MakePostgresConnection()
+        temp_con.MakePostgresConnection(self.release)
         temp_cur = temp_con.cursor()
 
         # gather information for all marker genes
