@@ -70,7 +70,7 @@ class AlignedMarkerManager(object):
         '''
 
         self.logger.info('Aligning marker genes not already in the database.')
-        #return True
+        # return True
 
         # We need to rebuild the path to each
         genome_dirs_query = ("SELECT g.id, g.genes_file_location,gs.external_id_prefix "
@@ -321,4 +321,4 @@ class AlignedMarkerManager(object):
             if mask_seq[pos] != 'x':
                 continue
             aligned_marker += hit_seq[pos]
-        return aligned_marker
+        return aligned_marke
