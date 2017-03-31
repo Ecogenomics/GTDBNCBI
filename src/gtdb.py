@@ -1370,13 +1370,8 @@ if __name__ == '__main__':
     if (args.category_parser_name == 'tree' and args.tree_subparser_name == 'create'):
         if (not args.all_dereplicated and
                 not args.ncbi_dereplicated and
-<<<<<<< HEAD
                 not args.user_genomes and
                 not args.donovan_sra_dereplicated and
-=======
-                not args.user_dereplicated and
-                not args.donovan_sra_representatives and
->>>>>>> sra_donovan flags, taxa_filter new behaviours, script improvments
                 not args.all_genomes and
                 not args.ncbi_genomes and
                 not args.user_genomes and
@@ -1384,15 +1379,9 @@ if __name__ == '__main__':
                 not args.genome_ids and
                 not args.genome_batchfile):
             parser_tree_create.error(
-<<<<<<< HEAD
                 'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_genomes, --donovan_sra_dereplicated, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
-=======
-                'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_dereplicated, --donovan_sra_representatives, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
->>>>>>> sra_donovan flags, taxa_filter new behaviours, script improvments
 
-        if (not args.marker_set_ids
-                and not args.marker_ids
-                and not args.marker_batchfile):
+        if (not args.marker_set_ids and not args.marker_ids and not args.marker_batchfile):
             parser_tree_create.error(
                 'Need to specify at least one of --marker_set_ids, --marker_ids or --marker_batchfile.')
 
