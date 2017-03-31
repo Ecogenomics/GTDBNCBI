@@ -150,6 +150,7 @@ class TreeManager(object):
                                                   'Filtered on quality (completeness, contamination).',
                                                   quality[0],
                                                   quality[1]))
+
         self.logger.info('Filtered %d genomes based on completeness, contamination, and quality.' % len(final_filtered_genomes))
 
         genomes_to_retain -= final_filtered_genomes
