@@ -386,6 +386,8 @@ class GenomeRepresentativeManager(object):
         if not unprocessed_genome_ids:
             return
 
+	print len(unprocessed_genome_ids)
+
         # get canonical bacterial and archaeal markers
         marker_set_mngr = MarkerSetManager(self.cur, self.currentUser)
         bac_marker_ids = marker_set_mngr.canonicalBacterialMarkers()
