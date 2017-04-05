@@ -196,6 +196,7 @@ class UpdateGTDBDatabase(object):
                 path_gtdb = re.sub(r"(^.+\/)(archaea\/|bacteria\/)", r"\g<2>", genome_dirs_dict[checkm_record])
                 path_gtdb += "/" + os.path.basename(path_gtdb)
                 path_database = re.sub(r"(.+)(_genomic.fna)", r"\g<1>", dict_existing_records[checkm_record])
+                path_protein_database = re.sub(r"(.+)/(GC._[^_]+)(.*)", r"\g<1>/prodigal/\g<2>_protein.faa", path_database)
 #                 if checkm_record == 'GCA_001242845.1':
 #                     print path_gtdb
 #                     print path_database
@@ -206,8 +207,8 @@ class UpdateGTDBDatabase(object):
                     query = "update genomes set fasta_file_location = replace(fasta_file_location, '{0}', '{1}') where name like '{2}'".format(
                             path_database, path_gtdb, checkm_record)
                     self.temp_cur.execute(query)
-                    query = "update genomes set genes_file_location = replace(genes_file_location, '{0}', '{1}') where name like '{2}'".format(
-                            path_database, path_gtdb, checkm_record)
+                    query = "update genomes set genes_file_location = '{0}' where name like '{1}'".format(
+                            path_protein_database, checkm_record)
                     self.temp_cur.execute(query)
 
                 # if the records is in the Checkm folder that means genomics and protein files have changed. We need to re write their sha256 values
@@ -221,7 +222,7 @@ class UpdateGTDBDatabase(object):
                 _genome_path, genome_id = ntpath.split(genome_dirs_dict[checkm_record])
                 genome_id = genome_id[0:genome_id.find('_', 4)]
                 gene_file_path = os.path.join(genome_dirs_dict[checkm_record], "prodigal")
-                gene_files = glob.glob(gene_file_path + "/*_protein.faa")
+                gene_files = glob.glob(gene_file_path + "/*_protein.faa")        
                 if len(gene_files) == 1:
                     gene_file = gene_files[0]
                     new_md5_gene = self.sha256Calculator(gene_file)
