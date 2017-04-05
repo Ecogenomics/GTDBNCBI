@@ -336,6 +336,12 @@ class TreeManager(object):
                         individual_marker_fasta[marker_id] = [fasta_outstr]
                 else:
                     sequence = chosen_markers[marker_id]['size'] * '-'
+                    fasta_outstr = ">%s\n%s\n" % (external_genome_id, sequence)
+
+                    try:
+                        individual_marker_fasta[marker_id].append(fasta_outstr)
+                    except KeyError:
+                        individual_marker_fasta[marker_id] = [fasta_outstr]
                 aligned_seq += sequence
 
             msa[external_genome_id] = aligned_seq
