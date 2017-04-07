@@ -33,6 +33,7 @@ from gtdb import DefaultValues
 from gtdb import Config
 from gtdb.Exceptions import GenomeDatabaseError,DumpDBErrors, DumpDBWarnings, ErrorReport
 
+
 from gtdb.Tools import confirm
 
 
