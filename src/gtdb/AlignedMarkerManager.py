@@ -115,6 +115,8 @@ class AlignedMarkerManager(object):
         '''
 
         for db_genome_id, path in subdict_genomes.items():
+	    if db_genome_id == 286174:
+		print "HERE"
             self._runHmmMultiAlign(db_genome_id, path, marker_ids)
         out_q.put("True")
         return True

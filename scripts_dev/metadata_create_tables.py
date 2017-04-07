@@ -163,7 +163,6 @@ class MetadataTable(object):
             if longest_ssu_hit_info:
                 fout.write(genome_id)
                 fout.write('\t' + '\t'.join(longest_ssu_hit_info))
-
                 all_genes_dict = read_fasta(fna_file, False)
                 sequence = all_genes_dict[ssu_query_id]
                 fout.write('\t{0}'.format(sequence))
@@ -259,7 +258,6 @@ class MetadataTable(object):
                     continue
 
                 for genome_id in os.listdir(full_user_dir):
-                    # for genome_id in ["U_65402", "U_65403", "U_65404", "U_65405", "U_65406", "U_65407", "U_65408", "U_65409", "U_65410"]:
                     full_genome_dir = os.path.join(full_user_dir, genome_id)
 
                     metadata_nt_file = os.path.join(full_genome_dir, self.metadata_nt_file)
@@ -292,6 +290,7 @@ class MetadataTable(object):
         fout_lsu_silva_taxonomy.close()
         fout_ssu_silva_count.close()
         fout_lsu_silva_count.close()
+
 
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
