@@ -153,7 +153,8 @@ class TreeManager(object):
         # filter genomes explicitly specified for exclusion
         if genomes_to_exclude:
             for genome_id in genomes_to_exclude:
-                fout_filtered.write('%s\t%s\n' % (external_ids[genome_id], 'Explicitly marked for exclusion.'))
+                if genome_id in external_ids:
+                    fout_filtered.write('%s\t%s\n' % (external_ids[genome_id], 'Explicitly marked for exclusion.'))
 
             conflicting_genomes = guaranteed_ids.intersection(genomes_to_exclude)
             if conflicting_genomes:

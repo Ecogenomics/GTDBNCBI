@@ -148,22 +148,22 @@ class GenomeDatabase(object):
     def SetDebugMode(self, debug_mode):
         self.debugMode = debug_mode
 
-    def addUser(self, username, role, login_has_root):
+    def addUser(self, username, role, login_has_root, firstname, lastname):
         try:
             cur = self.conn.cursor()
             user_mngr = UserManager(cur, self.currentUser)
-            user_mngr.addUser(username, role, login_has_root)
+            user_mngr.addUser(username, firstname, lastname, role, login_has_root)
             self.conn.commit()
             return True
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
 
-    def editUser(self, username, role, login_has_root):
+    def editUser(self, username, role, login_has_root, firstname, lastname):
         try:
             cur = self.conn.cursor()
             user_mngr = UserManager(cur, self.currentUser)
-            user_mngr.editUser(username, role, login_has_root)
+            user_mngr.editUser(username, role, login_has_root, firstname, lastname)
             self.conn.commit()
             return True
         except GenomeDatabaseError as e:
