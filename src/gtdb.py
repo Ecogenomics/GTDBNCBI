@@ -115,16 +115,22 @@ def AddUser(db, args):
         log_has_root = True
     return db.addUser(args.username,
                       args.role,
-                      log_has_root)
+                      log_has_root,
+                      args.firstname,
+                      args.lastname)
 
 
 def EditUser(db, args):
     log_has_root = False
-    if args.login_as_root and args.has_root:
+    if args.has_root is None:
+            log_has_root = None
+    elif args.login_as_root and args.has_root:
         log_has_root = True
     return db.editUser(args.username,
                        args.role,
-                       log_has_root)
+                       log_has_root,
+                       args.firstname,
+                       args.lastname)
 
 
 def AddGenomes(db, args):
@@ -583,6 +589,10 @@ if __name__ == '__main__':
     required_user_add = parser_user_add.add_argument_group('required  arguments')
     required_user_add.add_argument('--username', dest='username', required=True,
                                    help='Username of the new user.')
+    required_user_add.add_argument('--firstname', dest='firstname', required=True,
+                                   help='First name of the new user.')
+    required_user_add.add_argument('--lastname', dest='lastname', required=True,
+                                   help='Last name of the new user.')
 
     optional_user_add = parser_user_add.add_argument_group('optional arguments')
     optional_user_add.add_argument('--role', dest='role', choices=('user', 'admin'), required=False,
@@ -614,6 +624,10 @@ if __name__ == '__main__':
     optional_user_edit = parser_user_edit.add_argument_group('optional arguments')
     optional_user_edit.add_argument('--role', dest='role', choices=('user', 'admin'), required=False,
                                     help='Change the user to this role.')
+    optional_user_edit.add_argument('--lastname', dest='lastname', required=False,
+                                    help='Change the user last name.')
+    optional_user_edit.add_argument('--firstname', dest='firstname', required=False,
+                                    help='Change the user first name.')
     optional_user_edit.add_argument('-h', '--help', action="help",
                                     help="Show help message.")
 
