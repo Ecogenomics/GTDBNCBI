@@ -321,4 +321,4 @@ class AlignedMarkerManager(object):
             if mask_seq[pos] != 'x':
                 continue
             aligned_marker += hit_seq[pos]
-        return aligned_marke
+        return aligned_marker
