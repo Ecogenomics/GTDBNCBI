@@ -163,7 +163,6 @@ class MetadataTable(object):
             if longest_ssu_hit_info:
                 fout.write(genome_id)
                 fout.write('\t' + '\t'.join(longest_ssu_hit_info))
-
                 all_genes_dict = read_fasta(fna_file, False)
                 sequence = all_genes_dict[ssu_query_id]
                 fout.write('\t{0}'.format(sequence))
@@ -280,6 +279,7 @@ class MetadataTable(object):
         fout_ssu_silva_count.close()
         fout_lsu_silva_count.close()
 
+
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
     print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
@@ -299,5 +299,9 @@ if __name__ == '__main__':
         print "\nControlled exit resulting from an unrecoverable error or warning."
     except:
         print "\nUnexpected error:", sys.exc_info()[0]
+<<<<<<< HEAD
         raise
 ==
+=======
+        raise
+>>>>>>> 7b2d7cfa03c7dfe78e17e667440f7ebf70458184
