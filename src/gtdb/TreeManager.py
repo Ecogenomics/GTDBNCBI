@@ -84,6 +84,11 @@ class TreeManager(object):
         fout_filtered = open(filter_genome_file, 'w')
 
         self.logger.info('Filtering initial set of %d genomes.' % len(genome_ids))
+
+        extra_guaranteed_ids = [x for x in guaranteed_ids if x not in genome_ids]
+        if len(extra_guaranteed_ids) > 0:
+            self.logger.warning('Identified {0} guaranteed genomes absent from specified input genomes (Those genomes will not appear in the final tree).'.format(len(extra_guaranteed_ids)))
+            guaranteed_ids = [x for x in guaranteed_ids if x in genome_ids]
         self.logger.info('Identified %d genomes to be excluded from filtering.' % len(guaranteed_ids))
 
         # for all markers, get the expected marker size

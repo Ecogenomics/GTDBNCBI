@@ -584,6 +584,15 @@ class GenomeDatabase(object):
         list
             Representative genome IDs
         """
+        print 'all:{0}'.format(all_dereplicated)
+        print 'ncbider:{0}'.format(ncbi_dereplicated)
+        print 'donovan_sra_dereplicated:{0}'.format(donovan_sra_dereplicated)
+        print 'all_genomes:{0}'.format(all_genomes)
+        print 'ncbi_genomes:{0}'.format(ncbi_genomes)
+        print 'user_genomes:{0}'.format(user_genomes)
+        print 'genome_list_ids:{0}'.format(genome_list_ids)
+        print 'genome_ids:{0}'.format(genome_ids)
+        print 'genome_batchfile:{0}'.format(genome_batchfile)
 
         genome_id_list = set()
         required_rep_genomes_ids = set()
