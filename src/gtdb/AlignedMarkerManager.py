@@ -35,7 +35,7 @@ from biolib.seq_io import read_fasta
 class AlignedMarkerManager(object):
     ''''Manage the processing of Aligned Markers and querying marker information.'''
 
-    def __init__(self, cur, threads):
+    def __init__(self, cur, threads, release):
         """Initialize.
 
         Parameters
@@ -48,6 +48,7 @@ class AlignedMarkerManager(object):
 
         self.logger = logging.getLogger()
         self.threads = threads
+        self.release = release
 
         # self.conn = GenomeDatabaseConnection()
         # self.conn.MakePostgresConnection()
@@ -69,6 +70,7 @@ class AlignedMarkerManager(object):
         '''
 
         self.logger.info('Aligning marker genes not already in the database.')
+        # return True
 
         # We need to rebuild the path to each
         genome_dirs_query = ("SELECT g.id, g.genes_file_location,gs.external_id_prefix "
@@ -126,7 +128,7 @@ class AlignedMarkerManager(object):
         '''
 
         temp_con = GenomeDatabaseConnection()
-        temp_con.MakePostgresConnection()
+        temp_con.MakePostgresConnection(self.release)
         temp_cur = temp_con.cursor()
 
         # gather information for all marker genes

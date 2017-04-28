@@ -16,25 +16,24 @@
 ###############################################################################
 
 import psycopg2 as pg
-from psycopg2.pool import ThreadedConnectionPool
 
-import Config
+from database_configuration import ConfigSRAUpdate
 
 
-class GenomeDatabaseConnection(object):
+class GenomeDatabaseConnectionSRAUpdate(object):
 
     def __init__(self):
         self.conn = None
-        self.conn_pool = None
 
     # Opens a connection to the PostgreSQL database
     #
     # Returns:
     #   No return value.
-    def MakePostgresConnection(self, release):
+    def MakePostgresConnection(self):
+        db_name = ConfigSRAUpdate.GTDB_DB_NAME
         conn_string = "dbname=%s user=%s host=%s password=%s" % (
-            release, Config.GTDB_USERNAME,
-            Config.DB_SERVERS.get(release), Config.GTDB_PASSWORD
+            db_name, ConfigSRAUpdate.GTDB_USERNAME,
+            ConfigSRAUpdate.GTDB_HOST, ConfigSRAUpdate.GTDB_PASSWORD
         )
         self.conn = pg.connect(conn_string)
 

@@ -187,3 +187,17 @@ class UserManager(object):
             raise e
 
         return True
+    
+    def printUserDetails(self,usernames):
+        try:
+            self.cur.execute("SELECT username,firstname,lastname FROM users " +
+                             "WHERE username in %s", (tuple(usernames),))
+            header = ('username','firstname','lastname')
+            rows = []
+            for (user,first,last) in self.cur:
+                rows.append((user,first,last))
+        
+        except GenomeDatabaseError as e:
+            raise e
+
+        return header, rows
