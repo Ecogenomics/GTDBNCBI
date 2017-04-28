@@ -7,6 +7,7 @@ __pycache__/
 src/gtdb/Config.py
 scripts_dev/ncbi_ftp_update/database_configuration/ConfigFTPUpdate.py
 scripts_dev/lpsn_scrape/database_configuration/ConfigLPSNUpdate.py
+scripts_dev/sra_genomes/database_configuration/ConfigSRAUpdate.py
 
 # C extensions
 *.so

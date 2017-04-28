@@ -76,7 +76,8 @@ class GenomeManager(object):
         self.deprecatedUserDir = Config.GTDB_DPRCTD_USR_DIR
         self.deprecatedGBKDir = Config.GTDB_DPRCTD_GBK_DIR
         self.deprecatedRSQDir = Config.GTDB_DPRCTD_RSQ_DIR
-        
+
+        self.ncbiAnnotationDir = Config.NCBI_ANNOTATION_DIR
         self.userAnnotationDir = Config.USER_ANNOTATION_DIR
 
     def _loggerSetup(self, silent=False):
@@ -365,28 +366,28 @@ class GenomeManager(object):
                 db_genome_id))
 
         shutil.rmtree(self.tmp_output_dir)
-        
+
     def proteinFiles(self, db_genome_ids):
         """Get called genes for genomes."""
-        
+
         genome_dirs = self.genomeDirs(db_genome_ids)
         genome_id_map = self.genomeIdsToExternalGenomeIds(db_genome_ids)
-        
+
         protein_files = {}
         for db_genome_id, genome_dir in genome_dirs.iteritems():
-            gene_dir = os.path.join(genome_dirs[db_genome_id], 
+            gene_dir = os.path.join(genome_dirs[db_genome_id],
                                             Config.NCBI_ANNOTATION_DIR)
             raw_genome_id = genome_id_map[db_genome_id].replace('GB_', '').replace('RS_', '')
             protein_file = os.path.join(gene_dir, 
                                         raw_genome_id + ConfigMetadata.PROTEIN_FILE_SUFFIX)
-        
+
             protein_files[db_genome_id] = protein_file
-            
+
         return protein_files
-        
+
     def genomeDirs(self, db_genome_ids):
         """Get path to genomes."""
-        
+
         try:
             self.cur.execute("SELECT genomes.id, external_id_prefix, fasta_file_location " +
                              "FROM genomes, genome_sources " +
@@ -402,12 +403,12 @@ class GenomeManager(object):
                     dir_prefix = Config.GTDB_GENOME_RSQ_DIR
                 elif external_id_prefix == 'GB':
                     dir_prefix = Config.GTDB_GENOME_GBK_DIR
-                    
+
                 genome_dir = os.path.join(dir_prefix, os.path.split(fasta_file_location)[0])
                 genome_dirs[genome_id] = genome_dir
-                
+
             return genome_dirs
-        
+
         except GenomeDatabaseError as e:
             raise e
 
@@ -1122,7 +1123,7 @@ class GenomeManager(object):
             raise e
 
         return header, rows
-        
+
     def printGenomeStats(self, genome_id_list, stat_fields):
         """Print statistics details of genomes.
 
@@ -1143,7 +1144,7 @@ class GenomeManager(object):
             if not genome_id_list:
                 raise GenomeDatabaseError(
                     "Unable to print genomes. No genomes found.")
-   
+
             stat_fields = ['id', 'genome'] + stat_fields
             stat_fields_str = ','.join(stat_fields)
 
