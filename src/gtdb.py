@@ -31,10 +31,6 @@ from biolib.misc.custom_help_formatter import CustomHelpFormatter
 from gtdb import GenomeDatabase
 from gtdb import DefaultValues
 from gtdb import Config
-<<<<<<< HEAD
-
-=======
->>>>>>> Connection to different databases. TAB-format available for Metadata export.
 from gtdb.Exceptions import GenomeDatabaseError,DumpDBErrors, DumpDBWarnings, ErrorReport
 
 from gtdb.Tools import confirm
@@ -142,6 +138,11 @@ def EditUser(db, args):
                        log_has_root,
                        args.firstname,
                        args.lastname)
+
+
+def ViewUser(db, args):
+    usernames = args.usernames.split(",")
+    return db.viewUser(usernames)
 
 
 def AddGenomes(db, args):
@@ -645,6 +646,22 @@ if __name__ == '__main__':
                                     help="Show help message.")
 
     parser_user_edit.set_defaults(func=EditUser)
+    
+    # user view parser
+    parser_user_view = user_category_subparser.add_parser('view',
+                                                          add_help=False,
+                                                          formatter_class=CustomHelpFormatter,
+                                                          help='Display information about selected user(s).')
+    
+    required_user_view = parser_user_view.add_argument_group('required arguments')
+    required_user_view.add_argument('--usernames', dest='usernames', required=True,
+                                    help='Provide a list of username (comma separated) to view.')
+    
+    optional_user_view = parser_user_view.add_argument_group('optional arguments')
+    optional_user_view.add_argument('-h', '--help', action="help",
+                                    help="Show help message.")
+    
+    parser_user_view.set_defaults(func=ViewUser)
 
 # -------- Genome Management subparsers
 
