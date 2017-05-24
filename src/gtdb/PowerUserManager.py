@@ -185,7 +185,9 @@ class PowerUserManager(object):
 
         try:
             # Check if gtdb_domain is the same as the gtdb_taxonomy and ncbi_taxonomy domain
-            query = ("SELECT g.id_at_source, mt.gtdb_domain, mt.ncbi_taxonomy, mt.gtdb_taxonomy FROM metadata_taxonomy mt LEFT JOIN genomes g using (id) where genome_source_id in (2,3) ")
+            query = ("SELECT g.id_at_source, mt.gtdb_domain, mt.ncbi_taxonomy, gtv.gtdb_taxonomy FROM metadata_taxonomy mt "+ 
+                     "LEFT JOIN genomes g using (id) LEFT JOIN gtdb_taxonomy_view gtv USING (id) "+
+                     "WHERE genome_source_id in (2,3) ")
             self.cur.execute(query)
             list_domain = [[a, b, c, d] for (a, b, c, d) in self.cur]
             print "#Conflicting Domains:"
@@ -205,7 +207,9 @@ class PowerUserManager(object):
             print "#End"
 
             # Compare NCBI and GTDB taxonomy
-            query = ("SELECT g.id_at_source,mt.ncbi_taxonomy,mt.gtdb_taxonomy FROM metadata_taxonomy mt LEFT JOIN genomes g using (id) where genome_source_id in (2,3) ")
+            query = ("SELECT g.id_at_source,mt.ncbi_taxonomy,gtv.gtdb_taxonomy FROM metadata_taxonomy mt "+
+                     "LEFT JOIN genomes g using (id) LEFT JOIN gtdb_taxonomy_view gtv USING (id) "+
+                     " WHERE genome_source_id in (2,3) ")
             self.cur.execute(query)
             list_domain = [[a, b, d] for (a, b, d) in self.cur]
             print "#Conflicting Taxonomy:"
