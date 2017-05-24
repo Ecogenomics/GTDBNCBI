@@ -360,7 +360,8 @@ class GenomeRepresentativeManager(object):
         fout.write('Genome Id\tPredicted domain\tArchaeal Marker Percentage\tBacterial Marker Percentage\tNCBI taxonomy\tGTDB taxonomy\n')
         for genome_id in genome_ids:
             query_taxonomy_req = ("SELECT gtdb_domain, ncbi_taxonomy, gtdb_taxonomy " +
-                                      "FROM metadata_taxonomy WHERE id = %s;")
+                                  "FROM metadata_taxonomy LEFT JOIN gtdb_taxonomy_view USING (id) " +
+                                  "WHERE id = %s;")
             self.cur.execute(query_taxonomy_req, (genome_id,))
             gtdb_domain, ncbi_taxonomy, gtdb_taxonomy = self.cur.fetchone()
 
@@ -462,7 +463,7 @@ class GenomeRepresentativeManager(object):
                          "SET gtdb_genome_representative = %s " +
                          "WHERE id = %s")
                 self.cur.execute(query, (external_ids[assigned_representative], genome_id))
-                query_taxonomy_req = ("SELECT gtdb_class, gtdb_species, gtdb_taxonomy," +
+                query_taxonomy_req = ("SELECT gtdb_class, gtdb_species," +
                                       "gtdb_phylum, gtdb_family, gtdb_domain, gtdb_order, gtdb_genus " +
                                       "FROM metadata_taxonomy WHERE id = %s;")
                 self.cur.execute(query_taxonomy_req, (genome_id,))
@@ -470,7 +471,6 @@ class GenomeRepresentativeManager(object):
                     query_taxonomy_update = ("UPDATE metadata_taxonomy as mt_newg SET " +
                                              "gtdb_class = mt_repr.gtdb_class," +
                                              "gtdb_species = mt_repr.gtdb_species," +
-                                             "gtdb_taxonomy = mt_repr.gtdb_taxonomy," +
                                              "gtdb_phylum = mt_repr.gtdb_phylum," +
                                              "gtdb_family = mt_repr.gtdb_family," +
                                              "gtdb_domain =  mt_repr.gtdb_domain," +
@@ -481,7 +481,7 @@ class GenomeRepresentativeManager(object):
                                              "AND mt_newg.id = %s")
                     self.cur.execute(query_taxonomy_update, (assigned_representative, genome_id))
             else:
-                query_taxonomy_req = ("SELECT gtdb_class, gtdb_species, gtdb_taxonomy," +
+                query_taxonomy_req = ("SELECT gtdb_class, gtdb_species," +
                                       "gtdb_phylum, gtdb_family, gtdb_domain, gtdb_order, gtdb_genus " +
                                       "FROM metadata_taxonomy WHERE id = %s;")
                 self.cur.execute(query_taxonomy_req, (genome_id,))
