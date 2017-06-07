@@ -1,10 +1,14 @@
-software_version=2.1.12
+software_version=2.1.13
 ncbi_database_version=release 80
-gtdb_version=1.2.7
+gtdb_version=1.2.8
 taxonomy_version=v80.0
 
 GTDB software versions
 ----------------------
+v2.1.13 (June 7, 2017):
+- Updated database with revised UBA genomes
+- Updated representatives in r80 to reflect revised UBA genomes
+- Updated gtdb_version to 1.2.8 to reflect these database changes
 v2.1.12 (April 28, 2017):
 - Possibility to Export Metadata in TAB format
 - Connection to previous databases available
