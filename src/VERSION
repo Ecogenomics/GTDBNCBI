@@ -1,10 +1,13 @@
-software_version=2.1.13
+software_version=2.1.14
 ncbi_database_version=release 80
-gtdb_version=1.2.8
+gtdb_version=1.2.9
 taxonomy_version=v80.0
 
 GTDB software versions
 ----------------------
+v2.1.14 (August 25, 2017):
+- Updated TreeManager to append MIMAG quality information to ARB metadata file
+- added 5S LSU and tRNA information to the database (changed gtdb_version to 1.2.9 to reflect this)
 v2.1.13 (June 7, 2017):
 - Updated database with revised UBA genomes
 - Updated representatives in r80 to reflect revised UBA genomes

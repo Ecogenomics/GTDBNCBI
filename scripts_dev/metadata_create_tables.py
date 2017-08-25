@@ -58,9 +58,14 @@ class MetadataTable(object):
         self.lsu_silva_taxonomy_file = os.path.join('rna_silva', 'lsu_23S.taxonomy.tsv')
         self.lsu_silva_fna_file = os.path.join('rna_silva', 'lsu_23S.fna')
         self.lsu_silva_summary_file = os.path.join('rna_silva', 'lsu_23S.hmm_summary.tsv')
+        
+        self.lsu_5S_fna_file = os.path.join('lsu_5S', 'lsu_5S.fna')
+        self.lsu_5S_summary_file = os.path.join('lsu_5S', 'lsu_5S.hmm_summary.tsv')
 
         self.write_nt_header = True
         self.write_gene_header = True
+        self.write_trna_header = True
+        self.write_lsu_5S_header = True
         self.taxonomy_headers = set()
 
     def _parse_nt(self, genome_id, metadata_nt_file, fout):
@@ -113,7 +118,7 @@ class MetadataTable(object):
         genome_id : str
           Unique identifier of genome.
         metadata_taxonomy_file : str
-          Full path to file containing 16S rRNA metadata.
+          Full path to file containing rRNA metadata.
         fout : file
           Output stream to populate with metadata.
         Prefix : str
@@ -180,6 +185,84 @@ class MetadataTable(object):
                 fout.write('\n')
 
             return identified_ssu_genes
+            
+    def _parse_lsu_5S_files(self, accession, fout, fna_file, summary_file):
+        """Parse information from 5S LSU files."""
+        
+        # check if a 5S sequence was identified
+        if not os.path.exists(fna_file):
+            return 0
+        
+        # write header
+        if self.write_lsu_5S_header:
+            fout.write('genome_id\tlsu_5s_query_id\tlsu_5s_length\tlsu_5s_contig_len\tlsu_5s_sequence\n')
+            self.write_lsu_5S_header = False
+
+        seqs = read_fasta(fna_file)
+            
+        identified_genes = 0
+        longest_seq = 0
+        longest_seq_id = None
+        longest_contig_len = None
+        if os.path.exists(summary_file):
+            with open(summary_file) as fsum:
+                header_line = fsum.readline()  # consume header line
+                header_list = [x.strip() for x in header_line.split('\t')]
+                idx_seq_len = header_list.index("Sequence length")
+                for line in fsum:
+                    identified_genes += 1
+                    
+                    line_split = map(str.strip, line.strip().split('\t'))
+                    seq_id = line_split[0]
+                    contig_len = int(line_split[idx_seq_len])
+                    seq_len = len(seqs[seq_id])
+                    
+                    if seq_len > longest_seq:
+                        longest_seq_id = seq_id
+                        longest_seq = seq_len
+                        longest_contig_len = contig_len
+                        
+        if longest_seq_id:
+            fout.write('%s\t%s\t%d\t%d\t%s\n' % (accession, longest_seq_id, longest_seq, longest_contig_len, seqs[longest_seq_id]))
+                        
+        return identified_genes
+            
+    def _parse_trna_file(self, genome_id, trna_file, fout_trna_count):
+        """Parse tRNA information."""
+        
+        if not os.path.exists(trna_file):
+            return
+        
+        # write header
+        if self.write_trna_header:
+            fout_trna_count.write('genome_id\ttrna_count\ttrna_aa_count\ttrna_selenocysteine_count\n')
+            self.write_trna_header = False
+            
+        # parse tRNA summary file
+        trna_count = 0
+        trna_selenocysteine_count = 0
+        trna_aa_count = 0
+        read_aa = False
+        for line in open(trna_file):
+            if line.startswith('tRNAs decoding Standard 20 AA'):
+                trna_count = int(line.split(':')[1])
+            elif line.startswith('Selenocysteine tRNAs (TCA)'):
+                trna_selenocysteine_count = int(line.split(':')[1])
+                trna_count += trna_selenocysteine_count
+            elif line.startswith('Isotype / Anticodon Counts:'):
+                read_aa = True
+                
+            if read_aa:
+                # Parsing lines with the following format:
+                # Ala   : 2	  AGC:         GGC:         CGC: 1       TGC: 1 
+                if ' : ' in line:
+                    line_split = line.split('\t')[0]
+                    line_split = map(str.strip, line_split.split(':'))
+                    if len(line_split[0]) == 3: # this is an amino acid
+                        if int(line_split[1]) > 0:
+                            trna_aa_count += 1
+
+        fout_trna_count.write('%s\t%d\t%d\t%d\n' % (genome_id, trna_count, trna_aa_count, trna_selenocysteine_count))
 
     def run(self, genbank_genome_dir, refseq_genome_dir, user_genome_dir, output_dir):
         """Create metadata tables."""
@@ -189,15 +272,22 @@ class MetadataTable(object):
         fout_gg_taxonomy = open(os.path.join(output_dir, 'metadata_ssu_gg.tsv'), 'w')
         fout_ssu_silva_taxonomy = open(os.path.join(output_dir, 'metadata_ssu_silva.tsv'), 'w')
         fout_lsu_silva_taxonomy = open(os.path.join(output_dir, 'metadata_lsu_silva.tsv'), 'w')
+        fout_lsu_5S = open(os.path.join(output_dir, 'metadata_lsu_5S.tsv'), 'w')
         fout_ssu_silva_count = open(os.path.join(output_dir, 'metadata_ssu_silva_count.tsv'), 'w')
         fout_lsu_silva_count = open(os.path.join(output_dir, 'metadata_lsu_silva_count.tsv'), 'w')
+        fout_lsu_5S_count = open(os.path.join(output_dir, 'metadata_lsu_5S_count.tsv'), 'w')
+        fout_trna_count = open(os.path.join(output_dir, 'metadata_trna_count.tsv'), 'w')
 
         fout_ssu_silva_count.write('%s\t%s\n' % ('genome_id', 'ssu_count'))
         fout_lsu_silva_count.write('%s\t%s\n' % ('genome_id', 'lsu_count'))
+        fout_lsu_5S_count.write('%s\t%s\n' % ('genome_id', 'lsu_5S_count'))
 
         # generate metadata for NCBI assemblies
         # for ncbi_genome_dir in [genbank_genome_dir, refseq_genome_dir]:
         for ncbi_genome_dir in [genbank_genome_dir, refseq_genome_dir]:
+            if ncbi_genome_dir == 'NONE':
+                continue
+                
             processed_assemblies = defaultdict(list)
             print 'Reading NCBI assembly directories: %s' % ncbi_genome_dir
             processed_assemblies = defaultdict(list)
@@ -234,8 +324,16 @@ class MetadataTable(object):
                         lsu_silva_summary_file = os.path.join(full_assembly_dir, self.lsu_silva_summary_file)
                         lsu_count = self._parse_taxonomy_file(accession, lsu_silva_taxonomy_file, fout_lsu_silva_taxonomy, 'lsu_silva', lsu_silva_fna_file, lsu_silva_summary_file)
 
+                        lsu_5S_fna_file = os.path.join(full_assembly_dir, self.lsu_5S_fna_file)
+                        lsu_5S_summary_file = os.path.join(full_assembly_dir, self.lsu_5S_summary_file)
+                        lsu_5S_count = self._parse_lsu_5S_files(accession, fout_lsu_5S, lsu_5S_fna_file, lsu_5S_summary_file)
+                        
                         fout_ssu_silva_count.write('%s\t%d\n' % (accession, ssu_count))
                         fout_lsu_silva_count.write('%s\t%d\n' % (accession, lsu_count))
+                        fout_lsu_5S_count.write('%s\t%d\n' % (accession, lsu_5S_count))
+                        
+                        trna_file = os.path.join(full_assembly_dir, 'trna', accession + '_trna_stats.tsv')
+                        self._parse_trna_file(accession, trna_file, fout_trna_count)
 
         # generate metadata for user genomes
         print 'Reading user genome directories.'
@@ -268,17 +366,27 @@ class MetadataTable(object):
                     lsu_silva_summary_file = os.path.join(full_genome_dir, self.lsu_silva_summary_file)
                     lsu_count = self._parse_taxonomy_file(genome_id, lsu_silva_taxonomy_file, fout_lsu_silva_taxonomy, 'lsu_silva', lsu_silva_fna_file, lsu_silva_summary_file)
 
+                    lsu_5S_fna_file = os.path.join(full_genome_dir, self.lsu_5S_fna_file)
+                    lsu_5S_summary_file = os.path.join(full_genome_dir, self.lsu_5S_summary_file)
+                    lsu_5S_count = self._parse_lsu_5S_files(genome_id, fout_lsu_5S, lsu_5S_fna_file, lsu_5S_summary_file)
+                    
                     fout_ssu_silva_count.write('%s\t%d\n' % (genome_id, ssu_count))
                     fout_lsu_silva_count.write('%s\t%d\n' % (genome_id, lsu_count))
+                    fout_lsu_5S_count.write('%s\t%d\n' % (genome_id, lsu_5S_count))
+                    
+                    trna_file = os.path.join(full_genome_dir, 'trna', genome_id + '_trna_stats.tsv')
+                    self._parse_trna_file(genome_id, trna_file, fout_trna_count)
 
         fout_nt.close()
         fout_gene.close()
         fout_gg_taxonomy.close()
         fout_ssu_silva_taxonomy.close()
         fout_lsu_silva_taxonomy.close()
+        fout_lsu_5S.close()
         fout_ssu_silva_count.close()
         fout_lsu_silva_count.close()
-
+        fout_lsu_5S_count.close()
+        fout_trna_count.close()
 
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
@@ -294,14 +402,12 @@ if __name__ == '__main__':
 
     try:
         p = MetadataTable()
-        p.run(args.genbank_genome_dir, args.refseq_genome_dir, args.user_genome_dir, args.output_dir)
+        p.run(args.genbank_genome_dir, 
+                args.refseq_genome_dir, 
+                args.user_genome_dir, 
+                args.output_dir)
     except SystemExit:
         print "\nControlled exit resulting from an unrecoverable error or warning."
     except:
         print "\nUnexpected error:", sys.exc_info()[0]
-<<<<<<< HEAD
         raise
-==
-=======
-        raise
->>>>>>> 7b2d7cfa03c7dfe78e17e667440f7ebf70458184

@@ -60,7 +60,17 @@ class SSU(object):
     if os.path.exists(log_file):
       os.remove(log_file)
 
-    os.system('genometk rna --silent --cpus 1 --db %s --taxonomy_file %s %s %s %s' % (self.db, self.taxonomy, genome_file, self.rna_gene, output_dir))
+    if self.rna_gene == 'lsu_5S':
+        cmd = 'genometk rna --silent --cpus 1 --min_len 80 %s %s %s' % (genome_file, 
+                                                                            self.rna_gene, 
+                                                                            output_dir)
+        os.system(cmd)
+    else:
+        os.system('genometk rna --silent --cpus 1 --db %s --taxonomy_file %s %s %s %s' % (self.db, 
+                                                                                        self.taxonomy, 
+                                                                                        genome_file, 
+                                                                                        self.rna_gene, 
+                                                                                        output_dir))
 
     return output_dir
 
@@ -89,45 +99,52 @@ class SSU(object):
             self.db = '/srv/db/gg/2013_08/gg_13_8_otus/rep_set/99_otus.fasta'
             self.taxonomy = '/srv/db/gg/2013_08/gg_13_8_otus/taxonomy/99_otu_taxonomy.txt'
             self.output_dir = 'ssu_gg'
-        else:
-            print 'There is no LSU database for GG.'
+        elif rna_gene == 'lsu_23S':
+            print 'There is no 23S LSU database for GG.'
+            return
+        elif rna_gene == 'lsu_5S':
             return
     elif ssu_db == 'SILVA':
         # Silva info
         if rna_gene == 'ssu':
             self.db = '/srv/whitlam/bio/db/silva/123.1/SILVA_123.1_SSURef_Nr99_tax_silva.fasta'
             self.taxonomy = '/srv/whitlam/bio/db/silva/123.1/silva_taxonomy.ssu.tsv'
+            self.output_dir = 'rna_silva'
         elif rna_gene == 'lsu_23S':
             self.db = '/srv/db/silva/123.1/SILVA_123.1_LSURef_tax_silva.fasta'
             self.taxonomy = '/srv/whitlam/bio/db/silva/123.1/silva_taxonomy.lsu.tsv'
-        self.output_dir = 'rna_silva'
+            self.output_dir = 'rna_silva'
+        elif rna_gene == 'lsu_5S':
+            print 'We currently do not curate against a 5S database, but do identify these sequences for quality assessment purposes.'
+            self.output_dir = 'lsu_5S'
 
     input_files = []
 
     # generate metadata for NCBI assemblies
-    print 'Reading NCBI assembly directories.'
-    processed_assemblies = defaultdict(list)
-    for domain in ['archaea', 'bacteria']:
-      domain_dir = os.path.join(ncbi_genome_dir, domain)
-      if not os.path.exists(domain_dir):
-        continue
-
-      for species_dir in os.listdir(domain_dir):
-        full_species_dir = os.path.join(domain_dir, species_dir)
-        for assembly_dir in os.listdir(full_species_dir):
-          accession = assembly_dir[0:assembly_dir.find('_', 4)]
-
-          processed_assemblies[accession].append(species_dir)
-          if len(processed_assemblies[accession]) >= 2:
+    if ncbi_genome_dir != 'NONE':
+        print 'Reading NCBI assembly directories.'
+        processed_assemblies = defaultdict(list)
+        for domain in ['archaea', 'bacteria']:
+          domain_dir = os.path.join(ncbi_genome_dir, domain)
+          if not os.path.exists(domain_dir):
             continue
 
-          full_assembly_dir = os.path.join(full_species_dir, assembly_dir)
+          for species_dir in os.listdir(domain_dir):
+            full_species_dir = os.path.join(domain_dir, species_dir)
+            for assembly_dir in os.listdir(full_species_dir):
+              accession = assembly_dir[0:assembly_dir.find('_', 4)]
 
-          if os.path.exists(os.path.join(full_assembly_dir, self.output_dir)):
-            continue
+              processed_assemblies[accession].append(species_dir)
+              if len(processed_assemblies[accession]) >= 2:
+                continue
 
-          genome_file = os.path.join(full_assembly_dir, assembly_dir + '_genomic.fna')
-          input_files.append(genome_file)
+              full_assembly_dir = os.path.join(full_species_dir, assembly_dir)
+
+              if os.path.exists(os.path.join(full_assembly_dir, self.output_dir)):
+                continue
+
+              genome_file = os.path.join(full_assembly_dir, assembly_dir + '_genomic.fna')
+              input_files.append(genome_file)
 
     # generate metadata for user genomes
     if user_genome_dir != 'NONE':
@@ -161,7 +178,7 @@ if __name__ == '__main__':
   print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  parser.add_argument('rna_gene', choices=['ssu', 'lsu_23S'], help="rRNA gene to process")
+  parser.add_argument('rna_gene', choices=['ssu', 'lsu_23S', 'lsu_5S'], help="rRNA gene to process")
   parser.add_argument('ncbi_genome_dir', help='base directory leading to NCBI archaeal and bacterial genome assemblies')
   parser.add_argument('user_genome_dir', help='base directory leading to user genomes or NONE to skip')
   parser.add_argument('-t', '--threads', help='number of CPUs to use', type=int, default=32)

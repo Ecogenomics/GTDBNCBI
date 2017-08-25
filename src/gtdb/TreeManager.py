@@ -231,6 +231,59 @@ class TreeManager(object):
 
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 
+    def _mimagQualityInfo(self, metadata, col_headers):
+        """Add MIMAG quality information to metadata."""
+        
+        col_headers.append('mimag_high_quality')
+        col_headers.append('mimag_medium_quality')
+        col_headers.append('mimag_low_quality')
+        
+        comp_index = col_headers.index('checkm_completeness')
+        cont_index = col_headers.index('checkm_contamination')
+        
+        lsu_5s_length_index = col_headers.index('lsu_5s_length')
+        lsu_23s_length_index = col_headers.index('lsu_silva_length')
+        ssu_length_index = col_headers.index('ssu_silva_length')
+        trna_aa_count_index = col_headers.index('trna_aa_count')
+
+        for i, gm in enumerate(metadata):
+            comp = float(gm[comp_index])
+            cont = float(gm[cont_index])
+            
+            lsu_5s_length = 0
+            if gm[lsu_5s_length_index]:
+                lsu_5s_length = int(gm[lsu_5s_length_index])
+                
+            lsu_23s_length = 0
+            if gm[lsu_23s_length_index]:
+                lsu_23s_length = int(gm[lsu_23s_length_index])
+            
+            ssu_length = 0
+            if gm[ssu_length_index]:
+                ssu_length = int(gm[ssu_length_index])
+                
+            trna_aa_count = 0
+            if gm[trna_aa_count_index]:
+                trna_aa_count = int(gm[trna_aa_count_index])
+            
+            hq = False
+            mq = False
+            lq = False
+            if comp > 90 and cont < 5:
+                if  (ssu_length >= 1200 
+                        and lsu_23s_length >= 1900 
+                        and lsu_5s_length >= 80
+                        and trna_aa_count_index >= 18):
+                    hq = True
+                else:
+                    mq = True
+            elif comp >= 50 and cont < 10:
+                mq = True
+            elif cont < 10:
+                lq = True
+                
+            gm += (hq, mq, lq)
+        
     def writeFiles(self,
                    marker_ids,
                    genomes_to_retain,
@@ -275,6 +328,9 @@ class TreeManager(object):
                          "WHERE id IN %s", (tuple(genomes_to_retain),))
         col_headers = [desc[0] for desc in self.cur.description]
         metadata = self.cur.fetchall()
+        
+        # add MIMAG quality information
+        self._mimagQualityInfo(metadata, col_headers)
 
         # identify columns of interest
         genome_id_index = col_headers.index('id')
