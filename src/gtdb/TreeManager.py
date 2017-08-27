@@ -241,6 +241,7 @@ class TreeManager(object):
         comp_index = col_headers.index('checkm_completeness')
         cont_index = col_headers.index('checkm_contamination')
         
+        gtdb_domain_index = col_headers.index('gtdb_domain')
         lsu_5s_length_index = col_headers.index('lsu_5s_length')
         lsu_23s_length_index = col_headers.index('lsu_silva_length')
         ssu_length_index = col_headers.index('ssu_silva_length')
@@ -265,12 +266,17 @@ class TreeManager(object):
             trna_aa_count = 0
             if gm[trna_aa_count_index]:
                 trna_aa_count = int(gm[trna_aa_count_index])
+                
+            gtdb_domain = gm[gtdb_domain_index]
+            ssu_length_threshold = 1200
+            if gtdb_domain == 'd__Archaea':
+                ssu_length_threshold = 900
             
             hq = False
             mq = False
             lq = False
             if comp > 90 and cont < 5:
-                if  (ssu_length >= 1200 
+                if  (ssu_length >= ssu_length_threshold 
                         and lsu_23s_length >= 1900 
                         and lsu_5s_length >= 80
                         and trna_aa_count_index >= 18):
@@ -283,6 +289,9 @@ class TreeManager(object):
                 lq = True
                 
             gm += (hq, mq, lq)
+            metadata[i] = gm
+            
+        return metadata
         
     def writeFiles(self,
                    marker_ids,
@@ -330,7 +339,7 @@ class TreeManager(object):
         metadata = self.cur.fetchall()
         
         # add MIMAG quality information
-        self._mimagQualityInfo(metadata, col_headers)
+        metadata = self._mimagQualityInfo(metadata, col_headers)
 
         # identify columns of interest
         genome_id_index = col_headers.index('id')
