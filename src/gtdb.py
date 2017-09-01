@@ -171,7 +171,7 @@ def CreateTreeData(db, args):
     # AND the taxa filter is absent AND the force flag is not selected.
     # A message is sent to the user to confirm the tree creation command
     #===========================================================================
-    if args.marker_set_ids and not args.taxa_filter and not args.force:
+    if args.marker_set_ids and not (args.taxa_filter or args.guaranteed_taxa_filter) and not args.force:
         list_ids = args.marker_set_ids.split(",")
         if len(list_ids) == 1:
             check = False
@@ -203,6 +203,7 @@ def CreateTreeData(db, args):
                            args.min_perc_taxa,
                            args.consensus,
                            args.taxa_filter,
+                           args.guaranteed_taxa_filter,
                            args.excluded_genome_list_ids,
                            args.excluded_genome_ids,
                            args.guaranteed_genome_list_ids,
@@ -1257,7 +1258,9 @@ if __name__ == '__main__':
 
     optional_markers_create_tree.add_argument('--taxa_filter',
                                               help='Filter genomes to taxa (comma separated) within specific taxonomic groups (e.g., d__Archaea or p__Proteobacteria, p__Actinobacteria).')
-
+    optional_markers_create_tree.add_argument('--guaranteed_taxa_filter',
+                                              help='Filter genomes, including those specified as guaranteed, to taxa within specific taxonomic groups.')
+    
     optional_markers_create_tree.add_argument('--prefix', required=False, default='gtdb',
                                               help='Desired prefix for output files.')
     optional_markers_create_tree.add_argument('--no_alignment', action='store_true',

@@ -256,6 +256,7 @@ class MetadataManager(object):
         self._calculateMetadata(genome_file, gff_file, output_dir)
         self._storeMetadata(db_genome_id, output_dir)
         self._storeCheckM(db_genome_id, checkm_results)
+        
         return True
 
     def _calculateMetadata(self, genome_file, gff_file, output_dir):

@@ -1,10 +1,12 @@
-software_version=2.1.14
+software_version=2.1.15
 ncbi_database_version=release 80
 gtdb_version=1.2.9
 taxonomy_version=v80.0
 
 GTDB software versions
 ----------------------
+v2.1.15 (August 25, 2017):
+- added '--gauranteed_taxa_filter' flag
 v2.1.14 (August 25, 2017):
 - Updated TreeManager to append MIMAG quality information to ARB metadata file
 - added 5S LSU and tRNA information to the database (changed gtdb_version to 1.2.9 to reflect this)
