@@ -48,7 +48,30 @@ class TreeManager(object):
 
         self.cur = cur
         self.currentUser = currentUser
+        
+    def _taxa_filter(self, taxa_filter, genome_ids, guaranteed_ids, retain_guaranteed):
+        """Filter genomes to specified taxa."""
+        
+        self.logger.info('Filtering genomes outside taxonomic groups of interest (%s).' % taxa_filter)
+        taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
+        genome_ids_from_taxa = self._genomesFromTaxa(genome_ids, taxa_to_retain)
+        
+        retained_guaranteed_ids = guaranteed_ids - genome_ids_from_taxa
+        if retain_guaranteed:
+            if len(retained_guaranteed_ids):
+                self.logger.warning('Retaining %d guaranteed genomes from taxa not specified by the taxa filter.' % len(retained_guaranteed_ids))
+                self.logger.warning("You can use the '--guaranteed_taxa_filter' flag to filter these genomes.")
 
+            genomes_to_retain = genome_ids.intersection(genome_ids_from_taxa).union(guaranteed_ids)
+        else:
+            genomes_to_retain = genome_ids.intersection(genome_ids_from_taxa)
+            self.logger.info("Filtered %d 'guaranteed' genomes based on taxonomic affiliations." % len(retained_guaranteed_ids))
+            
+        self.logger.info('Filtered %d genomes based on taxonomic affiliations.' % (
+                                        len(genome_ids) - len(genomes_to_retain)))
+
+        return genomes_to_retain
+        
     def filterGenomes(self, marker_ids,
                       genome_ids,
                       quality_threshold,
@@ -58,6 +81,7 @@ class TreeManager(object):
                       min_perc_aa,
                       min_rep_perc_aa,
                       taxa_filter,
+                      guaranteed_taxa_filter,
                       genomes_to_exclude,
                       guaranteed_ids,
                       rep_ids,
@@ -111,18 +135,25 @@ class TreeManager(object):
         # filter genomes based on taxonomy
         genomes_to_retain = genome_ids
         if taxa_filter:
-            self.logger.info('Filtering genomes outside taxonomic groups of interest (%s).' % taxa_filter)
-            taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
-            genome_ids_from_taxa = self._genomesFromTaxa(genome_ids, taxa_to_retain)
-
-            new_genomes_to_retain = genomes_to_retain.intersection(genome_ids_from_taxa).union(guaranteed_ids)
-            self.logger.info('Filtered %d genomes based on taxonomic affiliations.' % (
-                len(genomes_to_retain) - len(new_genomes_to_retain)))
-
+            new_genomes_to_retain = self._taxa_filter(taxa_filter, 
+                                                        genomes_to_retain, 
+                                                        guaranteed_ids, 
+                                                        retain_guaranteed=True)
             for genome_id in genomes_to_retain - new_genomes_to_retain:
                 rep_str = 'Representative' if genome_id in rep_ids else ''
                 fout_filtered.write('%s\t%s\t%s\n' % (external_ids[genome_id], 'Filtered on taxonomic affiliation.', rep_str))
+                
+            genomes_to_retain = new_genomes_to_retain
 
+        if guaranteed_taxa_filter:
+            new_genomes_to_retain = self._taxa_filter(guaranteed_taxa_filter, 
+                                                        genomes_to_retain, 
+                                                        guaranteed_ids, 
+                                                        retain_guaranteed=False)
+            for genome_id in genomes_to_retain - new_genomes_to_retain:
+                rep_str = 'Representative' if genome_id in rep_ids else ''
+                fout_filtered.write('%s\t%s\t%s\n' % (external_ids[genome_id], 'Filtered on guaranteed taxonomic affiliation.', rep_str))
+                
             genomes_to_retain = new_genomes_to_retain
 
         # find genomes based on completeness, contamination, or genome quality
