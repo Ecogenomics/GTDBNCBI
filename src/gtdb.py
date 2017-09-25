@@ -275,6 +275,10 @@ def ExportLSUSequences(db, args):
     return db.ExportLSUSequences(args.outfile)
 
 
+def ExportReps(db, args):
+    return db.ExportReps(args.outfile)
+
+
 def CreateGenomeList(db, args):
 
     external_ids = []
@@ -823,6 +827,22 @@ if __name__ == '__main__':
                                             help="Show help message.")
 
     parser_genome_lsu_export.set_defaults(func=ExportLSUSequences)
+    
+    # export the list of representatives and the genomes associated with them
+    parser_genome_rep_export = genome_category_subparser.add_parser('representative_export',
+                                                                    add_help=False,
+                                                                    formatter_class=CustomHelpFormatter,
+                                                                    help='Export a TSV file containing all representatives and the genomes associated with each.')
+    required_genome_rep_export = parser_genome_rep_export.add_argument_group('required arguments')
+    required_genome_rep_export.add_argument('--output', dest='outfile', default=None, required=True,
+                                            help='Name of output file.')
+
+    optional_genome_rep_export = parser_genome_rep_export.add_argument_group('optional arguments')
+    optional_genome_rep_export.add_argument('-h', '--help', action="help",
+                                            help="Show help message.")
+
+    parser_genome_rep_export.set_defaults(func=ExportReps)
+    
 
 # -------- Genome Lists Management subparsers
 
