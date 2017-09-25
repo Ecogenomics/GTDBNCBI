@@ -1203,3 +1203,21 @@ class GenomeManager(object):
             print 'Export successful'
         except GenomeDatabaseError as e:
             raise e
+
+    def exportReps(self,output_file):
+        '''
+        Exports all representatives genomes from GTDB and the cluster of genomes associated with each to a TSV file.
+
+        :param path: Path to the output file
+        '''
+        try:
+            self.cur.execute("SELECT genome,gtdb_clustered_genomes from metadata_view WHERE gtdb_representative is TRUE")
+
+            fout = open(output_file, 'w')
+            fout.write('representative\tclustered_genomes\n')
+            for genome, gtdb_clustered_genomes in self.cur.fetchall():
+                fout.write('{0}\t{1}\n'.format(genome, gtdb_clustered_genomes))
+            fout.close()
+            print 'Export successful'
+        except GenomeDatabaseError as e:
+            raise e
