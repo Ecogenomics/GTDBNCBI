@@ -164,7 +164,7 @@ class ValidateANI(object):
                 
                 accepted_species = 'invalid'
                 if (gANI >= 96.5 and AF >= 0.6) or (ncbi_sp_a != 'unassigned' and (ncbi_sp_a == ncbi_sp_b)):
-                    accepted_species = 'invalid'
+                    accepted_species = 'valid'
                 fout.write('%s\t%d\t%s\t%s\t%.3f\t%.3f\t%s\t%s\t%s\n' % (sp, 
                                                                             len(genome_ids), 
                                                                             genome_id_a, 

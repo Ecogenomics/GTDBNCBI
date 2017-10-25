@@ -83,8 +83,17 @@ class DereplicateTaxa(object):
             
         return ssu_length
         
-    def _read_metadata(self, metadata_file):
+    def _read_metadata(self, metadata_file, taxonomy_file):
         """Read metadata for genomes."""
+        
+        gtdb_taxonomy_from_file = {}
+        if taxonomy_file:
+            print('Reading taxonomy from: %s' % taxonomy_file)
+            for line in open(taxonomy_file):
+                line_split = line.strip().split('\t')
+                gid = line_split[0]
+                gtdb_taxa = [x.strip() for x in line_split[1].split(';')]
+                gtdb_taxonomy_from_file[gid] = gtdb_taxa
 
         Metadata = namedtuple('Metadata', ['ncbi_ref_genomes',
                                             'ncbi_rep_genomes',
@@ -142,7 +151,12 @@ class DereplicateTaxa(object):
                 ambiguous_bases = int(row[ambiguous_bases_index])
                 total_gap_length = int(row[total_gap_length_index])
                                 
-                gtdb_taxonomy = [x.strip() for x in row[gtdb_taxonomy_index].split(';')]
+                if gtdb_taxonomy_from_file:
+                    if genome_id not in gtdb_taxonomy_from_file:
+                        continue
+                    gtdb_taxonomy = gtdb_taxonomy_from_file[genome_id]
+                else:
+                    gtdb_taxonomy = [x.strip() for x in row[gtdb_taxonomy_index].split(';')]
                 ncbi_taxonomy = [x.strip() for x in row[ncbi_taxonomy_index].split(';')]
                 ncbi_org_name = row[ncbi_org_name_index]
                 ncbi_ref = row[rep_index]
@@ -437,6 +451,7 @@ class DereplicateTaxa(object):
             ssu_fasta_file,
             output_dir,
             genomes_per_taxon,
+            taxonomy_file,
             quality_threshold,
             min_ssu_len,
             min_ar122,
@@ -455,7 +470,12 @@ class DereplicateTaxa(object):
         fout.write(ntpath.basename(sys.argv[0]) + ' ' + ' '.join(sys.argv[1:]) + '\n')
         fout.close()
         
+        # get genome metadata
+        print('Reading metadata.')
+        metadata = self._read_metadata(metadata_file, taxonomy_file)
+        
         # get count for ribosomal marker sets
+        print('Reading count of each marker set.')
         count_ar122 = self._read_marker_count_file(ar122_count_file)
         count_bac120 = self._read_marker_count_file(bac120_count_file)
         count_rps23 = self._read_marker_count_file(rps23_count_file)
@@ -463,11 +483,9 @@ class DereplicateTaxa(object):
         count_rps16_bac = self._read_marker_count_file(rps16_bac_count_file)
         
         # get length of SSU sequences
+        print('Reading SSU length.')
         ssu_length = self._read_ssu_file(ssu_fasta_file)
-        
-        # get genome metadata
-        metadata = self._read_metadata(metadata_file)
-        
+
         # create combined rps16 set
         count_rps16 = {}
         for genome_id, m in metadata.iteritems():
@@ -481,6 +499,7 @@ class DereplicateTaxa(object):
                                                 count_rps16_ar.get(genome_id, -1))
             
         # sample 1 genome per taxonomic group at the ranks of phylum to genus
+        print('Selecting representatives.')
         genomes_per_rank = 1
         for domain in ['archaea', 'bacteria']:
             print domain
@@ -526,7 +545,7 @@ class DereplicateTaxa(object):
                                         count_rps16, min_rps16,
                                         count_rps23, min_rps23,
                                         output_dir)
-             
+
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
     print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
@@ -542,6 +561,7 @@ if __name__ == '__main__':
     parser.add_argument('output_dir', help='output directory')
     parser.add_argument('--genomes_per_taxon', help='genomes to sample from each taxon', type=int, default=1)
 
+    parser.add_argument('--taxonomy', help='taxonomy to use instead of GTDB taxonomy specified in the metadata file')
     parser.add_argument('--quality_threshold', help='minimum quality to select genome', type=float, default=50.0)
     parser.add_argument('--min_ssu_len', help='minimum length of 16S rRNA gene', type=int, default=900)
     parser.add_argument('--min_ar122', help='minimum number of single-copy genes in ar122 marker set', type=int, default=61) 
@@ -562,6 +582,7 @@ if __name__ == '__main__':
                 args.ssu_fasta_file,
                 args.output_dir,
                 args.genomes_per_taxon,
+                args.taxonomy,
                 args.quality_threshold,
                 args.min_ssu_len,
                 args.min_ar122,
