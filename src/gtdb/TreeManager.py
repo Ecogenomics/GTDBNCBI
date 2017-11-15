@@ -374,9 +374,9 @@ class TreeManager(object):
 
         # identify columns of interest
         genome_id_index = col_headers.index('id')
-        genome_name_index = col_headers.index('genome')
+        genome_name_index = col_headers.index('accession')
         col_headers.remove('id')
-        col_headers.remove('genome')
+        col_headers.remove('accession')
 
         # create ARB import filter
         arb_import_filter = os.path.join(directory, prefix + "_arb_filter.ift")

@@ -85,8 +85,7 @@ class TaxonomyNCBI(object):
 
     d = {}
     with open(assembly_metadata_file) as f:
-      headers = f.readline().split('\t')
-
+      headers = f.readline().strip().split('\t')
       try:
       	taxid_index = headers.index('taxid')
       except:
@@ -96,7 +95,7 @@ class TaxonomyNCBI(object):
         taxid_index = headers.index('taxid')
 
       for line in f:
-        line_split = line.split('\t')
+        line_split = line.strip().split('\t')
         assembly_accession = line_split[0]
         taxid = line_split[taxid_index]
 

@@ -55,9 +55,9 @@ class MetadataTable(object):
         self.ssu_silva_taxonomy_file = os.path.join('rna_silva', 'ssu.taxonomy.tsv')
         self.ssu_silva_fna_file = os.path.join('rna_silva', 'ssu.fna')
         self.ssu_silva_summary_file = os.path.join('rna_silva', 'ssu.hmm_summary.tsv')
-        self.lsu_silva_taxonomy_file = os.path.join('rna_silva', 'lsu_23S.taxonomy.tsv')
-        self.lsu_silva_fna_file = os.path.join('rna_silva', 'lsu_23S.fna')
-        self.lsu_silva_summary_file = os.path.join('rna_silva', 'lsu_23S.hmm_summary.tsv')
+        self.lsu_silva_23s_taxonomy_file = os.path.join('rna_silva', 'lsu_23S.taxonomy.tsv')
+        self.lsu_silva_23s_fna_file = os.path.join('rna_silva', 'lsu_23S.fna')
+        self.lsu_silva_23s_summary_file = os.path.join('rna_silva', 'lsu_23S.hmm_summary.tsv')
         
         self.lsu_5S_fna_file = os.path.join('lsu_5S', 'lsu_5S.fna')
         self.lsu_5S_summary_file = os.path.join('lsu_5S', 'lsu_5S.hmm_summary.tsv')
@@ -271,15 +271,15 @@ class MetadataTable(object):
         fout_gene = open(os.path.join(output_dir, 'metadata_gene.tsv'), 'w')
         fout_gg_taxonomy = open(os.path.join(output_dir, 'metadata_ssu_gg.tsv'), 'w')
         fout_ssu_silva_taxonomy = open(os.path.join(output_dir, 'metadata_ssu_silva.tsv'), 'w')
-        fout_lsu_silva_taxonomy = open(os.path.join(output_dir, 'metadata_lsu_silva.tsv'), 'w')
+        fout_lsu_silva_23s_taxonomy = open(os.path.join(output_dir, 'metadata_lsu_silva_23s.tsv'), 'w')
         fout_lsu_5S = open(os.path.join(output_dir, 'metadata_lsu_5S.tsv'), 'w')
         fout_ssu_silva_count = open(os.path.join(output_dir, 'metadata_ssu_silva_count.tsv'), 'w')
-        fout_lsu_silva_count = open(os.path.join(output_dir, 'metadata_lsu_silva_count.tsv'), 'w')
+        fout_lsu_silva_23s_count = open(os.path.join(output_dir, 'metadata_lsu_silva_23s_count.tsv'), 'w')
         fout_lsu_5S_count = open(os.path.join(output_dir, 'metadata_lsu_5S_count.tsv'), 'w')
         fout_trna_count = open(os.path.join(output_dir, 'metadata_trna_count.tsv'), 'w')
 
         fout_ssu_silva_count.write('%s\t%s\n' % ('genome_id', 'ssu_count'))
-        fout_lsu_silva_count.write('%s\t%s\n' % ('genome_id', 'lsu_count'))
+        fout_lsu_silva_23s_count.write('%s\t%s\n' % ('genome_id', 'lsu_23s_count'))
         fout_lsu_5S_count.write('%s\t%s\n' % ('genome_id', 'lsu_5S_count'))
 
         # generate metadata for NCBI assemblies
@@ -319,17 +319,17 @@ class MetadataTable(object):
                         ssu_silva_summary_file = os.path.join(full_assembly_dir, self.ssu_silva_summary_file)
                         ssu_count = self._parse_taxonomy_file(accession, ssu_silva_taxonomy_file, fout_ssu_silva_taxonomy, 'ssu_silva', ssu_silva_fna_file, ssu_silva_summary_file)
 
-                        lsu_silva_taxonomy_file = os.path.join(full_assembly_dir, self.lsu_silva_taxonomy_file)
-                        lsu_silva_fna_file = os.path.join(full_assembly_dir, self.lsu_silva_fna_file)
-                        lsu_silva_summary_file = os.path.join(full_assembly_dir, self.lsu_silva_summary_file)
-                        lsu_count = self._parse_taxonomy_file(accession, lsu_silva_taxonomy_file, fout_lsu_silva_taxonomy, 'lsu_silva', lsu_silva_fna_file, lsu_silva_summary_file)
+                        lsu_silva_23s_taxonomy_file = os.path.join(full_assembly_dir, self.lsu_silva_23s_taxonomy_file)
+                        lsu_silva_23s_fna_file = os.path.join(full_assembly_dir, self.lsu_silva_23s_fna_file)
+                        lsu_silva_23s_summary_file = os.path.join(full_assembly_dir, self.lsu_silva_23s_summary_file)
+                        lsu_23s_count = self._parse_taxonomy_file(accession, lsu_silva_23s_taxonomy_file, fout_lsu_silva_23s_taxonomy, 'lsu_silva_23s', lsu_silva_23s_fna_file, lsu_silva_23s_summary_file)
 
                         lsu_5S_fna_file = os.path.join(full_assembly_dir, self.lsu_5S_fna_file)
                         lsu_5S_summary_file = os.path.join(full_assembly_dir, self.lsu_5S_summary_file)
                         lsu_5S_count = self._parse_lsu_5S_files(accession, fout_lsu_5S, lsu_5S_fna_file, lsu_5S_summary_file)
                         
                         fout_ssu_silva_count.write('%s\t%d\n' % (accession, ssu_count))
-                        fout_lsu_silva_count.write('%s\t%d\n' % (accession, lsu_count))
+                        fout_lsu_silva_23s_count.write('%s\t%d\n' % (accession, lsu_23s_count))
                         fout_lsu_5S_count.write('%s\t%d\n' % (accession, lsu_5S_count))
                         
                         trna_file = os.path.join(full_assembly_dir, 'trna', accession + '_trna_stats.tsv')
@@ -361,17 +361,17 @@ class MetadataTable(object):
                     ssu_silva_summary_file = os.path.join(full_genome_dir, self.ssu_silva_summary_file)
                     ssu_count = self._parse_taxonomy_file(genome_id, ssu_silva_taxonomy_file, fout_ssu_silva_taxonomy, 'ssu_silva', ssu_silva_fna_file, ssu_silva_summary_file)
 
-                    lsu_silva_taxonomy_file = os.path.join(full_genome_dir, self.lsu_silva_taxonomy_file)
-                    lsu_silva_fna_file = os.path.join(full_genome_dir, self.lsu_silva_fna_file)
-                    lsu_silva_summary_file = os.path.join(full_genome_dir, self.lsu_silva_summary_file)
-                    lsu_count = self._parse_taxonomy_file(genome_id, lsu_silva_taxonomy_file, fout_lsu_silva_taxonomy, 'lsu_silva', lsu_silva_fna_file, lsu_silva_summary_file)
+                    lsu_silva_23s_taxonomy_file = os.path.join(full_genome_dir, self.lsu_silva_23s_taxonomy_file)
+                    lsu_silva_23s_fna_file = os.path.join(full_genome_dir, self.lsu_silva_23s_fna_file)
+                    lsu_silva_23s_summary_file = os.path.join(full_genome_dir, self.lsu_silva_23s_summary_file)
+                    lsu_23s_count = self._parse_taxonomy_file(genome_id, lsu_silva_23s_taxonomy_file, fout_lsu_silva_23s_taxonomy, 'lsu_silva_23s', lsu_silva_23s_fna_file, lsu_silva_23s_summary_file)
 
                     lsu_5S_fna_file = os.path.join(full_genome_dir, self.lsu_5S_fna_file)
                     lsu_5S_summary_file = os.path.join(full_genome_dir, self.lsu_5S_summary_file)
                     lsu_5S_count = self._parse_lsu_5S_files(genome_id, fout_lsu_5S, lsu_5S_fna_file, lsu_5S_summary_file)
                     
                     fout_ssu_silva_count.write('%s\t%d\n' % (genome_id, ssu_count))
-                    fout_lsu_silva_count.write('%s\t%d\n' % (genome_id, lsu_count))
+                    fout_lsu_silva_23s_count.write('%s\t%d\n' % (genome_id, lsu_23s_count))
                     fout_lsu_5S_count.write('%s\t%d\n' % (genome_id, lsu_5S_count))
                     
                     trna_file = os.path.join(full_genome_dir, 'trna', genome_id + '_trna_stats.tsv')
@@ -381,10 +381,10 @@ class MetadataTable(object):
         fout_gene.close()
         fout_gg_taxonomy.close()
         fout_ssu_silva_taxonomy.close()
-        fout_lsu_silva_taxonomy.close()
+        fout_lsu_silva_23s_taxonomy.close()
         fout_lsu_5S.close()
         fout_ssu_silva_count.close()
-        fout_lsu_silva_count.close()
+        fout_lsu_silva_23s_count.close()
         fout_lsu_5S_count.close()
         fout_trna_count.close()
 

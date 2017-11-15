@@ -33,6 +33,7 @@ import os
 import sys
 import ntpath
 import argparse
+import subprocess
 import multiprocessing as mp
 
 from biolib.common import remove_extension
@@ -71,8 +72,16 @@ class tRNAScan(object):
             if domain == 'ar':
                 domain_flag = '-A'
             
-            cmd = 'tRNAscan-SE %s -q -Q -o %s -m %s -l %s %s' % (domain_flag, output_file, stats_file, log_file, genome_file)
-            os.system(cmd)
+            #cmd = 'tRNAscan-SE %s -q -Q -o %s -m %s -l %s %s' % (domain_flag, output_file, stats_file, log_file, genome_file)
+            #os.system(cmd)
+            
+            cmd_to_run = ['tRNAscan-SE',domain_flag,'-q','-Q','-o',output_file,'-m',stats_file,'-l',log_file,genome_file]
+            proc = subprocess.Popen(cmd_to_run,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = proc.communicate()
+            #print proc.returncode
+            if proc.returncode != 0:
+                raise RuntimeError("%r failed, status code %s stdout %r stderr %r" % (
+                       cmd_to_run, proc.returncode, stdout, stderr))
             
             queueOut.put(genome_file)
         

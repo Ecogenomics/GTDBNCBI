@@ -1145,7 +1145,7 @@ class GenomeManager(object):
                 raise GenomeDatabaseError(
                     "Unable to print genomes. No genomes found.")
 
-            stat_fields = ['id', 'genome'] + stat_fields
+            stat_fields = ['id', 'accession'] + stat_fields
             stat_fields_str = ','.join(stat_fields)
 
             self.cur.execute("SELECT " + stat_fields_str + " FROM metadata_view " +

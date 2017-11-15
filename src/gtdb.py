@@ -496,6 +496,10 @@ def RunTaxonomyCheck(db, args):
 def RunDomainAssignmentReport(db, args):
     return db.RunDomainAssignmentReport(args.outfile)
 
+def RunDomainConsistency(db, args):
+    return db.RunDomainConsistency()
+
+
 
 def ExportGenomePaths(db, args):
     return db.ExportGenomePaths(args.outfile)
@@ -1405,6 +1409,18 @@ if __name__ == '__main__':
                                         help="Show help message.")
 
     parser_domain_report.set_defaults(func=RunDomainAssignmentReport)
+    
+    # -------- Domain check
+    parser_domain_consistency = power_category_subparser.add_parser('domain_consistency',
+                                                               add_help=False,
+                                                               formatter_class=CustomHelpFormatter,
+                                                               help='Check if GTDB domain based on markers presence and NCBI domain are the same.')
+    optional_domain_consistency = parser_domain_consistency.add_argument_group('optional arguments')
+    optional_domain_consistency.add_argument('-h', '--help', action="help",
+                                      help="Show help message.")
+    
+    parser_domain_consistency.set_defaults(func=RunDomainConsistency)
+    
 
     # Do the parsing
     args = parser.parse_args()
