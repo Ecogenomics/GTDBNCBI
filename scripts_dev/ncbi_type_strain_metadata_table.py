@@ -62,7 +62,7 @@ class TypeStrainTable(object):
     for row in csv_reader:
       if bHeader:
         taxid_index = row.index('ncbi_taxid')
-        genome_index = row.index('genome')
+        genome_index = row.index('accession')
         bHeader = False
       else:
         genome_id = row[genome_index]

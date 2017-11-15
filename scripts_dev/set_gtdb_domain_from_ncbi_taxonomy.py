@@ -89,12 +89,12 @@ class Script():
                 self.logger.error('NCBI domain has the incorrect prefix: %s' % ncbi_domain)
                 sys.exit()
              
-            gtdb_taxonomy = list(Taxonomy.rank_prefixes)
-            gtdb_taxonomy[0] = ncbi_domain
-            gtdb_taxonomy = ';'.join(gtdb_taxonomy)
-            missing_domain_info.append([ncbi_domain, gtdb_taxonomy, id])
+            #gtdb_taxonomy = list(Taxonomy.rank_prefixes)
+            #gtdb_taxonomy[0] = ncbi_domain
+            #gtdb_taxonomy = ';'.join(gtdb_taxonomy)
+            missing_domain_info.append([ncbi_domain, id])
  
-        q = "UPDATE metadata_taxonomy SET gtdb_domain = %s, gtdb_taxonomy=%s WHERE id = %s"
+        q = "UPDATE metadata_taxonomy SET gtdb_domain = %s WHERE id = %s"
         cur.executemany(q, missing_domain_info)
         
         self.db.conn.commit()

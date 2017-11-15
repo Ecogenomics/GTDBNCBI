@@ -59,6 +59,8 @@ class MetadataLPSN(object):
         fout_type_genera.write('lpsn_genus\tlpsn_type_genus\tlpsn_genus_authority\n')
         fout_type_species.write('lpsn_species\tlpsn_type_species\tlpsn_species_authority\n')
         fout_type_strains.write('lpsn_strain\n')
+        
+        list_processed_strains = []
 
         strains = set()
         for line in open(lpsn_scrape_file):
@@ -97,7 +99,10 @@ class MetadataLPSN(object):
                         if " " in strain:
                             strain = strain.replace(" ", "")
                             processed_strains.append(strain)
-                fout_type_strains.write('{0} {1}\n'.format(line_split[2], "=".join(processed_strains)))
+                processed_strain_string = '{0} {1}'.format(line_split[2], "=".join(processed_strains))
+                if processed_strain_string not in list_processed_strains:
+                    fout_type_strains.write('{0}\n'.format(processed_strain_string))
+                    list_processed_strains.append(processed_strain_string)
 
 
 #         for strain_id in line_split[4:]:

@@ -140,8 +140,8 @@ class SSU(object):
 
               full_assembly_dir = os.path.join(full_species_dir, assembly_dir)
 
-              if os.path.exists(os.path.join(full_assembly_dir, self.output_dir)):
-                continue
+              #if os.path.exists(os.path.join(full_assembly_dir, self.output_dir)):
+              #  continue
 
               genome_file = os.path.join(full_assembly_dir, assembly_dir + '_genomic.fna')
               input_files.append(genome_file)
@@ -163,15 +163,16 @@ class SSU(object):
             genome_file = os.path.join(full_genome_dir, genome_id + '_genomic.fna')
             input_files.append(genome_file)
 
-        print 'Identified %d genomes to process.' % len(input_files)
+    print 'Identified %d genomes to process.' % len(input_files)
 
     # process each genome
     print 'Generating metadata for each genome:'
     parallel = Parallel(cpus = cpus)
-    parallel.run(self._producer,
-                  None,
-                  input_files,
-                  self._progress)
+    if len(input_files) > 0 :
+        parallel.run(self._producer,
+                     None,
+                     input_files,
+                     self._progress)
 
 if __name__ == '__main__':
   print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__

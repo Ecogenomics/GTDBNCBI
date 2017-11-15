@@ -34,6 +34,8 @@ import sys
 import logging
 import ntpath
 import argparse
+import subprocess
+
 from collections import defaultdict
 
 from biolib.parallel import Parallel
@@ -60,7 +62,13 @@ class RNA(object):
     if os.path.exists(log_file):
       os.remove(log_file)
 
-    os.system('genometk rna --silent --cpus 1 --db %s --taxonomy_file %s %s %s %s' % (self.db, self.taxonomy, genome_file, self.rna_gene, output_dir))
+    #os.system('genometk rna --silent --cpus 1 --db %s --taxonomy_file %s %s %s %s' % (self.db, self.taxonomy, genome_file, self.rna_gene, output_dir))
+    cmd_to_run = ['genometk','rna','--silent','--cpus','1','--db',self.db,'--taxonomy_file',self.taxonomy,genome_file, self.rna_gene, output_dir]
+    proc = subprocess.Popen(cmd_to_run,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = proc.communicate()
+    if p.returncode != 0:
+        raise RuntimeError("%r failed, status code %s stdout %r stderr %r" % (
+                       cmd_to_run, p.returncode, stdout, stderr))
 
     return output_dir
 

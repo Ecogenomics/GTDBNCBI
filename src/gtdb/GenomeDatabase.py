@@ -1634,6 +1634,28 @@ class GenomeDatabase(object):
             return False
 
         return True
+    
+    def RunDomainConsistency(self):
+        '''
+        Function: RunDomainConsistency
+        Check if GTDB domain based on markers presence and NCBI domain are the same.
+
+        '''
+        try:
+            cur = self.conn.cursor()
+            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr.RunDomainConsistency()
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+    
+    
 
     def RunDomainAssignmentReport(self, outfile):
         '''

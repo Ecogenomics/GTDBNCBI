@@ -185,7 +185,7 @@ class PowerUserManager(object):
 
         try:
             # Check if gtdb_domain is the same as the gtdb_taxonomy and ncbi_taxonomy domain
-            query = ("SELECT g.id_at_source, mt.gtdb_domain, mt.ncbi_taxonomy, mt.gtdb_taxonomy FROM metadata_taxonomy mt LEFT JOIN genomes g using (id) where genome_source_id in (2,3) ")
+            query = ("SELECT g.id_at_source, mt.gtdb_domain, mt.ncbi_taxonomy, gtv.gtdb_taxonomy FROM metadata_taxonomy mt LEFT JOIN genomes g using (id) LEFT JOIN gtdb_taxonomy_view gtv USING (id) where genome_source_id in (2,3) ")
             self.cur.execute(query)
             list_domain = [[a, b, c, d] for (a, b, c, d) in self.cur]
             print "#Conflicting Domains:"
@@ -205,7 +205,7 @@ class PowerUserManager(object):
             print "#End"
 
             # Compare NCBI and GTDB taxonomy
-            query = ("SELECT g.id_at_source,mt.ncbi_taxonomy,mt.gtdb_taxonomy FROM metadata_taxonomy mt LEFT JOIN genomes g using (id) where genome_source_id in (2,3) ")
+            query = ("SELECT g.id_at_source,mt.ncbi_taxonomy,gtv.gtdb_taxonomy FROM metadata_taxonomy mt LEFT JOIN genomes g using (id) LEFT JOIN gtdb_taxonomy_view gtv USING (id) where genome_source_id in (2,3) ")
             self.cur.execute(query)
             list_domain = [[a, b, d] for (a, b, d) in self.cur]
             print "#Conflicting Taxonomy:"
@@ -259,3 +259,36 @@ class PowerUserManager(object):
             for path in list_genome_ids[dup]:
                 print "- {0}".format(path)
         print "#############"
+
+    def RunDomainConsistency(self):
+        try:
+            query = ("SELECT * from (SELECT id_at_source, " +
+                     "CASE WHEN bac_mark::float/120*100 < 10 and arc_mark::float/122*100 < 10 THEN 'None' " +
+                     "WHEN bac_mark::float/120*100 < arc_mark::float/122*100 THEN 'd__Archaea' " +
+                     "ELSE 'd__Bacteria' END as marker_domain, " +
+                     "gtdb_domain FROM genomes " +
+                     "LEFT JOIN (SELECT id,count(*) as bac_mark from genomes g " +
+                     "LEFT JOIN metadata_taxonomy USING (id) " +
+                     "LEFT JOIN aligned_markers am on am.genome_id = g.id " +
+                     "WHERE gtdb_representative is TRUE AND am.marker_id in (SELECT marker_id from marker_set_contents WHERE set_id =1) and am.evalue is not NULL " +
+                     "group BY id) as tmpbac USING (id) " +
+                     "LEFT JOIN (SELECT id,count(*) as arc_mark from genomes g " +
+                     "LEFT JOIN metadata_taxonomy USING (id) " +
+                     "LEFT JOIN aligned_markers am on am.genome_id = g.id " +
+                     "WHERE gtdb_representative is TRUE AND am.marker_id in (SELECT marker_id from marker_set_contents WHERE set_id =2) and am.evalue is not NULL " +
+                     "group BY id) as tmparc USING (id) " +
+                     "LEFT JOIN metadata_taxonomy USING (id) " +
+                     "WHERE gtdb_representative is TRUE ) as gtdb_difference " +
+                     "WHERE marker_domain not like gtdb_domain")
+            self.cur.execute(query)
+            list_genome = [[a, b, d] for (a, b, d) in self.cur if b != d]
+            if len(list_genome) > 0:
+                print "Genome\tmarker_domain\tgtdb_domain"
+                for item in list_genome:
+                    print "{0}\t{1}\t{2}".format(item[0],item[1],item[2])
+            print "Finished"
+        except GenomeDatabaseError as e:
+            raise e
+
+        return True
+        
