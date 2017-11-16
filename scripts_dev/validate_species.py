@@ -76,7 +76,7 @@ class ValidateANI(object):
     def _progress(self, processed_items, total_items):
         return 'Processed %d of %d genome pairs.' % (processed_items, total_items)
 
-    def run(self, gtdb_taxonomy_file, ncbi_taxonomy_file, genome_dir_file, output_dir):
+    def run(self, gtdb_taxonomy_file, gtdb_metadata_file, genome_dir_file, output_dir):
         """Calculate ANI between genomes defined as being from the same species."""
         
         if not os.path.exists(output_dir):
@@ -96,14 +96,30 @@ class ValidateANI(object):
         
         # get NCBI species designations
         ncbi_species = {}
-        for line in open(ncbi_taxonomy_file):
-            line_split = line.strip().split('\t')
+        ncbi_type_strain = set()
+        lpsn_type_species = set()
+        with open(gtdb_metadata_file) as f:
+            header = f.readline().strip().split('\t')
             
-            gid = line_split[0]
-            taxonomy = [taxon.strip() for taxon in line_split[1].split(';')]
-            sp = taxonomy[6]
-            if sp != 's__':
-                ncbi_species[gid] = sp
+            ncbi_taxonomy_index = header.index('ncbi_taxonomy')
+            ncbi_type_strain_index = header.index('ncbi_type_strain')
+            lpsn_type_species_index = header.index('lpsn_species')
+            
+            for line in f:
+                line_split = line.strip().split('\t')
+                
+                gid = line_split[0]
+                taxonomy = [taxon.strip() for taxon in line_split[ncbi_taxonomy_index].split(';')]
+                if len(taxonomy) == 7:
+                    sp = taxonomy[6]
+                    if sp != 's__':
+                        ncbi_species[gid] = sp
+                        
+                        if line_split[ncbi_type_strain_index] == 'yes':
+                            ncbi_type_strain.add(sp)
+                            
+                        if line_split[lpsn_type_species_index] == sp:
+                            lpsn_type_species.add(sp)
 
         # identify genomes assigned to same GTDB species
         gtdb_species = defaultdict(list)
@@ -133,7 +149,9 @@ class ValidateANI(object):
         
         summary_file = os.path.join(output_dir, 'species_ani.tsv')
         fout_summary = open(summary_file, 'w')
-        fout_summary.write('GTDB Species\tNo. Genomes\tMean gANI\tStd gANI\tMin gANI\tMean AF\tStd AF\tMin AF\tNCBI Species\tAccepted Species\n')
+        fout_summary.write('GTDB Species\tNo. Genomes\tMean gANI\tStd gANI\tMin gANI\tMean AF\tStd AF\tMin AF')
+        fout_summary.write('\tPass ANI Species Test\tNCBI Species\tNo. NCBI Species\tNCBI Type Strains')
+        fout_summary.write('\tLPSN Type Species at NCBI\tNo. LPSN Type Species at NCBI\n')
         
         for sp, genome_ids in gtdb_species.items():
             if len(genome_ids) <= 1:
@@ -155,12 +173,25 @@ class ValidateANI(object):
             gANIs = []
             AFs = []
             all_ncbi_sp = set()
+            all_ncbi_type_strains = set()
+            all_lpsn_type_species = set()
             for r in results:
                 genome_id_a, genome_id_b, gANI, AF =  r
                 ncbi_sp_a = ncbi_species.get(genome_id_a, 'unassigned')
                 ncbi_sp_b = ncbi_species.get(genome_id_b, 'unassigned')
                 all_ncbi_sp.add(ncbi_sp_a)
                 all_ncbi_sp.add(ncbi_sp_b)
+                
+                if ncbi_sp_a in ncbi_type_strain:
+                    all_ncbi_type_strains.add(ncbi_sp_a)
+                if ncbi_sp_b in ncbi_type_strain:
+                    all_ncbi_type_strains.add(ncbi_sp_b)
+                
+                if ncbi_sp_a in lpsn_type_species:
+                    all_lpsn_type_species.add(ncbi_sp_a)
+                if ncbi_sp_b in lpsn_type_species:
+                    all_lpsn_type_species.add(ncbi_sp_b)
+                
                 
                 accepted_species = 'invalid'
                 if (gANI >= 96.5 and AF >= 0.6) or (ncbi_sp_a != 'unassigned' and (ncbi_sp_a == ncbi_sp_b)):
@@ -178,19 +209,25 @@ class ValidateANI(object):
                 AFs.append(AF)
                 
             print('%s\t%d\t%.2f\t%.2f' % (sp, len(genome_ids), mean(gANIs), min(gANIs)))
-            accepted_species = 'invalid'
-            if (min(gANIs) >= 96.5 and min(AFs) >= 0.6) or (len(all_ncbi_sp) == 1 and list(all_ncbi_sp)[0] != 'unassigned'):
-                accepted_species = 'valid'
-            fout_summary.write('%s\t%d\t%.3f\t%.4f\t%.4f\t%.3f\t%.4f\t%.4f\t%s\t%s\n' % (sp,
-                                                                                        len(genome_ids),
-                                                                                        mean(gANIs), 
-                                                                                        std(gANIs), 
-                                                                                        min(gANIs), 
-                                                                                        mean(AFs), 
-                                                                                        std(AFs), 
-                                                                                        min(AFs),
-                                                                                        ','.join(all_ncbi_sp),
-                                                                                        accepted_species))
+            ani_species = 'False'
+            if (min(gANIs) >= 96.5 and min(AFs) >= 0.6):
+                ani_species = 'True'
+            fout_summary.write('%s\t%d\t%.3f\t%.4f\t%.4f\t%.3f\t%.4f\t%.4f\t%s\t%s\t%d\t%s\t%s\t%d\n' % (
+                                    sp,
+                                    len(genome_ids),
+                                    mean(gANIs), 
+                                    std(gANIs), 
+                                    min(gANIs), 
+                                    mean(AFs), 
+                                    std(AFs), 
+                                    min(AFs),
+                                    ani_species,
+                                    ','.join(all_ncbi_sp),
+                                    len(all_ncbi_sp) - int('unassigned' in all_ncbi_sp),
+                                    ','.join(all_ncbi_type_strains),
+                                    ','.join(all_lpsn_type_species),
+                                    len(all_lpsn_type_species)
+                                    ))
             fout.flush()
             fout_summary.flush()
             
@@ -203,7 +240,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('gtdb_taxonomy_file', help='file specifying GTDB taxonomy of all genomes')
-    parser.add_argument('ncbi_taxonomy_file', help='file specifying NCBI taxonomy of all genomes')
+    parser.add_argument('gtdb_metadata_file', help='file specifying GTDB metadata (TSV)')
     parser.add_argument('genome_dir_file', help='file indicating path to all genome directories')
     parser.add_argument('output_dir', help='output directory')
   
@@ -212,7 +249,7 @@ if __name__ == '__main__':
     try:
         p = ValidateANI()
         p.run(args.gtdb_taxonomy_file, 
-                args.ncbi_taxonomy_file, 
+                args.gtdb_metadata_file, 
                 args.genome_dir_file, 
                 args.output_dir)
     except SystemExit:

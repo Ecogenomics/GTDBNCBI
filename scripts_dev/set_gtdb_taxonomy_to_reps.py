@@ -80,7 +80,7 @@ class Script():
         # get representatives and clustered genomes
         cur = self.db.conn.cursor()
         
-        q = ("SELECT id, genome, gtdb_taxonomy, ncbi_taxonomy, gtdb_genome_representative FROM metadata_view")
+        q = ("SELECT id, accession, gtdb_taxonomy, ncbi_taxonomy, gtdb_genome_representative FROM metadata_view")
         cur.execute(q)
         
         reps = {}
@@ -149,12 +149,12 @@ class Script():
         for gid, rep_id in clustered.iteritems():
             gtdb_taxonomy = reps[rep_id]
             gtdb_taxa = map(str.strip, gtdb_taxonomy.split(';'))
-            d = [gtdb_taxonomy] + gtdb_taxa + [gid]
+            d = gtdb_taxa + [gid]
             clustered_tax.append(d)
                 
         self.logger.info('Assigning representative taxonomy to %d clustered genomes.' % len(clustered_tax))
             
-        q = ('UPDATE metadata_taxonomy SET gtdb_taxonomy = %s, '
+        q = ('UPDATE metadata_taxonomy SET '
                 + 'gtdb_domain = %s, gtdb_phylum = %s, '
                 + 'gtdb_class = %s, gtdb_order = %s, '
                 + 'gtdb_family = %s, gtdb_genus = %s, '
