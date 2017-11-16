@@ -134,9 +134,9 @@ class MetadataManager(object):
 
         try:
             if taxonomy_src == 'NCBI':
-                self.cur.execute("SELECT genome, ncbi_taxonomy FROM metadata_view")
+                self.cur.execute("SELECT accession, ncbi_taxonomy FROM metadata_view")
             else:
-                self.cur.execute("SELECT genome, gtdb_taxonomy FROM metadata_view")
+                self.cur.execute("SELECT accession, gtdb_taxonomy FROM metadata_view")
 
             fout = open(output_file, 'w')
             for genome_id, taxonomy in self.cur.fetchall():
