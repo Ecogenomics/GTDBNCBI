@@ -104,16 +104,16 @@ class Script():
                     # fill in domain
                     gtdb_taxa[genome][0] = ncbi_taxa[genome][0]
                 
+            clustered[gid] = gtdb_genome_representative
+            
             if genome == gtdb_genome_representative:
                 if not gtdb_taxonomy or gtdb_taxa[genome][1] == 'p__':
                     reps[genome] = ';'.join(gtdb_taxa[genome])
                     reps_without_taxonomy.add(genome)
                 else:
                     reps[genome] = gtdb_taxonomy
-                    
+
             else:
-                clustered[gid] = gtdb_genome_representative
-                
                 clusters[gtdb_genome_representative].add(genome)
                    
         self.logger.info('Identified %d GTDB representatives.' % len(reps))
@@ -130,7 +130,9 @@ class Script():
             taxa = []
             for r in xrange(0, 7):
                 t = []
-                for gid in clusters[rep_id]:
+                for gid in (clusters[rep_id]):
+                    if gid == rep_id:
+                        continue
                     t.append(gtdb_taxa[gid][r])
 
                 taxon, count = Counter(t).most_common(1)[0]
