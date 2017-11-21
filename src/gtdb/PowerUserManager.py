@@ -25,9 +25,13 @@ from Exceptions import GenomeDatabaseError
 from biolib.taxonomy import Taxonomy
 
 
+from AlignedMarkerManager import AlignedMarkerManager
+from MarkerSetManager import MarkerSetManager
+
+
 class PowerUserManager(object):
 
-    def __init__(self, cur, currentUser):
+    def __init__(self, cur, currentUser,threads = 1):
         """Initialize.
 
         Parameters
@@ -42,6 +46,7 @@ class PowerUserManager(object):
 
         self.cur = cur
         self.currentUser = currentUser
+        self.threads = threads
 
     def runTreeWeightedExceptions(self, path, comp, conta, qweight, qt):
         '''
@@ -291,4 +296,33 @@ class PowerUserManager(object):
             raise e
 
         return True
-        
+    
+    def RealignNCBIgenomes(self):
+        try:
+            query = ("SELECT g.id,COALESCE(marker_count,0) from genomes g "+
+                     "LEFT JOIN (SELECT id_at_source,count(*) as marker_count from genomes g "+
+                     "LEFT JOIN aligned_markers am ON am.genome_id = g.id "+
+                     "LEFT JOIN marker_set_contents msc ON msc.marker_id = am.marker_id "+
+                     "WHERE genome_source_id != 1 "+
+                     "AND msc.set_id in (1,2) "+
+                     "group by id_at_source) as marktmp USING (id_at_source) "+
+                     "LEFT JOIN metadata_taxonomy mt on g.id = mt.id "+
+                     "where g.genome_source_id != 1 and marker_count is NULL "+
+                     "and gtdb_representative is not NULL "+
+                     "ORDER BY marker_count")
+            self.cur.execute(query)
+            list_genome = [a for (a, _b) in self.cur]
+            if len(list_genome) > 0:
+                # get canonical bacterial and archaeal markers
+                marker_set_mngr = MarkerSetManager(self.cur, self.currentUser)
+                bac_marker_ids = marker_set_mngr.canonicalBacterialMarkers()
+                ar_marker_ids = marker_set_mngr.canonicalArchaealMarkers()
+
+                # identify and align genes from canonical bacterial and archaeal marker sets
+                all_markers = set(bac_marker_ids).union(ar_marker_ids)
+                aligned_mngr = AlignedMarkerManager(self.cur, self.threads,self.db_release)
+                aligned_mngr.calculateAlignedMarkerSets(list_genome, all_markers)
+        except GenomeDatabaseError as e:
+            raise e
+
+        return True

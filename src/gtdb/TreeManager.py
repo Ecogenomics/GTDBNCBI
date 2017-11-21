@@ -370,7 +370,7 @@ class TreeManager(object):
         metadata = self.cur.fetchall()
         
         # add MIMAG quality information
-        metadata = self._mimagQualityInfo(metadata, col_headers)
+        #metadata = self._mimagQualityInfo(metadata, col_headers)
 
         # identify columns of interest
         genome_id_index = col_headers.index('id')
