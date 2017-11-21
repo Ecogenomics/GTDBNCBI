@@ -17,7 +17,7 @@
 #                                                                             #
 ###############################################################################
 
-__prog_name__ = 'validate_species.py'
+__prog_name__ = 'validate_intra_species.py'
 __prog_desc__ = 'Calculate ANI values between genomes classified as being from the same species.'
 
 __author__ = 'Donovan Parks'
@@ -127,10 +127,10 @@ class ValidateANI(object):
             line_split = line.strip().split('\t')
             
             gid = line_split[0]
-            taxonomy = [taxon.strip() for taxon in line_split[1].split(';')]
-            sp = taxonomy[6]
-            if sp != 's__':
-                gtdb_species[sp].append(gid)
+            taxa = [taxon.strip() for taxon in line_split[1].split(';')]
+            for t in taxa:
+                if t.startswith('s__') and t != 's__':
+                    gtdb_species[t].append(gid)
                 
         print('Identified %d species.' % len(gtdb_species))
         
@@ -147,7 +147,7 @@ class ValidateANI(object):
         fout = open(ani_file, 'w')
         fout.write('GTDB Species\tNo. Genomes\tGenome ID A\tGenome ID B\tgANI\tAF\tNCBI Species A\tNCBI Species B\tAccepted Species\n')
         
-        summary_file = os.path.join(output_dir, 'species_ani.tsv')
+        summary_file = os.path.join(output_dir, 'intra_species_ani.tsv')
         fout_summary = open(summary_file, 'w')
         fout_summary.write('GTDB Species\tNo. Genomes\tMean gANI\tStd gANI\tMin gANI\tMean AF\tStd AF\tMin AF')
         fout_summary.write('\tPass ANI Species Test\tNCBI Species\tNo. NCBI Species\tNCBI Type Strains')
