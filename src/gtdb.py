@@ -499,7 +499,8 @@ def RunDomainAssignmentReport(db, args):
 def RunDomainConsistency(db, args):
     return db.RunDomainConsistency()
 
-
+def RealignNCBIgenomes(db,args):
+    return db.RealignNCBIgenomes()
 
 def ExportGenomePaths(db, args):
     return db.ExportGenomePaths(args.outfile)
@@ -1409,7 +1410,7 @@ if __name__ == '__main__':
                                         help="Show help message.")
 
     parser_domain_report.set_defaults(func=RunDomainAssignmentReport)
-    
+
     # -------- Domain check
     parser_domain_consistency = power_category_subparser.add_parser('domain_consistency',
                                                                add_help=False,
@@ -1418,9 +1419,20 @@ if __name__ == '__main__':
     optional_domain_consistency = parser_domain_consistency.add_argument_group('optional arguments')
     optional_domain_consistency.add_argument('-h', '--help', action="help",
                                       help="Show help message.")
-    
+
     parser_domain_consistency.set_defaults(func=RunDomainConsistency)
     
+    # ------- Realign NCBI genomes after GTDB update
+    parser_realign_genomes = power_category_subparser.add_parser('realign_updated_genomes',
+                                                                 add_help=False,
+                                                                 formatter_class=CustomHelpFormatter,
+                                                                 help='Re run alignment of NCBI genomes that have been updated in the last NCBI release.')
+    optional_realign_genomes = parser_realign_genomes.add_argument_group('optional arguments')
+    optional_realign_genomes.add_argument('-h', '--help', action="help",
+                                      help="Show help message.")
+
+    parser_realign_genomes.set_defaults(func=RealignNCBIgenomes)
+
 
     # Do the parsing
     args = parser.parse_args()

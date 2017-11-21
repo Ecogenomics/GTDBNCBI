@@ -1655,6 +1655,26 @@ class GenomeDatabase(object):
 
         return True
     
+    def RealignNCBIgenomes(self):
+        '''
+        Function: RealignNCBIgenomes
+        Re run alignment of NCBI genomes that have been updated in the last NCBI release.
+
+        '''
+        try:
+            cur = self.conn.cursor()
+            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr.RealignNCBIgenomes()
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+    
     
 
     def RunDomainAssignmentReport(self, outfile):
