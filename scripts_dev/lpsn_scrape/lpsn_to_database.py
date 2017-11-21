@@ -53,13 +53,15 @@ class UpdateLPSNDatabase(object):
     def runUpdate(self):
         # Check if the files exist:
         if os.path.isfile(self.lpsn_genera_file) and os.path.isfile(self.lpsn_strains_file) and os.path.isfile(self.lpsn_species_file):
-            self.temp_cur.execute('TRUNCATE lpsn_genera;')
-            print "Deletion lpsn_genera done"
-            fr = open(self.lpsn_genera_file)
-            fr.readline()
-            self.temp_cur.copy_from(fr, 'lpsn_genera')
-            print 'Copy lpsn_genera done'
-            self.temp_con.commit()
+            #===================================================================
+            # self.temp_cur.execute('TRUNCATE lpsn_genera;')
+            # print "Deletion lpsn_genera done"
+            # fr = open(self.lpsn_genera_file)
+            # fr.readline()
+            # self.temp_cur.copy_from(fr, 'lpsn_genera')
+            # print 'Copy lpsn_genera done'
+            # self.temp_con.commit()
+            #===================================================================
 
             self.temp_cur.execute('TRUNCATE lpsn_species;')
             print "Deletion lpsn_species done"
@@ -69,14 +71,16 @@ class UpdateLPSNDatabase(object):
             print 'Copy lpsn_species done'
             self.temp_con.commit()
 
-            fr = open(self.lpsn_strains_file)
-            fr.readline()
-            self.temp_cur.execute('TRUNCATE lpsn_strains;')
-            print "Deletion lpsn_strains done"
-
-            self.temp_cur.copy_from(fr, 'lpsn_strains')
-            print 'Copy lpsn_strains done'
-            self.temp_con.commit()
+#===============================================================================
+#             fr = open(self.lpsn_strains_file)
+#             fr.readline()
+#             self.temp_cur.execute('TRUNCATE lpsn_strains;')
+#             print "Deletion lpsn_strains done"
+# 
+#             self.temp_cur.copy_from(fr, 'lpsn_strains')
+#             print 'Copy lpsn_strains done'
+#             self.temp_con.commit()
+#===============================================================================
 
         else:
             print 'Some files are missing in {0}'.format(self.path)
