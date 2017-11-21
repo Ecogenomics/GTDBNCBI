@@ -31,10 +31,11 @@ __status__ = 'Development'
 
 import os
 import sys
+import re
 import argparse
 import tempfile
 import shutil
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 
 class ValidateTypeSpecies(object):
@@ -73,6 +74,7 @@ class ValidateTypeSpecies(object):
         lpsn_type_sp_at_ncbi = set()
         lpsn_type_sp_at_gtdb = set()
         type_species_under_gtdb = defaultdict(set)
+        gtdb_type_species = defaultdict(set)
         with open(gtdb_metadata_file) as f:
             header = f.readline().strip().split('\t')
             
@@ -89,6 +91,7 @@ class ValidateTypeSpecies(object):
                 if gtdb_taxonomy:
                     gtdb_taxa = [t.strip() for t in gtdb_taxonomy.split(';')]
                     gtdb_sp = gtdb_taxa[6]
+                    #canonical_gtdb_sp = 's__' + ' '.join([t.strip() for t in re.split('_[A-Z]+', gtdb_sp[3:])]).strip()
                     gtdb_species.add(gtdb_sp)
 
                 ncbi_taxonomy = line_split[ncbi_taxonomy_index]
@@ -97,25 +100,35 @@ class ValidateTypeSpecies(object):
                     ncbi_taxa = [t.strip() for t in ncbi_taxonomy.split(';')]
                     ncbi_sp = ncbi_taxa[6]
                     
+                if gid == 'GB_GCA_900101375.1':
+                    print 'GB_GCA_900101375.1', ncbi_sp
+                    
                 # If NCBI has a genome marked as being from the type species,
                 # then we would expect there to be a GTDB genome assigned to this type species.
                 # We would also expect this to be a genome assigned to the type species at NCBI.
                 if ncbi_sp in lpsn_type_species:
                     lpsn_type_sp_at_ncbi.add(ncbi_sp)
+                    type_species_under_gtdb[ncbi_sp].add(str(gtdb_sp))
+                        
+                if gtdb_sp in lpsn_type_species:
+                    lpsn_type_sp_at_gtdb.add(gtdb_sp)
+                    gtdb_type_species[gtdb_sp].add(str(ncbi_sp))
                     
-                    if gtdb_sp == ncbi_sp:
-                        lpsn_type_sp_at_gtdb.add(ncbi_sp)
-                    elif gtdb_sp and gtdb_sp != 's__':
-                        type_species_under_gtdb[ncbi_sp].add(gtdb_sp)
-
         print 'Identified %d LPSN type species at NCBI.' % len(lpsn_type_sp_at_ncbi)
         print 'Identified %d LPSN type species in GTDB.' % len(lpsn_type_sp_at_gtdb)
-        print 'LPSN type species in GTDB: %s' % str(lpsn_type_sp_at_ncbi - lpsn_type_sp_at_gtdb)
+        print 'LPSN type species missing in GTDB: %s' % len(lpsn_type_sp_at_ncbi - lpsn_type_sp_at_gtdb)
         
         fout = open(os.path.join(output_dir, 'suspicious_lpsn_type_species.tsv'), 'w')
-        fout.write('Type species\tMissing in GTDB\tAssignments under GTDB taxonomy\n')
+        fout.write('Type species\tMissing in GTDB\tAssignments under GTDB taxonomy\tAssignments under NCBI taxonomy\n')
         for lpsn_sp in lpsn_type_sp_at_ncbi - lpsn_type_sp_at_gtdb:
-            fout.write('%s\t%s\t%s\n' % (lpsn_sp, str(lpsn_sp not in gtdb_species), ','.join(type_species_under_gtdb.get(lpsn_sp, []))))
+            fout.write('%s\t%s\t%s\t%s\n' % (lpsn_sp, 
+                                                'True', 
+                                                ','.join(type_species_under_gtdb.get(lpsn_sp, [])),
+                                                'N/A'))
+
+        for gtdb_sp, ncbi_sps in gtdb_type_species.iteritems():
+            if gtdb_sp not in ncbi_sps:
+                fout.write('%s\t%s\t%s\t%s\n' % (gtdb_sp, 'False', 'N/A', ','.join(ncbi_sps)))
         fout.close()
         
         
