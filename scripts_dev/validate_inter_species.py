@@ -17,8 +17,8 @@
 #                                                                             #
 ###############################################################################
 
-__prog_name__ = 'validate_sister_species.py'
-__prog_desc__ = 'Calculate ANI values between species assigned to the same genus'
+__prog_name__ = 'validate_inter_species.py'
+__prog_desc__ = 'Calculate ANI values between species assigned to the same genus.'
 
 __author__ = 'Donovan Parks'
 __copyright__ = 'Copyright 2017'
@@ -127,16 +127,18 @@ class ValidateSisterSpecies(object):
             line_split = line.strip().split('\t')
             
             gid = line_split[0]
-            taxonomy = [taxon.strip() for taxon in line_split[1].split(';')]
-            sp = taxonomy[6]
-            genus = taxonomy[5]
-            if sp != 's__':
-                gtdb_species[sp].append(gid)
-            else:
-                sp = gid
-                gtdb_species[gid].append(gid)
-                
-            gtdb_genus[sp] = genus
+            taxa = [taxon.strip() for taxon in line_split[1].split(';')]
+            species = gid
+            genus = None
+            for t in taxa:
+                if t.startswith('s__') and t != 's__':
+                    species = t
+                elif t.startswith('g__'):
+                    genus = t
+                    
+            if genus:
+                gtdb_species[species].append(gid)
+                gtdb_genus[species] = genus
                 
         print('Identified %d species.' % len(gtdb_species))
  
@@ -165,7 +167,7 @@ class ValidateSisterSpecies(object):
                                 data_items,
                                 self._progress)
                                 
-        ani_file = os.path.join(self.output_dir, 'ani_close_taxa.tsv')
+        ani_file = os.path.join(self.output_dir, 'inter_species_ani.tsv')
         fout = open(ani_file, 'w')
         fout.write('GTDB Genus\tGTDB Species A\tNo. Genomes\tGTDB Species B\tNo. Genomes\tMean ANI\tMean AF\tSame species\n')
         for r in results:

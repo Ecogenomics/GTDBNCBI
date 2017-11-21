@@ -135,16 +135,21 @@ class Script():
                         continue
                     t.append(gtdb_taxa[gid][r])
 
-                taxon, count = Counter(t).most_common(1)[0]
-                taxa.append(taxon)
-                
+                most_common = Counter(t).most_common()
+                taxon, count = most_common[0]
+                if len(most_common) == 1 or taxon != Taxonomy.rank_prefixes[r]:
+                    taxa.append(taxon)
+                else:
+                    taxon, count = most_common[1]
+                    taxa.append(taxon)
+
             if taxa[0] == 'd__' and rep_id in ncbi_taxa:
                 taxa[0] = ncbi_taxa[rep_id][0]
                 print rep_id, taxa[0]
             
             reps[rep_id] = ';'.join(taxa)
             assigned_taxonomy += 1
-            
+
         self.logger.info('Assigned %d representatives a consensus taxonomy.' % assigned_taxonomy)
         
         clustered_tax = []
