@@ -1168,7 +1168,7 @@ class GenomeManager(object):
         :param path: Path to the output file
         '''
         try:
-            self.cur.execute("SELECT genome, gtdb_taxonomy, mr.ssu_silva_query_id, mr.ssu_silva_length, mr.ssu_silva_contig_len, ms.ssu_silva_sequence FROM metadata_view " +
+            self.cur.execute("SELECT accession, gtdb_taxonomy, mr.ssu_silva_query_id, mr.ssu_silva_length, mr.ssu_silva_contig_len, ms.ssu_silva_sequence FROM metadata_view " +
                              "LEFT JOIN metadata_rna mr USING (id) " +
                              "LEFT JOIN metadata_sequence ms USING (id) " +
                              "WHERE ms.ssu_silva_sequence is not NULL")
@@ -1190,7 +1190,7 @@ class GenomeManager(object):
         :param path: Path to the output file
         '''
         try:
-            self.cur.execute("SELECT genome, gtdb_taxonomy, mr.lsu_silva_query_id, mr.lsu_silva_length, mr.lsu_silva_contig_len, ms.lsu_silva_sequence FROM metadata_view " +
+            self.cur.execute("SELECT accession, gtdb_taxonomy, mr.lsu_silva_query_id, mr.lsu_silva_length, mr.lsu_silva_contig_len, ms.lsu_silva_sequence FROM metadata_view " +
                              "LEFT JOIN metadata_rna mr USING (id) " +
                              "LEFT JOIN metadata_sequence ms USING (id) " +
                              "WHERE ms.lsu_silva_sequence is not NULL")
@@ -1211,7 +1211,7 @@ class GenomeManager(object):
         :param path: Path to the output file
         '''
         try:
-            self.cur.execute("SELECT genome,gtdb_clustered_genomes from metadata_view WHERE gtdb_representative is TRUE")
+            self.cur.execute("SELECT accession,gtdb_clustered_genomes from metadata_view WHERE gtdb_representative is TRUE")
 
             fout = open(output_file, 'w')
             fout.write('representative\tclustered_genomes\n')
