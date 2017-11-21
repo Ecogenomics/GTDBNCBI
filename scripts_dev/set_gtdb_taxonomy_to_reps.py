@@ -131,8 +131,6 @@ class Script():
             for r in xrange(0, 7):
                 t = []
                 for gid in (clusters[rep_id]):
-                    if gid == rep_id:
-                        continue
                     t.append(gtdb_taxa[gid][r])
 
                 most_common = Counter(t).most_common()
