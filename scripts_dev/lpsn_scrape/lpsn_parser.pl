@@ -29,7 +29,7 @@ while (my $localpath = readdir($dh)) {
                     }
                     print join("\t", (
                         "species",
-                        ($species_hash{$species}->{info} =~ /Type species of the genus\./ ? 1 : 0),
+                        ($species_hash{$species}->{info} =~ /Type species of the genus/ ? 1 : 0),
                         $genus_info->{genus}->{name} . " " . $species,
                         $species_hash{$species}->{info},
                         @{$species_hash{$species}->{type_strain_synonyms}}

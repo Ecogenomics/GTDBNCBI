@@ -140,6 +140,28 @@ class MetadataTable(object):
 
                 fout.write('genome_id')
                 headers = [prefix + '_' + x.strip().replace('ssu_', '') for x in header_line.split('\t')]
+                if prefix == 'lsu_silva_23s':
+                    for n,i in enumerate(headers):
+                        if i == 'lsu_silva_23s_sequence':
+                            headers[n]='lsu_23s_sequence'
+                        elif i == 'lsu_silva_23s_query_id':
+                            headers[n]='lsu_23s_query_id'
+                        elif i == 'lsu_silva_23s_length':
+                            headers[n]='lsu_23s_length'
+                        elif i == 'lsu_silva_23s_contig_len':
+                            headers[n]='lsu_23s_contig_len'
+                elif prefix == 'ssu_silva':
+                    for n,i in enumerate(headers):
+                        if i == 'ssu_silva_sequence':
+                            headers[n]='ssu_sequence'
+                        elif i == 'ssu_silva_query_id':
+                            headers[n]='ssu_query_id'
+                        elif i == 'ssu_silva_length':
+                            headers[n]='ssu_length'
+                        elif i == 'ssu_silva_contig_len':
+                            headers[n]='ssu_contig_len'
+
+
                 fout.write('\t' + '\t'.join(headers))
                 fout.write('\t{0}_sequence\t{0}_contig_len\n'.format(prefix))
 
