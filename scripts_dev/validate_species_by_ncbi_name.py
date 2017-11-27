@@ -54,17 +54,23 @@ class ValidateSpeciesNames(object):
         
         # get NCBI species designations
         ncbi_species = {}
+        canonical_ncbi_species = {}
         for line in open(ncbi_taxonomy_file):
             line_split = line.strip().split('\t')
             
             gid = line_split[0]
             taxonomy = [taxon.strip() for taxon in line_split[1].split(';')]
             sp = taxonomy[6]
-            ncbi_species[gid] = sp.replace('Candidatus ', '').replace('[', '').replace(']', '')
+            
+            canonical_sp = sp.replace('Candidatus ', '').replace('[', '').replace(']', '')
+            canonical_sp = ' '.join(canonical_sp.split()[0:2]).strip()
+            ncbi_species[gid] = canonical_sp
+            canonical_ncbi_species[canonical_sp] = sp
 
         # get GTDB species designations
         gtdb_species = {}
         unique_gtdb_species = set()
+        canonical_gtdb_species = set()
         for line in open(gtdb_taxonomy_file):
             line_split = line.strip().split('\t')
             
@@ -73,13 +79,15 @@ class ValidateSpeciesNames(object):
             sp = taxonomy[6]
 
             # get canonical species names by removing polyphyly suffices
-            canonical_sp = 's__' + ' '.join([t.strip() for t in re.split('_[A-Z]+', sp[3:])])
-            gtdb_species[gid] = (sp, canonical_sp.strip())
-            
+            canonical_sp = 's__' + ' '.join([t.strip() for t in re.split('_[A-Z]+', sp[3:])]).strip()
+            gtdb_species[gid] = (sp, canonical_sp)
+
             unique_gtdb_species.add(sp)
+            canonical_gtdb_species.add(canonical_sp)
                 
         print('Identified %d GTDB genomes.' % len(gtdb_species))
-        print('There are %d GTDB species.' % len(unique_gtdb_species))
+        print('There are %d unique GTDB species.' % len(unique_gtdb_species))
+        print('There are %d canonical GTDB species.' % len(canonical_gtdb_species))
         
         discrepancies = {}
         bad_ncbi_sp = set()
@@ -94,12 +102,18 @@ class ValidateSpeciesNames(object):
         print('No. discrepancies', len(discrepancies))
         print('Bad NCBI species', len(bad_ncbi_sp))
                 
-        fout = open('gtdb_r80_species_discrepancies.tsv', 'w')
+        fout = open('gtdb_species_discrepancies.tsv', 'w')
         fout.write('Genome ID\tGTDB species\tGTDB canonical\tNCBI species\n')
         
         sorted_d = sorted(discrepancies.items(), key=lambda x: x[1][1])
         for gid, info in sorted_d:
             fout.write('%s\t%s\n' % (gid, '\t'.join(info)))
+        fout.close()
+        
+        fout = open('missing_ncbi_species.tsv', 'w')
+        fout.write('Canonical Name\tUnmodified Name\n')
+        for ncbi_sp in set(canonical_ncbi_species) - canonical_gtdb_species:
+            fout.write('%s\t%s\n' % (ncbi_sp, canonical_ncbi_species[ncbi_sp]))
         fout.close()
 
 if __name__ == '__main__':
@@ -107,8 +121,8 @@ if __name__ == '__main__':
     print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('gtdb_taxonomy_file', help='file specifying GTDB taxonomy of all genomes')
-    parser.add_argument('ncbi_taxonomy_file', help='file specifying NCBI taxonomy of all genomes')
+    parser.add_argument('gtdb_taxonomy_file', help='file specifying GTDB taxonomy of all genomes (TSV file)')
+    parser.add_argument('ncbi_taxonomy_file', help='file specifying NCBI taxonomy of all genomes (TSV file)')
   
     args = parser.parse_args()
 
