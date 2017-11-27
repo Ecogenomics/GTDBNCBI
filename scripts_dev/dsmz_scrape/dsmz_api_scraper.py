@@ -100,9 +100,13 @@ class PNUClient(object):
                 if 'subsp.' in item.get("label"):
                     continue
                 if item.get("type_strain") is not None:
-                    outfile_strains.write('{0} {1}\n'.format(item.get("species"), "=".join(item.get("type_strain"))))
-                else:
-                    outfile_strains.write('{0} \n'.format(item.get("species")))
+                    list_strains = item.get("type_strain")
+                    for st in item.get("type_strain"):
+                        if " " in st:
+                            list_strains.append(st.replace(" ",''))
+                    outfile_strains.write('{0} {1}\n'.format(item.get("species"), "=".join(list_strains)))
+#                else:
+#                    outfile_strains.write('{0} \n'.format(item.get("species")))
 
                 label = ''
                 species_authority = ''
@@ -131,7 +135,7 @@ class PNUClient(object):
         outfile_genera.write("dsmz_genus\tdsmz_type_genus\tdsmz_genus_authority\n")
         dictgenus = self.getGenera(outfile_genera)
         outfile_genera.close()
-
+                
         outfile_species = io.open(os.path.join(outdir,'dsmz_species.tsv'),'wb')
         outfile_species.write("dsmz_species\tdsmz_type_species\tdsmz_species_authority\n")
         outfile_strains = open(os.path.join(outdir,'dsmz_strains.tsv'),'w')
