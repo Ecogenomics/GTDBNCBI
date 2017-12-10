@@ -119,11 +119,149 @@ class PowerUserManager(object):
             return False
 
         return True
+        
+    def _validateSSU_LSU(self):
+        """Validate SSU and LSU gene metadata.
+        
+        If a gene has been identified, it should have an
+        associated length. Conversely, a length should not
+        be given in the gene count is zero.
+        """
+        
+        query = ("SELECT accession, "
+                    "ssu_count, ssu_length, "
+                    "lsu_23s_count, lsu_23s_length, "
+                    "lsu_5s_count, lsu_5s_length "
+                    "FROM metadata_view")
+        self.cur.execute(query)
 
+        for d in self.cur:
+            (gid, ssu_count, ssu_length, 
+                lsu_23s_count, lsu_23s_length, 
+                lsu_5s_count, lsu_5s_length) = d
+                
+            if ssu_count >= 1 and not ssu_length:
+                print 'Missing 16S length information: %s' % gid
+            if ssu_count == 0 and ssu_length:
+                print 'No 16S gene identified, but length information is provided: %s' % gid
+                
+            if lsu_23s_count >= 1 and not lsu_23s_length:
+                print 'Missing 23S length information: %s' % gid
+            if lsu_23s_count == 0 and lsu_23s_length:
+                print 'No 23S gene identified, but length information is provided: %s' % gid
+                
+            if lsu_5s_count >= 1 and not lsu_5s_length:
+                print 'Missing 5S length information: %s' % gid
+            if lsu_5s_count == 0 and lsu_5s_length:
+                print 'No 5S gene identified, but length information is provided: %s' % gid
+
+    def _validateTypeStrains(self):
+        """Validate 'type_strain' field."""
+        
+        query = ("SELECT accession, ncbi_organism_name, type_strain, lpsn_strain, dsmz_strain, straininfo_strain "
+                    "FROM metadata_view "
+                    "WHERE ncbi_organism_name is not NULL")
+        self.cur.execute(query)
+        
+        for gid, ncbi_organism_name, type_strain, lpsn_strain, dsmz_strain, straininfo_strain in self.cur:
+            ncbi_organism_name = ncbi_organism_name.replace('Candidatus ', '')     # normalize species name
+            ncbi_sp = ' '.join(ncbi_organism_name.split()[:2])          # get species name
+            ncbi_strain_ids = set([strain_id.strip() for strain_id in ncbi_organism_name.replace(ncbi_sp, '').split('=')])
+            ncbi_strain_ids_no_spaces = set()
+            for ncbi_strain_id in ncbi_strain_ids:
+                ncbi_strain_ids_no_spaces.add(ncbi_strain_id.replace(' ', ''))
+            
+            for authority, strains in (['lpsn', lpsn_strain], ['dsmz', dsmz_strain], ['straininfo', straininfo_strain]):
+                # check cases when authority indicates a type strain
+                if type_strain and authority in type_strain:
+                    if not strains or ncbi_sp not in strains:
+                        print 'Incorrect type strain assignment attributed to %s: %s' % (authority.upper(), gid)
+                    else:
+                        strain_ids = set([strain_id.strip() for strain_id in strains.replace(ncbi_sp, '').split('=')])
+                        if strain_ids.intersection(ncbi_strain_ids) or strain_ids.intersection(ncbi_strain_ids_no_spaces):
+                            print 'Incorrect type strain assignment attributed to %s: %s' % (authority.upper(), gid)
+                            
+                # check for missing authority
+                if not type_strain or authority not in type_strain:
+                    if strains and ncbi_sp in strains:
+                        strain_ids = set([strain_id.strip() for strain_id in strains.replace(ncbi_sp, '').split('=')])
+                        if strain_ids.intersection(ncbi_strain_ids) or strain_ids.intersection(ncbi_strain_ids_no_spaces):
+                            print 'Missing type strain assignment to %s: %s' % (authority.upper(), gid)
+
+    def _validateMIMAG(self):
+        """Validationg MIMAG assignments."""
+        
+        query = ("SELECT accession, mimag_high_quality, mimag_medium_quality, mimag_low_quality, "
+                    "checkm_completeness, checkm_contamination, trna_aa_count, "
+                    "ssu_count, ssu_length, "
+                    "lsu_23s_count, lsu_23s_length, "
+                    "lsu_5s_count, lsu_5s_length, "
+                    "gtdb_domain "
+                    "FROM metadata_view "
+                    "WHERE gtdb_domain is not NULL")
+        self.cur.execute(query)
+
+        for d in self.cur:
+            (gid, mimag_high_quality, mimag_medium_quality, mimag_low_quality,
+                checkm_completeness, checkm_contamination, trna_aa_count,
+                ssu_count, ssu_length, 
+                lsu_23s_count, lsu_23s_length, 
+                lsu_5s_count, lsu_5s_length, 
+                gtdb_domain) = d
+            
+            min_lsu_5s_length = 80
+            min_lsu_23s_length = 1900
+            if gtdb_domain == 'd__Bacteria':
+                min_ssu_length = 1200
+            elif gtdb_domain == 'd__Archaea':
+                min_ssu_length = 900
+            else:
+                print 'Genome %s has an unrecognized domain assignment: %s' % (gid, gtdb_domain)
+
+            if (checkm_completeness > 90 and checkm_contamination < 5 and
+                    trna_aa_count >= 18 and 
+                    ssu_count >= 1 and ssu_length >= min_ssu_length and
+                    lsu_23s_count >= 1 and lsu_23s_length >= min_lsu_23s_length and
+                    lsu_5s_count >= 1 and lsu_5s_length >= min_lsu_5s_length):
+                        if not mimag_high_quality:
+                            print 'Failed to mark genome %s as MIMAG high quality.' % gid
+                        if mimag_medium_quality:
+                            print 'Incorrectly marked genome %s as MIMAG medium quality.' % gid
+                        if mimag_low_quality:
+                            print 'Incorrectly marked genome %s as MIMAG low quality.' % gid
+            elif checkm_completeness >= 50 and checkm_contamination <= 10:
+                if not mimag_high_quality:
+                    print 'Incorrectly marked genome %s as MIMAG high quality.' % gid
+                if mimag_medium_quality:
+                    print 'Failed to mark genome %s as MIMAG medium quality.' % gid
+                if mimag_low_quality:
+                    print 'Incorrectly marked genome %s as MIMAG low quality.' % gid
+            elif checkm_contamination <= 10:
+                if not mimag_high_quality:
+                    print 'Incorrectly marked genome %s as MIMAG high quality.' % gid
+                if mimag_medium_quality:
+                    print 'Incorrectly marked genome %s as MIMAG medium quality.' % gid
+                if mimag_low_quality:
+                    print 'Failed to mark genome %s as MIMAG low quality.' % gid
+            
     def runSanityCheck(self):
         try:
             if (not self.currentUser.isRootUser()):
                 raise GenomeDatabaseError("Only the root user can run this command")
+                
+            # validate type strains
+            self.logger.info('Validating 5S, 16S, and 23S count and gene length data.')
+            self._validateSSU_LSU()
+                
+            # validate type strains
+            self.logger.info('Validating type strain.')
+            self._validateTypeStrains()
+            
+            # validate MIMAG assignments
+            self.logger.info('Validating MIMAG assignments.')
+            self._validateMIMAG()
+
+            # check if the representatives are still in the database
             query = ("SELECT id FROM genomes where genome_source_id in (2,3)")
             self.cur.execute(query)
             ncbi_ids = [gid for (gid,) in self.cur]
@@ -138,7 +276,6 @@ class PowerUserManager(object):
             self.cur.execute(query)
             representatives = [self._chompRecord(record) for (record,) in self.cur]
 
-            # check if the representatives are still in the database
             for representative in representatives:
                 if representative not in all_source_ids:
                     print "REPRESENTATIVE {0} has been removed from the database".format(representative)

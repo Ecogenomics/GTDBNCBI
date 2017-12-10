@@ -73,9 +73,6 @@ class AddMetadata(object):
                 genome_id = line_split[0]
                 for i, value in enumerate(line_split[1:]):
                     metadata[fields[i + 1]][genome_id] = value
-                print metadata
-
-        print metadata.keys()
 
         # add each field to the database
         for field in metadata:
@@ -88,8 +85,6 @@ class AddMetadata(object):
             table = metadata_table[field]
 
             for genome_id, value in metadata[field].iteritems():
-
-
                 try:
                     if float(value) and data_type in ['INT', 'INTEGER']:
                         # assume specified data type is correct and that we may need
@@ -111,7 +106,6 @@ class AddMetadata(object):
             cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % (table, field, data_type, temp_file.name)
             os.system(cmd)
             os.remove(temp_file.name)
-
 
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
