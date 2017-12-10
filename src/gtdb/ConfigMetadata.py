@@ -15,7 +15,7 @@ GTDB_SSU_SILVA_PREFIX = 'ssu_silva'
 GTDB_LSU_SILVA_DB = '/srv/db/silva/123.1/SILVA_123.1_LSURef_tax_silva.fasta'
 GTDB_LSU_SILVA_TAXONOMY = '/srv/whitlam/bio/db/silva/123.1/silva_taxonomy.lsu.tsv'
 GTDB_LSU_SILVA_OUTPUT_DIR = 'rna_silva'
-GTDB_LSU_SILVA_PREFIX = 'lsu_silva'
+GTDB_LSU_SILVA_PREFIX = 'lsu_silva_23s'
 
 GTDB_SSU_GG_DB = '/srv/db/gg/2013_08/gg_13_8_otus/rep_set/99_otus.fasta'
 GTDB_SSU_GG_TAXONOMY = '/srv/db/gg/2013_08/gg_13_8_otus/taxonomy/99_otu_taxonomy.txt'

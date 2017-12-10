@@ -152,7 +152,7 @@ class PowerUserManager(object):
                     print "{0} has no metadata in metadata_ncbi".format(dict_all_ids[ncbi_genome])
                 else:
                     if dict_meta_ncbi[ncbi_genome]["count"] is None or dict_meta_ncbi[ncbi_genome]["count"] == '' or dict_meta_ncbi[ncbi_genome]["count"] == 0:
-                        print "{0} ncbi_protein_count value in metadata_nucleotide is {1}".format(dict_all_ids[ncbi_genome], dict_meta_ncbi[ncbi_genome]["count"])
+                        print "{0} protein_count value in metadata_nucleotide is {1}".format(dict_all_ids[ncbi_genome], dict_meta_ncbi[ncbi_genome]["count"])
                     if dict_meta_ncbi[ncbi_genome]["submitter"] is None or dict_meta_ncbi[ncbi_genome]["submitter"] == '':
                         print "{0} ncbi_submitter value in metadata_ncbi is {1}".format(dict_all_ids[ncbi_genome], dict_meta_ncbi[ncbi_genome]["submitter"])
 
