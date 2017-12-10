@@ -52,7 +52,7 @@ class GenomeDatabase(object):
         self.debugMode = False
 
         self.threads = threads
-	self.db_release = db_release
+        self.db_release = db_release
 
         self.tab_table = tab_table
 
@@ -1579,8 +1579,10 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
+            self.logger.info('Running sanity check.')
             power_user_mngr = PowerUserManager(cur, self.currentUser)
             power_user_mngr.runSanityCheck()
+            self.logger.info('Done.')
 
             cur.close()
             self.conn.ClosePostgresConnection()
