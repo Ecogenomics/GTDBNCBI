@@ -127,25 +127,16 @@ class GenomeRepresentativeManager(object):
 
         mismatches = 0
         matches = 0
-        nbr_aa_counter = 0
-        
-        #The comparison needs to be done to at least 20% of the sequence
-        nbr_aa_to_compare = self.length_comparison * len(seq1)
-        
+
         for c1, c2 in itertools.izip(seq1, seq2):
             if c1 == '-' or c2 == '-':
                 continue
             elif c1 != c2:
-                nbr_aa_counter += 1
                 mismatches += 1
                 if mismatches >= max_mismatches:
                     return None
             else:
-                nbr_aa_counter += 1
                 matches += 1
-
-        if nbr_aa_counter < nbr_aa_to_compare:
-            return None
 
         return mismatches
 

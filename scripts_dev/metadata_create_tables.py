@@ -140,6 +140,9 @@ class MetadataTable(object):
 
                 fout.write('genome_id')
                 headers = [prefix + '_' + x.strip().replace('ssu_', '') for x in header_line.split('\t')]
+                headers.append("{0}_sequence".format(prefix))
+                headers.append("{0}_contig_len".format(prefix))               
+                
                 if prefix == 'lsu_silva_23s':
                     for n,i in enumerate(headers):
                         if i == 'lsu_silva_23s_sequence':
@@ -161,9 +164,9 @@ class MetadataTable(object):
                         elif i == 'ssu_silva_contig_len':
                             headers[n]='ssu_contig_len'
 
-
-                fout.write('\t' + '\t'.join(headers))
-                fout.write('\t{0}_sequence\t{0}_contig_len\n'.format(prefix))
+                fout.write('\t' + '\t'.join(headers)+"\n")
+                
+                
 
             # Check the CheckM headers are consistent
             split_headers = header_line.rstrip().split("\t")

@@ -73,6 +73,7 @@ class AddMetadata(object):
                 genome_id = line_split[0]
                 for i, value in enumerate(line_split[1:]):
                     metadata[fields[i + 1]][genome_id] = value
+                print metadata
 
         print metadata.keys()
 
@@ -87,8 +88,7 @@ class AddMetadata(object):
             table = metadata_table[field]
 
             for genome_id, value in metadata[field].iteritems():
-                if genome_id == 'GCF_000826165.1':
-                    continue
+
 
                 try:
                     if float(value) and data_type in ['INT', 'INTEGER']:

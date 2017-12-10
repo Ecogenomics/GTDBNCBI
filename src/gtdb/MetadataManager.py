@@ -251,7 +251,7 @@ class MetadataManager(object):
         self.cur.execute(
             "INSERT INTO metadata_rna (id) VALUES ({0})".format(db_genome_id))
         self.cur.execute(
-            "INSERT INTO metadata_sequence (id) VALUES ({0})".format(db_genome_id))
+            "INSERT INTO metadata_rrna_sequences (id) VALUES ({0})".format(db_genome_id))
 
         self._calculateMetadata(genome_file, gff_file, output_dir)
         self._storeMetadata(db_genome_id, output_dir)
@@ -337,7 +337,7 @@ class MetadataManager(object):
             # Greengenes SSU metadata
             query_taxonomy = "UPDATE metadata_rna SET %s = %s WHERE id = {0}".format(
                 db_genome_id)
-            query_sequence = "UPDATE metadata_sequence SET %s = %s WHERE id = {0}".format(
+            query_sequence = "UPDATE metadata_rrna_sequences SET %s = %s WHERE id = {0}".format(
                 db_genome_id)
             metadata_ssu_gg_path = os.path.join(
                 genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
@@ -355,7 +355,7 @@ class MetadataManager(object):
             # SILVA SSU metadata saved in metadata_ssu table [HACK: eventually information will only be stored in this table]
             query_taxonomy = "UPDATE metadata_rna SET %s = %s WHERE id = {0}".format(
                 db_genome_id)
-            query_sequence = "UPDATE metadata_sequence SET %s = %s WHERE id = {0}".format(
+            query_sequence = "UPDATE metadata_rrna_sequences SET %s = %s WHERE id = {0}".format(
                 db_genome_id)
             metadata_ssu_silva_path = os.path.join(
                 genome_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
@@ -404,7 +404,7 @@ class MetadataManager(object):
             query_gene_ssu = "UPDATE metadata_genes SET ssu_count = %s WHERE id = {0}".format(db_genome_id)
             self.cur.execute(query_gene_ssu, (ssu_count,))
 
-            query_gene_lsu = "UPDATE metadata_genes SET lsu_count = %s WHERE id = {0}".format(db_genome_id)
+            query_gene_lsu = "UPDATE metadata_genes SET lsu_23s_count = %s WHERE id = {0}".format(db_genome_id)
             self.cur.execute(query_gene_lsu, (lsu_count,))
 
             return True
@@ -448,6 +448,23 @@ class MetadataManager(object):
         with open(metadata_taxonomy_file) as f:
             header_line = f.readline().rstrip()
             headers = [prefix + '_' + x for x in header_line.split('\t')]
+            
+            if prefix == 'lsu_silva_23s':
+                for n,i in enumerate(headers):
+                    if i == 'lsu_silva_23s_sequence':
+                        headers[n]='lsu_23s_sequence'
+                    elif i == 'lsu_silva_23s_query_id':
+                        headers[n]='lsu_23s_query_id'
+                    elif i == 'lsu_silva_23s_length':
+                        headers[n]='lsu_23s_length'
+            elif prefix == 'ssu_silva':
+                for n,i in enumerate(headers):
+                    if i == 'ssu_silva_sequence':
+                        headers[n]='ssu_sequence'
+                    elif i == 'ssu_silva_query_id':
+                        headers[n]='ssu_query_id'
+                    elif i == 'ssu_silva_length':
+                        headers[n]='ssu_length'
 
             split_headers = header_line.rstrip().split("\t")
             for pos in range(0, len(split_headers)):
@@ -483,7 +500,12 @@ class MetadataManager(object):
                             identified_ssu_genes += 1
                             sum_list = [x.strip() for x in line.split('\t')]
                             if sum_list[0] == ssu_query_id:
-                                metadata.append(('{0}_contig_len'.format(prefix), sum_list[idx_seq]))
+                                if prefix == 'lsu_silva_23s':
+                                    metadata.append(('lsu_23s_contig_len', sum_list[idx_seq]))
+                                elif prefix == 'ssu_silva':
+                                    metadata.append(('ssu_contig_len', sum_list[idx_seq]))
+                                else:
+                                    metadata.append(('{0}_contig_len'.format(prefix), sum_list[idx_seq]))
 
             return metadata, identified_ssu_genes, ssu_query_id
 
@@ -491,7 +513,12 @@ class MetadataManager(object):
         metadata = []
         all_genes_dict = read_fasta(fna_file, False)
         sequence = all_genes_dict[ssu_query_id]
-        metadata.append(('{0}_sequence'.format(prefix), sequence))
+        if prefix == 'lsu_silva_23s':
+            metadata.append(('lsu_23s_sequence'.format(prefix), sequence))
+        elif prefix == 'ssu_silva':
+            metadata.append(('ssu_sequence'.format(prefix), sequence))
+        else:
+            metadata.append(('{0}_sequence'.format(prefix), sequence))
         return metadata
 
     def _storeCheckM(self, db_genome_id, checkm_results):
