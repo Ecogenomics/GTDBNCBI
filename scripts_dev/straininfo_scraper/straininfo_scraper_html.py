@@ -66,12 +66,23 @@ class PNUClient(object):
                     if spename and len(species) == 0 :
                         matchObj = re.match('\s+<td class="value"><span class="speciesname"><em>([^<]+)<\/em><\/span><\/td>',line)
                         if matchObj:
-                            print matchObj.group(1)
+                            #print matchObj.group(1)
                             species = matchObj.group(1)
+                            species = re.sub(' +',' ',species)
+                            
+                        else:
+                            matchObj_sub = re.match('\s+<td class="value"><span class="speciesname"><em>([^<]+)</em>subsp.<em>([^<]+)<\/em><\/span><\/td>',line)
+                            if matchObj_sub:
+                                species = matchObj_sub.group(1) + " subsp. "+matchObj_sub.group(2)
+                                species = re.sub(' +',' ',species)
+
+                            
                     elif not spename and len(species) == 0 :
                         matchObj = re.match('\s+<tr><td class="option">species<\/td>',line)
-                        if matchObj:
+                        matchObj_sub = re.match('\s+<tr><td class="option">subspecies<\/td>',line)
+                        if matchObj or matchObj_sub:
                             spename =True
+                            
                     else:
                         matchObj = re.match("\s*<div class='popup'>([^<]+)<strong>type strain<\/strong> of:<br\/>",line)
                         if matchObj:
@@ -91,7 +102,7 @@ class PNUClient(object):
         
     def run(self,outfile):
         outf = open(outfile,'w')
-        outf.write("straininfo_strains\n")
+        outf.write("straininfo_strains_number\n")
         full_dict = {}
         manager = multiprocessing.Manager()
         out_q = manager.Queue()
@@ -109,7 +120,7 @@ class PNUClient(object):
         while not out_q.empty():
             info = out_q.get()
             if info[0] != '' and info[1] != '':
-                outf.write("{0} {1}\n".format(info[0],info[1]))
+                outf.write("{0}\t{1}\n".format(info[0],info[1]))
         outf.close()
             
 

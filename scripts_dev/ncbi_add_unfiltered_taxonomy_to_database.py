@@ -52,7 +52,7 @@ class AddTaxonomy(object):
         if line[0] == '#':
           continue
 
-        genomes_to_process.add(line.rstrip().split(',')[0])
+        genomes_to_process.add(line.rstrip().split('\t')[0])
 
     # read taxonomy file
     taxonomy = Taxonomy().read(taxonomy_file)

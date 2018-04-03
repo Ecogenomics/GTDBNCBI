@@ -335,7 +335,8 @@ class TreeManager(object):
                    alignment,
                    individual,
                    directory,
-                   prefix):
+                   prefix,
+                   no_trim):
         '''
         Write summary files and arb files
 
@@ -461,24 +462,28 @@ class TreeManager(object):
         multi_hits_fh.close()
 
         # filter columns without sufficient representation across taxa
-        self.logger.info('Trimming columns with insufficient taxa or poor consensus.')
-        trimmed_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons, mask = self._trim_seqs(
-            msa, min_perc_taxa / 100.0, consensus / 100.0, min_perc_aa / 100.0)
-        self.logger.info('Trimmed alignment from %d to %d AA (%d by minimum taxa percent, %d by consensus).' % (len(msa[msa.keys()[0]]),
-                                                                                                                len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
-        self.logger.info('After trimming %d taxa have amino acids in <%.1f%% of columns.' % (
-            len(pruned_seqs), min_perc_aa))
+        if no_trim:
+            self.logger.info('Trimming step is skipped.')
+            trimmed_seqs = msa
+        else:
+            self.logger.info('Trimming columns with insufficient taxa or poor consensus.')
+            trimmed_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons, mask = self._trim_seqs(
+                msa, min_perc_taxa / 100.0, consensus / 100.0, min_perc_aa / 100.0)
+            self.logger.info('Trimmed alignment from %d to %d AA (%d by minimum taxa percent, %d by consensus).' % (len(msa[msa.keys()[0]]),
+                                                                                                                    len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
+            self.logger.info('After trimming %d taxa have amino acids in <%.1f%% of columns.' % (
+                len(pruned_seqs), min_perc_aa))
+            trimmed_seqs.update(pruned_seqs)
 
-        # write out mask for MSA
-        msa_mask_out = open(os.path.join(directory, prefix + "_mask.txt"), 'w')
-        msa_mask_out.write(''.join(['1' if m else '0' for m in mask]))
-        msa_mask_out.close()
+            # write out mask for MSA
+            msa_mask_out = open(os.path.join(directory, prefix + "_mask.txt"), 'w')
+            msa_mask_out.write(''.join(['1' if m else '0' for m in mask]))
+            msa_mask_out.close()
 
         # write out MSA
         fasta_concat_filename = os.path.join(
             directory, prefix + "_concatenated.faa")
         fasta_concat_fh = open(fasta_concat_filename, 'wb')
-        trimmed_seqs.update(pruned_seqs)
         for genome_id, aligned_seq in trimmed_seqs.iteritems():
             fasta_outstr = ">%s\n%s\n" % (genome_id, aligned_seq)
             fasta_concat_fh.write(fasta_outstr)

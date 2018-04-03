@@ -753,6 +753,7 @@ class GenomeDatabase(object):
                      guaranteed_batchfile,
                      rep_genome_ids,
                      alignment,
+                     no_trim,
                      individual,
                      build_tree=True):
 
@@ -845,7 +846,8 @@ class GenomeDatabase(object):
                                             alignment,
                                             individual,
                                             directory,
-                                            prefix)
+                                            prefix,
+                                            no_trim)
 
             self.conn.commit()
 
@@ -1531,7 +1533,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.runTreeWeightedExceptions(path,
                                                       comp_threshold,
                                                       cont_threshold,
@@ -1556,7 +1558,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.runTreeExceptions(path, filtered)
 
             cur.close()
@@ -1580,7 +1582,7 @@ class GenomeDatabase(object):
 
             # ensure all genomes have been assigned to a representatives
             self.logger.info('Running sanity check.')
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.runSanityCheck()
             self.logger.info('Done.')
 
@@ -1604,7 +1606,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.runTaxonomyCheck(rank_depth)
 
             cur.close()
@@ -1625,7 +1627,7 @@ class GenomeDatabase(object):
         try:
             cur = self.conn.cursor()
             # ensure all genomes have been assigned to a representatives
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.CheckUserIDsDuplicates()
 
             cur.close()
@@ -1645,7 +1647,7 @@ class GenomeDatabase(object):
         '''
         try:
             cur = self.conn.cursor()
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.RunDomainConsistency()
 
             cur.close()
@@ -1665,7 +1667,7 @@ class GenomeDatabase(object):
         '''
         try:
             cur = self.conn.cursor()
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.RealignNCBIgenomes()
 
             cur.close()
@@ -1690,7 +1692,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            grm = GenomeRepresentativeManager(cur, self.currentUser, 1,self.db_release)
+            grm = GenomeRepresentativeManager(cur, self.currentUser,self.db_release)
             grm.domainAssignmentReport(outfile)
 
             cur.close()

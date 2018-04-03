@@ -71,8 +71,10 @@ class AddMetadata(object):
                 line_split = line.rstrip().split('\t')
 
                 genome_id = line_split[0]
+                #print line_split
                 for i, value in enumerate(line_split[1:]):
                     metadata[fields[i + 1]][genome_id] = value
+
 
         # add each field to the database
         for field in metadata:
@@ -85,6 +87,7 @@ class AddMetadata(object):
             table = metadata_table[field]
 
             for genome_id, value in metadata[field].iteritems():
+
                 try:
                     if float(value) and data_type in ['INT', 'INTEGER']:
                         # assume specified data type is correct and that we may need
@@ -100,6 +103,7 @@ class AddMetadata(object):
                         genome_id = 'RS_' + genome_id
 
                     if not genome_list or genome_id in genome_list:
+                        #print (genome_id, value)
                         temp_file.write('%s\t%s\n' % (genome_id, value))
 
             temp_file.close()
