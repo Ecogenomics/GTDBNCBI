@@ -178,7 +178,19 @@ class Propagate(object):
     fout_new_reps.close()
 
     print '  %d (%.1f%%) genomes moved from GenBank to RefSeq' % (len(moved_to_genbank), len(moved_to_genbank)*100.0/len(prev_gtdb_genomes))
+    count = 0
+    for elem in iter(moved_to_genbank):
+        count = count + 1
+        if count == 10:
+            break
+        print elem
     print '  %d (%.1f%%) genomes moved from RefSeq to GenBank' % (len(moved_to_refseq), len(moved_to_refseq)*100.0/len(prev_gtdb_genomes))
+    count = 0
+    for elem in iter(moved_to_refseq):
+        count = count + 1
+        if count == 10:
+            break
+        print elem
     print '  %d (%.1f%%) genomes have a new version number' % (len(new_genome_version), len(new_genome_version)*100.0/len(prev_gtdb_genomes))
     
     remaining_prev_genomes = remaining_prev_genomes - moved_to_genbank - moved_to_refseq - new_genome_version

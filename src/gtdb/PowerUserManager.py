@@ -31,7 +31,7 @@ from MarkerSetManager import MarkerSetManager
 
 class PowerUserManager(object):
 
-    def __init__(self, cur, currentUser,threads = 1):
+    def __init__(self, cur, currentUser,release,threads = 1):
         """Initialize.
 
         Parameters
@@ -47,6 +47,8 @@ class PowerUserManager(object):
         self.cur = cur
         self.currentUser = currentUser
         self.threads = threads
+        self.db_release = release
+        
 
     def runTreeWeightedExceptions(self, path, comp, conta, qweight, qt):
         '''

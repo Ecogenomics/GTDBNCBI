@@ -99,7 +99,7 @@ class MetadataLPSN(object):
                         if " " in strain:
                             strain = strain.replace(" ", "")
                             processed_strains.append(strain)
-                processed_strain_string = '{0} {1}'.format(line_split[2], "=".join(processed_strains))
+                processed_strain_string = '{0}\t{1}'.format(line_split[2], "=".join(processed_strains))
                 if processed_strain_string not in list_processed_strains:
                     fout_type_strains.write('{0}\n'.format(processed_strain_string))
                     list_processed_strains.append(processed_strain_string)

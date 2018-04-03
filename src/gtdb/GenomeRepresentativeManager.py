@@ -26,6 +26,8 @@ from Exceptions import GenomeDatabaseError
 from GenomeManager import GenomeManager
 from MarkerSetManager import MarkerSetManager
 from AlignedMarkerManager import AlignedMarkerManager
+from MetadataManager import MetadataManager
+
 import DefaultValues
 
 
@@ -522,3 +524,27 @@ class GenomeRepresentativeManager(object):
         # currently, new genomes are never made a representative
         query = "UPDATE metadata_taxonomy SET gtdb_representative = %s WHERE id = %s"
         self.cur.executemany(query, [('False', genome_id) for genome_id in unprocessed_genome_ids])
+        
+        #=======================================================================
+        # # Once d_domain is defined for each new genomes we can calculate Trna information
+        # query = ("SELECT gs.external_id_prefix||'_'||g.id_at_source,gtdb_domain,fasta_file_location from genomes g "+
+        #           "LEFT JOIN metadata_taxonomy USING(id) "+
+        #           "LEFT JOIN genome_sources gs ON gs.id =  g.genome_source_id "+
+        #           "WHERE id = %s")
+        # 
+        # 
+        # for genome_id in unprocessed_genome_ids:
+        #     self.cur.execute(query, (genome_id,))
+        #     accession,gtdb_domain,fasta_file_location =  self.cur.fetchone()
+        #     print accession
+        #     print gtdb_domain
+        #     print fasta_file_location
+        #     
+        #     meta_mngr = MetadataManager(self.cur, self.currentUser)
+        #     meta_mngr.run_trna_scan(fasta_file_location,accession,gtdb_domain)
+        #     
+        #     sys.exit()
+        #=======================================================================
+                
+        
+                

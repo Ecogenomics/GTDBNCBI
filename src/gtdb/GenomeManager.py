@@ -861,7 +861,7 @@ class GenomeManager(object):
                                  "WHERE id IN %s", (tuple(db_genome_ids),))
                 self.cur.execute("DELETE FROM metadata_rna " +
                                  "WHERE id IN %s", (tuple(db_genome_ids),))
-                self.cur.execute("DELETE FROM metadata_sequence " +
+                self.cur.execute("DELETE FROM metadata_rrna_sequences " +
                                  "WHERE id IN %s", (tuple(db_genome_ids),))
 
                 self.cur.execute("DELETE FROM genomes " +
@@ -1168,10 +1168,10 @@ class GenomeManager(object):
         :param path: Path to the output file
         '''
         try:
-            self.cur.execute("SELECT accession, gtdb_taxonomy, mr.ssu_silva_query_id, mr.ssu_silva_length, mr.ssu_silva_contig_len, ms.ssu_silva_sequence FROM metadata_view " +
+            self.cur.execute("SELECT accession, gtdb_taxonomy, mr.ssu_query_id, mr.ssu_length, mr.ssu_contig_len, ms.ssu_sequence FROM metadata_view " +
                              "LEFT JOIN metadata_rna mr USING (id) " +
-                             "LEFT JOIN metadata_sequence ms USING (id) " +
-                             "WHERE ms.ssu_silva_sequence is not NULL")
+                             "LEFT JOIN metadata_rrna_sequences ms USING (id) " +
+                             "WHERE ms.ssu_sequence is not NULL")
 
             fout = open(output_file, 'w')
             for genome, taxonomy, query, gene_len, contig_len, sequence in self.cur.fetchall():
@@ -1190,10 +1190,10 @@ class GenomeManager(object):
         :param path: Path to the output file
         '''
         try:
-            self.cur.execute("SELECT accession, gtdb_taxonomy, mr.lsu_silva_query_id, mr.lsu_silva_length, mr.lsu_silva_contig_len, ms.lsu_silva_sequence FROM metadata_view " +
+            self.cur.execute("SELECT accession, gtdb_taxonomy, mr.lsu_23s_query_id, mr.lsu_23s_length, mr.lsu_23s_contig_len, ms.lsu_23s_sequence FROM metadata_view " +
                              "LEFT JOIN metadata_rna mr USING (id) " +
-                             "LEFT JOIN metadata_sequence ms USING (id) " +
-                             "WHERE ms.lsu_silva_sequence is not NULL")
+                             "LEFT JOIN metadata_rrna_sequences ms USING (id) " +
+                             "WHERE ms.lsu_23s_sequence is not NULL")
 
             fout = open(output_file, 'w')
             for genome, taxonomy, query, gene_len, contig_len, sequence in self.cur.fetchall():

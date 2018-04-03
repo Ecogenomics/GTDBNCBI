@@ -211,6 +211,7 @@ def CreateTreeData(db, args):
                            args.guaranteed_batchfile,
                            rep_genome_ids,
                            not args.no_alignment,
+                           not args.no_trim,
                            args.individual,
                            not args.no_tree)
 
@@ -1270,6 +1271,8 @@ if __name__ == '__main__':
                                               help='minimum percentage of taxa required required to retain column.')
     optional_markers_create_tree.add_argument('--consensus', type=float, default=25,
                                               help='minimum percentage of the same amino acid required to retain column.')
+    optional_markers_create_tree.add_argument('--no_trim', dest='no_trim', action="store_true",
+                                              help='Skip the trimming step to return the full MSA.')
     optional_markers_create_tree.add_argument('--excluded_genome_list_ids',
                                               help='Genome list IDs (comma separated) indicating genomes to exclude from the tree.')
     optional_markers_create_tree.add_argument('--excluded_genome_ids',

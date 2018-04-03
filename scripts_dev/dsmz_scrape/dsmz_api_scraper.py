@@ -49,8 +49,8 @@ class PNUClient(object):
     # ===============================================================================
 
     headers = {'Accept': 'application/json'}
-    USERNAME = 'USERNAME'
-    PASSWORD = 'PASSWORD'
+    USERNAME = 'uqpchaum@uq.edu.au'
+    PASSWORD = 'dsmz2017'
     credentials = HTTPBasicAuth(USERNAME, PASSWORD)
 
     def getGenera(self, outfile, urlreq=None):
@@ -97,14 +97,14 @@ class PNUClient(object):
             listspe = results.get("results")
             urlreq = results.get("next")
             for item in listspe:
-                if 'subsp.' in item.get("label"):
-                    continue
+                #if 'subsp.' in item.get("label"):
+                #    continue
                 if item.get("type_strain") is not None:
                     list_strains = item.get("type_strain")
                     for st in item.get("type_strain"):
                         if " " in st:
                             list_strains.append(st.replace(" ",''))
-                    outfile_strains.write('{0} {1}\n'.format(item.get("species"), "=".join(list_strains)))
+                    outfile_strains.write('{0}\t{1}\n'.format(item.get("species"), "=".join(list_strains)))
 #                else:
 #                    outfile_strains.write('{0} \n'.format(item.get("species")))
 
@@ -139,7 +139,7 @@ class PNUClient(object):
         outfile_species = io.open(os.path.join(outdir,'dsmz_species.tsv'),'wb')
         outfile_species.write("dsmz_species\tdsmz_type_species\tdsmz_species_authority\n")
         outfile_strains = open(os.path.join(outdir,'dsmz_strains.tsv'),'w')
-        outfile_strains.write("dsmz_strain\n")
+        outfile_strains.write("dsmz_species\tdsmz_strains\n")
         self.getSpecies(outfile_species,outfile_strains, dictgenus)
         outfile_species.close()
         outfile_strains.close()
