@@ -384,7 +384,8 @@ class GenomeRepresentativeManager(object):
         fout.write('Genome Id\tPredicted domain\tArchaeal Marker Percentage\tBacterial Marker Percentage\tNCBI taxonomy\tGTDB taxonomy\n')
         for genome_id in genome_ids:
             query_taxonomy_req = ("SELECT gtdb_domain, ncbi_taxonomy, gtdb_taxonomy " +
-                                      "FROM metadata_taxonomy WHERE id = %s;")
+                                  "FROM metadata_taxonomy LEFT JOIN gtdb_taxonomy_view USING (id) " +
+                                  "WHERE id = %s;")
             self.cur.execute(query_taxonomy_req, (genome_id,))
             gtdb_domain, ncbi_taxonomy, gtdb_taxonomy = self.cur.fetchone()
 
