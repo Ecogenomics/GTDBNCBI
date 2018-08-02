@@ -102,7 +102,7 @@ class Metadata(object):
           for genome_id in os.listdir(full_user_dir):
             full_genome_dir = os.path.join(full_user_dir, genome_id)
             genome_file = os.path.join(full_genome_dir, genome_id + '_genomic.fna')
-            gff_file = os.path.join(full_genome_dir, genome_id + '_protein.gff')
+            gff_file = os.path.join(full_genome_dir,'prodigal',genome_id + '_protein.gff')
             input_files.append([genome_file, gff_file])
 
     # process each genome

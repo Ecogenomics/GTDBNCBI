@@ -134,9 +134,9 @@ class MetadataManager(object):
 
         try:
             if taxonomy_src == 'NCBI':
-                self.cur.execute("SELECT genome, ncbi_taxonomy FROM metadata_view")
+                self.cur.execute("SELECT accession, ncbi_taxonomy FROM metadata_view")
             else:
-                self.cur.execute("SELECT genome, gtdb_taxonomy FROM metadata_view")
+                self.cur.execute("SELECT accession, gtdb_taxonomy FROM metadata_view")
 
             fout = open(output_file, 'w')
             for genome_id, taxonomy in self.cur.fetchall():
@@ -251,11 +251,12 @@ class MetadataManager(object):
         self.cur.execute(
             "INSERT INTO metadata_rna (id) VALUES ({0})".format(db_genome_id))
         self.cur.execute(
-            "INSERT INTO metadata_sequence (id) VALUES ({0})".format(db_genome_id))
+            "INSERT INTO metadata_rrna_sequences (id) VALUES ({0})".format(db_genome_id))
 
         self._calculateMetadata(genome_file, gff_file, output_dir)
         self._storeMetadata(db_genome_id, output_dir)
         self._storeCheckM(db_genome_id, checkm_results)
+        
         return True
 
     def _calculateMetadata(self, genome_file, gff_file, output_dir):
@@ -274,25 +275,27 @@ class MetadataManager(object):
                   (genome_file, output_dir))
         os.system('genometk gene --silent %s %s %s' %
                   (genome_file, gff_file, output_dir))
-
         os.system('genometk rna --silent --db %s --taxonomy_file %s %s ssu %s' % (
             ConfigMetadata.GTDB_SSU_GG_DB,
             ConfigMetadata.GTDB_SSU_GG_TAXONOMY,
             genome_file,
-            os.path.join(output_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR)))
-
+            os.path.join(output_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR)))      
         os.system('genometk rna --silent --db %s --taxonomy_file %s %s ssu %s' % (
             ConfigMetadata.GTDB_SSU_SILVA_DB,
             ConfigMetadata.GTDB_SSU_SILVA_TAXONOMY,
             genome_file,
             os.path.join(output_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR)))
-
         os.system('genometk rna --silent --db %s --taxonomy_file %s %s lsu_23S %s' % (
             ConfigMetadata.GTDB_LSU_SILVA_DB,
             ConfigMetadata.GTDB_LSU_SILVA_TAXONOMY,
             genome_file,
             os.path.join(output_dir, ConfigMetadata.GTDB_LSU_SILVA_OUTPUT_DIR)))
+        os.system('genometk rna --silent --cpus 1 --min_len 80 %s lsu_5S %s' % (
+            genome_file,
+            os.path.join(output_dir, ConfigMetadata.GTDB_LSU_5S_OUTPUT_DIR)))
         return True
+    
+    
 
     def _storeMetadata(self, db_genome_id, genome_dir):
         """Parse metadata files for genome and store in database.
@@ -336,7 +339,7 @@ class MetadataManager(object):
             # Greengenes SSU metadata
             query_taxonomy = "UPDATE metadata_rna SET %s = %s WHERE id = {0}".format(
                 db_genome_id)
-            query_sequence = "UPDATE metadata_sequence SET %s = %s WHERE id = {0}".format(
+            query_sequence = "UPDATE metadata_rrna_sequences SET %s = %s WHERE id = {0}".format(
                 db_genome_id)
             metadata_ssu_gg_path = os.path.join(
                 genome_dir, ConfigMetadata.GTDB_SSU_GG_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
@@ -354,7 +357,7 @@ class MetadataManager(object):
             # SILVA SSU metadata saved in metadata_ssu table [HACK: eventually information will only be stored in this table]
             query_taxonomy = "UPDATE metadata_rna SET %s = %s WHERE id = {0}".format(
                 db_genome_id)
-            query_sequence = "UPDATE metadata_sequence SET %s = %s WHERE id = {0}".format(
+            query_sequence = "UPDATE metadata_rrna_sequences SET %s = %s WHERE id = {0}".format(
                 db_genome_id)
             metadata_ssu_silva_path = os.path.join(
                 genome_dir, ConfigMetadata.GTDB_SSU_SILVA_OUTPUT_DIR, ConfigMetadata.GTDB_SSU_FILE)
@@ -399,12 +402,38 @@ class MetadataManager(object):
                     genome_list_sequence = self._parse_sequence_file(metadata_lsu_fna_silva_path, ConfigMetadata.GTDB_LSU_SILVA_PREFIX, lsu_query_id)
                     for c, v in genome_list_sequence:
                         self.cur.execute(query_sequence, [AsIs(c), v])
+                        
+            # SILVA 5s LSU metadata saved in metadata_ssu table [HACK: eventually information will only be stored in this table]
+            query_taxonomy = "UPDATE metadata_rna SET %s = %s WHERE id = {0}".format(
+                db_genome_id)
+            metadata_lsu_5s_path = os.path.join(
+                genome_dir, ConfigMetadata.GTDB_LSU_5S_OUTPUT_DIR, ConfigMetadata.GTDB_LSU_5S_FILE)
+            metadata_lsu_5s_fna_path = os.path.join(
+                genome_dir, ConfigMetadata.GTDB_LSU_5S_OUTPUT_DIR, ConfigMetadata.GTDB_LSU_5S_FNA_FILE)
+            metadata_lsu_5s_summary_file = os.path.join(genome_dir, ConfigMetadata.GTDB_LSU_5S_OUTPUT_DIR, ConfigMetadata.GTDB_LSU_5S_SUMMARY_FILE)
+            genome_list_taxonomy, lsu_5s_count, lsu_5s_query_id = self._parse_taxonomy_file(
+                metadata_lsu_5s_path, ConfigMetadata.GTDB_LSU_5S_PREFIX, metadata_lsu_5s_summary_file)
+            if genome_list_taxonomy:
+                for c, v in genome_list_taxonomy:
+                    try:
+                        if "blast_subject_id" not in c:
+                            v = float(v)
+                        self.cur.execute(query_taxonomy, [AsIs(c), v])
+                    except:
+                        self.cur.execute(query_taxonomy, [AsIs(c), v])
+                if lsu_5s_query_id is not None:
+                    genome_list_sequence = self._parse_sequence_file(metadata_lsu_5s_fna_path, ConfigMetadata.GTDB_LSU_5S_PREFIX, lsu_5s_query_id)
+                    for c, v in genome_list_sequence:
+                        self.cur.execute(query_sequence, [AsIs(c), v])
 
             query_gene_ssu = "UPDATE metadata_genes SET ssu_count = %s WHERE id = {0}".format(db_genome_id)
             self.cur.execute(query_gene_ssu, (ssu_count,))
 
-            query_gene_lsu = "UPDATE metadata_genes SET lsu_count = %s WHERE id = {0}".format(db_genome_id)
+            query_gene_lsu = "UPDATE metadata_genes SET lsu_23s_count = %s WHERE id = {0}".format(db_genome_id)
             self.cur.execute(query_gene_lsu, (lsu_count,))
+            
+            query_gene_lsu = "UPDATE metadata_genes SET lsu_5s_count = %s WHERE id = {0}".format(db_genome_id)
+            self.cur.execute(query_gene_lsu, (lsu_5s_count,))
 
             return True
         except psycopg2.Error as e:
@@ -447,6 +476,23 @@ class MetadataManager(object):
         with open(metadata_taxonomy_file) as f:
             header_line = f.readline().rstrip()
             headers = [prefix + '_' + x for x in header_line.split('\t')]
+            
+            if prefix == 'lsu_silva_23s':
+                for n,i in enumerate(headers):
+                    if i == 'lsu_silva_23s_sequence':
+                        headers[n]='lsu_23s_sequence'
+                    elif i == 'lsu_silva_23s_query_id':
+                        headers[n]='lsu_23s_query_id'
+                    elif i == 'lsu_silva_23s_length':
+                        headers[n]='lsu_23s_length'
+            elif prefix == 'ssu_silva':
+                for n,i in enumerate(headers):
+                    if i == 'ssu_silva_sequence':
+                        headers[n]='ssu_sequence'
+                    elif i == 'ssu_silva_query_id':
+                        headers[n]='ssu_query_id'
+                    elif i == 'ssu_silva_length':
+                        headers[n]='ssu_length'
 
             split_headers = header_line.rstrip().split("\t")
             for pos in range(0, len(split_headers)):
@@ -482,7 +528,12 @@ class MetadataManager(object):
                             identified_ssu_genes += 1
                             sum_list = [x.strip() for x in line.split('\t')]
                             if sum_list[0] == ssu_query_id:
-                                metadata.append(('{0}_contig_len'.format(prefix), sum_list[idx_seq]))
+                                if prefix == 'lsu_silva_23s':
+                                    metadata.append(('lsu_23s_contig_len', sum_list[idx_seq]))
+                                elif prefix == 'ssu_silva':
+                                    metadata.append(('ssu_contig_len', sum_list[idx_seq]))
+                                else:
+                                    metadata.append(('{0}_contig_len'.format(prefix), sum_list[idx_seq]))
 
             return metadata, identified_ssu_genes, ssu_query_id
 
@@ -490,7 +541,12 @@ class MetadataManager(object):
         metadata = []
         all_genes_dict = read_fasta(fna_file, False)
         sequence = all_genes_dict[ssu_query_id]
-        metadata.append(('{0}_sequence'.format(prefix), sequence))
+        if prefix == 'lsu_silva_23s':
+            metadata.append(('lsu_23s_sequence'.format(prefix), sequence))
+        elif prefix == 'ssu_silva':
+            metadata.append(('ssu_sequence'.format(prefix), sequence))
+        else:
+            metadata.append(('{0}_sequence'.format(prefix), sequence))
         return metadata
 
     def _storeCheckM(self, db_genome_id, checkm_results):
@@ -521,3 +577,57 @@ class MetadataManager(object):
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+        
+        def run_trna_scan(genome_path,accession,domain):
+            user_path = os.path.join(Config.GTDB_GENOME_ROOT,Config.GTDB_GENOME_ROOT,Config.USER_PREFIX,os.path.dirname(genome_path),ConfigMetadata.GTDB_TRNA_OUTPUT_DIR)
+            genome_file = os.path.join(Config.GTDB_GENOME_ROOT,Config.GTDB_GENOME_ROOT,Config.USER_PREFIX,genome_path)
+            output_file = os.path.join(user_path, accession + '_trna.tsv')
+            log_file = os.path.join(user_path, accession + '_trna.log')
+            stats_file = os.path.join(user_path, accession + '_trna_stats.tsv')
+
+            domain_flag = '-B'
+            if domain == 'd__Archaea':
+                domain_flag = '-A'
+
+            cmd = 'tRNAscan-SE %s -q -Q -o %s -m %s -l %s %s' % (domain_flag, 
+                                                                    output_file, 
+                                                                    stats_file, 
+                                                                    log_file, 
+                                                                    genome_file)
+            
+        def parse_trna_file( genome_id, trna_file):
+            """Parse tRNA information."""
+            
+            if not os.path.exists(trna_file):
+                return
+            # parse tRNA summary file
+            trna_count = 0
+            trna_selenocysteine_count = 0
+            trna_aa_count = 0
+            read_aa = False
+            for line in open(trna_file):
+                if line.startswith('tRNAs decoding Standard 20 AA'):
+                    trna_count = int(line.split(':')[1])
+                elif line.startswith('Selenocysteine tRNAs (TCA)'):
+                    trna_selenocysteine_count = int(line.split(':')[1])
+                    trna_count += trna_selenocysteine_count
+                elif line.startswith('Isotype / Anticodon Counts:'):
+                    read_aa = True
+                    
+                if read_aa:
+                    # Parsing lines with the following format:
+                    # Ala   : 2      AGC:         GGC:         CGC: 1       TGC: 1 
+                    if ' : ' in line:
+                        line_split = line.split('\t')[0]
+                        line_split = map(str.strip, line_split.split(':'))
+                        if len(line_split[0]) == 3: # this is an amino acid
+                            if int(line_split[1]) > 0:
+                                trna_aa_count += 1
+                                
+        def store_trna_file( genome_id, trna_count,trna_selenocysteine_count,trna_aa_count):
+            query_trna = "UPDATE metadata_nucleotide SET trna_count = {0} , trna_selenocysteine_count ={1} , trna_aa_count = {2} WHERE id = {3}".format(trna_count,
+                                                                                                                                                            trna_selenocysteine_count,
+                                                                                                                                                            trna_aa_count,
+                                                                                                                                                            db_genome_id)
+            self.cur.execute(query_trna)
+
