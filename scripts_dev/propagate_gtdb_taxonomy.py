@@ -35,13 +35,15 @@ import csv
 import argparse
 from collections import defaultdict
 
+csv.field_size_limit(sys.maxsize)
+
 class Propagate(object):
   """Propagate GTDB taxonomy between NCBI releases."""
 
   def __init__(self):
     pass
 
-  def run(self, gtdb_metadata_prev, gtdb_metadata_cur, taxonomy_file, new_rep_file):
+  def run(self, gtdb_metadata_prev, gtdb_metadata_cur, taxonomy_file, rep_file):
     """Propagate GTDB taxonomy between NCBI releases."""
     
     # get GTDB taxonomy for genome in previous release
@@ -53,13 +55,12 @@ class Propagate(object):
     for row in csv.reader(open(gtdb_metadata_prev, 'rb')):
         if header:
             header = False
-            
             gtdb_taxonomy_index = row.index('gtdb_taxonomy')
             gtdb_rep_index = row.index('gtdb_representative')
         else:
             genome_id = row[0]
             prev_gtdb_genomes.add(genome_id)
-            
+    
             gtdb_taxonomy = row[gtdb_taxonomy_index]
             if gtdb_taxonomy:
                 prev_gtdb_taxonomy[genome_id] = gtdb_taxonomy
@@ -82,22 +83,36 @@ class Propagate(object):
     retained_genomes = set()
     current_genome_ids = []
     prev_rep_count = 0
+    cur_reps = set()
+    cur_gtdb_taxonomy = {}
     for row in csv.reader(open(gtdb_metadata_cur, 'rb')):
         if header:
             header = False
             
             gtdb_rep_index = row.index('gtdb_representative')
+            gtdb_taxonomy_index = row.index('gtdb_taxonomy')
         else:
             genome_id = row[0]
             current_genome_ids.append(genome_id)
             
+            gtdb_taxonomy = row[gtdb_taxonomy_index]
+            if gtdb_taxonomy:
+                cur_gtdb_taxonomy[genome_id] = gtdb_taxonomy
+            
             if genome_id in prev_gtdb_genomes:
                 retained_genomes.add(genome_id)  
                 if genome_id in prev_gtdb_taxonomy:
+                    if prev_gtdb_taxonomy[genome_id] != cur_gtdb_taxonomy[genome_id]:
+                        print "GTDB taxonomy strings don't match in the two databases:"
+                        print cur_gtdb_taxonomy[genome_id]
+                        print prev_gtdb_taxonomy[genome_id]
+                        sys.exit()
+
                     fout.write('%s\t%s\n' % (genome_id, prev_gtdb_taxonomy[genome_id]))
-                    
+
                 if genome_id in prev_is_rep:
                     prev_rep_count += 1
+                    cur_reps.add(genome_id)
 
     remaining_prev_genomes = prev_gtdb_genomes - retained_genomes
     print '  %d (%.1f%%) genomes unchanged in current NCBI release' % (len(retained_genomes),
@@ -110,7 +125,6 @@ class Propagate(object):
     print ''
     print 'Identifying genomes that have changed databases or version:'
     
-    fout_new_reps = open(new_rep_file, 'w')
     moved_to_refseq = set()
     moved_to_genbank = set()
     new_genome_version = set()
@@ -128,8 +142,7 @@ class Propagate(object):
                     fout.write('%s\t%s\n' % (genome_id, prev_gtdb_taxonomy[new_version_id]))
 
                 if new_version_id in prev_is_rep:
-                    fout_new_reps.write('%s\t%s\n' % (genome_id, str(True)))
-                
+                    cur_reps.add(genome_id)
                 continue
         
             gb_genome_id = new_version_id.replace('RS_GCF', 'GB_GCA')
@@ -139,7 +152,7 @@ class Propagate(object):
                     fout.write('%s\t%s\n' % (genome_id, prev_gtdb_taxonomy[gb_genome_id]))
                 
                 if gb_genome_id in prev_is_rep:
-                    fout_new_reps.write('%s\t%s\n' % (genome_id, str(True)))
+                    cur_reps.add(genome_id)
                     
                 continue
             
@@ -150,21 +163,41 @@ class Propagate(object):
                     fout.write('%s\t%s\n' % (genome_id, prev_gtdb_taxonomy[rs_genome_id]))
                 
                 if rs_genome_id in prev_is_rep:
-                    fout_new_reps.write('%s\t%s\n' % (genome_id, str(True)))
+                    cur_reps.add(genome_id)
                     
                 continue
+    fout.close()
+    
+    # write out reps
+    fout_new_reps = open(rep_file, 'w')
+    for genome_id in current_genome_ids:
+        if genome_id in cur_reps:
+            fout_new_reps.write('%s\t%s\n' % (genome_id, str(True)))
+        else:
+            fout_new_reps.write('%s\t%s\n' % (genome_id, str(False)))
+    fout_new_reps.close()
 
     print '  %d (%.1f%%) genomes moved from GenBank to RefSeq' % (len(moved_to_genbank), len(moved_to_genbank)*100.0/len(prev_gtdb_genomes))
+    count = 0
+    for elem in iter(moved_to_genbank):
+        count = count + 1
+        if count == 10:
+            break
+        print elem
     print '  %d (%.1f%%) genomes moved from RefSeq to GenBank' % (len(moved_to_refseq), len(moved_to_refseq)*100.0/len(prev_gtdb_genomes))
+    count = 0
+    for elem in iter(moved_to_refseq):
+        count = count + 1
+        if count == 10:
+            break
+        print elem
     print '  %d (%.1f%%) genomes have a new version number' % (len(new_genome_version), len(new_genome_version)*100.0/len(prev_gtdb_genomes))
     
     remaining_prev_genomes = remaining_prev_genomes - moved_to_genbank - moved_to_refseq - new_genome_version
     print ''
     print 'There are %d genomes not present in the current release.' % len(remaining_prev_genomes)
     print remaining_prev_genomes
-    
-    fout.close()
-    fout_new_reps.close()
+    print '%d of these were representatives.' % len(prev_is_rep.intersection(remaining_prev_genomes))
     
 if __name__ == '__main__':
   print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
@@ -174,13 +207,13 @@ if __name__ == '__main__':
   parser.add_argument('gtdb_metadata_prev', help='GTDB metadata for previous NCBI release.')
   parser.add_argument('gtdb_metadata_cur', help='GTDB metadata for current NCBI release.')
   parser.add_argument('taxonomy_file', help='Propagated GTDB taxonomy file.')
-  parser.add_argument('new_rep_file', help='GTDB representatives with modified accession IDs.')
+  parser.add_argument('rep_file', help='GTDB representatives file.')
 
   args = parser.parse_args()
 
   try:
     p = Propagate()
-    p.run(args.gtdb_metadata_prev, args.gtdb_metadata_cur, args.taxonomy_file, args.new_rep_file)
+    p.run(args.gtdb_metadata_prev, args.gtdb_metadata_cur, args.taxonomy_file, args.rep_file)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:
