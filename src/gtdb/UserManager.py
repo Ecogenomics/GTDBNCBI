@@ -112,7 +112,7 @@ class UserManager(object):
     #
     # Returns:
     #   True on success, False otherwise.
-    def addUser(self, username, rolename=None, has_root=False):
+    def addUser(self, username, firstname, lastname, rolename=None, has_root=False):
         try:
             if rolename is None:
                 rolename = 'user'
@@ -136,10 +136,10 @@ class UserManager(object):
             if len(self.cur.fetchall()) > 0:
                 raise GenomeDatabaseError(
                     "User %s already exists in the database." % username)
-            self.cur.execute("INSERT into users (username, role_id, has_root_login) (" +
-                             "SELECT %s, id, %s " +
+            self.cur.execute("INSERT into users (username,firstname,lastname, role_id, has_root_login) (" +
+                             "SELECT %s,%s,%s, id, %s " +
                              "FROM user_roles " +
-                             "WHERE name = %s)", (username, has_root, rolename))
+                             "WHERE name = %s)", (username, firstname, lastname, has_root, rolename))
 
         except GenomeDatabaseError as e:
             raise e
@@ -148,7 +148,7 @@ class UserManager(object):
 
         return True
 
-    def editUser(self, username, rolename=None, has_root=None):
+    def editUser(self, username, rolename=None, has_root=None, firstname=None, lastname=None):
         try:
             if (not self.currentUser.isRootUser()):
                 raise GenomeDatabaseError(
@@ -161,10 +161,20 @@ class UserManager(object):
                 conditional_queries.append(
                     " role_id = (SELECT id from user_roles where name = %s) ")
                 params.append(rolename)
+                
+            print has_root
 
             if has_root is not None:
                 conditional_queries.append(" has_root_login = %s ")
                 params.append(has_root)
+                
+            if firstname is not None:
+                conditional_queries.append(" firstname = %s ")
+                params.append(firstname)
+            
+            if lastname is not None:
+                conditional_queries.append(" lastname = %s ")
+                params.append(lastname)
 
             if params:
                 self.cur.execute("UPDATE users " +
@@ -177,3 +187,17 @@ class UserManager(object):
             raise e
 
         return True
+    
+    def printUserDetails(self,usernames):
+        try:
+            self.cur.execute("SELECT username,firstname,lastname FROM users " +
+                             "WHERE username in %s", (tuple(usernames),))
+            header = ('username','firstname','lastname')
+            rows = []
+            for (user,first,last) in self.cur:
+                rows.append((user,first,last))
+        
+        except GenomeDatabaseError as e:
+            raise e
+
+        return header, rows

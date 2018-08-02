@@ -19,6 +19,8 @@ def splitchunks(d, n):
     it = iter(d)
     for _ in xrange(0, len(d), chunksize):
         yield {k: d[k] for k in islice(it, chunksize)}
+        
+
 
 
 def generateTempTableName():
@@ -52,3 +54,10 @@ def fastaPathGenerator(path=None, prefix=None):
         return os.path.join(genomeRSQDir, path)
     else:
         print "prefix {0} is not existing".format(prefix)
+
+
+def confirm(msg):
+    raw = raw_input(msg + " (y/N): ")
+    if raw.upper() == "Y":
+        return True
+    return False

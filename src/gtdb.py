@@ -30,7 +30,10 @@ from biolib.misc.custom_help_formatter import CustomHelpFormatter
 
 from gtdb import GenomeDatabase
 from gtdb import DefaultValues
-from gtdb.Exceptions import GenomeDatabaseError
+from gtdb import Config
+from gtdb.Exceptions import GenomeDatabaseError,DumpDBErrors, DumpDBWarnings, ErrorReport
+
+from gtdb.Tools import confirm
 
 
 def version():
@@ -56,7 +59,10 @@ def version():
     gtdb_version = version_file.readline().strip()
     gtdb_version = gtdb_version[gtdb_version.find('=') + 1:]
 
-    return software_version, ncbi_version, gtdb_version
+    taxonomy_version = version_file.readline().strip()
+    taxonomy_version = taxonomy_version[taxonomy_version.find('=') + 1:]
+
+    return software_version, ncbi_version, gtdb_version, taxonomy_version
 
 
 def versionInfo():
@@ -68,11 +74,11 @@ def versionInfo():
         String indication software and NCBI version information.
     """
 
-    software_version, ncbi_version, gtdb_version = version()
-    return 'GTDB v%s (NCBI RefSeq %s; Internal database v%s)' % (software_version, ncbi_version, gtdb_version)
+    software_version, ncbi_version, gtdb_version, taxonomy_version = version()
+    return 'GTDB v{0} (NCBI RefSeq {1}; Internal database v{2}; Taxonomy {3})'.format(software_version, ncbi_version, gtdb_version, taxonomy_version)
 
 
-def loggerSetup(output_dir, silent=False):
+def loggerSetup(output_dir, release, silent=False):
     """Set logging for application.
 
     Parameters
@@ -103,23 +109,11 @@ def loggerSetup(output_dir, silent=False):
         file_logger.setFormatter(log_format)
         logger.addHandler(file_logger)
 
-    logger.info(versionInfo())
+    if release == Config.LATEST_DB:
+        logger.info(versionInfo())
+    else:
+        logger.info("Deprecated version of GTDB : {0}".format(release))
     logger.info(ntpath.basename(sys.argv[0]) + ' ' + ' '.join(sys.argv[1:]))
-
-
-def DumpDBErrors(db):
-    ErrorReport("\n".join(["\t" + x for x in db.GetErrors()]) + "\n")
-    db.ClearErrors()
-
-
-def DumpDBWarnings(db):
-    ErrorReport("\n".join(["\t" + x for x in db.GetWarnings()]) + "\n")
-    db.ClearWarnings()
-
-
-def ErrorReport(msg):
-    sys.stderr.write(msg)
-    sys.stderr.flush()
 
 
 def AddUser(db, args):
@@ -128,16 +122,27 @@ def AddUser(db, args):
         log_has_root = True
     return db.addUser(args.username,
                       args.role,
-                      log_has_root)
+                      log_has_root,
+                      args.firstname,
+                      args.lastname)
 
 
 def EditUser(db, args):
     log_has_root = False
-    if args.login_as_root and args.has_root:
+    if args.has_root is None:
+            log_has_root = None
+    elif args.login_as_root and args.has_root:
         log_has_root = True
     return db.editUser(args.username,
                        args.role,
-                       log_has_root)
+                       log_has_root,
+                       args.firstname,
+                       args.lastname)
+
+
+def ViewUser(db, args):
+    usernames = args.usernames.split(",")
+    return db.viewUser(usernames)
 
 
 def AddGenomes(db, args):
@@ -150,33 +155,63 @@ def AddGenomes(db, args):
 
 
 def CreateTreeData(db, args):
-    guaranteed_genomes = set()
+    genome_id_list, rep_genome_ids = db.GetGenomeIds(args.all_dereplicated,
+                                                     args.ncbi_dereplicated,
+                                                     args.donovan_sra_dereplicated,
+                                                     args.all_genomes,
+                                                     args.ncbi_genomes,
+                                                     args.user_genomes,
+                                                     args.genome_list_ids,
+                                                     args.genome_ids,
+                                                     args.genome_batchfile)
 
-    gid_list_and_garanteed_gid = db.GetGenomeIds(args.all_dereplicated,
-                                                 args.ncbi_dereplicated,
-                                                 args.user_dereplicated,
-                                                 args.all_genomes,
-                                                 args.ncbi_genomes,
-                                                 args.user_genomes,
-                                                 args.genome_list_ids,
-                                                 args.genome_ids,
-                                                 args.genome_batchfile)
-    genome_id_list = gid_list_and_garanteed_gid[0]
-
-    guaranteed_genomes.update(gid_list_and_garanteed_gid[1])
+    #===========================================================================
+    # Warning
+    # When one of the 2 main marker sets is chosen (Archaeal or Bacterial)
+    # AND the taxa filter is absent AND the force flag is not selected.
+    # A message is sent to the user to confirm the tree creation command
+    #===========================================================================
+    if args.marker_set_ids and not (args.taxa_filter or args.guaranteed_taxa_filter) and not args.force:
+        list_ids = args.marker_set_ids.split(",")
+        if len(list_ids) == 1:
+            check = False
+            if list_ids[0] == '1':
+                marker_domain = ("Bacterial", "d__Bacteria")
+                check = True
+            elif list_ids[0] == '2':
+                marker_domain = ("Archaeal", "d__Archaea")
+                check = True
+            if check:
+                if not confirm("{0} marker set has been selected but --taxa_filter has not been specified ({1} recommended). continue with no taxa filter".format(marker_domain[0], marker_domain[1])):
+                    db.ReportError("User aborted tree creation.")
+                    return False
 
     marker_id_list = db.GetMarkerIds(args.marker_ids,
                                      args.marker_set_ids,
                                      args.marker_batchfile)
 
-    return db.MakeTreeData(marker_id_list, genome_id_list,
-                           args.out_dir, args.prefix,
-                           args.quality_threshold, args.comp_threshold, args.cont_threshold,
-                           args.min_perc_aa, args.min_perc_taxa, args.consensus,
+    return db.MakeTreeData(marker_id_list,
+                           genome_id_list,
+                           args.out_dir,
+                           args.prefix,
+                           args.quality_threshold,
+                           args.quality_weight,
+                           args.comp_threshold,
+                           args.cont_threshold,
+                           args.min_perc_aa,
+                           args.min_rep_perc_aa,
+                           args.min_perc_taxa,
+                           args.consensus,
                            args.taxa_filter,
-                           args.excluded_genome_list_ids, args.excluded_genome_ids,
-                           args.guaranteed_genome_list_ids, args.guaranteed_genome_ids, guaranteed_genomes,
+                           args.guaranteed_taxa_filter,
+                           args.excluded_genome_list_ids,
+                           args.excluded_genome_ids,
+                           args.guaranteed_genome_list_ids,
+                           args.guaranteed_genome_ids,
+                           args.guaranteed_batchfile,
+                           rep_genome_ids,
                            not args.no_alignment,
+                           not args.no_trim,
                            args.individual,
                            not args.no_tree)
 
@@ -189,6 +224,13 @@ def ViewGenomes(db, args):
         if args.id_list:
             external_ids = args.id_list.split(",")
         return db.ViewGenomes(args.batchfile, external_ids)
+
+
+def StatGenomes(db, args):
+    external_ids = None
+    if args.id_list:
+        external_ids = args.id_list.split(",")
+    return db.StatGenomes(args.batchfile, external_ids, args.stat_fields.split(","))
 
 
 def DeleteGenomes(db, args):
@@ -221,12 +263,21 @@ def PullGenomes(db, args):
                           list_ids,
                           args.genomic,
                           args.gene,
+                          args.gene_nt,
                           args.out_dir,
                           args.gtdb_header)
 
 
 def ExportSSUSequences(db, args):
     return db.ExportSSUSequences(args.outfile)
+
+
+def ExportLSUSequences(db, args):
+    return db.ExportLSUSequences(args.outfile)
+
+
+def ExportReps(db, args):
+    return db.ExportReps(args.outfile)
 
 
 def CreateGenomeList(db, args):
@@ -394,7 +445,7 @@ def viewMetadata(db, args):
 
 
 def exportMetadata(db, args):
-    return db.ExportMetadata(args.outfile)
+    return db.ExportMetadata(args.outfile, args.outmetaformat)
 
 
 def importMetadata(db, args):
@@ -428,23 +479,36 @@ def DatabaseStatsData(db, args):
 
 
 def RunTreeExceptions(db, args):
-    if args.filtered:
-        return db.RunTreeExceptions(args.outfile, True)
-    if args.raw:
-        return db.RunTreeExceptions(args.outfile, False)
-    if args.weighted:
-        return db.RunTreeWeightedExceptions(args.outfile)
+    return db.RunTreeWeightedExceptions(args.outfile,
+                                        args.comp_threshold,
+                                        args.cont_threshold,
+                                        args.quality_weight,
+                                        args.quality_threshold)
 
 
 def RunSanityCheck(db, args):
-    if args.outfile:
-        return db.RunSanityCheck(args.outfile)
-    else:
-        return db.RunSanityCheck()
+    return db.RunSanityCheck()
 
+
+def RunTaxonomyCheck(db, args):
+    return db.RunTaxonomyCheck(args.rank_depth)
+
+
+def RunDomainAssignmentReport(db, args):
+    return db.RunDomainAssignmentReport(args.outfile)
+
+def RunDomainConsistency(db, args):
+    return db.RunDomainConsistency()
+
+def RealignNCBIgenomes(db,args):
+    return db.RealignNCBIgenomes()
 
 def ExportGenomePaths(db, args):
     return db.ExportGenomePaths(args.outfile)
+
+
+def CheckUserIDsDuplicates(db, args):
+    return db.CheckUserIDsDuplicates()
 
 
 if __name__ == '__main__':
@@ -460,6 +524,8 @@ if __name__ == '__main__':
                         help='Logon as this user (implies -r).'),
     parser.add_argument('-t', dest='threads', type=int, default=1,
                         help='Maximum number of threads/cpus to use.')
+    parser.add_argument('-db', dest='release', default=Config.LATEST_DB, choices=Config.DB_SERVERS.keys(),
+                        help='Database version to connect to. Please notice that previous versions are unstable and are locked (no user genomes can be added and deleted) ')
     parser.add_argument('-f', dest='force', action='store_true',
                         help='Force all action (required to override warnings for certain actions).')
     parser.add_argument('-y', dest='assume_yes', action='store_true',
@@ -548,6 +614,10 @@ if __name__ == '__main__':
     required_user_add = parser_user_add.add_argument_group('required  arguments')
     required_user_add.add_argument('--username', dest='username', required=True,
                                    help='Username of the new user.')
+    required_user_add.add_argument('--firstname', dest='firstname', required=True,
+                                   help='First name of the new user.')
+    required_user_add.add_argument('--lastname', dest='lastname', required=True,
+                                   help='Last name of the new user.')
 
     optional_user_add = parser_user_add.add_argument_group('optional arguments')
     optional_user_add.add_argument('--role', dest='role', choices=('user', 'admin'), required=False,
@@ -579,10 +649,30 @@ if __name__ == '__main__':
     optional_user_edit = parser_user_edit.add_argument_group('optional arguments')
     optional_user_edit.add_argument('--role', dest='role', choices=('user', 'admin'), required=False,
                                     help='Change the user to this role.')
+    optional_user_edit.add_argument('--lastname', dest='lastname', required=False,
+                                    help='Change the user last name.')
+    optional_user_edit.add_argument('--firstname', dest='firstname', required=False,
+                                    help='Change the user first name.')
     optional_user_edit.add_argument('-h', '--help', action="help",
                                     help="Show help message.")
 
     parser_user_edit.set_defaults(func=EditUser)
+    
+    # user view parser
+    parser_user_view = user_category_subparser.add_parser('view',
+                                                          add_help=False,
+                                                          formatter_class=CustomHelpFormatter,
+                                                          help='Display information about selected user(s).')
+    
+    required_user_view = parser_user_view.add_argument_group('required arguments')
+    required_user_view.add_argument('--usernames', dest='usernames', required=True,
+                                    help='Provide a list of username (comma separated) to view.')
+    
+    optional_user_view = parser_user_view.add_argument_group('optional arguments')
+    optional_user_view.add_argument('-h', '--help', action="help",
+                                    help="Show help message.")
+    
+    parser_user_view.set_defaults(func=ViewUser)
 
 # -------- Genome Management subparsers
 
@@ -656,6 +746,8 @@ if __name__ == '__main__':
                                              help='Pull genomic sequences.')
     atleastone_genome_pull_data.add_argument('--gene', default=None, action='store_true',
                                              help='Pull called genes in amino acid space.')
+    atleastone_genome_pull_data.add_argument('--gene_nt', default=None, action='store_true',
+                                             help='Pull called genes in nucleotide space.')
 
     required_markers_genome_pull = parser_genome_pull.add_argument_group('required arguments')
     required_markers_genome_pull.add_argument('--output', dest='out_dir', required=True,
@@ -673,7 +765,7 @@ if __name__ == '__main__':
     parser_genome_view = genome_category_subparser.add_parser('view',
                                                               add_help=False,
                                                               formatter_class=CustomHelpFormatter,
-                                                              help='View the details of genomes in the database.')
+                                                              help='View database details of genomes.')
     atleastone_genome_view = parser_genome_view.add_argument_group('At least one argument required')
     atleastone_genome_view.add_argument('--batchfile', dest='batchfile', default=None,
                                         help='Batchfile of genome IDs (one per line) to view.')
@@ -688,11 +780,33 @@ if __name__ == '__main__':
 
     parser_genome_view.set_defaults(func=ViewGenomes)
 
-    # export ssu sequences for all genomes
+    # genome stats parser
+    parser_genome_stats = genome_category_subparser.add_parser('stats',
+                                                               add_help=False,
+                                                               formatter_class=CustomHelpFormatter,
+                                                               help='View statistics of genome.')
+
+    required_genome_stats = parser_genome_stats.add_argument_group('required arguments')
+    required_genome_stats.add_argument('--stat_fields', required=True,
+                                       help='GTDB fields to report (comma separated).')
+
+    atleastone_genome_view = parser_genome_stats.add_argument_group('At least one argument required')
+    atleastone_genome_view.add_argument('--batchfile', dest='batchfile', default=None,
+                                        help='Batchfile of genome IDs (one per line) to view.')
+    atleastone_genome_view.add_argument('--genome_ids', dest='id_list', default=None,
+                                        help='Provide a list of genome IDs (comma separated) to view.')
+
+    optional_genome_view = parser_genome_stats.add_argument_group('optional arguments')
+    optional_genome_view.add_argument('-h', '--help', action="help",
+                                      help="Show help message.")
+
+    parser_genome_stats.set_defaults(func=StatGenomes)
+
+    # export SSU sequences for all genomes
     parser_genome_ssu_export = genome_category_subparser.add_parser('ssu_export',
                                                                     add_help=False,
                                                                     formatter_class=CustomHelpFormatter,
-                                                                    help='Export a fasta file containing the SSU sequence best match for all genomes ')
+                                                                    help='Export FASTA file containing an LSU sequence for each genome.')
 
     required_genome_ssu_export = parser_genome_ssu_export.add_argument_group('required arguments')
     required_genome_ssu_export.add_argument('--output', dest='outfile', default=None, required=True,
@@ -703,6 +817,38 @@ if __name__ == '__main__':
                                             help="Show help message.")
 
     parser_genome_ssu_export.set_defaults(func=ExportSSUSequences)
+
+    # export LSU sequences for all genomes
+    parser_genome_lsu_export = genome_category_subparser.add_parser('lsu_export',
+                                                                    add_help=False,
+                                                                    formatter_class=CustomHelpFormatter,
+                                                                    help='Export FASTA file containing an LSU sequence for each genome.')
+
+    required_genome_lsu_export = parser_genome_lsu_export.add_argument_group('required arguments')
+    required_genome_lsu_export.add_argument('--output', dest='outfile', default=None, required=True,
+                                            help='Name of output file.')
+
+    optional_genome_lsu_export = parser_genome_lsu_export.add_argument_group('optional arguments')
+    optional_genome_lsu_export.add_argument('-h', '--help', action="help",
+                                            help="Show help message.")
+
+    parser_genome_lsu_export.set_defaults(func=ExportLSUSequences)
+    
+    # export the list of representatives and the genomes associated with them
+    parser_genome_rep_export = genome_category_subparser.add_parser('representative_export',
+                                                                    add_help=False,
+                                                                    formatter_class=CustomHelpFormatter,
+                                                                    help='Export a TSV file containing all representatives and the genomes associated with each.')
+    required_genome_rep_export = parser_genome_rep_export.add_argument_group('required arguments')
+    required_genome_rep_export.add_argument('--output', dest='outfile', default=None, required=True,
+                                            help='Name of output file.')
+
+    optional_genome_rep_export = parser_genome_rep_export.add_argument_group('optional arguments')
+    optional_genome_rep_export.add_argument('-h', '--help', action="help",
+                                            help="Show help message.")
+
+    parser_genome_rep_export.set_defaults(func=ExportReps)
+    
 
 # -------- Genome Lists Management subparsers
 
@@ -793,7 +939,7 @@ if __name__ == '__main__':
     optional_gl_edit.add_argument('--genome_ids', dest='genome_ids',
                                   help='List of genome IDs to add/remove from list.')
     optional_gl_edit.add_argument('--operation', dest='operation', choices=('add', 'remove'),
-                                  help='What to do with the tree_ids with regards to the genome list. If all genomes are removed from a list, the list will be deleted.')
+                                  help='What to do with the genome_ids with regards to the genome list. If all genomes are removed from a list, the list will be deleted.')
     optional_gl_edit.add_argument('--name', dest='name',
                                   help='Modify the name of the list to this.')
     optional_gl_edit.add_argument('--description', dest='description',
@@ -965,6 +1111,8 @@ if __name__ == '__main__':
                                           help='Name of output file.')
 
     optional_metadata_export = parser_metadata_export.add_argument_group('optional arguments')
+    optional_metadata_export.add_argument('--format', dest='outmetaformat', choices=['csv', 'tab'], default='csv',
+                                          help="Select the output format of the Metadata file.")
     optional_metadata_export.add_argument('-h', '--help', action="help",
                                           help="Show help message.")
 
@@ -1022,7 +1170,7 @@ if __name__ == '__main__':
 
 # -------- Taxonomy subparsers
 
-    # GTDB taxonmoy export parser
+    # GTDB taxonomy export parser
     taxonomy_gtdb_export = taxonomy_category_subparser.add_parser('gtdb_export',
                                                                   add_help=False,
                                                                   formatter_class=CustomHelpFormatter,
@@ -1069,9 +1217,9 @@ if __name__ == '__main__':
                                                       'a representative. This is the set of genomes typically used ' +
                                                       'for trees being published. Genomes are subject ' +
                                                       'to filtering.'))
-    atleastone_genomes_create_tree.add_argument('--user_dereplicated', default=False, action='store_true',
-                                                help=('Include User representative genomes and User genomes without ' +
-                                                      'a representative. Genomes are subject to filtering.'))
+    atleastone_genomes_create_tree.add_argument('--donovan_sra_dereplicated', default=False, action='store_true',
+                                                help=("Include SRA dereplicated genomes generated from Donovan's SRA bins." +
+                                                      ' This is a temporary flag.'))
 
     atleastone_genomes_create_tree.add_argument('--all_genomes', default=False, action='store_true',
                                                 help='Include all genomes, subject to filtering.')
@@ -1106,7 +1254,10 @@ if __name__ == '__main__':
 
     optional_markers_create_tree = parser_tree_create.add_argument_group('optional arguments')
     optional_markers_create_tree.add_argument('--quality_threshold', type=float, default=DefaultValues.DEFAULT_QUALITY_THRESHOLD,
-                                              help='Filter genomes with a quality (completeness - 4*contamination) below threshold.')
+                                              help='Filter genomes with a quality (completeness - weight*contamination) below threshold.')
+    optional_markers_create_tree.add_argument('--quality_weight', type=float, default=DefaultValues.DEFAULT_QUALITY_WEIGHT,
+                                              help='Weighting used to assess genome quality (completeness - weight*contamination).')
+
     optional_markers_create_tree.add_argument('--completeness_threshold', dest='comp_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_COMPLETENESS,
                                               help='Filter genomes below completeness threshold.')
     optional_markers_create_tree.add_argument('--contamination_threshold', dest='cont_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_CONTAMINATION,
@@ -1114,10 +1265,14 @@ if __name__ == '__main__':
 
     optional_markers_create_tree.add_argument('--min_perc_aa', type=float, default=50,
                                               help='Filter genomes with an insufficient percentage of AA in the MSA.')
+    optional_markers_create_tree.add_argument('--min_rep_perc_aa', type=float, default=20,
+                                              help='Filter representative genomes with an insufficient percentage of AA in the MSA.')
     optional_markers_create_tree.add_argument('--min_perc_taxa', type=float, default=50,
                                               help='minimum percentage of taxa required required to retain column.')
     optional_markers_create_tree.add_argument('--consensus', type=float, default=25,
                                               help='minimum percentage of the same amino acid required to retain column.')
+    optional_markers_create_tree.add_argument('--no_trim', dest='no_trim', action="store_true",
+                                              help='Skip the trimming step to return the full MSA.')
     optional_markers_create_tree.add_argument('--excluded_genome_list_ids',
                                               help='Genome list IDs (comma separated) indicating genomes to exclude from the tree.')
     optional_markers_create_tree.add_argument('--excluded_genome_ids',
@@ -1126,9 +1281,14 @@ if __name__ == '__main__':
                                               help='Genome list IDs (comma separated) indicating genomes to retain in the tree independent of filtering criteria.')
     optional_markers_create_tree.add_argument('--guaranteed_genome_ids',
                                               help='Genome IDs (comma separated) indicating genomes to retain in the tree independent of filtering criteria.')
-    optional_markers_create_tree.add_argument('--taxa_filter',
-                                              help='Filter genomes to taxa (comma separated) within specific taxonomic groups (e.g., p__Proteobacteria, p__Actinobacteria).')
+    optional_markers_create_tree.add_argument('--guaranteed_batchfile',
+                                              help='File of genome IDs, one per line, indicating genomes to retain in the tree independent of filtering criteria.')
 
+    optional_markers_create_tree.add_argument('--taxa_filter',
+                                              help='Filter genomes to taxa (comma separated) within specific taxonomic groups (e.g., d__Archaea or p__Proteobacteria, p__Actinobacteria).')
+    optional_markers_create_tree.add_argument('--guaranteed_taxa_filter',
+                                              help='Filter genomes, including those specified as guaranteed, to taxa within specific taxonomic groups.')
+    
     optional_markers_create_tree.add_argument('--prefix', required=False, default='gtdb',
                                               help='Desired prefix for output files.')
     optional_markers_create_tree.add_argument('--no_alignment', action='store_true',
@@ -1158,7 +1318,7 @@ if __name__ == '__main__':
 
 # Power user
 # -------- Find exceptions in the tree
-    parser_power_tree_exception = power_category_subparser.add_parser('tree_exceptions',
+    parser_power_tree_exception = power_category_subparser.add_parser('weighted_tree_exceptions',
                                                                       add_help=False,
                                                                       formatter_class=CustomHelpFormatter,
                                                                       help='View NCBI records where genus is not present in the final tree and the checkm_completeness and contamination are less significant than the default values ')
@@ -1167,20 +1327,33 @@ if __name__ == '__main__':
     required_power_tree_exceptions.add_argument('--output', dest='outfile', default=None, required=True,
                                                 help='Name of output file.')
 
-    mutual_power_tree = parser_power_tree_exception.add_argument_group('mutually exclusive optional arguments')
-    mutex_group = mutual_power_tree.add_mutually_exclusive_group(required=True)
-    mutex_group.add_argument('--filtered', dest='filtered', action="store_true", default=False,
-                             help='Run the tree exception with a set of filter ( bacterium,sp,lower case,candidatus).')
-    mutex_group.add_argument('--raw', dest='raw', action="store_true", default=False,
-                             help='Run the tree exception without filter')
-    mutex_group.add_argument('--weighted', dest='weighted', action="store_true", default=False,
-                             help='Run the tree exception with a weight matrice to find the uniqueness of the genome')
-
     optional_power_view = parser_power_tree_exception.add_argument_group('optional arguments')
+    optional_power_view.add_argument('--quality_threshold', type=float, default=DefaultValues.DEFAULT_QUALITY_THRESHOLD,
+                                     help='Filter genomes with a quality (completeness - weight*contamination) below threshold.')
+    optional_power_view.add_argument('--quality_weight', type=float, default=DefaultValues.DEFAULT_QUALITY_WEIGHT,
+                                     help='Weighting used to assess genome quality (completeness - weight*contamination).')
+    optional_power_view.add_argument('--completeness_threshold', dest='comp_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_COMPLETENESS,
+                                     help='Filter genomes below completeness threshold.')
+    optional_power_view.add_argument('--contamination_threshold', dest='cont_threshold', type=float, default=DefaultValues.DEFAULT_CHECKM_CONTAMINATION,
+                                     help='Filter genomes above contamination threshold.')
     optional_power_view.add_argument('-h', '--help', action="help",
                                      help="Show help message.")
 
     parser_power_tree_exception.set_defaults(func=RunTreeExceptions)
+
+
+# --------- Check if there is User genome duplicate IDs
+    duplicates_power_genome_path = power_category_subparser.add_parser('check_folder_duplicates',
+                                                                       add_help=False,
+                                                                       formatter_class=CustomHelpFormatter,
+                                                                       help='Check if User genome Ids are present multiple times in the User genome path')
+
+    optional_duplicates_power_genome_path = duplicates_power_genome_path.add_argument_group('optional arguments')
+    optional_duplicates_power_genome_path.add_argument('-h', '--help', action="help",
+                                                       help="Show help message.")
+
+    duplicates_power_genome_path.set_defaults(func=CheckUserIDsDuplicates)
+
 
 # --------- Export genome folder paths
 
@@ -1199,34 +1372,86 @@ if __name__ == '__main__':
 
     parser_power_genome_path.set_defaults(func=ExportGenomePaths)
 
- # -------- Sanity check
+    # -------- Sanity check
     parser_sanity_exception = power_category_subparser.add_parser('sanity_check',
                                                                   add_help=False,
                                                                   formatter_class=CustomHelpFormatter,
                                                                   help='Run some sanity checks to see if all records are properly stored')
 
     optional_sanity_view = parser_sanity_exception.add_argument_group('optional arguments')
-    optional_sanity_view.add_argument('--output', dest='outfile', default=None,
-                                      help='Name of output file.')
     optional_sanity_view.add_argument('-h', '--help', action="help",
                                       help="Show help message.")
 
     parser_sanity_exception.set_defaults(func=RunSanityCheck)
+
+    # -------- Taxonomy check
+    parser_taxonomy_check = power_category_subparser.add_parser('taxonomy_check',
+                                                                add_help=False,
+                                                                formatter_class=CustomHelpFormatter,
+                                                                help='Compare GTDB to NCBI taxonomy and report differences.')
+
+    optional_taxonomy_check = parser_taxonomy_check.add_argument_group('optional arguments')
+    optional_taxonomy_check.add_argument('--rank_depth', type=int, default=0,
+                                         help='Deepest taxonomic rank to check: 0 (domain) to 6 (species).')
+    optional_taxonomy_check.add_argument('-h', '--help', action="help",
+                                         help="Show help message.")
+
+    parser_taxonomy_check.set_defaults(func=RunTaxonomyCheck)
+
+    # -------- Taxonomy check
+    parser_domain_report = power_category_subparser.add_parser('domain_report',
+                                                               add_help=False,
+                                                               formatter_class=CustomHelpFormatter,
+                                                               help='Reports results of automated domain assignment.')
+
+    required_domain_report = parser_domain_report.add_argument_group('required arguments')
+    required_domain_report.add_argument('--output', dest='outfile', default=None, required=True,
+                                        help='Name of output file.')
+
+    optional_domain_report = parser_domain_report.add_argument_group('optional arguments')
+    optional_domain_report.add_argument('-h', '--help', action="help",
+                                        help="Show help message.")
+
+    parser_domain_report.set_defaults(func=RunDomainAssignmentReport)
+
+    # -------- Domain check
+    parser_domain_consistency = power_category_subparser.add_parser('domain_consistency',
+                                                               add_help=False,
+                                                               formatter_class=CustomHelpFormatter,
+                                                               help='Check if GTDB domain based on markers presence and NCBI domain are the same.')
+    optional_domain_consistency = parser_domain_consistency.add_argument_group('optional arguments')
+    optional_domain_consistency.add_argument('-h', '--help', action="help",
+                                      help="Show help message.")
+
+    parser_domain_consistency.set_defaults(func=RunDomainConsistency)
+    
+    # ------- Realign NCBI genomes after GTDB update
+    parser_realign_genomes = power_category_subparser.add_parser('realign_updated_genomes',
+                                                                 add_help=False,
+                                                                 formatter_class=CustomHelpFormatter,
+                                                                 help='Re run alignment of NCBI genomes that have been updated in the last NCBI release.')
+    optional_realign_genomes = parser_realign_genomes.add_argument_group('optional arguments')
+    optional_realign_genomes.add_argument('-h', '--help', action="help",
+                                      help="Show help message.")
+
+    parser_realign_genomes.set_defaults(func=RealignNCBIgenomes)
+
 
     # Do the parsing
     args = parser.parse_args()
 
     # setup logger
     if hasattr(args, 'out_dir'):
-        loggerSetup(args.out_dir, args.silent)
+        loggerSetup(args.out_dir, args.release, args.silent)
     else:
-        loggerSetup(None, args.silent)
+        loggerSetup(None, args.release, args.silent)
 
     # Special parser checks
     if (args.category_parser_name == 'tree' and args.tree_subparser_name == 'create'):
         if (not args.all_dereplicated and
                 not args.ncbi_dereplicated and
-                not args.user_dereplicated and
+                not args.user_genomes and
+                not args.donovan_sra_dereplicated and
                 not args.all_genomes and
                 not args.ncbi_genomes and
                 not args.user_genomes and
@@ -1234,11 +1459,9 @@ if __name__ == '__main__':
                 not args.genome_ids and
                 not args.genome_batchfile):
             parser_tree_create.error(
-                'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_dereplicated, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
+                'Need to specify at least one of --all_dereplicated, --ncbi_dereplicated, --user_genomes, --donovan_sra_dereplicated, --all_genomes, --ncbi_genomes, --user_genomes --genome_list_ids, --genome_ids, or --genome_batchfile.')
 
-        if (not args.marker_set_ids
-                and not args.marker_ids
-                and not args.marker_batchfile):
+        if (not args.marker_set_ids and not args.marker_ids and not args.marker_batchfile):
             parser_tree_create.error(
                 'Need to specify at least one of --marker_set_ids, --marker_ids or --marker_batchfile.')
 
@@ -1266,8 +1489,8 @@ if __name__ == '__main__':
                 'Need to specify at least one of --all, --batchfile or --marker_ids.')
 
     # initialise the backend
-    db = GenomeDatabase.GenomeDatabase(args.threads, args.tab_table)
-    db.conn.MakePostgresConnection()
+    db = GenomeDatabase.GenomeDatabase(args.threads, args.tab_table, args.release)
+    db.conn.MakePostgresConnection(args.release)
 
     if args.debug:
         db.SetDebugMode(True)

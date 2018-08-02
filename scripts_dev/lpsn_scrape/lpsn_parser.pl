@@ -22,6 +22,7 @@ while (my $localpath = readdir($dh)) {
             print join("\t", ("genus", $is_type_genus, $genus_info->{genus}->{name}, $genus_info->{genus}->{info})) . "\n";
             my %species_hash = %{$genus_info->{species}};
             foreach my $species (keys %species_hash) {
+
                 if (ref($species_hash{$species})) {
                     if (! defined $species_hash{$species}->{info}) {
                         print STDERR Dumper($species_hash{$species});
@@ -29,7 +30,7 @@ while (my $localpath = readdir($dh)) {
                     }
                     print join("\t", (
                         "species",
-                        ($species_hash{$species}->{info} =~ /Type species of the genus\./ ? 1 : 0),
+                        ($species_hash{$species}->{info} =~ /Type species of the genus/ ? 1 : 0),
                         $genus_info->{genus}->{name} . " " . $species,
                         $species_hash{$species}->{info},
                         @{$species_hash{$species}->{type_strain_synonyms}}
@@ -78,9 +79,10 @@ sub parse_genus_html {
         #<span class="genusspecies"><a name="lacus" id="lacus"></a>Methylohalomonas</span> <span class="specificepithet">lacus</span> Sorokin <i>et al.</i> 2007, sp. nov. (Type species of the genus.)
 
 
-        my $genusspecies_span_match = '<span class="genusspecies">([^<]*)</span>(.*)';
-        my $species_span_match = '<span class="specificepithet">([^<]*)</span>(.*)';
-        my $subspecies_span_match = '<span class="subspecificepithet">([^<]*)</span>';
+        my $genus_span_match = 'span class=(?:\'|\")genus(?:\'|\")>(?!>)(.*)<\/span>(.*?(?=<br>)|(.*))';
+        my $genusspecies_span_match = 'span class=(?:\'|\")genusspecies(?:\'|\")>(?!>)(.*)<\/span>(.*?(?=<br>)|(.*))';
+        my $species_span_match = '<span class=(?:\'|\")specificepithet(?:\'|\")>([^<]*)<\/span>(.*?(?=<br>)|(.*))';
+        my $subspecies_span_match = '<span class="subspecificepithet">([^<]*)</span>(.*?(?=<br>)|(.*))';
 
         #my $genusspecies_span_start = '(<span class="genusspecies(-subspecies)?">)([^<]+)';
         my $genusspecies_span_end = '</span>';
@@ -89,7 +91,7 @@ sub parse_genus_html {
 
         $line = clean_LSPN_html_line($line);
 
-        if ($line =~ /$genusspecies_span_match/) {
+        if ($line =~ /$genusspecies_span_match/ || $line =~ /$genus_span_match/) {
             my @matches = ($1);
             my $genus_residual_match = $2;
 
@@ -99,11 +101,14 @@ sub parse_genus_html {
             }
 
             if ($line =~ /$species_span_match/) {
+
                 push(@matches, $1);
+                
                 $current_species_info = $2;
 
                 if ($line =~ /$subspecies_span_match/) {
                     push(@matches, $1);
+                    $current_species_info = $2;
                 }
             }
 
@@ -120,7 +125,7 @@ sub parse_genus_html {
 
             if (scalar @matches == 1) {
                 if (defined $genus) {
-                    carp "Multiple definitions of genus in $path. Taking first encountered definition";
+                    # carp "Multiple definitions of genus in $path. Taking first encountered definition";
                     print STDERR "\n" . $temp_match . "\n";
                     print STDERR $line . "\n\n\n";
                 } else {
@@ -138,8 +143,8 @@ sub parse_genus_html {
             }
 
             # Don't bother with subspecies
-            if (scalar @matches > 3) {
-                next;
+            if (scalar @matches > 2) {
+				$current_species_name = $matches[1].' subsp. '.$matches[2];
             }
 
             if (scalar @matches == 2) {

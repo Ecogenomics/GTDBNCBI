@@ -40,7 +40,7 @@ from PowerUserManager import PowerUserManager
 
 class GenomeDatabase(object):
 
-    def __init__(self, threads=1, tab_table=False):
+    def __init__(self, threads=1, tab_table=False, db_release=None):
         self.logger = logging.getLogger()
 
         self.conn = GenomeDatabaseConnection()
@@ -52,8 +52,11 @@ class GenomeDatabase(object):
         self.debugMode = False
 
         self.threads = threads
+        self.db_release = db_release
 
         self.tab_table = tab_table
+
+        self.dbLock = True if db_release != Config.LATEST_DB else False
 
         self.genomeCopyUserDir = None
         if Config.GTDB_GENOME_USR_DIR:
@@ -148,36 +151,42 @@ class GenomeDatabase(object):
     def SetDebugMode(self, debug_mode):
         self.debugMode = debug_mode
 
-    # TODO: This should not be here, technically the backend is agnostic so
-    # shouldn't assume command line.
-    def Confirm(self, msg):
-        raw = raw_input(msg + " (y/N): ")
-        if raw.upper() == "Y":
-            return True
-        return False
-
-    def addUser(self, username, role, login_has_root):
+    def addUser(self, username, role, login_has_root, firstname, lastname):
         try:
             cur = self.conn.cursor()
             user_mngr = UserManager(cur, self.currentUser)
-            user_mngr.addUser(username, role, login_has_root)
+            user_mngr.addUser(username, firstname, lastname, role, login_has_root)
             self.conn.commit()
             return True
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
 
-    def editUser(self, username, role, login_has_root):
+    def editUser(self, username, role, login_has_root, firstname, lastname):
         try:
             cur = self.conn.cursor()
             user_mngr = UserManager(cur, self.currentUser)
-            user_mngr.editUser(username, role, login_has_root)
+            user_mngr.editUser(username, role, login_has_root, firstname, lastname)
             self.conn.commit()
             return True
         except GenomeDatabaseError as e:
             self.conn.rollback()
             self.ReportError(e.message)
             return False
+        
+    def viewUser(self,usernames):
+        try:
+            cur = self.conn.cursor()
+            user_mngr = UserManager(cur, self.currentUser)
+            # print user details
+            header,rows = user_mngr.printUserDetails(usernames)
+            self.PrintTable(header, rows)
+        
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
 
     def AddGenomes(self, batchfile,
                    checkm_file,
@@ -201,6 +210,13 @@ class GenomeDatabase(object):
             True if genomes added without error.
         """
         try:
+            if Config.DB_UPDATE:
+                print "During maintenance, users can not add genomes."
+                return True
+            if self.dbLock:
+                print "Users can not add genomes in deprecated gtdb releases."
+                return True
+
             self.logger.info('Adding genomes to database.')
 
             cur = self.conn.cursor()
@@ -256,7 +272,6 @@ class GenomeDatabase(object):
             genome_mngr.moveGenomes(genome_ids)
 
             self.conn.commit()
-
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
             return False
@@ -282,6 +297,14 @@ class GenomeDatabase(object):
             True if genomes deleted without error.
         '''
         try:
+
+            if Config.DB_UPDATE:
+                print "During maintenance, users can not delete genomes."
+                return True
+            if self.dbLock:
+                print "Users can not delete genomes in deprecated gtdb releases."
+                return True
+
             cur = self.conn.cursor()
             genome_ids = []
 
@@ -308,7 +331,7 @@ class GenomeDatabase(object):
 
             # restrict deletion of representative genomes
             genome_rep_mngr = GenomeRepresentativeManager(
-                cur, self.currentUser, self.threads)
+                cur, self.currentUser, self.threads, self.db_release)
             db_rep_genome_ids = genome_rep_mngr.representativeGenomes()
             rep_genomes_to_delete = set(
                 db_rep_genome_ids).intersection(genome_ids)
@@ -328,7 +351,7 @@ class GenomeDatabase(object):
 
     def PullGenomes(self,
                     batchfile, external_ids, list_of_list_id,
-                    genomic, gene, out_dir, gtdb_header):
+                    genomic, gene, gene_nt, out_dir, gtdb_header):
         '''
         Copy genomic and gene data to specifed output directory
 
@@ -336,7 +359,8 @@ class GenomeDatabase(object):
         :param external_ids: List of ids describing genomes to pull.
         :param list_of_list_id: List of genome list IDs of genomes to pull.
         :param genomic: Flag indicating if genomic data should be pulled.
-        :param gene: Flag indicating if gene data should be pulled.
+        :param gene: Flag indicating if amino acid gene data should be pulled.
+        :param gene_nt: Flag indicating if nucleotide gene data should be pulled.
         :param out_dir: Desired directory to copy data to.
         '''
         try:
@@ -364,7 +388,7 @@ class GenomeDatabase(object):
                     genome_list_mngr.getGenomeIdsFromGenomeListIds(list_of_list_id))
 
             # copy data for each genome
-            genome_mngr.copyGenomes(db_genome_ids, genomic, gene, out_dir, gtdb_header)
+            genome_mngr.copyGenomes(db_genome_ids, genomic, gene, gene_nt, out_dir, gtdb_header)
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
@@ -378,6 +402,31 @@ class GenomeDatabase(object):
             genomeman = GenomeManager(cur, self.currentUser)
             genomeman.exportSSUSequences(path)
 
+            self.conn.commit()
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+
+    def ExportLSUSequences(self, path):
+        try:
+            cur = self.conn.cursor()
+            genomeman = GenomeManager(cur, self.currentUser)
+            genomeman.exportLSUSequences(path)
+
+            self.conn.commit()
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+
+    def ExportReps(self, path):
+        try:
+            cur = self.conn.cursor()
+            genomeman = GenomeManager(cur, self.currentUser)
+            genomeman.exportReps(path)
             self.conn.commit()
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
@@ -405,16 +454,54 @@ class GenomeDatabase(object):
                             "Cannot open batchfile: " + batchfile)
 
                     for line in fh:
-                        line = line.rstrip()
-                        external_ids.append(line)
+                        if line[0] == '#':
+                            continue
+                        external_id = line.strip().split('\t')[0]
+                        external_ids.append(external_id)
 
                 genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(
                     external_ids)
                 if genome_ids is None:
-                    raise GenomeDatabaseError("Can not retrieve genome ids.")
+                    raise GenomeDatabaseError("Could not retrieve genome ids.")
 
             # print genome details
             header, rows = genome_mngr.printGenomeDetails(genome_ids)
+            self.PrintTable(header, rows)
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+
+    def StatGenomes(self, batchfile, external_ids, stat_fields):
+        try:
+            cur = self.conn.cursor()
+            genome_mngr = GenomeManager(cur, self.currentUser)
+
+            if external_ids is None:
+                external_ids = []
+
+            if batchfile:
+                try:
+                    fh = open(batchfile, "rb")
+                except:
+                    raise GenomeDatabaseError(
+                        "Cannot open batchfile: " + batchfile)
+
+                for line in fh:
+                    if line[0] == '#':
+                        continue
+                    external_id = line.strip().split('\t')[0]
+                    external_ids.append(external_id)
+
+            genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(
+                external_ids)
+            if genome_ids is None:
+                raise GenomeDatabaseError("Could not retrieve genome IDs.")
+
+            # print genome details
+            header, rows = genome_mngr.printGenomeStats(genome_ids, stat_fields)
             self.PrintTable(header, rows)
 
         except GenomeDatabaseError as e:
@@ -459,18 +546,12 @@ class GenomeDatabase(object):
 
         return True
 
-    def GetGenomeIds(self, all_dereplicated,
-                     ncbi_dereplicated,
-                     user_dereplicated,
-                     all_genomes,
-                     ncbi_genomes,
-                     user_genomes,
-                     genome_list_ids,
-                     genome_ids,
-                     genome_batchfile):
-        """Get all genome IDs of interest.
-        If dereplicated genome lists are called (all_dereplicated,ncbi_dereplicated,user_dereplicated),
-        Representative genomes of those lists are be treated like they are "guaranteed" genomes.
+    def GetRequestedGenomeIds(self,
+                              all_genomes,
+                              genome_list_ids,
+                              genome_ids,
+                              genome_batchfile):
+        """Get genome IDs of interest.
 
         Returns
         -------
@@ -479,12 +560,73 @@ class GenomeDatabase(object):
         """
 
         genome_id_list = set()
+
+        try:
+            cur = self.conn.cursor()
+
+            genome_mngr = GenomeManager(cur, self.currentUser)
+            genome_list_mngr = GenomeListManager(cur, self.currentUser)
+
+            if all_genomes:
+                ids = genome_mngr.allGenomeIds()
+                genome_id_list.update(ids)
+
+            if genome_list_ids:
+                ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(genome_list_ids.split(","))
+                genome_id_list.update(ids)
+
+            if genome_ids:
+                ids = genome_mngr.externalGenomeIdsToGenomeIds(genome_ids.split(","))
+                genome_id_list.update(ids)
+
+            genome_batchfile_ids = []
+            if genome_batchfile:
+                fh = open(genome_batchfile, "rb")
+                for line in fh:
+                    if line[0] == '#':
+                        continue
+                    line = line.strip().split('\t')
+                    genome_batchfile_ids.append(line[0])
+
+            if genome_batchfile_ids:
+                ids = genome_mngr.externalGenomeIdsToGenomeIds(genome_batchfile_ids)
+                genome_id_list.update(ids)
+
+            if (len(genome_id_list) == 0):
+                raise GenomeDatabaseError("No genomes found from the information provided.")
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return genome_id_list
+
+    def GetGenomeIds(self, all_dereplicated,
+                     ncbi_dereplicated,
+                     donovan_sra_dereplicated,
+                     all_genomes,
+                     ncbi_genomes,
+                     user_genomes,
+                     genome_list_ids,
+                     genome_ids,
+                     genome_batchfile):
+        """Get all genome IDs of interest.
+
+        Returns
+        -------
+        list
+            Requested genome IDs
+        list
+            Representative genome IDs
+        """
+
+        genome_id_list = set()
         required_rep_genomes_ids = set()
 
         try:
             cur = self.conn.cursor()
 
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads, self.db_release)
             genome_mngr = GenomeManager(cur, self.currentUser)
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
 
@@ -495,15 +637,13 @@ class GenomeDatabase(object):
                 genome_id_list.update(ids)
 
             if ncbi_dereplicated:
-                include_user_reps = not (all_dereplicated or user_dereplicated)
+                include_user_reps = not (all_dereplicated or donovan_sra_dereplicated)
                 ids = genome_rep_mngr.ncbiDereplicatedGenomes(include_user_reps)
                 genome_id_list.update(ids)
 
-            if user_dereplicated:
-                ids = genome_rep_mngr.userDereplicatedGenomes()
+            if donovan_sra_dereplicated:
+                ids = genome_rep_mngr.sraRepresentatives()
                 genome_id_list.update(ids)
-
-            required_rep_genomes_ids = genome_id_list.intersection(rep_genome_ids)
 
             if all_genomes:
                 ids = genome_mngr.allGenomeIds()
@@ -529,8 +669,10 @@ class GenomeDatabase(object):
             if genome_batchfile:
                 fh = open(genome_batchfile, "rb")
                 for line in fh:
-                    line = line.strip()
-                    genome_batchfile_ids.append(line)
+                    if line[0] == '#':
+                        continue
+                    line = line.strip().split('\t')
+                    genome_batchfile_ids.append(line[0])
 
             if genome_batchfile_ids:
                 ids = genome_mngr.externalGenomeIdsToGenomeIds(genome_batchfile_ids)
@@ -543,7 +685,7 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
-        return (genome_id_list, required_rep_genomes_ids)
+        return (genome_id_list, rep_genome_ids)
 
     def GetMarkerIds(self, marker_ids, marker_set_ids, marker_batchfile):
         """Get marker IDs of interest.
@@ -591,44 +733,102 @@ class GenomeDatabase(object):
 
         return marker_id_list
 
-    def MakeTreeData(self, marker_ids, genome_ids,
+    def MakeTreeData(self, marker_ids,
+                     genome_ids,
                      directory, prefix,
-                     quality_threshold, comp_threshold, cont_threshold,
-                     min_perc_aa, min_perc_taxa, consensus,
+                     quality_threshold,
+                     quality_weight,
+                     comp_threshold,
+                     cont_threshold,
+                     min_perc_aa,
+                     min_rep_perc_aa,
+                     min_perc_taxa,
+                     consensus,
                      taxa_filter,
-                     excluded_genome_list_ids, excluded_genome_ids,
-                     guaranteed_genome_list_ids, guaranteed_genome_ids, guaranteed_genomes,
-                     alignment, individual,
+                     guaranteed_taxa_filter,
+                     excluded_genome_list_ids,
+                     excluded_genome_ids,
+                     guaranteed_genome_list_ids,
+                     guaranteed_genome_ids,
+                     guaranteed_batchfile,
+                     rep_genome_ids,
+                     alignment,
+                     no_trim,
+                     individual,
                      build_tree=True):
 
         try:
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            genome_rep_mngr = GenomeRepresentativeManager(
-                cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads, self.db_release)
             genome_rep_mngr.assignToRepresentative()
+
+            # get all guaranteed genomes
+            genome_mngr = GenomeManager(cur, self.currentUser)
+            genome_list_mngr = GenomeListManager(cur, self.currentUser)
+
+            guaranteed_ids = set()
+            if guaranteed_genome_ids:
+                list_genome_ids = [x.strip()
+                                   for x in guaranteed_genome_ids.split(",")]
+                db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(list_genome_ids)
+                guaranteed_ids.update(db_genome_ids)
+
+            if guaranteed_genome_list_ids:
+                guaranteed_genome_list_ids = [x.strip()
+                                              for x in guaranteed_genome_list_ids.split(",")]
+                db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(
+                    guaranteed_genome_list_ids)
+                guaranteed_ids.update(db_genome_ids)
+
+            if guaranteed_batchfile:
+                batch_genome_id = []
+                for line in open(guaranteed_batchfile):
+                    if line[0] == '#':
+                        continue
+                    batch_genome_id.append(line.strip().split('\t')[0])
+
+                db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(batch_genome_id)
+                guaranteed_ids.update(db_genome_ids)
+
+            # genome all genomes marked for exclusion
+            genomes_to_exclude = set()
+            if excluded_genome_ids:
+                excluded_genome_ids = [x.strip()
+                                       for x in excluded_genome_ids.split(",")]
+                db_genome_ids = genome_mngr.externalGenomeIdsToGenomeIds(excluded_genome_ids)
+                genomes_to_exclude.update(db_genome_ids)
+
+            if excluded_genome_list_ids:
+                excluded_genome_list_ids = [x.strip()
+                                            for x in excluded_genome_list_ids.split(",")]
+                db_genome_ids = genome_list_mngr.getGenomeIdsFromGenomeListIds(excluded_genome_list_ids)
+                genomes_to_exclude.update(db_genome_ids)
+
+            # make sure all markers are aligned
+            aligned_mngr = AlignedMarkerManager(cur, self.threads, self.db_release)
+            aligned_mngr.calculateAlignedMarkerSets(genome_ids, marker_ids)
 
             # create tree data
             self.logger.info('Creating tree data for %d genomes using %d marker genes.' %
                              (len(genome_ids), len(marker_ids)))
-
-            aligned_mngr = AlignedMarkerManager(cur, self.threads)
-            aligned_mngr.calculateAlignedMarkerSets(genome_ids, marker_ids)
+            self.logger.info('Tree contains %d representative genomes.' % len(rep_genome_ids))
 
             tree_mngr = TreeManager(cur, self.currentUser)
             genomes_to_retain, chosen_markers_order, chosen_markers = tree_mngr.filterGenomes(marker_ids,
                                                                                               genome_ids,
                                                                                               quality_threshold,
+                                                                                              quality_weight,
                                                                                               comp_threshold,
                                                                                               cont_threshold,
                                                                                               min_perc_aa,
+                                                                                              min_rep_perc_aa,
                                                                                               taxa_filter,
-                                                                                              excluded_genome_list_ids,
-                                                                                              excluded_genome_ids,
-                                                                                              guaranteed_genome_list_ids,
-                                                                                              guaranteed_genome_ids,
-                                                                                              guaranteed_genomes,
+                                                                                              guaranteed_taxa_filter,
+                                                                                              genomes_to_exclude,
+                                                                                              guaranteed_ids,
+                                                                                              rep_genome_ids,
                                                                                               directory,
                                                                                               prefix)
 
@@ -646,7 +846,8 @@ class GenomeDatabase(object):
                                             alignment,
                                             individual,
                                             directory,
-                                            prefix)
+                                            prefix,
+                                            no_trim)
 
             self.conn.commit()
 
@@ -1167,16 +1368,16 @@ class GenomeDatabase(object):
             self.ReportError(e.message)
             return False
 
-    def ExportMetadata(self, path):
+    def ExportMetadata(self, path, outformat):
         try:
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads, self.db_release)
             genome_rep_mngr.assignToRepresentative()
 
             metaman = MetadataManager(cur, self.currentUser)
-            metaman.exportMetadata(path)
+            metaman.exportMetadata(path, outformat)
 
             self.conn.commit()
         except GenomeDatabaseError as e:
@@ -1240,7 +1441,8 @@ class GenomeDatabase(object):
             # ensure all genomes have been assigned to a representatives
             genome_rep_mngr = GenomeRepresentativeManager(cur,
                                                           self.currentUser,
-                                                          self.threads)
+                                                          self.threads,
+                                                          self.db_release)
             genome_rep_mngr.assignToRepresentative()
 
             metaman = MetadataManager(cur, self.currentUser)
@@ -1261,7 +1463,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # make sure representative have been determine for all genomes
-            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads)
+            genome_rep_mngr = GenomeRepresentativeManager(cur, self.currentUser, self.threads, self.db_release)
             genome_rep_mngr.assignToRepresentative()
 
             # determine number of genomes from different database sources
@@ -1320,7 +1522,7 @@ class GenomeDatabase(object):
 
         return True
 
-    def RunTreeWeightedExceptions(self, path):
+    def RunTreeWeightedExceptions(self, path, comp_threshold, cont_threshold, quality_weight, quality_threshold):
         '''
         Function: RunTreeWeightedException
         Export excluded NCBI records for a tree creation (with all default parameters) to a csv file
@@ -1331,8 +1533,12 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
-            power_user_mngr.runTreeWeightedExceptions(path)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
+            power_user_mngr.runTreeWeightedExceptions(path,
+                                                      comp_threshold,
+                                                      cont_threshold,
+                                                      quality_weight,
+                                                      quality_threshold)
 
             cur.close()
             self.conn.ClosePostgresConnection()
@@ -1352,7 +1558,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.runTreeExceptions(path, filtered)
 
             cur.close()
@@ -1360,6 +1566,8 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
+            return False
+
         return True
 
     def RunSanityCheck(self, path=None):
@@ -1373,12 +1581,125 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
-            power_user_mngr.runSanityCheck(path)
+            self.logger.info('Running sanity check.')
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
+            power_user_mngr.runSanityCheck()
+            self.logger.info('Done.')
 
             cur.close()
             self.conn.ClosePostgresConnection()
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
+            return False
+
+        return True
+
+    def RunTaxonomyCheck(self, rank_depth):
+        '''
+        Function: RunTaxonomyCheck
+        Run some checks to verify GTDB taxonomy assignment.
+
+        :param rank_depth: Deepest taxonomic rank to check.
+        '''
+        try:
+            cur = self.conn.cursor()
+
+            # ensure all genomes have been assigned to a representatives
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
+            power_user_mngr.runTaxonomyCheck(rank_depth)
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+
+    def CheckUserIDsDuplicates(self):
+        '''
+        Function: CheckUserIDsDuplicates
+        Check if User genome Ids are present multiple times in the User genome path
+
+        '''
+        try:
+            cur = self.conn.cursor()
+            # ensure all genomes have been assigned to a representatives
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
+            power_user_mngr.CheckUserIDsDuplicates()
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+    
+    def RunDomainConsistency(self):
+        '''
+        Function: RunDomainConsistency
+        Check if GTDB domain based on markers presence and NCBI domain are the same.
+
+        '''
+        try:
+            cur = self.conn.cursor()
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
+            power_user_mngr.RunDomainConsistency()
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+    
+    def RealignNCBIgenomes(self):
+        '''
+        Function: RealignNCBIgenomes
+        Re run alignment of NCBI genomes that have been updated in the last NCBI release.
+
+        '''
+        try:
+            cur = self.conn.cursor()
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
+            power_user_mngr.RealignNCBIgenomes()
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+    
+    
+
+    def RunDomainAssignmentReport(self, outfile):
+        '''
+        Function: RunDomainAssignmentReport
+        Reports results of automated domain assignment.
+
+        :param outfile: Output file.
+        '''
+        try:
+            cur = self.conn.cursor()
+
+            # ensure all genomes have been assigned to a representatives
+            grm = GenomeRepresentativeManager(cur, self.currentUser,self.db_release)
+            grm.domainAssignmentReport(outfile)
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
         return True

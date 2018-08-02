@@ -37,7 +37,7 @@ from PfamSearch import PfamSearch
 
 from biolib.checksum import sha256
 from biolib.common import make_sure_path_exists
-from Tools import splitchunks
+from Tools import splitchunks, confirm
 from psycopg2.extensions import AsIs
 
 
@@ -76,6 +76,9 @@ class GenomeManager(object):
         self.deprecatedUserDir = Config.GTDB_DPRCTD_USR_DIR
         self.deprecatedGBKDir = Config.GTDB_DPRCTD_GBK_DIR
         self.deprecatedRSQDir = Config.GTDB_DPRCTD_RSQ_DIR
+
+        self.ncbiAnnotationDir = Config.NCBI_ANNOTATION_DIR
+        self.userAnnotationDir = Config.USER_ANNOTATION_DIR
 
     def _loggerSetup(self, silent=False):
         """Set logging for application.
@@ -127,7 +130,7 @@ class GenomeManager(object):
             checkm_results_dict = self._processCheckM(checkm_file)
 
             genomic_files = self._addGenomeBatch(batchfile, self.tmp_output_dir)
-	    
+
             self.logger.info("Running Prodigal to identify genes.")
             prodigal = Prodigal(self.threads)
             file_paths = prodigal.run(genomic_files)
@@ -166,11 +169,11 @@ class GenomeManager(object):
             self.logger.info("Identifying TIGRfam protein families.")
             gene_files = [file_paths[db_genome_id]['aa_gene_path']
                           for db_genome_id in genomic_files]
-            tigr_search = TigrfamSearch(self.threads)
+            tigr_search = TigrfamSearch(self.cur, self.currentUser, self.threads)
             tigr_search.run(gene_files)
 
             self.logger.info("Identifying Pfam protein families.")
-            pfam_search = PfamSearch(self.threads)
+            pfam_search = PfamSearch(self.cur, self.currentUser, self.threads)
             pfam_search.run(gene_files)
         except:
             if os.path.exists(self.tmp_output_dir):
@@ -214,7 +217,7 @@ class GenomeManager(object):
 
             genome_file_paths = file_paths[db_genome_id]
             output_dir, _file = os.path.split(
-                genome_file_paths["aa_gene_path"])
+                genome_file_paths["fasta_path"])
 
             bin_id = values['checkm_bin_id']
             if bin_id not in checkm_results_dict:
@@ -354,16 +357,62 @@ class GenomeManager(object):
 
             shutil.move(tmp_genome_dir, genome_target_dir)
 
-            self.cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s WHERE id = %s", (
+            self.cur.execute("UPDATE genomes SET fasta_file_location = %s , genes_file_location = %s , genes_file_sha256 = %s WHERE id = %s", (
                 os.path.join(
                     username, external_id, external_id + self.genomeFileSuffix),
                 os.path.join(
-                    username, external_id, external_id + self.proteinFileSuffix),
+                    username, external_id, self.userAnnotationDir, external_id + self.proteinFileSuffix),
+                sha256(os.path.join(genome_target_dir, self.userAnnotationDir, external_id + self.proteinFileSuffix)),
                 db_genome_id))
 
         shutil.rmtree(self.tmp_output_dir)
 
-    def copyGenomes(self, db_genome_ids, genomic, gene, out_dir, gtdb_header):
+    def proteinFiles(self, db_genome_ids):
+        """Get called genes for genomes."""
+
+        genome_dirs = self.genomeDirs(db_genome_ids)
+        genome_id_map = self.genomeIdsToExternalGenomeIds(db_genome_ids)
+
+        protein_files = {}
+        for db_genome_id, genome_dir in genome_dirs.iteritems():
+            gene_dir = os.path.join(genome_dirs[db_genome_id],
+                                            Config.NCBI_ANNOTATION_DIR)
+            raw_genome_id = genome_id_map[db_genome_id].replace('GB_', '').replace('RS_', '')
+            protein_file = os.path.join(gene_dir, 
+                                        raw_genome_id + ConfigMetadata.PROTEIN_FILE_SUFFIX)
+
+            protein_files[db_genome_id] = protein_file
+
+        return protein_files
+
+    def genomeDirs(self, db_genome_ids):
+        """Get path to genomes."""
+
+        try:
+            self.cur.execute("SELECT genomes.id, external_id_prefix, fasta_file_location " +
+                             "FROM genomes, genome_sources " +
+                             "WHERE genome_source_id = genome_sources.id " +
+                             "AND genomes.id in %s", (tuple(db_genome_ids),))
+
+            genome_dirs = {}
+            for (genome_id, external_id_prefix, fasta_file_location) in self.cur:
+                dir_prefix = None
+                if external_id_prefix == 'U':
+                    dir_prefix = Config.GTDB_GENOME_USR_DIR
+                elif external_id_prefix == 'RS':
+                    dir_prefix = Config.GTDB_GENOME_RSQ_DIR
+                elif external_id_prefix == 'GB':
+                    dir_prefix = Config.GTDB_GENOME_GBK_DIR
+
+                genome_dir = os.path.join(dir_prefix, os.path.split(fasta_file_location)[0])
+                genome_dirs[genome_id] = genome_dir
+
+            return genome_dirs
+
+        except GenomeDatabaseError as e:
+            raise e
+
+    def copyGenomes(self, db_genome_ids, genomic, gene, gene_nt, out_dir, gtdb_header):
         """Copy genome data files to specified directory.
 
         Parameters
@@ -373,22 +422,25 @@ class GenomeManager(object):
         genomic : boolean
             Flag indicating if genomic data should be copied.
         gene : boolean
-            Flag indicating if gene data should be copied.
+            Flag indicating if amino acid gene data should be copied.
+        gene_nt : boolean
+            Flag indicating if nucleotide gene data should be copied.
         out_dir : str
             Output directory for data.
         """
 
         # get database genome identifiers
         try:
-            self.cur.execute("SELECT external_id_prefix, fasta_file_location, genes_file_location " +
+            self.cur.execute("SELECT external_id_prefix, id_at_source, fasta_file_location, genes_file_location " +
                              "FROM genomes, genome_sources " +
                              "WHERE genome_source_id = genome_sources.id " +
                              "AND genomes.id in %s", (tuple(db_genome_ids),))
 
-            for (external_id_prefix, fasta_file_location, genes_file_location) in self.cur:
+            for (external_id_prefix, id_at_source, fasta_file_location, genes_file_location) in self.cur:
                 dir_prefix = None
                 if external_id_prefix == 'U':
                     dir_prefix = Config.GTDB_GENOME_USR_DIR
+                    id_at_source = 'U_' + id_at_source
                 elif external_id_prefix == 'RS':
                     dir_prefix = Config.GTDB_GENOME_RSQ_DIR
                 elif external_id_prefix == 'GB':
@@ -400,20 +452,32 @@ class GenomeManager(object):
                 if genomic:
                     genomic_file = os.path.join(dir_prefix, fasta_file_location)
                     if gtdb_header and external_id_prefix != 'U':
-                        gtdb_filename = external_id_prefix + "_" + os.path.basename(genomic_file)
-                        out_dir_with_header = os.path.join(out_dir, gtdb_filename)
-                        shutil.copy(genomic_file, out_dir_with_header)
+                        gtdb_filename = external_id_prefix + "_" + id_at_source + '_genomic.fna'
                     else:
-                        shutil.copy(genomic_file, out_dir)
+                        gtdb_filename = id_at_source + '_genomic.fna'
 
-                elif gene:
+                    out_file = os.path.join(out_dir, gtdb_filename)
+                    shutil.copy(genomic_file, out_file)
+
+                if gene:
                     gene_file = os.path.join(dir_prefix, genes_file_location)
                     if gtdb_header and external_id_prefix != 'U':
-                        gtdb_filename = external_id_prefix + "_" + os.path.basename(gene_file)
-                        out_dir_with_header = os.path.join(out_dir, gtdb_filename)
-                        shutil.copy(gene_file, out_dir_with_header)
+                        gtdb_filename = external_id_prefix + "_" + id_at_source + '_gene.faa'
                     else:
-                        shutil.copy(gene_file, out_dir)
+                        gtdb_filename = id_at_source + '_gene.faa'
+
+                    out_file = os.path.join(out_dir, gtdb_filename)
+                    shutil.copy(gene_file, out_file)
+
+                if gene_nt:
+                    gene_file = os.path.join(dir_prefix, genes_file_location).replace('.faa', '.fna')
+                    if gtdb_header and external_id_prefix != 'U':
+                        gtdb_filename = external_id_prefix + "_" + id_at_source + '_gene.fna'
+                    else:
+                        gtdb_filename = id_at_source + '_gene.fna'
+
+                    out_file = os.path.join(out_dir, gtdb_filename)
+                    shutil.copy(gene_file, out_file)
 
         except GenomeDatabaseError as e:
             raise e
@@ -482,6 +546,9 @@ class GenomeManager(object):
             genome_output_dir = os.path.join(output_dir, external_genome_id)
             if not os.path.exists(genome_output_dir):
                 os.makedirs(genome_output_dir)
+            prodigal_output_dir = os.path.join(genome_output_dir, self.userAnnotationDir)
+            if not os.path.exists(prodigal_output_dir):
+                os.makedirs(prodigal_output_dir)
 
             fasta_target_file = os.path.join(
                 genome_output_dir, external_genome_id + self.genomeFileSuffix)
@@ -490,7 +557,7 @@ class GenomeManager(object):
             genes_target_file = None
             if abs_gene_path:
                 genes_target_file = os.path.join(
-                    output_dir, external_genome_id, external_genome_id + self.proteinFileSuffix)
+                    genome_output_dir, external_genome_id + self.proteinFileSuffix)
                 shutil.copy(abs_gene_path, genes_target_file)
 
             genomic_files[genome_id] = {"checkm_bin_id": os.path.splitext(os.path.basename(abs_fasta_path))[0],
@@ -743,14 +810,6 @@ class GenomeManager(object):
 
         return study_id
 
-    # TODO: This should not be here, techincally the backend is agnostic so
-    # shouldn't assume command line.
-    def _confirm(self, msg):
-        raw = raw_input(msg + " (y/N): ")
-        if raw.upper() == "Y":
-            return True
-        return False
-
     def deleteGenomes(self, batchfile=None, db_genome_ids=None, reason=None):
         '''
         Delete Genomes
@@ -781,7 +840,7 @@ class GenomeManager(object):
                     "Unable to delete genomes. Insufficient permissions.")
 
             if db_genome_ids:
-                if not self._confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(db_genome_ids)):
+                if not confirm("Are you sure you want to delete %i genomes (this action cannot be undone)" % len(db_genome_ids)):
                     raise GenomeDatabaseError("User aborted database action.")
 
                 self.cur.execute("DELETE FROM aligned_markers " +
@@ -799,6 +858,10 @@ class GenomeManager(object):
                 self.cur.execute("DELETE FROM metadata_nucleotide " +
                                  "WHERE id IN %s", (tuple(db_genome_ids),))
                 self.cur.execute("DELETE FROM metadata_taxonomy " +
+                                 "WHERE id IN %s", (tuple(db_genome_ids),))
+                self.cur.execute("DELETE FROM metadata_rna " +
+                                 "WHERE id IN %s", (tuple(db_genome_ids),))
+                self.cur.execute("DELETE FROM metadata_rrna_sequences " +
                                  "WHERE id IN %s", (tuple(db_genome_ids),))
 
                 self.cur.execute("DELETE FROM genomes " +
@@ -1018,7 +1081,7 @@ class GenomeManager(object):
         return result_ids
 
     def printGenomeDetails(self, genome_id_list):
-        """Print genome details.
+        """Print database details of genomes.
 
         Parameters
         ----------
@@ -1061,6 +1124,42 @@ class GenomeManager(object):
 
         return header, rows
 
+    def printGenomeStats(self, genome_id_list, stat_fields):
+        """Print statistics details of genomes.
+
+        Parameters
+        ----------
+        genome_id_list : iterable
+            Unique identifier of genomes in database.
+
+        Returns
+        -------
+        list
+            Column headers.
+        list
+            Content for each row.
+        """
+
+        try:
+            if not genome_id_list:
+                raise GenomeDatabaseError(
+                    "Unable to print genomes. No genomes found.")
+
+            stat_fields = ['id', 'accession'] + stat_fields
+            stat_fields_str = ','.join(stat_fields)
+
+            self.cur.execute("SELECT " + stat_fields_str + " FROM metadata_view " +
+                             "WHERE id in %s", (tuple(genome_id_list),))
+
+            rows = []
+            for d in self.cur:
+                rows.append(d[1:])
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return stat_fields[1:], rows
+
     def exportSSUSequences(self, output_file):
         '''
         Exports all SSU sequences from GTDB to a fasta file.
@@ -1069,14 +1168,55 @@ class GenomeManager(object):
         :param path: Path to the output file
         '''
         try:
-            self.cur.execute("SELECT genome, gtdb_taxonomy,ms.ssu_gg_2013_08_query_id,ms.ssu_gg_2013_08_sequence FROM metadata_view " +
-                             "LEFT JOIN metadata_ssu ms USING (id) " +
-                             "WHERE ms.ssu_gg_2013_08_sequence is not NULL")
+            self.cur.execute("SELECT accession, gtdb_taxonomy, mr.ssu_query_id, mr.ssu_length, mr.ssu_contig_len, ms.ssu_sequence FROM metadata_view " +
+                             "LEFT JOIN metadata_rna mr USING (id) " +
+                             "LEFT JOIN metadata_rrna_sequences ms USING (id) " +
+                             "WHERE ms.ssu_sequence is not NULL")
 
             fout = open(output_file, 'w')
-            for genome, taxonomy, query, sequence in self.cur.fetchall():
-                fout.write('>{0}|{1} {2}\n'.format(genome, query, taxonomy))
+            for genome, taxonomy, query, gene_len, contig_len, sequence in self.cur.fetchall():
+                fout.write('>{0}~{1} {2} {3} {4}\n'.format(genome, query, taxonomy, gene_len, contig_len))
                 fout.write('{0}\n'.format(sequence))
+            fout.close()
+            print 'Export successful'
+        except GenomeDatabaseError as e:
+            raise e
+
+    def exportLSUSequences(self, output_file):
+        '''
+        Exports all LSU sequences from GTDB to a FASTA file.
+        The format of the sequence header will follow the format :><genome_id>~<contig_id> <gtdb_taxonomy>
+
+        :param path: Path to the output file
+        '''
+        try:
+            self.cur.execute("SELECT accession, gtdb_taxonomy, mr.lsu_23s_query_id, mr.lsu_23s_length, mr.lsu_23s_contig_len, ms.lsu_23s_sequence FROM metadata_view " +
+                             "LEFT JOIN metadata_rna mr USING (id) " +
+                             "LEFT JOIN metadata_rrna_sequences ms USING (id) " +
+                             "WHERE ms.lsu_23s_sequence is not NULL")
+
+            fout = open(output_file, 'w')
+            for genome, taxonomy, query, gene_len, contig_len, sequence in self.cur.fetchall():
+                fout.write('>{0}~{1} {2} {3} {4}\n'.format(genome, query, taxonomy, gene_len, contig_len))
+                fout.write('{0}\n'.format(sequence))
+            fout.close()
+            print 'Export successful'
+        except GenomeDatabaseError as e:
+            raise e
+
+    def exportReps(self,output_file):
+        '''
+        Exports all representatives genomes from GTDB and the cluster of genomes associated with each to a TSV file.
+
+        :param path: Path to the output file
+        '''
+        try:
+            self.cur.execute("SELECT accession,gtdb_clustered_genomes from metadata_view WHERE gtdb_representative is TRUE")
+
+            fout = open(output_file, 'w')
+            fout.write('representative\tclustered_genomes\n')
+            for genome, gtdb_clustered_genomes in self.cur.fetchall():
+                fout.write('{0}\t{1}\n'.format(genome, gtdb_clustered_genomes))
             fout.close()
             print 'Export successful'
         except GenomeDatabaseError as e:

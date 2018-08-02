@@ -36,6 +36,8 @@ import argparse
 import traceback
 from collections import namedtuple, defaultdict
 
+csv.field_size_limit(sys.maxsize)
+
 
 class TypeStrainTable(object):
   """Create type strain metadata table."""
@@ -62,7 +64,7 @@ class TypeStrainTable(object):
     for row in csv_reader:
       if bHeader:
         taxid_index = row.index('ncbi_taxid')
-        genome_index = row.index('genome')
+        genome_index = row.index('accession')
         bHeader = False
       else:
         genome_id = row[genome_index]
@@ -70,6 +72,8 @@ class TypeStrainTable(object):
 
         if taxid in type_strain_taxids:
           fout.write('%s\t%s\n' % (genome_id, 'yes'))
+        else:
+          fout.write('%s\t%s\n' % (genome_id, 'no'))
 
     fout.close()
 
