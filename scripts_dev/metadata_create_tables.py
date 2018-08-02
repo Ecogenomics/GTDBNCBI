@@ -103,7 +103,6 @@ class MetadataTable(object):
                 line_split = line.split('\t')
                 fout.write('\t' + line_split[0].strip())
             fout.write('\n')
-
         fout.write(genome_id)
         for line in open(metadata_gene_file):
             line_split = line.split('\t')
@@ -165,8 +164,6 @@ class MetadataTable(object):
                             headers[n]='ssu_contig_len'
 
                 fout.write('\t' + '\t'.join(headers)+"\n")
-                
-                
 
             # Check the CheckM headers are consistent
             split_headers = header_line.rstrip().split("\t")
