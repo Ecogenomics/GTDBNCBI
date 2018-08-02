@@ -73,16 +73,21 @@ class StandardizedTaxonomy(object):
                 else:
                     canonical_taxonomy[Taxonomy.rank_prefixes.index(rank_prefix)] = taxon
                 
-        # fill in missing ranks where possible
+        #fill in missing ranks where possible
+        if assembly_accesssion == 'GCF_001567725.1':
+            print canonical_taxonomy
         if canonical_taxonomy:
             for i in xrange(0, max(canonical_taxonomy.keys())):
-                if i in canonical_taxonomy and (i+1) not in canonical_taxonomy:
-                    taxon = canonical_taxonomy[i][3:]
-                    if taxon[0] == '{':
-                        canonical_taxonomy[i+1] = Taxonomy.rank_prefixes[i+1] + taxon.replace(Taxonomy.rank_labels[i]+'}', 
-                                                                                                Taxonomy.rank_labels[i+1]+'}')
-                    else:
-                        canonical_taxonomy[i+1] = Taxonomy.rank_prefixes[i+1] + '{undefined %s %s}' % (taxon, Taxonomy.rank_labels[i+1])
+                if i in canonical_taxonomy  and (i+1) not in canonical_taxonomy:
+                    canonical_taxonomy[i+1] = Taxonomy.rank_prefixes[i+1]
+                    #===========================================================
+                    # taxon = canonical_taxonomy[i][3:]
+                    # if taxon[0] == '{':
+                    #     canonical_taxonomy[i+1] = Taxonomy.rank_prefixes[i+1] + taxon.replace(Taxonomy.rank_labels[i]+'}', 
+                    #                                                                             Taxonomy.rank_labels[i+1]+'}')
+                    # else:
+                    #     canonical_taxonomy[i+1] = Taxonomy.rank_prefixes[i+1] + '{undefined %s %s}' % (taxon, Taxonomy.rank_labels[i+1])
+                    #===========================================================
 
         cur_taxonomy = []
         for i in xrange(0, len(Taxonomy.rank_prefixes)):

@@ -67,15 +67,19 @@ class RunCheckm(object):
         os.makedirs(output_dir)
         
         # get list of genomes to consider
-        if genome_report != 'None':
+        if genome_report.lower() != 'none':
             genomes_to_consider = set()
             for line in open(genome_report):
                 line_split = line.strip().split('\t')
-                if line_split[2] == 'new' or line_split[2] == 'modified' or line_split[2] == 'prokka;new':
-                    genomes_to_consider.add(line_split[1])
-                    
-            print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
+                genome_id = line_split[1]
                 
+                attributes = line_split[2].split(';')
+                for attribute in attributes:
+                    if attribute == 'new' or attribute == 'modified':
+                        genomes_to_consider.add(genome_id)
+
+            print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
+
         # determine gene files
         gene_files = []
         assembly_ids = {}
@@ -97,7 +101,7 @@ class RunCheckm(object):
 
               assembly_ids[assembly_id] = assembly_dir
 
-              gene_file = os.path.join(assembly_dir, assembly_id + '_protein.faa') 
+              gene_file = os.path.join(assembly_dir, 'prodigal', genome_id + '_protein.faa')
               if os.path.exists(gene_file):
                 if os.stat(gene_file).st_size == 0:
                     print '[Warning] Protein file appears to be empty: %s' % gene_file
@@ -107,8 +111,6 @@ class RunCheckm(object):
         print '  Identified %d gene files.' % len(gene_files)
 
         # copy genomes in batches of 1000
-        #ambiguous_aa = maketrans('BJZ', 'XXX')
-        
         print 'Partitioning genomes into chunks of 1000.'
         num_chunks = 0
         for i, gene_file in enumerate(gene_files):
@@ -117,13 +119,6 @@ class RunCheckm(object):
             print chunk_dir
             os.makedirs(chunk_dir)
             num_chunks += 1
-
-          # copy sequences and replace ambiguous bases with an X (unknown)
-          # as pplacer is not compatible with these characters
-          #fout = open(os.path.join(chunk_dir, ntpath.basename(gene_file)), 'w')
-          #for seq_id, seq, annotation in  seq_io.read_seq(gene_file, True):
-          #    fout.write('>' + seq_id + ' ' + annotation + '\n')
-          #    fout.write(seq.translate(ambiguous_aa) + '\n')
           
           shutil.copy(gene_file, os.path.join(chunk_dir, ntpath.basename(gene_file)))
     else:
@@ -144,7 +139,7 @@ class RunCheckm(object):
         continue
 
       os.makedirs(checkm_output_dir)
-      os.system('checkm lineage_wf --pplacer_threads 10 --genes -x faa -t %d %s %s' % (cpus, bin_dir, checkm_output_dir))
+      os.system('checkm lineage_wf --pplacer_threads %d --genes -x faa -t %d %s %s' % (cpus, cpus, bin_dir, checkm_output_dir))
 
       tree_qa_file = os.path.join(checkm_output_dir, 'tree_qa.o2.chunk%d.tsv' % i)
       os.system('checkm tree_qa -o 2 --tab_table -f %s %s' % (tree_qa_file, checkm_output_dir))

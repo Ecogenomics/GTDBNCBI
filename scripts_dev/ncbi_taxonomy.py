@@ -47,6 +47,27 @@ class TaxonomyNCBI(object):
 
     self.bacterial_division = '0'
     self.unassigned_division = '8'
+    
+  def _assembly_organism_name(self, assembly_metadata_file, output_organism_name_file):
+    """Parse out organism name for each genome."""
+    
+    fout = open(output_organism_name_file, 'w')
+    with open(assembly_metadata_file) as f:
+        f.readline()
+        header = f.readline().strip().split('\t')
+        org_name_index = header.index('organism_name')
+        
+        for line in f:
+            line_split = line.strip().split('\t')
+            
+            gid = line_split[0]
+            if gid.startswith('GCA_'):
+                gid = 'GB_' + gid
+            else:
+                gid = 'RS_' + gid
+            org_name = line_split[org_name_index]
+            fout.write('%s\t%s\n' % (gid, org_name))
+    fout.close()
 
   def _assembly_to_tax_id(self, assembly_metadata_file):
     """Determine taxonomic identifier for each assembly.
@@ -64,18 +85,17 @@ class TaxonomyNCBI(object):
 
     d = {}
     with open(assembly_metadata_file) as f:
-      headers = f.readline().split('\t')
-	
+      headers = f.readline().strip().split('\t')
       try:
       	taxid_index = headers.index('taxid')
       except:
-	# look for taxid on the next line as NCBI sometimes puts
-	# an extra comment on the first line
+        # look for taxid on the next line as NCBI sometimes puts
+        #an extra comment on the first line
         headers = f.readline().split('\t')
         taxid_index = headers.index('taxid')
 
       for line in f:
-        line_split = line.split('\t')
+        line_split = line.strip().split('\t')
         assembly_accession = line_split[0]
         taxid = line_split[taxid_index]
 
@@ -143,8 +163,11 @@ class TaxonomyNCBI(object):
 
     return d
 
-  def run(self, taxonomy_dir, assembly_metadata_file, output_file):
+  def run(self, taxonomy_dir, assembly_metadata_file, output_taxonomy_file, output_organism_name_file):
     """Read NCBI taxonomy information and create summary output files."""
+    
+    # parse organism name
+    self._assembly_organism_name(assembly_metadata_file, output_organism_name_file)
 
     # parse metadata file and taxonomy files
     assembly_to_tax_id = self._assembly_to_tax_id(assembly_metadata_file)
@@ -156,7 +179,7 @@ class TaxonomyNCBI(object):
     print 'Read %d name records.' % len(name_records)
 
     # traverse taxonomy tree for each assembly
-    fout = open(output_file, 'w')
+    fout = open(output_taxonomy_file, 'w')
 
     print 'Number of assemblies: %d' % len(assembly_to_tax_id)
     for assembly_accession, tax_id in assembly_to_tax_id.iteritems():
@@ -205,7 +228,8 @@ class TaxonomyNCBI(object):
     fout.close()
 
     print ''
-    print 'Taxonomy information for assemblies written to: %s' % output_file
+    print 'Organism name information for assemblies written to: %s' % output_organism_name_file
+    print 'Taxonomy information for assemblies written to: %s' % output_taxonomy_file
 
 if __name__ == '__main__':
   print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
@@ -214,13 +238,14 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('taxonomy_dir', help='directory containing NCBI taxonomy files')
   parser.add_argument('assembly_metadata_file', help='file with metadata for each assembly obtain from NCBI FTP site')
-  parser.add_argument('output_file', help='output taxonomy file')
+  parser.add_argument('output_taxonomy_file', help='output taxonomy file')
+  parser.add_argument('output_organism_name_file', help='output taxonomy file')
 
   args = parser.parse_args()
 
   try:
     p = TaxonomyNCBI()
-    p.run(args.taxonomy_dir, args.assembly_metadata_file, args.output_file)
+    p.run(args.taxonomy_dir, args.assembly_metadata_file, args.output_taxonomy_file, args.output_organism_name_file)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:

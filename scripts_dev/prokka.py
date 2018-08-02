@@ -58,8 +58,6 @@ class Prokka(object):
     check_dependencies(['prokka'])
 
     self.genome_file_ext = '_genomic.fna'
-    self.protein_aa_file_ext = '_protein.faa'
-    self.protein_nt_file_ext = '_protein.fna'
 
   def __workerThread(self, domain, queueIn, queueOut):
     """Process each data item in parallel."""
@@ -88,15 +86,6 @@ class Prokka(object):
       fout.write(checksum)
       fout.close()
       
-      # copy files
-      protein_nt_file = os.path.join(output_dir, prefix + '.ffn')
-      output_file = os.path.join(assembly_dir, prefix + self.protein_nt_file_ext)
-      copyfile(protein_nt_file, output_file)
-      
-      protein_aa_file = os.path.join(output_dir, prefix + '.faa')
-      output_file = os.path.join(assembly_dir, prefix + self.protein_aa_file_ext)
-      copyfile(protein_aa_file, output_file)
-      
       # allow results to be processed or written to file
       queueOut.put(genome_file)
 
@@ -115,7 +104,18 @@ class Prokka(object):
 
     sys.stdout.write('\n')
 
-  def run(self, genome_dir, domain, threads):
+  def run(self, genome_dir, domain, genome_list, threads):
+    genomes_to_process = None
+    if genome_list:
+        genomes_to_process = set()
+        for line in open(genome_list):
+            line_split = line.strip().split('\t')
+            genome_id = line_split[0]
+            if genome_id.startswith('GB_') or genome_id.startswith('RS_'):
+                genome_id = genome_id[3:]
+                
+            genomes_to_process.add(genome_id)
+  
     # get path to all unprocessed genome gene files
     print 'Reading genomes.'
     genome_files = []
@@ -125,8 +125,8 @@ class Prokka(object):
         for assembly_id in os.listdir(cur_genome_dir):
           assembly_dir = os.path.join(cur_genome_dir, assembly_id)
           
-          protein_file = os.path.join(assembly_dir, assembly_id + self.protein_aa_file_ext)
-          if os.path.exists(protein_file):
+          genome_id = assembly_id[0:assembly_id.find('_', 4)]
+          if genomes_to_process and genome_id not in genomes_to_process:
             continue
 
           prokka_dir = os.path.join(assembly_dir, 'prokka')
@@ -186,13 +186,14 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('genome_dir', help='directory containing genomes in individual directories')
   parser.add_argument('domain', help='domain to use for annotation by Prokka (e.g., Archaea, Bacteria)')
+  parser.add_argument('--genome_list', help='restrict to genomes in provided list')
   parser.add_argument('-t', '--threads', type=int, help='number of threads', default=1)
 
   args = parser.parse_args()
 
   try:
     p = Prokka()
-    p.run(args.genome_dir, args.domain, args.threads)
+    p.run(args.genome_dir, args.domain, args.genome_list, args.threads)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:

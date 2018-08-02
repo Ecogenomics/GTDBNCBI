@@ -1,9 +1,67 @@
-software_version=1.3.0
-ncbi_database_version=release 76
-gtdb_version=1.2.0
+software_version=2.2.2
+ncbi_database_version=release 86
+gtdb_version=1.3.1
+taxonomy_version=v86.0
 
-GTDB versions
--------------
+GTDB software versions
+----------------------
+v2.2.2 (April 04, 2018):
+- Bug fixes
+v2.2.1 (November 21, 2017):
+- Updated code to match the gtdb release83 Database changes
+- The code is not compatible with previous version of the database
+v2.1.15 (August 25, 2017):
+- added '--gauranteed_taxa_filter' flag
+v2.1.14 (August 25, 2017):
+- Updated TreeManager to append MIMAG quality information to ARB metadata file
+- added 5S LSU and tRNA information to the database (changed gtdb_version to 1.2.9 to reflect this)
+v2.1.13 (June 7, 2017):
+- Updated database with revised UBA genomes
+- Updated representatives in r80 to reflect revised UBA genomes
+- Updated gtdb_version to 1.2.8 to reflect these database changes
+v2.1.12 (April 28, 2017):
+- Possibility to Export Metadata in TAB format
+- Connection to previous databases available
+- Users have now Firstname and Lastname
+- Bug Fixes
+- Guaranteed genome lists return Warning  
+v2.1.11 (April 4, 2017):
+- Starting using R80
+v2.1.10 (March 22, 2017):
+- updated to final release of GTDB taxonomy
+v2.1.9 (March 7, 2016):
+- updates to interface required for GeneDB
+v2.1.8 (Dec. 19, 2016):
+- bug fixes
+v2.1.7 (Dec. 9, 2016):
+- starting with RefSeq r78 User genomes were no longer eligable to be GTDB representatives
+- updated CLI and code to reflect absence of User representative genomes 
+v2.1.6 (Oct. 27, 2016):
+- added ability to pull genes in nucleotide space
+v2.1.5 (Oct. 27, 2016):
+- changed criteria for filtering representatives from MSA
+v2.1.4 (Sept. 26, 2016):
+- added lsu_export to genomes CLI
+- modified name of files produced by pull command in genomes CLI
+- add rRNA gene length and contig length to header of SSU and LSU FASTA files
+v2.1.3 (Sept. 19, 2016):
+- permitted filtering of representative genomes
+- filtering of representatives is now indicated as a warning and in filtering log
+- added msa_gene_count, msa_num_marker_genes, msa_aa_count, msa_length to ARB metadata file
+- modifications to support storing LSU and SSU data
+v2.1.2 (July 29, 2016):
+- improved method for automatically assigning genomes to a domain
+- added domain_report method to power menu for reporting results of automatic domain assignment
+v2.1.1 (July 26, 2016):
+- genome quality filtering can now be done with any weighting factor
+- improved reporting of genomes filtered during tree creation
+- add flag to specify gauranteed genomes via a batchfile
+v2.1.0 (July 15, 2016):
+- new flag : --sra-donovan-representatives
+- new taxa_filter behaviour to remove data
+v2.0.0 (July 07, 2016):
+- The annotations are now store in a separated folder ( prodigal)
+- Addition of new Config variables (NCBI_ANNOTATION_DIR and USER_ANNOTATION_DIR)
 v1.3.0 (June 16,2016):
 - Trimming on column is based on 50%PA+25%consensus filter
 - New tree creation parameter: --consensus 
@@ -35,3 +93,45 @@ v0.0.2 (Feb. 24, 2016):
 - update GTDB taxonomy fields
 v0.0.1:
 - initial release
+
+GTDB database versions
+----------------------
+v1.3.1 (November 21, 2017):
+- addition of ncbi_taxonomy_unfiltered field in the metadata_taxonomy table,
+- creation of dsmz_genera,dsmz_species,dsmz_strains,straininfo_strains tables
+- removal of the gtdb_taxonomy field,
+- renaming of genomes to accession,
+- creation of the mimag function,
+- renaming of the lsu,ssu fields,
+- renaming of metadata_sequences to metadata_rrna_sequences
+v1.2.7 (April 28, 2017):
+- firstname and lastname columns in users table
+v1.2.6 (April 4, 2017):
+- New representative Set
+- Official release for R80
+v1.2.5 (December 19, 2016):
+- New representative Set
+- Official release for R78
+v1.2.4 (October 10, 2016):
+- New parsed metadata in the database
+- New table metadata_sequence
+- metadata_ssu renamed to metadata_rna
+v1.2.3 (July 30, 2016):
+- New representative Set
+v1.2.2 (July 13, 2016):
+- Updated bacterial taxonomy to final version for r75
+v1.2.1 (July 07, 2016):
+-Update path to gene file
+-New representative Set
+-Reassignement of User genomes to reps (starting from 31st of May 2016)
+
+Taxonomy versions
+----------------------
+v86.0 (April 03, 2017):
+- V83.final propagated to Release 86
+v83.0 (November 21, 2017):
+- V80.final propagated to Release 83
+v80.0 (April 4, 2017):
+- V78.final propagated to Release 80
+v78.0 (December 19, 2016):
+- V76.final propagated to Release 78

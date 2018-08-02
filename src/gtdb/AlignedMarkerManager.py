@@ -35,7 +35,7 @@ from biolib.seq_io import read_fasta
 class AlignedMarkerManager(object):
     ''''Manage the processing of Aligned Markers and querying marker information.'''
 
-    def __init__(self, cur, threads):
+    def __init__(self, cur, threads, release):
         """Initialize.
 
         Parameters
@@ -48,6 +48,7 @@ class AlignedMarkerManager(object):
 
         self.logger = logging.getLogger()
         self.threads = threads
+        self.release = release
 
         # self.conn = GenomeDatabaseConnection()
         # self.conn.MakePostgresConnection()
@@ -69,10 +70,10 @@ class AlignedMarkerManager(object):
         '''
 
         self.logger.info('Aligning marker genes not already in the database.')
-        return True
+        # return True
 
         # We need to rebuild the path to each
-        genome_dirs_query = ("SELECT g.id, g.fasta_file_location,gs.external_id_prefix "
+        genome_dirs_query = ("SELECT g.id, g.genes_file_location,gs.external_id_prefix "
                              "FROM genomes g " +
                              "LEFT JOIN genome_sources gs ON gs.id = g.genome_source_id " +
                              "WHERE g.id in %s")
@@ -127,7 +128,7 @@ class AlignedMarkerManager(object):
         '''
 
         temp_con = GenomeDatabaseConnection()
-        temp_con.MakePostgresConnection()
+        temp_con.MakePostgresConnection(self.release)
         temp_cur = temp_con.cursor()
 
         # gather information for all marker genes
@@ -160,12 +161,18 @@ class AlignedMarkerManager(object):
             # get all gene sequences
             genome_path = str(path)
             tophit_path = genome_path.replace(
-                self.genome_file_suffix, marker_suffix)
+                self.protein_file_suffix, marker_suffix)
 
             # we load the list of all the genes detected in the genome
             protein_file = tophit_path.replace(
                 marker_suffix, self.protein_file_suffix)
             all_genes_dict = read_fasta(protein_file, False)
+
+            # Prodigal adds an asterisks at the end of each called genes,
+            # These asterisks sometimes appear in the MSA, which can be an issue for some softwares downstream
+            for seq_id, seq in all_genes_dict.iteritems():
+                if seq[-1] == '*':
+                    all_genes_dict[seq_id] = seq[:-1]
 
             # we store the tophit file line by line and store the
             # information in a dictionary

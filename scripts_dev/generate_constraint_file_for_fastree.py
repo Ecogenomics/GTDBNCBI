@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/python
+
 
 ###############################################################################
 #                                                                             #
@@ -17,55 +18,64 @@
 #                                                                             #
 ###############################################################################
 
-__prog_name__ = 'taxonomy_fill.py'
-__prog_desc__ = 'Ensure all taxonomy strings contain all 7 ranks.'
-
-__author__ = 'Donovan Parks'
-__copyright__ = 'Copyright 2015'
-__credits__ = ['Donovan Parks']
-__license__ = 'GPL3'
-__version__ = '0.0.2'
-__maintainer__ = 'Donovan Parks'
-__email__ = 'donovan.parks@gmail.com'
-__status__ = 'Development'
-
 import os
 import sys
 import argparse
 
-from biolib.taxonomy import Taxonomy 
+from biolib.seq_io import read_fasta
+
+__prog_name__ = 'generate_constraint_file_for_fasttree.py'
+__prog_desc__ = 'Generate a constraint File for Fasttree .'
+
+__author__ = 'Pierre Chaumeil'
+__copyright__ = 'Copyright 2017'
+__credits__ = ['Pierre Chaumeil']
+__license__ = 'GPL3'
+__version__ = '0.0.1'
+__maintainer__ = 'Pierre Chaumeil'
+__email__ = 'uqpchaum@uq.edu.au.au'
+__status__ = 'Development'
 
 
-class TaxonomyFill(object):
+class Constraintgenerator(object):
+    def __init__(self):
+        pass
 
-  def __init__(self):
-    pass
+    def run(self,msa_file,constraint_dir,outfile):
+        msa_dict = read_fasta(msa_file)
+        outdict = dict((key, []) for key in msa_dict.iterkeys())
+        onlyfiles = [os.path.join(constraint_dir, f) for f in os.listdir(constraint_dir) if os.path.isfile(os.path.join(constraint_dir, f))]
+        for constraintfile in onlyfiles:
+            constraintlist = []
+            with open(constraintfile) as f:
+                for line in f:
+                    constraintlist.append(line.strip())
+                for k,v in outdict.iteritems():
+                    if k in constraintlist:
+                        outdict.get(k).append('1')
+                    else:
+                        outdict.get(k).append('0')
+        outf = open(outfile,'w')
+        for outk,outval in outdict.iteritems():
+            outf.write(">{0}\n{1}\n".format(outk,''.join(outval)))
+        outf.close()
 
-  def run(self, input_taxonomy, output_taxonomy):
-    fout = open(output_taxonomy, 'w')
 
-    taxonomy = Taxonomy()
-    t = taxonomy.read(input_taxonomy)
-      
-    for genome_id, taxon_list in t.iteritems():
-        full_taxon_list = taxonomy.fill_missing_ranks(taxon_list)
-        fout.write('%s\t%s\n' % (genome_id, ';'.join(full_taxon_list)))
-        
-    fout.close()
-          
 if __name__ == '__main__':
   print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
   print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  parser.add_argument('input_taxonomy', help='input taxonomy file')
-  parser.add_argument('output_taxonomy', help='output taxonomy file')
+  parser.add_argument('--msa_file', help = 'msa file ' )
+  parser.add_argument('--constraint_dir', help='directory of all files listing a constraint for Fasttree.')
+  parser.add_argument('--outfile', help='Output file.')
+
 
   args = parser.parse_args()
 
   try:
-    p = TaxonomyFill()
-    p.run(args.input_taxonomy, args.output_taxonomy)
+    p = Constraintgenerator()
+    p.run(args.msa_file,args.constraint_dir,args.outfile)
   except SystemExit:
     print "\nControlled exit resulting from an unrecoverable error or warning."
   except:

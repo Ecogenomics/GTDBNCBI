@@ -51,14 +51,19 @@ class UpdateRefSeqFolder(object):
 
         self.genomic_ext = "_genomic.fna.gz"
         self.protein_ext = "_protein.faa.gz"
+        self.cds_ext = "_cds_from_genomic.fna.gz"
+        self.rna_ext = "_rna_from_genomic.fna.gz"
+
         self.fastaExts = (self.genomic_ext, self.protein_ext)
+        self.extrafastaExts = (self.cds_ext, self.rna_ext)
+
         self.extensions = ("_feature_table.txt.gz", "_genomic.gbff.gz",
                            "_genomic.gff.gz", "_protein.gpff.gz", "_wgsmaster.gbff.gz")
-        self.reports = ("_assembly_report.txt", "_assembly_stats.txt")
+        self.reports = ("_assembly_report.txt", "_assembly_stats.txt", "_hashes.txt")
         self.allExts = self.fastaExts + self.extensions + self.reports
         self.allbutFasta = self.extensions + self.reports
 
-        self.report_gcf = open(os.path.join(new_refseq_folder, "report_gcf.log"), "w")
+        self.report_gcf = open(os.path.join(new_refseq_folder, "report_gcf.log"), "w", 1)
         self.stats_update = open(os.path.join(new_refseq_folder, "stats_update.log"), "w")
 
     def runComparison(self, ftp_refseq, new_refseq, ftp_genome_dirs, old_genome_dirs):
@@ -124,7 +129,7 @@ class UpdateRefSeqFolder(object):
             target_dir = added_dict[gcf_record].replace(ftp_refseq, new_refseq).replace(
                 "/latest_assembly_versions", "")
             shutil.copytree(added_dict[
-                            gcf_record], target_dir, ignore=shutil.ignore_patterns("*_assembly_structure"))
+                            gcf_record], target_dir, symlinks=True, ignore=shutil.ignore_patterns("*_assembly_structure"))
             self.report_gcf.write(
                 "{0}\t{1}\tnew\n".format(domain.upper(), gcf_record))
             for compressed_file in glob.glob(target_dir + "/*.gz"):
@@ -174,14 +179,14 @@ class UpdateRefSeqFolder(object):
         target_pathnewmd5 = os.path.join(target_dir, "md5checksums.txt")
         status = []
 
-        ftpdict, ftpdict_fasta = self.parse_checksum(pathftpmd5)
-        gtdbdict, gtdbdict_fasta = self.parse_checksum(pathgtdbmd5)
+        ftpdict, ftpdict_fasta, ftpdict_extra_fasta = self.parse_checksum(pathftpmd5)
+        gtdbdict, gtdbdict_fasta, gtdbdict_extra_fasta = self.parse_checksum(pathgtdbmd5)
 
         # if the genomic.fna.gz or the protein.faa.gz are missing, we set this
         # record as incomplete
         if len(list(set(ftpdict_fasta.keys()).symmetric_difference(set(gtdbdict_fasta.keys())))) > 0:
             status.append("incomplete")
-            shutil.copytree(ftp_dir, target_dir, ignore=shutil.ignore_patterns("*_assembly_structure"))
+            shutil.copytree(ftp_dir, target_dir, symlinks=True, ignore=shutil.ignore_patterns("*_assembly_structure"))
             # we unzip of gz file
             for compressed_file in glob.glob(target_dir + "/*.gz"):
                 if os.path.isdir(compressed_file) == False:
@@ -200,13 +205,13 @@ class UpdateRefSeqFolder(object):
             for key, value in ftpdict_fasta.iteritems():
                 if value != gtdbdict_fasta.get(key):
                     ftp_folder = True
-                print gcf_record + "\t" + key + "\t" + gtdbdict_fasta.get(key)
+                print gcf_record + "\t" + key + "\tOLD:" + gtdbdict_fasta.get(key) + "\tNEW:" + ftpdict_fasta.get(key)
             # if one of the 2 files is different than the previous version , we
             # use the ftp record over the previous gtdb one , we then need to
             # re run the metadata generation
             if ftp_folder:
                 shutil.copytree(
-                    ftp_dir, target_dir,
+                    ftp_dir, target_dir, symlinks=True,
                     ignore=shutil.ignore_patterns("*_assembly_structure"))
                 status.append("modified")
                 # we unzip of gz file
@@ -224,7 +229,7 @@ class UpdateRefSeqFolder(object):
                 # The 2 main fasta files haven't changed so we can copy the old
                 # gtdb folder over
                 shutil.copytree(
-                    gtdb_dir, target_dir,
+                    gtdb_dir, target_dir, symlinks=True,
                     ignore=shutil.ignore_patterns("*_assembly_structure"))
                 status.append("unmodified")
 
@@ -251,6 +256,28 @@ class UpdateRefSeqFolder(object):
                             outF.close()
                             os.remove(os.path.join(target_dir, key))
                         status.append("new_metadata")
+
+                for key, value in ftpdict_extra_fasta.iteritems():
+                    if value != gtdbdict_extra_fasta.get(key):
+                        checksum_changed = True
+
+                        shutil.copy2(
+                            os.path.join(ftp_dir, key), os.path.join(target_dir, key))
+                        if key.endswith(".gz"):
+                            inF = gzip.open(os.path.join(ftp_dir, key), 'rb')
+                            try:
+                                outF = open(
+                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 'wb')
+                            except IOError:
+                                os.chmod(
+                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 0o775)
+                                outF = open(
+                                    self.rreplace(os.path.join(target_dir, key), ".gz", "", 1), 'wb')
+                            outF.write(inF.read())
+                            inF.close()
+                            outF.close()
+                            os.remove(os.path.join(target_dir, key))
+                        status.append("new_cds_rna")
                 # we copy the new checksum
                 if checksum_changed:
                     try:
@@ -326,18 +353,20 @@ class UpdateRefSeqFolder(object):
         :param md5File:
         '''
 
-        out_dict, out_dict_fasta = {}, {}
+        out_dict, out_dict_fasta, out_dict_extra_fasta = {}, {}, {}
 
         with open(md5File) as f:
             for line in f:
                 split_line = line.rstrip().split("  ")
                 header = split_line[1].replace("./", "")
                 chksum = split_line[0]
-                if header.endswith(self.fastaExts):
+                if header.endswith(self.extrafastaExts):
+                    out_dict_extra_fasta[header] = chksum
+                elif header.endswith(self.fastaExts):
                     out_dict_fasta[header] = chksum
-                if header.endswith(self.allbutFasta):
+                elif header.endswith(self.allbutFasta):
                     out_dict[header] = chksum
-        return (out_dict, out_dict_fasta)
+        return (out_dict, out_dict_fasta, out_dict_extra_fasta)
 
 
 if __name__ == "__main__":

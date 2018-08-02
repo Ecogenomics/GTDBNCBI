@@ -20,7 +20,7 @@ import logging
 import psycopg2
 from psycopg2.extensions import AsIs
 
-import Tools
+from Tools import generateTempTableName, confirm
 from Exceptions import GenomeDatabaseError
 
 
@@ -42,14 +42,6 @@ class GenomeListManager(object):
 
         self.cur = cur
         self.currentUser = currentUser
-
-    # TODO: This should not be here, technically the backend is agnostic so
-    # shouldn't assume command line.
-    def _confirm(self, msg):
-        raw = raw_input(msg + " (y/N): ")
-        if raw.upper() == "Y":
-            return True
-        return False
 
     def addGenomeList(self, genome_id_list, name, description, owner_id=None, private=None):
         """Creates a new genome list in the database.
@@ -148,7 +140,7 @@ class GenomeListManager(object):
                 self.cur.execute("UPDATE genome_lists SET " + ",".join(update_query) +
                                  " WHERE id = %s", params + [genome_list_id])
 
-            temp_table_name = Tools.generateTempTableName()
+            temp_table_name = generateTempTableName()
 
             if operation is not None:
                 if len(genome_ids) == 0:
@@ -212,7 +204,7 @@ class GenomeListManager(object):
         '''
         try:
 
-            temp_table_name = Tools.generateTempTableName()
+            temp_table_name = generateTempTableName()
 
             if genome_list_ids:
                 try:
@@ -275,7 +267,7 @@ class GenomeListManager(object):
                     raise GenomeDatabaseError(
                         "Insufficient permissions to delete genome list. Offending list id: {0}".format(genome_list_id))
 
-                if not self._confirm("Are you sure you want to delete {0} lists (this action cannot be undone)".format(len(genome_list_ids))):
+                if not confirm("Are you sure you want to delete {0} lists (this action cannot be undone)".format(len(genome_list_ids))):
                     raise GenomeDatabaseError("User aborted database action.")
 
                 list_genomes_ids = self.getGenomeIdsFromGenomeListIds(

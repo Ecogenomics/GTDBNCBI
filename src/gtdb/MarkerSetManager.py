@@ -21,7 +21,7 @@ import sys
 import psycopg2
 from psycopg2.extensions import AsIs
 
-import Tools
+from Tools import generateTempTableName, confirm
 from Exceptions import GenomeDatabaseError
 
 
@@ -46,12 +46,6 @@ class MarkerSetManager(object):
 
         self.bacCanonicalMarkerSetId = 1
         self.arCanonicalMarkerSetId = 2
-
-    def _confirm(self, msg):
-        raw = raw_input(msg + " (y/N): ")
-        if raw.upper() == "Y":
-            return True
-        return False
 
     def canonicalBacterialMarkers(self):
         """Get identifiers of canonical bacterial markers."""
@@ -91,7 +85,6 @@ class MarkerSetManager(object):
         for marker_id, sequence in self.cur:
             index = marker_id_index[marker_id]
             concatenated_align[index] = sequence
-
         return ''.join(concatenated_align)
 
     def createMarkerSet(self, marker_id_list, name, description, owner_id=None, private=None):
@@ -275,7 +268,7 @@ class MarkerSetManager(object):
                     raise GenomeDatabaseError(
                         "Insufficient permissions to delete marker set. Offending marker set id: {0}".format(marker_set_id))
 
-                if not self._confirm("Are you sure you want to delete {0} set(s) (this action cannot be undone)".format(len(marker_set_ids))):
+                if not confirm("Are you sure you want to delete {0} set(s) (this action cannot be undone)".format(len(marker_set_ids))):
                     raise GenomeDatabaseError("User aborted database action.")
 
                 list_marker_ids = self.getMarkerIdsFromMarkerSetIds(

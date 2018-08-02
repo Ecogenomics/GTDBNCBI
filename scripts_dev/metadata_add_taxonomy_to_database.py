@@ -49,28 +49,13 @@ class AddTaxonomy(object):
     genome_list = set()
     if genome_list_file:
         for line in open(genome_list_file):
-	  if '\t' in line:
-            genome_list.add(line.rstrip().split('\t')[0])
-	  else:
-	    genome_list.add(line.rstrip().split(',')[0])
+            if '\t' in line:
+                genome_list.add(line.rstrip().split('\t')[0])
+            else:
+                genome_list.add(line.rstrip().split(',')[0])
 
     # read taxonomy file
     taxonomy = Taxonomy().read(taxonomy_file)
-
-    # add full taxonomy string to database
-    temp_file = tempfile.NamedTemporaryFile(delete=False)
-    for genome_id, taxa in taxonomy.iteritems():
-      if genome_list_file and genome_id not in genome_list:
-        continue
-
-      taxa_str = ';'.join(taxa)
-      temp_file.write('%s\t%s\n' % (genome_id, taxa_str))
-
-    temp_file.close()
-    cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_taxonomy', 'gtdb_taxonomy', 'TEXT', temp_file.name)
-    print cmd
-    os.system(cmd)
-    os.remove(temp_file.name)
 
     # add each taxonomic rank to database
     for i, rank in enumerate(Taxonomy.rank_labels):
@@ -80,11 +65,6 @@ class AddTaxonomy(object):
           continue
 
         rank_str = taxa[i]
-        if Taxonomy.rank_labels[i] == 'species':
-          # ensure species name includes genus
-          if taxa[i-1][3:] not in taxa[i]:
-            rank_str = 's__' + taxa[i-1][3:] + ' ' + taxa[i][3:]
-
         temp_file.write('%s\t%s\n' % (genome_id, rank_str))
 
       temp_file.close()
