@@ -48,7 +48,7 @@ class AlignedMarkerManager(object):
 
         self.logger = logging.getLogger()
         self.threads = threads
-        self.release = release
+        self.release = releas
 
         # self.conn = GenomeDatabaseConnection()
         # self.conn.MakePostgresConnection()
@@ -61,7 +61,7 @@ class AlignedMarkerManager(object):
         self.genome_file_suffix = ConfigMetadata.GENOME_FILE_SUFFIX
         self.protein_file_suffix = ConfigMetadata.PROTEIN_FILE_SUFFIX
 
-    def calculateAlignedMarkerSets(self, db_genome_ids, marker_ids):
+    def calculateAlignedMarkerSets(self, db_genome_ids, marker_ids)
         '''
         Run Hmmalign for PFAM and TIGRFAM missing markers
 
@@ -152,8 +152,8 @@ class AlignedMarkerManager(object):
                      "AND g.id = %s " +
                      "AND m.id in %s " +
                      "AND md.external_id_prefix like %s")
-            temp_cur.execute(
-                query, (db_genome_id, tuple(marker_ids,), marker_db))
+
+            temp_cur.execute(query, (db_genome_id, tuple(marker_ids,), marker_db))
             raw_results = temp_cur.fetchall()
             marker_dict_original = {
                 a: {"path": b, "size": c, "db_marker_id": d} for a, b, c, d in raw_results}
@@ -321,4 +321,4 @@ class AlignedMarkerManager(object):
             if mask_seq[pos] != 'x':
                 continue
             aligned_marker += hit_seq[pos]
-        return aligned_marker
+        return aligned_marke
