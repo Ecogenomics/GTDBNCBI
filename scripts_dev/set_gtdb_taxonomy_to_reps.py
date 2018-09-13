@@ -149,7 +149,7 @@ class Script():
             assigned_taxonomy += 1
 
         self.logger.info('Assigned %d representatives a consensus taxonomy.' % assigned_taxonomy)
-        
+
         clustered_tax = []
         for gid, rep_id in clustered.iteritems():
             gtdb_taxonomy = reps[rep_id]
