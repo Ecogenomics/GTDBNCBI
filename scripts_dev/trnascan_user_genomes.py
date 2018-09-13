@@ -131,10 +131,13 @@ class tRNAScan(object):
             if os.path.isdir(cur_user_dir):
                 for genome_id in os.listdir(cur_user_dir):
                     genome_dir = os.path.join(cur_user_dir, genome_id)
-                    trna_dir = os.path.join(genome_dir, 'trna')
-
-                    trna_file = os.path.join(trna_dir, genome_id + '_trna.tsv')
                     genome_file = os.path.join(genome_dir, genome_id + self.genome_file_ext)
+                    
+                    trna_dir = os.path.join(genome_dir, 'trna')
+                    trna_file = os.path.join(trna_dir, genome_id + '_trna_stats.tsv')
+                    if os.path.exists(trna_file):
+                        continue
+                    
                     if os.path.exists(genome_file):
                         if os.stat(genome_file).st_size == 0:
                             print '[Warning] Genome file appears to be empty: %s' % genome_file
