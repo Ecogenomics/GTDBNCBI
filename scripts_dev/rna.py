@@ -68,18 +68,14 @@ class RNA(object):
     # clean up old log files
     log_file = os.path.join(output_dir, 'genometk.log')
     if os.path.exists(log_file):
-      os.remove(log_file)
+        os.remove(log_file)
       
     if self.rna_gene == 'lsu_5S':
-        cmd = 'genometk rna --silent --cpus 1 --min_len 80 %s %s %s' % (genome_file, 
-                                                                            self.rna_gene, 
-                                                                            output_dir)
-        cmd_to_run = ['genometk', 'rna', '--silent', '--cpus', '1', '--min_len', 80, genome_file, self.rna_gene, output_dir]
-        os.system(cmd)
+        cmd_to_run = ['genometk', 'rna', '--silent', '--cpus', '1', '--min_len', '80', genome_file, self.rna_gene, output_dir]
     else:
-        cmd_to_run = ['genometk','rna','--silent','--cpus','1','--db',self.db,'--taxonomy_file',self.taxonomy,genome_file, self.rna_gene, output_dir]
+        cmd_to_run = ['genometk', 'rna', '--silent', '--cpus', '1', '--db', self.db, '--taxonomy_file', self.taxonomy, genome_file, self.rna_gene, output_dir]
         
-    proc = subprocess.Popen(cmd_to_run,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen(cmd_to_run, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate()
     if proc.returncode != 0:
         raise RuntimeError("%r failed, status code %s stdout %r stderr %r" % (
@@ -103,21 +99,12 @@ class RNA(object):
     print('Running with SILVA database')
     self._run(rna_gene, ncbi_genome_dir, user_genome_dir, 'SILVA', cpus)
     
-  def _run(self, rna_gene, ncbi_genome_dir, user_genome_dir, ssu_db, cpus):
+  def _run(self, rna_gene, ncbi_genome_dir, user_genome_dir, db, cpus):
     """Create metadata by parsing assembly stats files."""
     
     self.rna_gene = rna_gene
     
-    if ssu_db == 'GG':
-        # Greengenes data files and desired output
-        if rna_gene == 'ssu':
-            self.db = '/srv/db/gg/2013_08/gg_13_8_otus/rep_set/99_otus.fasta'
-            self.taxonomy = '/srv/db/gg/2013_08/gg_13_8_otus/taxonomy/99_otu_taxonomy.txt'
-            self.output_dir = 'ssu_gg'
-        else:
-            print('There is no LSU database for GG.')
-            sys.exit()
-    elif ssu_db == 'SILVA':
+    if db == 'SILVA':
         # Silva info
         if rna_gene == 'ssu':
             self.db = self.silva_ssu_ref_file
@@ -128,6 +115,9 @@ class RNA(object):
         elif rna_gene == 'lsu_5S':
             print 'We currently do not curate against a 5S database, but do identify these sequences for quality assessment purposes.'
         self.output_dir = self.silva_output_dir
+    else:
+        print('Unrecognized database: %s' % db)
+        sys.exit(-1)
 
     input_files = []
 
