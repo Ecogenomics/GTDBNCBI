@@ -69,9 +69,16 @@ class RNA(object):
     log_file = os.path.join(output_dir, 'genometk.log')
     if os.path.exists(log_file):
       os.remove(log_file)
-
-    #os.system('genometk rna --silent --cpus 1 --db %s --taxonomy_file %s %s %s %s' % (self.db, self.taxonomy, genome_file, self.rna_gene, output_dir))
-    cmd_to_run = ['genometk','rna','--silent','--cpus','1','--db',self.db,'--taxonomy_file',self.taxonomy,genome_file, self.rna_gene, output_dir]
+      
+    if self.rna_gene == 'lsu_5S':
+        cmd = 'genometk rna --silent --cpus 1 --min_len 80 %s %s %s' % (genome_file, 
+                                                                            self.rna_gene, 
+                                                                            output_dir)
+        cmd_to_run = ['genometk', 'rna', '--silent', '--cpus', '1', '--min_len', 80, genome_file, self.rna_gene, output_dir]
+        os.system(cmd)
+    else:
+        cmd_to_run = ['genometk','rna','--silent','--cpus','1','--db',self.db,'--taxonomy_file',self.taxonomy,genome_file, self.rna_gene, output_dir]
+        
     proc = subprocess.Popen(cmd_to_run,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate()
     if proc.returncode != 0:
@@ -118,6 +125,8 @@ class RNA(object):
         elif rna_gene == 'lsu_23S':
             self.db = self.silva_lsu_ref_file
             self.taxonomy = self.silva_lsu_taxonomy_file
+        elif rna_gene == 'lsu_5S':
+            print 'We currently do not curate against a 5S database, but do identify these sequences for quality assessment purposes.'
         self.output_dir = self.silva_output_dir
 
     input_files = []
@@ -181,7 +190,7 @@ if __name__ == '__main__':
   print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  parser.add_argument('rna_gene', choices=['ssu', 'lsu_23S'], help="rRNA gene to process")
+  parser.add_argument('rna_gene', choices=['ssu', 'lsu_23S', 'lsu_5S'], help="rRNA gene to process")
   parser.add_argument('ncbi_genome_dir', help='base directory leading to NCBI archaeal and bacterial genome assemblies or NONE to skip')
   parser.add_argument('user_genome_dir', help='base directory leading to user genomes or NONE to skip')
   parser.add_argument('-t', '--threads', help='number of CPUs to use', type=int, default=32)
