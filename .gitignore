@@ -10,6 +10,7 @@ scripts_dev/lpsn_scrape/database_configuration/ConfigLPSNUpdate.py
 scripts_dev/sra_genomes/database_configuration/ConfigSRAUpdate.py
 scripts_dev/dsmz_scrape/database_configuration/ConfigDSMZUpdate.py
 scripts_dev/straininfo_scraper/database_configuration/ConfigSTINFOUpdate.py
+scripts_dev/dsmz_scrape/dsmz_api_scraper.py
 
 # C extensions
 *.so

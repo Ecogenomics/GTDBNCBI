@@ -22,6 +22,7 @@ import sys
 import argparse
 import requests
 import io
+import re
 
 from requests.auth import HTTPBasicAuth
 from unidecode import unidecode
@@ -49,8 +50,8 @@ class PNUClient(object):
     # ===============================================================================
 
     headers = {'Accept': 'application/json'}
-    USERNAME = 'To SET'
-    PASSWORD = 'TO SET'
+    USERNAME = ''
+    PASSWORD = ''
     credentials = HTTPBasicAuth(USERNAME, PASSWORD)
 
     def getGenera(self, outfile, urlreq=None):
@@ -113,6 +114,23 @@ class PNUClient(object):
                     for st in item.get("type_strain"):
                         if " " in st:
                             list_strains.append(st.replace(" ", ''))
+                        if "-" in st:
+                            list_strains.append(st.replace("-", ''))
+                            list_strains.append(st.replace("-", ' '))
+                        p = re.compile(
+                            '(\w+)\s\(now\s(\w+)\)\s(\d+)', re.IGNORECASE)
+                        matches = p.search(st)
+                        if matches:
+                            print st
+                            list_strains.append("{} {}".format(
+                                matches.group(1), matches.group(3)))
+                            list_strains.append("{}{}".format(
+                                matches.group(1), matches.group(3)))
+                            list_strains.append("{} {}".format(
+                                matches.group(2), matches.group(3)))
+                            list_strains.append("{}{}".format(
+                                matches.group(2), matches.group(3)))
+
                     outfile_strains.write('{0}\t{1}\n'.format(
                         item.get("species"), "=".join(list_strains)))
 #                else:

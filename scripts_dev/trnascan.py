@@ -82,6 +82,9 @@ class tRNAScan(object):
             if proc.returncode != 0:
                 raise RuntimeError("%r failed, status code %s stdout %r stderr %r" % (
                        cmd_to_run, proc.returncode, stdout, stderr))
+            checksum_file = open(output_file + '.sha256','w')
+            checksum_file.write('{}\n'.format(sha256(output_file)))
+            checksum_file.close())
             
             queueOut.put(genome_file)
         

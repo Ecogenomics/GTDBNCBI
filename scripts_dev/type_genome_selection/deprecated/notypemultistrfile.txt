@@ -1,0 +1,16 @@
+s__Fusobacterium necrophorum
+s__Streptococcus equi
+s__Caldanaerobacter subterraneus
+s__Mobiluncus curtisii
+s__Lactobacillus kefiranofaciens
+s__Photorhabdus temperata
+s__Campylobacter fetus
+s__Fusobacterium nucleatum
+s__Neisseria elongata
+s__Leuconostoc mesenteroides
+s__Dickeya dadantii
+s__Streptococcus phocae
+s__Fibrobacter succinogenes
+s__Nocardiopsis dassonvillei
+s__Mycobacterium avium
+s__Zymomonas mobilis

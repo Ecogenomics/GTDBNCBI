@@ -33,6 +33,7 @@ from gtdb import DefaultValues
 from gtdb import Config
 from gtdb.Exceptions import GenomeDatabaseError,DumpDBErrors, DumpDBWarnings, ErrorReport
 
+
 from gtdb.Tools import confirm
 
 
@@ -185,10 +186,13 @@ def CreateTreeData(db, args):
                 if not confirm("{0} marker set has been selected but --taxa_filter has not been specified ({1} recommended). continue with no taxa filter".format(marker_domain[0], marker_domain[1])):
                     db.ReportError("User aborted tree creation.")
                     return False
-
-    marker_id_list = db.GetMarkerIds(args.marker_ids,
+    
+    try:
+        marker_id_list = db.GetMarkerIds(args.marker_ids,
                                      args.marker_set_ids,
                                      args.marker_batchfile)
+    except GenomeDatabaseError as e:
+        return False
 
     return db.MakeTreeData(marker_id_list,
                            genome_id_list,
@@ -211,7 +215,7 @@ def CreateTreeData(db, args):
                            args.guaranteed_batchfile,
                            rep_genome_ids,
                            not args.no_alignment,
-                           not args.no_trim,
+                           args.no_trim,
                            args.individual,
                            not args.no_tree)
 
