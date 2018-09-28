@@ -74,7 +74,7 @@ class tRNAScan(object):
             
             #cmd = 'tRNAscan-SE %s -q -Q -o %s -m %s -l %s %s' % (domain_flag, output_file, stats_file, log_file, genome_file)
             #os.system(cmd)
-            
+
             cmd_to_run = ['tRNAscan-SE',domain_flag,'-q','-Q','-o',output_file,'-m',stats_file,'-l',log_file,genome_file]
             proc = subprocess.Popen(cmd_to_run,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = proc.communicate()
