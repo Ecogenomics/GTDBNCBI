@@ -39,13 +39,14 @@ import copy
 from itertools import islice
 from datetime import datetime
 import math
+import pickle
 
 
 class InfoGenerator(object):
     """Main class
       """
 
-    def __init__(self, metadata_file, ncbi_names_file, lpsn_dir, dsmz_dir, straininfo_dir, output_dir, cpus=None):
+    def __init__(self, metadata_file, ncbi_names_file, lpsn_dir, dsmz_dir, straininfo_dir, ncbi_pickle, output_dir, cpus=None):
         """Initialization."""
         self.metadata_dictionary, list_ids = self.load_metadata_dictionary(
             metadata_file)
@@ -53,7 +54,16 @@ class InfoGenerator(object):
         self.dsmz_strains_dic = self.load_dsmz_strains_dictionary(dsmz_dir)
         self.straininfo_strains_dic = self.load_straininfo_strains_dictionary(
             straininfo_dir)
-        self.ncbi_names_dic = self.load_ncbi_names(ncbi_names_file, list_ids)
+        self.ncbi_names_dic = {}
+        # if the pickle dictionary exists ,we load it
+        # if not it will be generated for the next time we run the script
+        if os.path.isfile(ncbi_pickle):
+            with open(ncbi_pickle, 'rb') as f:
+                self.ncbi_names_dic = pickle.load(f)
+        else:
+            self.ncbi_names_dic = self.load_ncbi_names(ncbi_names, list_ids)
+            with open(ncbi_pickle, 'wb') as f:
+                pickle.dump(self.ncbi_names_dic, f, pickle.HIGHEST_PROTOCOL)
         self.output_dir = output_dir
         self.threads = int(cpus)
         self.pool_size = int(cpus)  # your "parallelness"
@@ -118,6 +128,8 @@ class InfoGenerator(object):
 
             for line in metaf:
                 infos = line.rstrip('\n').split(separator_info)
+                if infos[gtdb_accession_index] != 'RS_GCF_000966225.1':
+                    pass
                 if not infos[gtdb_accession_index].startswith('U_'):
                     metadata_dictionary[infos[gtdb_accession_index]] = {
                         'ncbi_organism_name': infos[gtdb_ncbi_organism_name_index],
@@ -407,12 +419,14 @@ if __name__ == '__main__':
                         help='Output directory.')
     parser.add_argument('--source_strain', choices=['all', 'lpsn', 'dsmz',
                                                     'straininfo'], default='all', help='select LPSN,Straininfo,DSMZ to parse')
+    parser.add_argument('--ncbi_pickle',
+                        help='prepocessed dictionary Names.dmp file from NCBI. If the file doesnt exist , It will be created for future run of the script')
 
     args = parser.parse_args()
 
     try:
         typeinfogenerator = InfoGenerator(
-            args.metadata_file, args.ncbi_names, args.lpsn_dir, args.dsmz_dir, args.straininfo_dir, args.output_dir, args.cpus)
+            args.metadata_file, args.ncbi_names, args.lpsn_dir, args.dsmz_dir, args.straininfo_dir, args.ncbi_pickle, args.output_dir, args.cpus)
         typeinfogenerator.run(args.source_strain)
     except SystemExit:
         print "\nControlled exit resulting from an unrecoverable error or warning."
