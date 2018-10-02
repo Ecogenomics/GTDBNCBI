@@ -61,7 +61,7 @@ class AlignedMarkerManager(object):
         self.genome_file_suffix = ConfigMetadata.GENOME_FILE_SUFFIX
         self.protein_file_suffix = ConfigMetadata.PROTEIN_FILE_SUFFIX
 
-    def calculateAlignedMarkerSets(self, db_genome_ids, marker_ids)
+    def calculateAlignedMarkerSets(self, db_genome_ids, marker_ids):
         '''
         Run Hmmalign for PFAM and TIGRFAM missing markers
 
