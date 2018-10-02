@@ -138,7 +138,7 @@ class GenomeDatabase(object):
 
             for r in rows:
                 table.add_row(r)
-            print table.get_string()
+            print table.get_string().encode("utf-8")
 
     # Function: SetDebugMode
     # Sets the debug mode of the database (at the moment its either on (non-zero) or off (zero))
@@ -729,7 +729,7 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return False
+            raise
 
         return marker_id_list
 
@@ -981,7 +981,6 @@ class GenomeDatabase(object):
 
     def GetGenomeListIdsforUser(self, username):
         cur = self.conn.cursor()
-        print username
 
         cur.execute("SELECT gl.id " +
                     "FROM genome_lists gl " +
@@ -1692,7 +1691,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            grm = GenomeRepresentativeManager(cur, self.currentUser,self.db_release)
+            grm = GenomeRepresentativeManager(cur, self.currentUser, 1, self.db_release)
             grm.domainAssignmentReport(outfile)
 
             cur.close()

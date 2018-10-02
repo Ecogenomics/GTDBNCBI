@@ -48,7 +48,7 @@ class AlignedMarkerManager(object):
 
         self.logger = logging.getLogger()
         self.threads = threads
-        self.release = releas
+        self.release = release
 
         # self.conn = GenomeDatabaseConnection()
         # self.conn.MakePostgresConnection()
@@ -153,7 +153,8 @@ class AlignedMarkerManager(object):
                      "AND m.id in %s " +
                      "AND md.external_id_prefix like %s")
 
-            temp_cur.execute(query, (db_genome_id, tuple(marker_ids,), marker_db))
+            temp_cur.execute(
+                query, (db_genome_id, tuple(marker_ids,), marker_db))
             raw_results = temp_cur.fetchall()
             marker_dict_original = {
                 a: {"path": b, "size": c, "db_marker_id": d} for a, b, c, d in raw_results}
@@ -169,7 +170,8 @@ class AlignedMarkerManager(object):
             all_genes_dict = read_fasta(protein_file, False)
 
             # Prodigal adds an asterisks at the end of each called genes,
-            # These asterisks sometimes appear in the MSA, which can be an issue for some softwares downstream
+            # These asterisks sometimes appear in the MSA, which can be an
+            # issue for some softwares downstream
             for seq_id, seq in all_genes_dict.iteritems():
                 if seq[-1] == '*':
                     all_genes_dict[seq_id] = seq[:-1]
@@ -321,4 +323,4 @@ class AlignedMarkerManager(object):
             if mask_seq[pos] != 'x':
                 continue
             aligned_marker += hit_seq[pos]
-        return aligned_marke
+        return aligned_marker
