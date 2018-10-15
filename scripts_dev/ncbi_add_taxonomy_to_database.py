@@ -51,7 +51,13 @@ class AddTaxonomy(object):
       for line in open(genome_list):
         if line[0] == '#':
           continue
-        genomes_to_process.add(line.rstrip().split('\t')[0])
+          
+        genome_id = line.rstrip().split('\t')[0]
+        if genome_id.startswith('GCA_'):
+          genome_id = 'GB_' + genome_id
+        elif genome_id.startswith('GCF_'):
+          genome_id = 'RS_' + genome_id
+        genomes_to_process.add(genome_id)
 
     # read taxonomy file
     taxonomy = Taxonomy().read(taxonomy_file)
