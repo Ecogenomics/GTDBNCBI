@@ -35,7 +35,6 @@ import re
 from multiprocessing.pool import ThreadPool as Pool
 import multiprocessing
 import time
-import copy
 from itertools import islice
 from datetime import datetime
 import math
@@ -61,7 +60,8 @@ class InfoGenerator(object):
             with open(ncbi_pickle, 'rb') as f:
                 self.ncbi_names_dic = pickle.load(f)
         else:
-            self.ncbi_names_dic = self.load_ncbi_names(ncbi_names, list_ids)
+            self.ncbi_names_dic = self.load_ncbi_names(
+                ncbi_names_file, list_ids)
             with open(ncbi_pickle, 'wb') as f:
                 pickle.dump(self.ncbi_names_dic, f, pickle.HIGHEST_PROTOCOL)
         self.output_dir = output_dir
@@ -128,9 +128,7 @@ class InfoGenerator(object):
 
             for line in metaf:
                 infos = line.rstrip('\n').split(separator_info)
-                if infos[gtdb_accession_index] != 'RS_GCF_000966225.1':
-                    pass
-                if not infos[gtdb_accession_index].startswith('U_'):
+                if not infos[gtdb_accession_index].startswith('U_') : #and infos[gtdb_accession_index] == 'RS_GCF_001975225.1':
                     metadata_dictionary[infos[gtdb_accession_index]] = {
                         'ncbi_organism_name': infos[gtdb_ncbi_organism_name_index],
                         'taxonomy_species_name': infos[gtdb_taxonomy_species_name_index].split(';')[6].replace('s__',
@@ -154,7 +152,7 @@ class InfoGenerator(object):
                     print infos
                 else:
                     new_ls = []
-                    list_strains = infos[1].split()
+                    list_strains = infos[1].split("=")
                     for ite in list_strains:
                         new_ls.append(ite)
                         matches = p.search(ite)
@@ -172,7 +170,7 @@ class InfoGenerator(object):
                             new_ls.append("{}{}".format(
                                 matches.group(2), matches.group(3)))
 
-                        straininfo_strains_dic[infos[0]] = new_ls
+                        straininfo_strains_dic[infos[0]] = "=".join(new_ls)
         return straininfo_strains_dic
 
     def load_dsmz_strains_dictionary(self, dsmz_dir):
@@ -195,19 +193,22 @@ class InfoGenerator(object):
             lpstr.readline()
             for line in lpstr:
                 infos = line.rstrip('\n').split('\t')
-                if len(infos) < 2:
+
+                if len(infos) < 3:
                     print infos
                 else:
-                    lpsn_strains_dic[infos[0]] = infos[1]
+                    lpsn_strains_dic[infos[0]] = {
+                        'strains': infos[1], 'neotypes': infos[2]}
         return lpsn_strains_dic
 
-    def worker(self, mini_dict, i, out_q, strain_dictionary):
+    def worker(self, mini_dict, sourcest, _i, out_q, strain_dictionary):
         count = 0
         # For each
         for acc, info_genomes in mini_dict.iteritems():
             count += 1
             # print "Thread {}: {}/{} done. ({}%)".format(i, count,
             # num_element, round((float(count) * 100 / num_element), 3))
+
             ncbi_organism_name = info_genomes.get('ncbi_organism_name')
             ncbi_unfiltered_tax = info_genomes.get('ncbi_taxonomy_unfiltered')
             ncbi_unfiltered_list = ncbi_unfiltered_tax.split(';')
@@ -284,8 +285,8 @@ class InfoGenerator(object):
                         '[', '', 1).replace(']', '', 1)
                 potential_names.append(ncbi_taxonomy_name)
 
-                # we add all potential names from names.dmp
-                if info_genomes.get('ncbi_taxid') in self.ncbi_names_dic:
+            # we add all potential names from names.dmp
+            if info_genomes.get('ncbi_taxid') in self.ncbi_names_dic:
                     potential_names.extend(self.ncbi_names_dic.get(
                         info_genomes.get('ncbi_taxid')))
 
@@ -296,7 +297,7 @@ class InfoGenerator(object):
                 # we look if any names in the lpsn strain dictionary is present in
                 # the potential name
                 for spe in strain_dictionary:
-                    p = re.compile(spe + '(\s|\n)', re.IGNORECASE)
+                    p = re.compile(spe + '(\s|\n|$)', re.IGNORECASE)
                     if 'subsp.' not in pot_name and p.search(pot_name):
                         list_spes.append(spe)
                         spe_list = spe.split()
@@ -318,26 +319,55 @@ class InfoGenerator(object):
                             list_spes.append(spe_list[0] + " " + spe_list[1])
 
             istype = False
+            isneotype = False
 
             # list_spes is the list of species name in LPSN,DSMZ or Straininfo
             # that have a match in the list of potential names
 
+            only_synonyms = True
+
+
             if list_spes:
                 set_spe = set(list_spes)
                 for spe_name in set_spe:
-                    list_strains = strain_dictionary.get(spe_name)
+                    list_strains = []
+                    if sourcest == 'lpsn':
+                        list_strains = strain_dictionary.get(
+                            spe_name).get('strains')
+                    else:
+                        list_strains = strain_dictionary.get(spe_name)
                     for strain in list_strains.split("="):
                         # "official" strains should have the formats "AAA123" or AAA 123"
-                        p = re.compile('\w+\s?\d+')
+                        p = re.compile('[a-zA-Z]+\s?\d+')
                         if p.match(strain):
                             # if the strain if found in the list of potential
                             # names or strains_identifiers from NCBI, this
                             # genome is a type strain
-                            if self.metadata_dictionary.get('strain_identifiers') is not None and (strain in self.metadata_dictionary.get('strain_identifiers') or strain in " ".join(set_potential_names)):
+                            if self.metadata_dictionary.get(acc).get('strain_identifiers') is not None and (strain in self.metadata_dictionary.get(acc).get('strain_identifiers') or strain in " ".join(set_potential_names)):
                                 istype = True
+                                if spe_name in ncbi_organism_name:
+                                    only_synonyms = False
                             elif strain in " ".join(set_potential_names):
                                 istype = True
-            out_q.put((acc, istype))
+                                if spe_name in ncbi_organism_name:
+                                    only_synonyms = False
+                    if sourcest == 'lpsn':
+                        list_neotypes = strain_dictionary.get(
+                            spe_name).get('neotypes')
+                        for neotype_st in list_neotypes.split("="):
+                            # "official" strains should have the formats "AAA123" or AAA 123"
+                            p = re.compile('[a-zA-Z]+\s?\d+')
+                            if p.match(neotype_st):
+                                if self.metadata_dictionary.get(acc).get('strain_identifiers') is not None and (neotype_st in self.metadata_dictionary.get(acc).get('strain_identifiers') or neotype_st in " ".join(set_potential_names)):
+                                    isneotype = True
+                                    if spe_name in ncbi_organism_name:
+                                        only_synonyms = False
+                                elif neotype_st in " ".join(set_potential_names):
+                                    isneotype = True
+                                    if spe_name in ncbi_organism_name:
+                                        only_synonyms = False
+
+            out_q.put((acc, istype, isneotype,only_synonyms))
         return True
 
     def splitchunks(self, d, n):
@@ -346,8 +376,7 @@ class InfoGenerator(object):
         for _ in xrange(0, len(d), chunksize):
             yield {k: d[k] for k in islice(it, chunksize)}
 
-    def parse_strains(self, strain_dictionary, filename):
-        genome_strain_dict = {}
+    def parse_strains(self, sourcest, strain_dictionary, filename):
         manager = multiprocessing.Manager()
         out_q = manager.Queue()
         procs = []
@@ -357,7 +386,7 @@ class InfoGenerator(object):
         for i, item in enumerate(self.splitchunks(self.metadata_dictionary, nprocs)):
             p = multiprocessing.Process(
                 target=self.worker,
-                args=(item, i, out_q, strain_dictionary))
+                args=(item, sourcest, i, out_q, strain_dictionary))
             procs.append(p)
             p.start()
 
@@ -370,31 +399,33 @@ class InfoGenerator(object):
         results = {}
 
         for i in range(len(self.metadata_dictionary)):
-            id, type = out_q.get()
-            results[id] = type
+            id_genome, type_strain, neotype,only_synonyms = out_q.get()
+            results[id_genome] = {
+                'type_strain': type_strain, 'neotype': neotype,'os': only_synonyms}
 
         file_out = open(filename, 'w')
 
         for k, infos in results.iteritems():
-            file_out.write("{}\t{}\n".format(k, infos))
+            file_out.write("{}\t{}\t{}\t{}\n".format(
+                k, infos.get('type_strain'), infos.get('neotype'),infos.get('os')))
         file_out.close()
 
     def run(self, sourcest):
         if sourcest == 'lpsn':
-            self.parse_strains(self.lpsn_strains_dic, os.path.join(
+            self.parse_strains(sourcest, self.lpsn_strains_dic, os.path.join(
                 self.output_dir, 'lpsn_summary.txt'))
         elif sourcest == 'dsmz':
-            self.parse_strains(self.dsmz_strains_dic, os.path.join(
+            self.parse_strains(sourcest, self.dsmz_strains_dic, os.path.join(
                 self.output_dir, 'dsmz_summary.txt'))
         elif sourcest == 'straininfo':
-            self.parse_strains(self.lpsn_strains_dic, os.path.join(
+            self.parse_strains(sourcest, self.straininfo_strains_dic, os.path.join(
                 self.output_dir, 'straininfo_summary.txt'))
         elif sourcest == 'all':
-            self.parse_strains(self.lpsn_strains_dic, os.path.join(
+            self.parse_strains(sourcest, self.lpsn_strains_dic, os.path.join(
                 self.output_dir, 'lpsn_summary.txt'))
-            self.parse_strains(self.dsmz_strains_dic, os.path.join(
+            self.parse_strains(sourcest, self.dsmz_strains_dic, os.path.join(
                 self.output_dir, 'dsmz_summary.txt'))
-            self.parse_strains(self.lpsn_strains_dic, os.path.join(
+            self.parse_strains(sourcest, self.straininfo_strains_dic, os.path.join(
                 self.output_dir, 'straininfo_summary.txt'))
 
 

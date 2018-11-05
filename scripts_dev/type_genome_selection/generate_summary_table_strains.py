@@ -151,8 +151,6 @@ class SummaryEditor(object):
             infores.append(infos_genomes.get('taxonomy_species_name'))
             infores.append(infos_genomes.get('strain_identifiers'))
             infores.append(infos_genomes.get('ncbi_taxonomy_unfiltered'))
-            #print ("TOTO", infos_genomes.get('ncbi_taxid'))
-            # print self.ncbi_names_dic.get(infos_genomes.get('ncbi_taxid'))
             if infos_genomes.get('ncbi_taxid') in self.ncbi_names_dic:
                 infores.append(
                     '/'.join(self.ncbi_names_dic.get(infos_genomes.get('ncbi_taxid'))))
