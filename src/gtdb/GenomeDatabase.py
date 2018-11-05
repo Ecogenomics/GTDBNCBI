@@ -1691,7 +1691,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            grm = GenomeRepresentativeManager(cur, self.currentUser,self.db_release)
+            grm = GenomeRepresentativeManager(cur, self.currentUser, 1, self.db_release)
             grm.domainAssignmentReport(outfile)
 
             cur.close()
