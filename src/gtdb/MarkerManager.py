@@ -135,7 +135,6 @@ class MarkerManager(object):
                 missing_ids = []
                 for (id_in_database,) in self.cur:
                     missing_ids.append(database_prefix + "_" + id_in_database)
-
                 if missing_ids:
                     raise GenomeDatabaseError(
                         "Cannot find the the following marker ids, check the IDs are correct: %s" % str(missing_ids))

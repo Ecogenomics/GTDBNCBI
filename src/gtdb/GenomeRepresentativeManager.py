@@ -26,6 +26,8 @@ from Exceptions import GenomeDatabaseError
 from GenomeManager import GenomeManager
 from MarkerSetManager import MarkerSetManager
 from AlignedMarkerManager import AlignedMarkerManager
+from MetadataManager import MetadataManager
+
 import DefaultValues
 
 
@@ -49,7 +51,7 @@ class GenomeRepresentativeManager(object):
         self.currentUser = currentUser
         self.threads = threads
 
-	self.db_release = db_release
+        self.db_release = db_release
 
         # threshold used to assign genome to representative
         self.aai_threshold = DefaultValues.AAI_CLUSTERING_THRESHOLD
@@ -83,6 +85,7 @@ class GenomeRepresentativeManager(object):
 
         mismatches = 0
         matches = 0
+
         for c1, c2 in itertools.izip(seq1, seq2):
             if c1 == '-' or c2 == '-':
                 continue
@@ -113,7 +116,7 @@ class GenomeRepresentativeManager(object):
         ----------
         seq1 : str
             First sequence.
-        seq2 : float
+        seq2 : str
             Second sequence.
         max_mismatches : int
             Maximum allowed mismatches between sequences.
@@ -126,6 +129,7 @@ class GenomeRepresentativeManager(object):
 
         mismatches = 0
         matches = 0
+
         for c1, c2 in itertools.izip(seq1, seq2):
             if c1 == '-' or c2 == '-':
                 continue
@@ -151,7 +155,8 @@ class GenomeRepresentativeManager(object):
             self.cur.execute("SELECT id " +
                              "FROM metadata_taxonomy " +
                              "WHERE gtdb_representative IS NULL")
-            unprocessed_genome_ids = [genome_id[0] for genome_id in self.cur.fetchall()]
+            unprocessed_genome_ids = [genome_id[0]
+                                      for genome_id in self.cur.fetchall()]
 
         except GenomeDatabaseError as e:
             raise e
@@ -314,13 +319,34 @@ class GenomeRepresentativeManager(object):
 
         return user_rep_genome_ids
 
+    def _getRepresentativeDomain(self):
+        """Get genome identifiers and gtdb_domain for all representative genomes.
+
+        Returns
+        -------
+        dict
+            Dictionary of database {identifiers:domain} for representative genomes.
+        """
+
+        try:
+            self.cur.execute("SELECT id,gtdb_domain " +
+                             "FROM metadata_taxonomy " +
+                             "WHERE gtdb_representative = 'TRUE'")
+            rep_genome_dictionary = {genome_id: gtdb_domain for (
+                genome_id, gtdb_domain) in self.cur}
+
+        except GenomeDatabaseError as e:
+            raise e
+
+        return rep_genome_dictionary
+
     def _domainAssignment(self, genome_id, len_arc_marker, len_bac_marker):
         """Assign genome to domain based on present/absence of canonical marker genes."""
 
         query_al_mark = ("SELECT count(*) " +
-                             "FROM aligned_markers am " +
-                             "LEFT JOIN marker_set_contents msc ON msc.marker_id = am.marker_id " +
-                             "WHERE genome_id = %s and msc.set_id = %s and (evalue <> '') IS TRUE;")
+                         "FROM aligned_markers am " +
+                         "LEFT JOIN marker_set_contents msc ON msc.marker_id = am.marker_id " +
+                         "WHERE genome_id = %s and msc.set_id = %s and (evalue <> '') IS TRUE;")
 
         self.cur.execute(query_al_mark, (genome_id, 1))
         aligned_bac_count = self.cur.fetchone()[0]
@@ -347,17 +373,20 @@ class GenomeRepresentativeManager(object):
         genome_ids = [genome_id[0] for genome_id in self.cur.fetchall()]
 
         # get concatenated alignments for all representatives
-        self.cur.execute("SELECT count(*) from marker_set_contents where set_id = 1;")
+        self.cur.execute(
+            "SELECT count(*) from marker_set_contents where set_id = 1;")
         len_bac_marker = self.cur.fetchone()[0]
 
-        self.cur.execute("SELECT count(*) from marker_set_contents where set_id = 2;")
+        self.cur.execute(
+            "SELECT count(*) from marker_set_contents where set_id = 2;")
         len_arc_marker = self.cur.fetchone()[0]
 
         genome_mngr = GenomeManager(self.cur, self.currentUser)
 
         # process each genome
         fout = open(outfile, 'w')
-        fout.write('Genome Id\tPredicted domain\tArchaeal Marker Percentage\tBacterial Marker Percentage\tNCBI taxonomy\tGTDB taxonomy\n')
+        fout.write(
+            'Genome Id\tPredicted domain\tArchaeal Marker Percentage\tBacterial Marker Percentage\tNCBI taxonomy\tGTDB taxonomy\n')
         for genome_id in genome_ids:
             query_taxonomy_req = ("SELECT gtdb_domain, ncbi_taxonomy, gtdb_taxonomy " +
                                   "FROM metadata_taxonomy LEFT JOIN gtdb_taxonomy_view USING (id) " +
@@ -365,10 +394,13 @@ class GenomeRepresentativeManager(object):
             self.cur.execute(query_taxonomy_req, (genome_id,))
             gtdb_domain, ncbi_taxonomy, gtdb_taxonomy = self.cur.fetchone()
 
-            domain, arc_aa_per, bac_aa_per = self._domainAssignment(genome_id, len_arc_marker, len_bac_marker)
+            domain, arc_aa_per, bac_aa_per = self._domainAssignment(
+                genome_id, len_arc_marker, len_bac_marker)
 
-            external_genome_id = genome_mngr.genomeIdsToExternalGenomeIds([genome_id])[genome_id]
-            fout.write('%s\t%s\t%.2f\t%.2f\t%s\t%s\n' % (external_genome_id, domain, arc_aa_per, bac_aa_per, ncbi_taxonomy, gtdb_taxonomy))
+            external_genome_id = genome_mngr.genomeIdsToExternalGenomeIds([genome_id])[
+                genome_id]
+            fout.write('%s\t%s\t%.2f\t%.2f\t%s\t%s\n' % (
+                external_genome_id, domain, arc_aa_per, bac_aa_per, ncbi_taxonomy, gtdb_taxonomy))
 
         fout.close()
 
@@ -387,17 +419,18 @@ class GenomeRepresentativeManager(object):
         if not unprocessed_genome_ids:
             return
 
-	print len(unprocessed_genome_ids)
-
         # get canonical bacterial and archaeal markers
         marker_set_mngr = MarkerSetManager(self.cur, self.currentUser)
         bac_marker_ids = marker_set_mngr.canonicalBacterialMarkers()
         ar_marker_ids = marker_set_mngr.canonicalArchaealMarkers()
 
-        # identify and align genes from canonical bacterial and archaeal marker sets
+        # identify and align genes from canonical bacterial and archaeal marker
+        # sets
         all_markers = set(bac_marker_ids).union(ar_marker_ids)
-        aligned_mngr = AlignedMarkerManager(self.cur, self.threads,self.db_release)
-        aligned_mngr.calculateAlignedMarkerSets(unprocessed_genome_ids, all_markers)
+        aligned_mngr = AlignedMarkerManager(
+            self.cur, self.threads, self.db_release)
+        aligned_mngr.calculateAlignedMarkerSets(
+            unprocessed_genome_ids, all_markers)
 
         # get list of representative genomes
         rep_genome_ids = self.representativeGenomes()
@@ -408,6 +441,9 @@ class GenomeRepresentativeManager(object):
         # get external genome IDs for representative genomes
         genome_mngr = GenomeManager(self.cur, self.currentUser)
         external_ids = genome_mngr.genomeIdsToExternalGenomeIds(rep_genome_ids)
+
+        # get domains for all representatives
+        rep_genome_dictionary = self._getRepresentativeDomain()
 
         # define desired order of marker genes
         # (order doesn't matter, but must be consistent between genomes)
@@ -423,35 +459,47 @@ class GenomeRepresentativeManager(object):
         rep_bac_aligns = {}
         rep_ar_aligns = {}
         for rep_id in rep_genome_ids:
-            rep_bac_aligns[rep_id] = marker_set_mngr.concatenatedAlignedMarkers(rep_id, bac_marker_index)
-            rep_ar_aligns[rep_id] = marker_set_mngr.concatenatedAlignedMarkers(rep_id, ar_marker_index)
+            rep_bac_aligns[rep_id] = marker_set_mngr.concatenatedAlignedMarkers(
+                rep_id, bac_marker_index)
+            rep_ar_aligns[rep_id] = marker_set_mngr.concatenatedAlignedMarkers(
+                rep_id, ar_marker_index)
 
-        self.cur.execute("SELECT count(*) from marker_set_contents where set_id = 1;")
+        self.cur.execute(
+            "SELECT count(*) from marker_set_contents where set_id = 1;")
         len_bac_marker = self.cur.fetchone()[0]
 
-        self.cur.execute("SELECT count(*) from marker_set_contents where set_id = 2;")
+        self.cur.execute(
+            "SELECT count(*) from marker_set_contents where set_id = 2;")
         len_arc_marker = self.cur.fetchone()[0]
 
         # process each genome
         assigned_to_rep_count = 0
         for genome_id in unprocessed_genome_ids:
             # get canonical alignment
-            genome_bac_align = marker_set_mngr.concatenatedAlignedMarkers(genome_id, bac_marker_index)
-            genome_ar_align = marker_set_mngr.concatenatedAlignedMarkers(genome_id, ar_marker_index)
+            genome_bac_align = marker_set_mngr.concatenatedAlignedMarkers(
+                genome_id, bac_marker_index)
+            genome_ar_align = marker_set_mngr.concatenatedAlignedMarkers(
+                genome_id, ar_marker_index)
 
             assigned_representative = None
-            bac_max_mismatches = (1.0 - self.aai_threshold) * (len(genome_bac_align) - genome_bac_align.count('-'))
-            ar_max_mismatches = (1.0 - self.aai_threshold) * (len(genome_ar_align) - genome_ar_align.count('-'))
+            bac_max_mismatches = (1.0 - self.aai_threshold) * \
+                (len(genome_bac_align) - genome_bac_align.count('-'))
+            ar_max_mismatches = (1.0 - self.aai_threshold) * \
+                (len(genome_ar_align) - genome_ar_align.count('-'))
+            original_threshold = bac_max_mismatches
             for rep_id in rep_genome_ids:
                 rep_bac_align = rep_bac_aligns[rep_id]
                 rep_ar_align = rep_ar_aligns[rep_id]
+                if rep_genome_dictionary[rep_id] == 'd__Bacteria':
+                    m = self._aai_mismatches(
+                        genome_bac_align, rep_bac_align, bac_max_mismatches)
+                    if m is not None:  # necessary to distinguish None and 0
+                        assigned_representative = rep_id
+                        bac_max_mismatches = m
 
-                m = self._aai_mismatches(genome_bac_align, rep_bac_align, bac_max_mismatches)
-                if m is not None:  # necessary to distinguish None and 0
-                    assigned_representative = rep_id
-                    bac_max_mismatches = m
-                else:
-                    m = self._aai_mismatches(genome_ar_align, rep_ar_align, ar_max_mismatches)
+                elif rep_genome_dictionary[rep_id] == 'd__Archaea':
+                    m = self._aai_mismatches(
+                        genome_ar_align, rep_ar_align, ar_max_mismatches)
                     if m is not None:  # necessary to distinguish None and 0
                         assigned_representative = rep_id
                         ar_max_mismatches = m
@@ -462,7 +510,8 @@ class GenomeRepresentativeManager(object):
                 query = ("UPDATE metadata_taxonomy " +
                          "SET gtdb_genome_representative = %s " +
                          "WHERE id = %s")
-                self.cur.execute(query, (external_ids[assigned_representative], genome_id))
+                self.cur.execute(
+                    query, (external_ids[assigned_representative], genome_id))
                 query_taxonomy_req = ("SELECT gtdb_class, gtdb_species," +
                                       "gtdb_phylum, gtdb_family, gtdb_domain, gtdb_order, gtdb_genus " +
                                       "FROM metadata_taxonomy WHERE id = %s;")
@@ -479,22 +528,47 @@ class GenomeRepresentativeManager(object):
                                              "FROM metadata_taxonomy mt_repr " +
                                              "WHERE mt_repr.id = %s " +
                                              "AND mt_newg.id = %s")
-                    self.cur.execute(query_taxonomy_update, (assigned_representative, genome_id))
+                    self.cur.execute(query_taxonomy_update,
+                                     (assigned_representative, genome_id))
             else:
                 query_taxonomy_req = ("SELECT gtdb_class, gtdb_species," +
                                       "gtdb_phylum, gtdb_family, gtdb_domain, gtdb_order, gtdb_genus " +
                                       "FROM metadata_taxonomy WHERE id = %s;")
                 self.cur.execute(query_taxonomy_req, (genome_id,))
                 if all(v is None or v == '' for v in self.cur.fetchone()):
-                    domain, _arc_aa_per, _bac_aa_per = self._domainAssignment(genome_id, len_arc_marker, len_bac_marker)
+                    domain, _arc_aa_per, _bac_aa_per = self._domainAssignment(
+                        genome_id, len_arc_marker, len_bac_marker)
 
                     if domain:
                         self.cur.execute("UPDATE metadata_taxonomy " +
                                          "SET gtdb_domain = %s " +
                                          "WHERE id = %s", (domain, genome_id))
 
-        self.logger.info("Assigned %d genomes to a representative." % assigned_to_rep_count)
+        self.logger.info("Assigned %d genomes to a representative." %
+                         assigned_to_rep_count)
 
         # currently, new genomes are never made a representative
         query = "UPDATE metadata_taxonomy SET gtdb_representative = %s WHERE id = %s"
-        self.cur.executemany(query, [('False', genome_id) for genome_id in unprocessed_genome_ids])
+        self.cur.executemany(query, [('False', genome_id)
+                                     for genome_id in unprocessed_genome_ids])
+
+        #======================================================================
+        # # Once d_domain is defined for each new genomes we can calculate Trna information
+        # query = ("SELECT gs.external_id_prefix||'_'||g.id_at_source,gtdb_domain,fasta_file_location from genomes g "+
+        #           "LEFT JOIN metadata_taxonomy USING(id) "+
+        #           "LEFT JOIN genome_sources gs ON gs.id =  g.genome_source_id "+
+        #           "WHERE id = %s")
+        #
+        #
+        # for genome_id in unprocessed_genome_ids:
+        #     self.cur.execute(query, (genome_id,))
+        #     accession,gtdb_domain,fasta_file_location =  self.cur.fetchone()
+        #     print accession
+        #     print gtdb_domain
+        #     print fasta_file_location
+        #
+        #     meta_mngr = MetadataManager(self.cur, self.currentUser)
+        #     meta_mngr.run_trna_scan(fasta_file_location,accession,gtdb_domain)
+        #
+        #     sys.exit()
+        #======================================================================

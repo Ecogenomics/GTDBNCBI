@@ -73,7 +73,7 @@ class UpdateLPSNDatabase(object):
             fr.readline()
             self.temp_cur.execute('TRUNCATE lpsn_strains;')
             print "Deletion lpsn_strains done"
-
+ 
             self.temp_cur.copy_from(fr, 'lpsn_strains')
             print 'Copy lpsn_strains done'
             self.temp_con.commit()

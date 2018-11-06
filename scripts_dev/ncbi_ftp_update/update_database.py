@@ -129,8 +129,9 @@ class UpdateGTDBDatabase(object):
                     path_in_db, path_in_folder, record)
             self.report_database_update.write("{0}\t{1}\tupdate path\t{2}\t{3}\n".format(self.db, record, path_in_db, path_in_folder))
             self.temp_cur.execute(query)
-            query = "update genomes set genes_file_location = replace(genes_file_location, '{0}', '{1}') where id_at_source like '{2}'".format(
-                    path_in_db, path_in_folder, record)
+            pathinfo = path_in_folder.rsplit('/',1)
+            genes_path = os.path.join(pathinfo[0],'prodigal',record+"_protein.faa").replace("\\","/")
+            query = "update genomes set genes_file_location = '{0}' where id_at_source like '{1}'".format(genes_path, record)
             self.temp_cur.execute(query)
 
     def _addOrVersionNewGenomes(self, dict_existing_records, list_checkm_records, genome_dirs_dict, update_date):
@@ -197,11 +198,6 @@ class UpdateGTDBDatabase(object):
                 path_gtdb += "/" + os.path.basename(path_gtdb)
                 path_database = re.sub(r"(.+)(_genomic.fna)", r"\g<1>", dict_existing_records[checkm_record])
                 path_protein_database = re.sub(r"(.+)/(GC._[^_]+)(.*)", r"\g<1>/prodigal/\g<2>_protein.faa", path_database)
-#                 if checkm_record == 'GCA_001242845.1':
-#                     print path_gtdb
-#                     print path_database
-#                     print "update genomes set fasta_file_location = replace(fasta_file_location, '{0}', '{1}') where name like '{2}'".format(
-#                         path_database, path_gtdb, checkm_record)
                 # If the record is in a different folder , we need to change it's path in the database
                 if path_database not in path_gtdb:
                     query = "update genomes set fasta_file_location = replace(fasta_file_location, '{0}', '{1}') where name like '{2}'".format(

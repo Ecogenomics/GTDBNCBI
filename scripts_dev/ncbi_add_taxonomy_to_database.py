@@ -51,8 +51,13 @@ class AddTaxonomy(object):
       for line in open(genome_list):
         if line[0] == '#':
           continue
-
-        genomes_to_process.add(line.rstrip().split(',')[0])
+          
+        genome_id = line.rstrip().split('\t')[0]
+        if genome_id.startswith('GCA_'):
+          genome_id = 'GB_' + genome_id
+        elif genome_id.startswith('GCF_'):
+          genome_id = 'RS_' + genome_id
+        genomes_to_process.add(genome_id)
 
     # read taxonomy file
     taxonomy = Taxonomy().read(taxonomy_file)
@@ -64,7 +69,7 @@ class AddTaxonomy(object):
         genome_id = 'GB_' + genome_id
       elif genome_id.startswith('GCF_'):
         genome_id = 'RS_' + genome_id
-
+        
       if not genome_list or genome_id in genomes_to_process:
         taxa_str = ';'.join(taxa)
         temp_file.write('%s\t%s\n' % (genome_id, taxa_str))
@@ -73,7 +78,7 @@ class AddTaxonomy(object):
     cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_taxonomy', 'ncbi_taxonomy', 'TEXT', temp_file.name)
     print cmd
     os.system(cmd)
-    os.remove(temp_file.name)
+    #os.remove(temp_file.name)
 
 if __name__ == '__main__':
   print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__

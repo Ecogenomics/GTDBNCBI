@@ -101,7 +101,7 @@ class RunCheckm(object):
 
               assembly_ids[assembly_id] = assembly_dir
 
-              gene_file = os.path.join(assembly_dir, 'prodigal', genome_id + '_protein.faa') 
+              gene_file = os.path.join(assembly_dir, 'prodigal', genome_id + '_protein.faa')
               if os.path.exists(gene_file):
                 if os.stat(gene_file).st_size == 0:
                     print '[Warning] Protein file appears to be empty: %s' % gene_file

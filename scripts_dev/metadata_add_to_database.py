@@ -58,7 +58,7 @@ class AddMetadata(object):
         metadata_type = {}
         metadata_table = {}
         for line in open(metadata_desc_file):
-            line_split = line.strip().split('\t')
+            line_split = line.strip('\n').split('\t')
             metadata_type[line_split[0]] = line_split[2]
             metadata_table[line_split[0]] = line_split[3]
 
@@ -68,13 +68,12 @@ class AddMetadata(object):
             fields = [x.strip() for x in f.readline().split('\t')]
 
             for line in f:
-                line_split = line.rstrip().split('\t')
+                line_split = line.rstrip('\n').split('\t')
 
                 genome_id = line_split[0]
+                # print line_split
                 for i, value in enumerate(line_split[1:]):
                     metadata[fields[i + 1]][genome_id] = value
-
-        print metadata.keys()
 
         # add each field to the database
         for field in metadata:
@@ -87,8 +86,6 @@ class AddMetadata(object):
             table = metadata_table[field]
 
             for genome_id, value in metadata[field].iteritems():
-                if genome_id == 'GCF_000826165.1':
-                    continue
 
                 try:
                     if float(value) and data_type in ['INT', 'INTEGER']:
@@ -105,10 +102,12 @@ class AddMetadata(object):
                         genome_id = 'RS_' + genome_id
 
                     if not genome_list or genome_id in genome_list:
+                        #print (genome_id, value)
                         temp_file.write('%s\t%s\n' % (genome_id, value))
 
             temp_file.close()
-            cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % (table, field, data_type, temp_file.name)
+            cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % (
+                table, field, data_type, temp_file.name)
             os.system(cmd)
             os.remove(temp_file.name)
 
@@ -117,10 +116,14 @@ if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
     print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('metadata_file', help='tab-separated values table with metadata')
-    parser.add_argument('metadata_desc_file', help='tab-separated values table with description of metadata fields')
-    parser.add_argument('--genome_list', help='only process genomes in this list', default=None)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        'metadata_file', help='tab-separated values table with metadata')
+    parser.add_argument(
+        'metadata_desc_file', help='tab-separated values table with description of metadata fields')
+    parser.add_argument(
+        '--genome_list', help='only process genomes in this list', default=None)
 
     args = parser.parse_args()
 

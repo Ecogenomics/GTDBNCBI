@@ -1,10 +1,24 @@
-software_version=2.1.12
-ncbi_database_version=release 80
-gtdb_version=1.2.7
-taxonomy_version=v80.0
+software_version=2.2.2
+ncbi_database_version=release 89
+gtdb_version=1.3.1
+taxonomy_version=v86.0
 
 GTDB software versions
 ----------------------
+v2.2.2 (April 04, 2018):
+- Bug fixes
+v2.2.1 (November 21, 2017):
+- Updated code to match the gtdb release83 Database changes
+- The code is not compatible with previous version of the database
+v2.1.15 (August 25, 2017):
+- added '--gauranteed_taxa_filter' flag
+v2.1.14 (August 25, 2017):
+- Updated TreeManager to append MIMAG quality information to ARB metadata file
+- added 5S LSU and tRNA information to the database (changed gtdb_version to 1.2.9 to reflect this)
+v2.1.13 (June 7, 2017):
+- Updated database with revised UBA genomes
+- Updated representatives in r80 to reflect revised UBA genomes
+- Updated gtdb_version to 1.2.8 to reflect these database changes
 v2.1.12 (April 28, 2017):
 - Possibility to Export Metadata in TAB format
 - Connection to previous databases available
@@ -82,6 +96,14 @@ v0.0.1:
 
 GTDB database versions
 ----------------------
+v1.3.1 (November 21, 2017):
+- addition of ncbi_taxonomy_unfiltered field in the metadata_taxonomy table,
+- creation of dsmz_genera,dsmz_species,dsmz_strains,straininfo_strains tables
+- removal of the gtdb_taxonomy field,
+- renaming of genomes to accession,
+- creation of the mimag function,
+- renaming of the lsu,ssu fields,
+- renaming of metadata_sequences to metadata_rrna_sequences
 v1.2.7 (April 28, 2017):
 - firstname and lastname columns in users table
 v1.2.6 (April 4, 2017):
@@ -105,6 +127,10 @@ v1.2.1 (July 07, 2016):
 
 Taxonomy versions
 ----------------------
+v86.0 (April 03, 2017):
+- V83.final propagated to Release 86
+v83.0 (November 21, 2017):
+- V80.final propagated to Release 83
 v80.0 (April 4, 2017):
 - V78.final propagated to Release 80
 v78.0 (December 19, 2016):

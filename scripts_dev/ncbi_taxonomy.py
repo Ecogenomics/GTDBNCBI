@@ -39,190 +39,229 @@ from biolib.taxonomy import Taxonomy
 
 
 class TaxonomyNCBI(object):
-  """Parse NCBI taxonomy files to produce a simplified summary file."""
+    """Parse NCBI taxonomy files to produce a simplified summary file."""
 
-  def __init__(self):
-    self.NodeRecord = namedtuple('NodeRecord', 'parent_tax_id rank division_id genetic_code_id')
-    self.NameRecord = namedtuple('NamesRecord', 'name_txt')
+    def __init__(self):
+        self.NodeRecord = namedtuple(
+            'NodeRecord', 'parent_tax_id rank division_id genetic_code_id')
+        self.NameRecord = namedtuple('NamesRecord', 'name_txt')
 
-    self.bacterial_division = '0'
-    self.unassigned_division = '8'
+        self.bacterial_division = '0'
+        self.unassigned_division = '8'
 
-  def _assembly_to_tax_id(self, assembly_metadata_file):
-    """Determine taxonomic identifier for each assembly.
+    def _assembly_organism_name(self, assembly_metadata_file, output_organism_name_file):
+        """Parse out organism name for each genome."""
 
-    Parameters
-    ----------
-    assembly_metadata_file : str
-      Path to assembly metadata file.
+        fout = open(output_organism_name_file, 'w')
+        with open(assembly_metadata_file) as f:
+            f.readline()
+            header = f.readline().strip().split('\t')
+            org_name_index = header.index('organism_name')
 
-    Returns
-    -------
-    dict : d[assembly_accession] -> tax_id
-      Taxonomic identifier for each assembly.
-    """
+            for line in f:
+                line_split = line.strip().split('\t')
 
-    d = {}
-    with open(assembly_metadata_file) as f:
-      headers = f.readline().split('\t')
-	
-      try:
-      	taxid_index = headers.index('taxid')
-      except:
-	# look for taxid on the next line as NCBI sometimes puts
-	# an extra comment on the first line
-        headers = f.readline().split('\t')
-        taxid_index = headers.index('taxid')
+                gid = line_split[0]
+                if gid.startswith('GCA_'):
+                    gid = 'GB_' + gid
+                else:
+                    gid = 'RS_' + gid
+                org_name = line_split[org_name_index]
+                fout.write('%s\t%s\n' % (gid, org_name))
+        fout.close()
 
-      for line in f:
-        line_split = line.split('\t')
-        assembly_accession = line_split[0]
-        taxid = line_split[taxid_index]
+    def _assembly_to_tax_id(self, assembly_metadata_file):
+        """Determine taxonomic identifier for each assembly.
 
-        if assembly_accession in d:
-          print '[Error] Duplicate assembly accession: %s' % assembly_accession
-          sys.exit(-1)
+        Parameters
+        ----------
+        assembly_metadata_file : str
+          Path to assembly metadata file.
 
-        d[assembly_accession] = taxid
+        Returns
+        -------
+        dict : d[assembly_accession] -> tax_id
+          Taxonomic identifier for each assembly.
+        """
 
-    return d
+        d = {}
+        with open(assembly_metadata_file) as f:
+            headers = f.readline().strip().split('\t')
+            try:
+                taxid_index = headers.index('taxid')
+            except:
+                # look for taxid on the next line as NCBI sometimes puts
+                # an extra comment on the first line
+                headers = f.readline().split('\t')
+                taxid_index = headers.index('taxid')
 
-  def _read_nodes(self, nodes_file):
-    """Read NCBI nodes.dmp file.
+            for line in f:
+                line_split = line.strip().split('\t')
+                assembly_accession = line_split[0]
+                taxid = line_split[taxid_index]
 
-    Parameters
-    ----------
-    nodes_file : str
-      Path to NCBI nodes.dmp file.
+                if assembly_accession in d:
+                    print '[Error] Duplicate assembly accession: %s' % assembly_accession
+                    sys.exit(-1)
 
-    Returns
-    -------
-    dict : d[tax_id] -> NodeRecord
-      Node record for all nodes.
-    """
+                d[assembly_accession] = taxid
 
-    d = {}
-    for line in open(nodes_file):
-      line_split = [t.strip() for t in line.split('|')]
+        return d
 
-      tax_id = line_split[0]
-      parent_tax_id = line_split[1]
-      rank = line_split[2]
-      division_id = line_split[4]
-      genetic_code_id = line_split[6]
+    def _read_nodes(self, nodes_file):
+        """Read NCBI nodes.dmp file.
 
-      d[tax_id] = self.NodeRecord(parent_tax_id, rank, division_id, genetic_code_id)
+        Parameters
+        ----------
+        nodes_file : str
+          Path to NCBI nodes.dmp file.
 
-    return d
+        Returns
+        -------
+        dict : d[tax_id] -> NodeRecord
+          Node record for all nodes.
+        """
 
-  def _read_names(self, names_file):
-    """Read NCBI names.dmp file.
+        d = {}
+        for line in open(nodes_file):
+            line_split = [t.strip() for t in line.split('|')]
 
-    Parameters
-    ----------
-    names_file : str
-      Path to NCBI names.dmp file.
+            tax_id = line_split[0]
+            parent_tax_id = line_split[1]
+            rank = line_split[2]
+            division_id = line_split[4]
+            genetic_code_id = line_split[6]
 
-    Returns
-    -------
-    dict : d[tax_id] -> NameRecord
-      Name record of nodes marked as 'scientific name'.
-    """
+            d[tax_id] = self.NodeRecord(
+                parent_tax_id, rank, division_id, genetic_code_id)
 
-    d = {}
-    for line in open(names_file):
-      line_split = [t.strip() for t in line.split('|')]
+        return d
 
-      tax_id = line_split[0]
-      name_txt = line_split[1]
-      unique_name = line_split[2]
-      name_class = line_split[3]
+    def _read_names(self, names_file):
+        """Read NCBI names.dmp file.
 
-      if name_class == 'scientific name':
-        d[tax_id] = self.NameRecord(name_txt)
+        Parameters
+        ----------
+        names_file : str
+          Path to NCBI names.dmp file.
 
-    return d
+        Returns
+        -------
+        dict : d[tax_id] -> NameRecord
+          Name record of nodes marked as 'scientific name'.
+        """
 
-  def run(self, taxonomy_dir, assembly_metadata_file, output_file):
-    """Read NCBI taxonomy information and create summary output files."""
+        d = {}
+        for line in open(names_file):
+            line_split = [t.strip() for t in line.split('|')]
 
-    # parse metadata file and taxonomy files
-    assembly_to_tax_id = self._assembly_to_tax_id(assembly_metadata_file)
+            tax_id = line_split[0]
+            name_txt = line_split[1]
+            unique_name = line_split[2]
+            name_class = line_split[3]
 
-    node_records = self._read_nodes(os.path.join(taxonomy_dir, 'nodes.dmp'))
-    print 'Read %d node records.' % len(node_records)
+            if name_class == 'scientific name':
+                d[tax_id] = self.NameRecord(name_txt)
 
-    name_records = self._read_names(os.path.join(taxonomy_dir, 'names.dmp'))
-    print 'Read %d name records.' % len(name_records)
+        return d
 
-    # traverse taxonomy tree for each assembly
-    fout = open(output_file, 'w')
+    def run(self, taxonomy_dir, assembly_metadata_file, output_taxonomy_file, output_organism_name_file):
+        """Read NCBI taxonomy information and create summary output files."""
 
-    print 'Number of assemblies: %d' % len(assembly_to_tax_id)
-    for assembly_accession, tax_id in assembly_to_tax_id.iteritems():
-      # traverse taxonomy tree to the root which is 'cellular organism' for genomes,
-      # 'other suquences' for plasmids, and 'unclassified sequences' for metagenomic libraries
-      taxonomy = []
-      cur_tax_id = tax_id
+        # parse organism name
+        self._assembly_organism_name(
+            assembly_metadata_file, output_organism_name_file)
 
-      if cur_tax_id not in name_records:
-        print '[Warning] Assembly %s has an invalid taxid: %s' % (assembly_accession, tax_id)
-        continue
+        # parse metadata file and taxonomy files
+        assembly_to_tax_id = self._assembly_to_tax_id(assembly_metadata_file)
 
-      roots = ['cellular organisms', 'other sequences', 'unclassified sequences', 'Viruses', 'Viroids']
-      while name_records[cur_tax_id].name_txt not in roots:
-        if cur_tax_id == '1':
-          print '[Error] TaxId %s reached root of taxonomy tree: %s' % (tax_id, taxonomy)
-          sys.exit(-1)
+        node_records = self._read_nodes(
+            os.path.join(taxonomy_dir, 'nodes.dmp'))
+        print 'Read %d node records.' % len(node_records)
 
-        try:
-          node_record = node_records[cur_tax_id]
+        name_records = self._read_names(
+            os.path.join(taxonomy_dir, 'names.dmp'))
+        print 'Read %d name records.' % len(name_records)
 
-          if node_record.rank in Taxonomy.rank_labels:
-            rank_index = Taxonomy.rank_labels.index(node_record.rank)
-            rank_prefix = Taxonomy.rank_prefixes[rank_index]
-          else:
-            # unrecognized rank
-            rank_prefix = 'x__'
-            if node_record.rank == 'superkingdom':
-              rank_prefix = 'd__'
-            elif node_record.rank == 'no rank' and len(taxonomy) == 0:
-              # the taxonomy id is likely for a specific strain,
-              # so mark it as a strain
-              rank_prefix = 'st__'
+        # traverse taxonomy tree for each assembly
+        fout = open(output_taxonomy_file, 'w')
 
-          taxonomy.append(rank_prefix + name_records[cur_tax_id].name_txt)
+        print 'Number of assemblies: %d' % len(assembly_to_tax_id)
+        for assembly_accession, tax_id in assembly_to_tax_id.iteritems():
+            # traverse taxonomy tree to the root which is 'cellular organism' for genomes,
+            # 'other suquences' for plasmids, and 'unclassified sequences' for metagenomic libraries
+            taxonomy = []
+            cur_tax_id = tax_id
 
-          cur_tax_id = node_record.parent_tax_id
-        except:
-          print traceback.format_exc()
-          print taxonomy
+            if cur_tax_id not in name_records:
+                print '[Warning] Assembly %s has an invalid taxid: %s' % (assembly_accession, tax_id)
+                continue
 
-      taxonomy.reverse()
-      taxa_str = ';'.join(taxonomy)
-      fout.write('%s\t%s\n' % (assembly_accession, taxa_str))
+            roots = ['cellular organisms', 'other sequences',
+                     'unclassified sequences', 'Viruses', 'Viroids']
+            while name_records[cur_tax_id].name_txt not in roots:
+                if cur_tax_id == '1':
+                    print '[Error] TaxId %s reached root of taxonomy tree: %s' % (tax_id, taxonomy)
+                    sys.exit(-1)
 
-    fout.close()
+                try:
+                    node_record = node_records[cur_tax_id]
 
-    print ''
-    print 'Taxonomy information for assemblies written to: %s' % output_file
+                    if node_record.rank in Taxonomy.rank_labels:
+                        rank_index = Taxonomy.rank_labels.index(
+                            node_record.rank)
+                        rank_prefix = Taxonomy.rank_prefixes[rank_index]
+                    else:
+                        # unrecognized rank
+                        rank_prefix = 'x__'
+                        if node_record.rank == 'superkingdom':
+                            rank_prefix = 'd__'
+                        elif node_record.rank == 'no rank' and len(taxonomy) == 0:
+                            # the taxonomy id is likely for a specific strain,
+                            # so mark it as a strain
+                            rank_prefix = 'st__'
+
+                    taxonomy.append(
+                        rank_prefix + name_records[cur_tax_id].name_txt)
+
+                    cur_tax_id = node_record.parent_tax_id
+                except:
+                    print traceback.format_exc()
+                    print taxonomy
+
+            taxonomy.reverse()
+            taxa_str = ';'.join(taxonomy)
+            fout.write('%s\t%s\n' % (assembly_accession, taxa_str))
+
+        fout.close()
+
+        print ''
+        print 'Organism name information for assemblies written to: %s' % output_organism_name_file
+        print 'Taxonomy information for assemblies written to: %s' % output_taxonomy_file
+
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
+    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
-  parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  parser.add_argument('taxonomy_dir', help='directory containing NCBI taxonomy files')
-  parser.add_argument('assembly_metadata_file', help='file with metadata for each assembly obtain from NCBI FTP site')
-  parser.add_argument('output_file', help='output taxonomy file')
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        'taxonomy_dir', help='directory containing NCBI taxonomy files')
+    parser.add_argument('assembly_metadata_file',
+                        help='file with metadata for each assembly obtain from NCBI FTP site')
+    parser.add_argument('output_taxonomy_file', help='output taxonomy file')
+    parser.add_argument('output_organism_name_file',
+                        help='output taxonomy file')
 
-  args = parser.parse_args()
+    args = parser.parse_args()
 
-  try:
-    p = TaxonomyNCBI()
-    p.run(args.taxonomy_dir, args.assembly_metadata_file, args.output_file)
-  except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
-  except:
-    print "\nUnexpected error:", sys.exc_info()[0]
-    raise
+    try:
+        p = TaxonomyNCBI()
+        p.run(args.taxonomy_dir, args.assembly_metadata_file,
+              args.output_taxonomy_file, args.output_organism_name_file)
+    except SystemExit:
+        print "\nControlled exit resulting from an unrecoverable error or warning."
+    except:
+        print "\nUnexpected error:", sys.exc_info()[0]
+        raise

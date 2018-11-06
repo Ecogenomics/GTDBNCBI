@@ -108,7 +108,7 @@ class TypeStrains(object):
 
       if name_class == 'scientific name':
         d[tax_id].name_txt = name_txt
-      elif name_class == 'type material':
+      elif '<reference strain>' not in unique_name and name_class == 'type material':
         d[tax_id].type_material.add(name_txt)
 
     return d

@@ -861,7 +861,7 @@ class GenomeManager(object):
                                  "WHERE id IN %s", (tuple(db_genome_ids),))
                 self.cur.execute("DELETE FROM metadata_rna " +
                                  "WHERE id IN %s", (tuple(db_genome_ids),))
-                self.cur.execute("DELETE FROM metadata_sequence " +
+                self.cur.execute("DELETE FROM metadata_rrna_sequences " +
                                  "WHERE id IN %s", (tuple(db_genome_ids),))
 
                 self.cur.execute("DELETE FROM genomes " +
@@ -1145,7 +1145,7 @@ class GenomeManager(object):
                 raise GenomeDatabaseError(
                     "Unable to print genomes. No genomes found.")
 
-            stat_fields = ['id', 'genome'] + stat_fields
+            stat_fields = ['id', 'accession'] + stat_fields
             stat_fields_str = ','.join(stat_fields)
 
             self.cur.execute("SELECT " + stat_fields_str + " FROM metadata_view " +
@@ -1168,10 +1168,10 @@ class GenomeManager(object):
         :param path: Path to the output file
         '''
         try:
-            self.cur.execute("SELECT genome, gtdb_taxonomy, mr.ssu_silva_query_id, mr.ssu_silva_length, mr.ssu_silva_contig_len, ms.ssu_silva_sequence FROM metadata_view " +
+            self.cur.execute("SELECT accession, gtdb_taxonomy, mr.ssu_query_id, mr.ssu_length, mr.ssu_contig_len, ms.ssu_sequence FROM metadata_view " +
                              "LEFT JOIN metadata_rna mr USING (id) " +
-                             "LEFT JOIN metadata_sequence ms USING (id) " +
-                             "WHERE ms.ssu_silva_sequence is not NULL")
+                             "LEFT JOIN metadata_rrna_sequences ms USING (id) " +
+                             "WHERE ms.ssu_sequence is not NULL")
 
             fout = open(output_file, 'w')
             for genome, taxonomy, query, gene_len, contig_len, sequence in self.cur.fetchall():
@@ -1190,15 +1190,33 @@ class GenomeManager(object):
         :param path: Path to the output file
         '''
         try:
-            self.cur.execute("SELECT genome, gtdb_taxonomy, mr.lsu_silva_query_id, mr.lsu_silva_length, mr.lsu_silva_contig_len, ms.lsu_silva_sequence FROM metadata_view " +
+            self.cur.execute("SELECT accession, gtdb_taxonomy, mr.lsu_23s_query_id, mr.lsu_23s_length, mr.lsu_23s_contig_len, ms.lsu_23s_sequence FROM metadata_view " +
                              "LEFT JOIN metadata_rna mr USING (id) " +
-                             "LEFT JOIN metadata_sequence ms USING (id) " +
-                             "WHERE ms.lsu_silva_sequence is not NULL")
+                             "LEFT JOIN metadata_rrna_sequences ms USING (id) " +
+                             "WHERE ms.lsu_23s_sequence is not NULL")
 
             fout = open(output_file, 'w')
             for genome, taxonomy, query, gene_len, contig_len, sequence in self.cur.fetchall():
                 fout.write('>{0}~{1} {2} {3} {4}\n'.format(genome, query, taxonomy, gene_len, contig_len))
                 fout.write('{0}\n'.format(sequence))
+            fout.close()
+            print 'Export successful'
+        except GenomeDatabaseError as e:
+            raise e
+
+    def exportReps(self,output_file):
+        '''
+        Exports all representatives genomes from GTDB and the cluster of genomes associated with each to a TSV file.
+
+        :param path: Path to the output file
+        '''
+        try:
+            self.cur.execute("SELECT accession,gtdb_clustered_genomes from metadata_view WHERE gtdb_representative is TRUE")
+
+            fout = open(output_file, 'w')
+            fout.write('representative\tclustered_genomes\n')
+            for genome, gtdb_clustered_genomes in self.cur.fetchall():
+                fout.write('{0}\t{1}\n'.format(genome, gtdb_clustered_genomes))
             fout.close()
             print 'Export successful'
         except GenomeDatabaseError as e:

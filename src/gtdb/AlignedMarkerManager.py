@@ -152,6 +152,7 @@ class AlignedMarkerManager(object):
                      "AND g.id = %s " +
                      "AND m.id in %s " +
                      "AND md.external_id_prefix like %s")
+
             temp_cur.execute(
                 query, (db_genome_id, tuple(marker_ids,), marker_db))
             raw_results = temp_cur.fetchall()
@@ -169,7 +170,8 @@ class AlignedMarkerManager(object):
             all_genes_dict = read_fasta(protein_file, False)
 
             # Prodigal adds an asterisks at the end of each called genes,
-            # These asterisks sometimes appear in the MSA, which can be an issue for some softwares downstream
+            # These asterisks sometimes appear in the MSA, which can be an
+            # issue for some softwares downstream
             for seq_id, seq in all_genes_dict.iteritems():
                 if seq[-1] == '*':
                     all_genes_dict[seq_id] = seq[:-1]

@@ -48,7 +48,30 @@ class TreeManager(object):
 
         self.cur = cur
         self.currentUser = currentUser
+        
+    def _taxa_filter(self, taxa_filter, genome_ids, guaranteed_ids, retain_guaranteed):
+        """Filter genomes to specified taxa."""
+        
+        self.logger.info('Filtering genomes outside taxonomic groups of interest (%s).' % taxa_filter)
+        taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
+        genome_ids_from_taxa = self._genomesFromTaxa(genome_ids, taxa_to_retain)
+        
+        retained_guaranteed_ids = guaranteed_ids - genome_ids_from_taxa
+        if retain_guaranteed:
+            if len(retained_guaranteed_ids):
+                self.logger.warning('Retaining %d guaranteed genomes from taxa not specified by the taxa filter.' % len(retained_guaranteed_ids))
+                self.logger.warning("You can use the '--guaranteed_taxa_filter' flag to filter these genomes.")
 
+            genomes_to_retain = genome_ids.intersection(genome_ids_from_taxa).union(guaranteed_ids)
+        else:
+            genomes_to_retain = genome_ids.intersection(genome_ids_from_taxa)
+            self.logger.info("Filtered %d 'guaranteed' genomes based on taxonomic affiliations." % len(retained_guaranteed_ids))
+            
+        self.logger.info('Filtered %d genomes based on taxonomic affiliations.' % (
+                                        len(genome_ids) - len(genomes_to_retain)))
+
+        return genomes_to_retain
+        
     def filterGenomes(self, marker_ids,
                       genome_ids,
                       quality_threshold,
@@ -58,6 +81,7 @@ class TreeManager(object):
                       min_perc_aa,
                       min_rep_perc_aa,
                       taxa_filter,
+                      guaranteed_taxa_filter,
                       genomes_to_exclude,
                       guaranteed_ids,
                       rep_ids,
@@ -111,18 +135,25 @@ class TreeManager(object):
         # filter genomes based on taxonomy
         genomes_to_retain = genome_ids
         if taxa_filter:
-            self.logger.info('Filtering genomes outside taxonomic groups of interest (%s).' % taxa_filter)
-            taxa_to_retain = [x.strip() for x in taxa_filter.split(',')]
-            genome_ids_from_taxa = self._genomesFromTaxa(genome_ids, taxa_to_retain)
-
-            new_genomes_to_retain = genomes_to_retain.intersection(genome_ids_from_taxa).union(guaranteed_ids)
-            self.logger.info('Filtered %d genomes based on taxonomic affiliations.' % (
-                len(genomes_to_retain) - len(new_genomes_to_retain)))
-
+            new_genomes_to_retain = self._taxa_filter(taxa_filter, 
+                                                        genomes_to_retain, 
+                                                        guaranteed_ids, 
+                                                        retain_guaranteed=True)
             for genome_id in genomes_to_retain - new_genomes_to_retain:
                 rep_str = 'Representative' if genome_id in rep_ids else ''
                 fout_filtered.write('%s\t%s\t%s\n' % (external_ids[genome_id], 'Filtered on taxonomic affiliation.', rep_str))
+                
+            genomes_to_retain = new_genomes_to_retain
 
+        if guaranteed_taxa_filter:
+            new_genomes_to_retain = self._taxa_filter(guaranteed_taxa_filter, 
+                                                        genomes_to_retain, 
+                                                        guaranteed_ids, 
+                                                        retain_guaranteed=False)
+            for genome_id in genomes_to_retain - new_genomes_to_retain:
+                rep_str = 'Representative' if genome_id in rep_ids else ''
+                fout_filtered.write('%s\t%s\t%s\n' % (external_ids[genome_id], 'Filtered on guaranteed taxonomic affiliation.', rep_str))
+                
             genomes_to_retain = new_genomes_to_retain
 
         # find genomes based on completeness, contamination, or genome quality
@@ -231,6 +262,68 @@ class TreeManager(object):
 
         return (genomes_to_retain, chosen_markers_order, chosen_markers)
 
+    def _mimagQualityInfo(self, metadata, col_headers):
+        """Add MIMAG quality information to metadata."""
+        
+        col_headers.append('mimag_high_quality')
+        col_headers.append('mimag_medium_quality')
+        col_headers.append('mimag_low_quality')
+        
+        comp_index = col_headers.index('checkm_completeness')
+        cont_index = col_headers.index('checkm_contamination')
+        
+        gtdb_domain_index = col_headers.index('gtdb_domain')
+        lsu_5s_length_index = col_headers.index('lsu_5s_length')
+        lsu_23s_length_index = col_headers.index('lsu_silva_length')
+        ssu_length_index = col_headers.index('ssu_silva_length')
+        trna_aa_count_index = col_headers.index('trna_aa_count')
+
+        for i, gm in enumerate(metadata):
+            comp = float(gm[comp_index])
+            cont = float(gm[cont_index])
+            
+            lsu_5s_length = 0
+            if gm[lsu_5s_length_index]:
+                lsu_5s_length = int(gm[lsu_5s_length_index])
+                
+            lsu_23s_length = 0
+            if gm[lsu_23s_length_index]:
+                lsu_23s_length = int(gm[lsu_23s_length_index])
+            
+            ssu_length = 0
+            if gm[ssu_length_index]:
+                ssu_length = int(gm[ssu_length_index])
+                
+            trna_aa_count = 0
+            if gm[trna_aa_count_index]:
+                trna_aa_count = int(gm[trna_aa_count_index])
+                
+            gtdb_domain = gm[gtdb_domain_index]
+            ssu_length_threshold = 1200
+            if gtdb_domain == 'd__Archaea':
+                ssu_length_threshold = 900
+            
+            hq = False
+            mq = False
+            lq = False
+            if comp > 90 and cont < 5:
+                if  (ssu_length >= ssu_length_threshold 
+                        and lsu_23s_length >= 1900 
+                        and lsu_5s_length >= 80
+                        and trna_aa_count_index >= 18):
+                    hq = True
+                else:
+                    mq = True
+            elif comp >= 50 and cont < 10:
+                mq = True
+            elif cont < 10:
+                lq = True
+                
+            gm += (hq, mq, lq)
+            metadata[i] = gm
+            
+        return metadata
+        
     def writeFiles(self,
                    marker_ids,
                    genomes_to_retain,
@@ -242,7 +335,8 @@ class TreeManager(object):
                    alignment,
                    individual,
                    directory,
-                   prefix):
+                   prefix,
+                   no_trim):
         '''
         Write summary files and arb files
 
@@ -275,12 +369,15 @@ class TreeManager(object):
                          "WHERE id IN %s", (tuple(genomes_to_retain),))
         col_headers = [desc[0] for desc in self.cur.description]
         metadata = self.cur.fetchall()
+        
+        # add MIMAG quality information
+        #metadata = self._mimagQualityInfo(metadata, col_headers)
 
         # identify columns of interest
         genome_id_index = col_headers.index('id')
-        genome_name_index = col_headers.index('genome')
+        genome_name_index = col_headers.index('accession')
         col_headers.remove('id')
-        col_headers.remove('genome')
+        col_headers.remove('accession')
 
         # create ARB import filter
         arb_import_filter = os.path.join(directory, prefix + "_arb_filter.ift")
@@ -365,24 +462,28 @@ class TreeManager(object):
         multi_hits_fh.close()
 
         # filter columns without sufficient representation across taxa
-        self.logger.info('Trimming columns with insufficient taxa or poor consensus.')
-        trimmed_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons, mask = self._trim_seqs(
-            msa, min_perc_taxa / 100.0, consensus / 100.0, min_perc_aa / 100.0)
-        self.logger.info('Trimmed alignment from %d to %d AA (%d by minimum taxa percent, %d by consensus).' % (len(msa[msa.keys()[0]]),
-                                                                                                                len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
-        self.logger.info('After trimming %d taxa have amino acids in <%.1f%% of columns.' % (
-            len(pruned_seqs), min_perc_aa))
+        if no_trim:
+            self.logger.info('Trimming step is skipped.')
+            trimmed_seqs = msa
+        else:
+            self.logger.info('Trimming columns with insufficient taxa or poor consensus.')
+            trimmed_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons, mask = self._trim_seqs(
+                msa, min_perc_taxa / 100.0, consensus / 100.0, min_perc_aa / 100.0)
+            self.logger.info('Trimmed alignment from %d to %d AA (%d by minimum taxa percent, %d by consensus).' % (len(msa[msa.keys()[0]]),
+                                                                                                                    len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
+            self.logger.info('After trimming %d taxa have amino acids in <%.1f%% of columns.' % (
+                len(pruned_seqs), min_perc_aa))
+            trimmed_seqs.update(pruned_seqs)
 
-        # write out mask for MSA
-        msa_mask_out = open(os.path.join(directory, prefix + "_mask.txt"), 'w')
-        msa_mask_out.write(''.join(['1' if m else '0' for m in mask]))
-        msa_mask_out.close()
+            # write out mask for MSA
+            msa_mask_out = open(os.path.join(directory, prefix + "_mask.txt"), 'w')
+            msa_mask_out.write(''.join(['1' if m else '0' for m in mask]))
+            msa_mask_out.close()
 
         # write out MSA
         fasta_concat_filename = os.path.join(
             directory, prefix + "_concatenated.faa")
         fasta_concat_fh = open(fasta_concat_filename, 'wb')
-        trimmed_seqs.update(pruned_seqs)
         for genome_id, aligned_seq in trimmed_seqs.iteritems():
             fasta_outstr = ">%s\n%s\n" % (genome_id, aligned_seq)
             fasta_concat_fh.write(fasta_outstr)

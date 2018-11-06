@@ -52,7 +52,7 @@ class GenomeDatabase(object):
         self.debugMode = False
 
         self.threads = threads
-	self.db_release = db_release
+        self.db_release = db_release
 
         self.tab_table = tab_table
 
@@ -138,7 +138,7 @@ class GenomeDatabase(object):
 
             for r in rows:
                 table.add_row(r)
-            print table.get_string()
+            print table.get_string().encode("utf-8")
 
     # Function: SetDebugMode
     # Sets the debug mode of the database (at the moment its either on (non-zero) or off (zero))
@@ -415,6 +415,18 @@ class GenomeDatabase(object):
             genomeman = GenomeManager(cur, self.currentUser)
             genomeman.exportLSUSequences(path)
 
+            self.conn.commit()
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+
+    def ExportReps(self, path):
+        try:
+            cur = self.conn.cursor()
+            genomeman = GenomeManager(cur, self.currentUser)
+            genomeman.exportReps(path)
             self.conn.commit()
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
@@ -717,7 +729,7 @@ class GenomeDatabase(object):
 
         except GenomeDatabaseError as e:
             self.ReportError(e.message)
-            return False
+            raise
 
         return marker_id_list
 
@@ -733,6 +745,7 @@ class GenomeDatabase(object):
                      min_perc_taxa,
                      consensus,
                      taxa_filter,
+                     guaranteed_taxa_filter,
                      excluded_genome_list_ids,
                      excluded_genome_ids,
                      guaranteed_genome_list_ids,
@@ -740,6 +753,7 @@ class GenomeDatabase(object):
                      guaranteed_batchfile,
                      rep_genome_ids,
                      alignment,
+                     no_trim,
                      individual,
                      build_tree=True):
 
@@ -811,6 +825,7 @@ class GenomeDatabase(object):
                                                                                               min_perc_aa,
                                                                                               min_rep_perc_aa,
                                                                                               taxa_filter,
+                                                                                              guaranteed_taxa_filter,
                                                                                               genomes_to_exclude,
                                                                                               guaranteed_ids,
                                                                                               rep_genome_ids,
@@ -831,7 +846,8 @@ class GenomeDatabase(object):
                                             alignment,
                                             individual,
                                             directory,
-                                            prefix)
+                                            prefix,
+                                            no_trim)
 
             self.conn.commit()
 
@@ -965,7 +981,6 @@ class GenomeDatabase(object):
 
     def GetGenomeListIdsforUser(self, username):
         cur = self.conn.cursor()
-        print username
 
         cur.execute("SELECT gl.id " +
                     "FROM genome_lists gl " +
@@ -1517,7 +1532,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.runTreeWeightedExceptions(path,
                                                       comp_threshold,
                                                       cont_threshold,
@@ -1542,7 +1557,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.runTreeExceptions(path, filtered)
 
             cur.close()
@@ -1565,8 +1580,10 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            self.logger.info('Running sanity check.')
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.runSanityCheck()
+            self.logger.info('Done.')
 
             cur.close()
             self.conn.ClosePostgresConnection()
@@ -1588,7 +1605,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.runTaxonomyCheck(rank_depth)
 
             cur.close()
@@ -1609,7 +1626,7 @@ class GenomeDatabase(object):
         try:
             cur = self.conn.cursor()
             # ensure all genomes have been assigned to a representatives
-            power_user_mngr = PowerUserManager(cur, self.currentUser)
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
             power_user_mngr.CheckUserIDsDuplicates()
 
             cur.close()
@@ -1620,6 +1637,48 @@ class GenomeDatabase(object):
             return False
 
         return True
+    
+    def RunDomainConsistency(self):
+        '''
+        Function: RunDomainConsistency
+        Check if GTDB domain based on markers presence and NCBI domain are the same.
+
+        '''
+        try:
+            cur = self.conn.cursor()
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
+            power_user_mngr.RunDomainConsistency()
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+    
+    def RealignNCBIgenomes(self):
+        '''
+        Function: RealignNCBIgenomes
+        Re run alignment of NCBI genomes that have been updated in the last NCBI release.
+
+        '''
+        try:
+            cur = self.conn.cursor()
+            power_user_mngr = PowerUserManager(cur, self.currentUser,self.db_release)
+            power_user_mngr.RealignNCBIgenomes()
+
+            cur.close()
+            self.conn.ClosePostgresConnection()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+    
+    
 
     def RunDomainAssignmentReport(self, outfile):
         '''
@@ -1632,7 +1691,7 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            grm = GenomeRepresentativeManager(cur, self.currentUser, 1,self.db_release)
+            grm = GenomeRepresentativeManager(cur, self.currentUser, 1, self.db_release)
             grm.domainAssignmentReport(outfile)
 
             cur.close()

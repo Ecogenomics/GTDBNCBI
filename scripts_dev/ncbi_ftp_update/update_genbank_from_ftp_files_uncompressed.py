@@ -313,7 +313,6 @@ class UpdateGenbankFolder(object):
                 latest = split_line[10]
 
                 if latest == "latest":
-		    print 'latest'
                     if not gcf_access.startswith("GCF"):
                         listGCA.append(full_gca_access)
                         self.select_gca.write("{0}\tNo GCF\n".format(

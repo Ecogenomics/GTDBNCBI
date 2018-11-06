@@ -22,17 +22,19 @@ while (my $localpath = readdir($dh)) {
             print join("\t", ("genus", $is_type_genus, $genus_info->{genus}->{name}, $genus_info->{genus}->{info})) . "\n";
             my %species_hash = %{$genus_info->{species}};
             foreach my $species (keys %species_hash) {
+
                 if (ref($species_hash{$species})) {
                     if (! defined $species_hash{$species}->{info}) {
                         print STDERR Dumper($species_hash{$species});
                         print STDERR $genus_info->{genus}->{name}, " ", $species;
                     }
                     print join("\t", (
-                        "species",
-                        ($species_hash{$species}->{info} =~ /Type species of the genus\./ ? 1 : 0),
+                       "species",
+                        ($species_hash{$species}->{info} =~ /Type species of the genus/ ? 1 : 0),
                         $genus_info->{genus}->{name} . " " . $species,
                         $species_hash{$species}->{info},
-                        @{$species_hash{$species}->{type_strain_synonyms}}
+                        $species_hash{$species}->{type_strain_synonyms},
+                        $species_hash{$species}->{neotype_strain_synonyms},
                     )) . "\n";
                 }
             }
@@ -57,15 +59,17 @@ sub parse_genus_html {
     my $current_species_info;
 
     my %species_hash;
+    
+    my @neotype_strain_synonyms = ();
+    my @strain_synonyms = ();
 
     my $temp_match;
 
     while (my $line = <$fh>) {
-
         # Carriage returns everywhere!
         $line =~ s/\r//g;
         chomp $line;
-
+		
         # Change all single quotes to double quotes
         $line =~ s/\'/\"/g;
 
@@ -78,18 +82,20 @@ sub parse_genus_html {
         #<span class="genusspecies"><a name="lacus" id="lacus"></a>Methylohalomonas</span> <span class="specificepithet">lacus</span> Sorokin <i>et al.</i> 2007, sp. nov. (Type species of the genus.)
 
 
-        my $genusspecies_span_match = 'span class=(?:\'|\")genusspecies(?:\'|\")>([^<]*)<\/span>(.*?(?=<br>)|(.*))';
+        my $genus_span_match = 'span class=(?:\'|\")genus(?:\'|\")>(?!>)(.*)<\/span>(.*?(?=<br>)|(.*))';
+        my $genusspecies_span_match = 'span class=(?:\'|\")genusspecies(?:\'|\")>(?!>)(.*)<\/span>(.*?(?=<br>)|(.*))';
         my $species_span_match = '<span class=(?:\'|\")specificepithet(?:\'|\")>([^<]*)<\/span>(.*?(?=<br>)|(.*))';
-        my $subspecies_span_match = '<span class="subspecificepithet">([^<]*)</span>';
+        my $subspecies_span_match = '<span class="subspecificepithet">([^<]*)</span>(.*?(?=<br>)|(.*))';
 
         #my $genusspecies_span_start = '(<span class="genusspecies(-subspecies)?">)([^<]+)';
         my $genusspecies_span_end = '</span>';
 
-        my $type_strain_span = quotemeta('<span class="taxon-subhead">Type strain:</span>');
+        my $type_strain_span = quotemeta('<span class="taxon-subhead-typestrain">Type strain:</span>');
+        my $neotype_strain_span = quotemeta('<span class="taxon-subhead-neotype">Neotype strain:</span>');
 
         $line = clean_LSPN_html_line($line);
 
-        if ($line =~ /$genusspecies_span_match/) {
+        if ($line =~ /$genusspecies_span_match/ || $line =~ /$genus_span_match/) {
             my @matches = ($1);
             my $genus_residual_match = $2;
 
@@ -99,11 +105,14 @@ sub parse_genus_html {
             }
 
             if ($line =~ /$species_span_match/) {
+
                 push(@matches, $1);
+                
                 $current_species_info = $2;
 
                 if ($line =~ /$subspecies_span_match/) {
                     push(@matches, $1);
+                    $current_species_info = $2;
                 }
             }
 
@@ -120,7 +129,7 @@ sub parse_genus_html {
 
             if (scalar @matches == 1) {
                 if (defined $genus) {
-                    carp "Multiple definitions of genus in $path. Taking first encountered definition";
+                    # carp "Multiple definitions of genus in $path. Taking first encountered definition";
                     print STDERR "\n" . $temp_match . "\n";
                     print STDERR $line . "\n\n\n";
                 } else {
@@ -138,15 +147,15 @@ sub parse_genus_html {
             }
 
             # Don't bother with subspecies
-            if (scalar @matches > 3) {
-                next;
+            if (scalar @matches > 2) {
+				$current_species_name = $matches[1].' subsp. '.$matches[2];
             }
 
             if (scalar @matches == 2) {
                 $current_species_name = $matches[1];
             }
-
-        } elsif ($line =~ /$type_strain_span([^<]*)/) {
+		
+        } elsif ($line =~ /$type_strain_span(.*)/) {
 
             if (! $current_species_name) {
                 next;
@@ -160,23 +169,56 @@ sub parse_genus_html {
             $strain_info =~ s/^[\s]*//;
             $strain_info =~ s/\.[\s]*$//;
 
-            my @strain_synonyms = split /=/, $strain_info;
-
+            @strain_synonyms = split /=/, $strain_info;
+            
             # Remove leading/trailing whitespace
             map {$_ =~ s/^[\s]*(.*?)[\s]*$/$1/} @strain_synonyms;
-
-            if (defined $species_hash{$current_species_name}) {
-                carp "$current_species_name already previously defined in $path. Taking first defintion";
-            } else {
-                $species_hash{$current_species_name} = {
-                    'info' => $current_species_info,
-                    'type_strain_synonyms' => \@strain_synonyms
-                };
+			
+        }elsif ($line =~ /$neotype_strain_span (strain)?(.*)/) {
+        	if (! $current_species_name) {
+                next;
             }
 
+            my $neotype_strain_info = $2;
+                     
+            # Remove leading/trailing whitespace/dots.
+            $neotype_strain_info =~ s/^[\s]*//;
+            $neotype_strain_info =~ s/\.[\s]*$//;
+            
+
+            @neotype_strain_synonyms = split /=/, $neotype_strain_info;
+			
+            # Remove leading/trailing whitespace
+            map {$_ =~ s/^[\s]*(.*?)[\s]*$/$1/} @neotype_strain_synonyms;
+
+        	}
+        
+        elsif ($line =~ /images\/top.jpg/){
+        	if (defined $species_hash{$current_species_name}) {
+                carp "$current_species_name already previously defined in $path. Taking first defintion";
+            } elsif ( scalar @neotype_strain_synonyms ne 0 and (@strain_synonyms) )
+            	 {
+                $species_hash{$current_species_name} = {
+                    'info' => $current_species_info,
+                    'type_strain_synonyms' => join('=',@strain_synonyms),
+                    'neotype_strain_synonyms' => join('=',@neotype_strain_synonyms),
+                };
+               @strain_synonyms = ();
+               @neotype_strain_synonyms = ();
+            }elsif ((@strain_synonyms)){
+            	$species_hash{$current_species_name} = {
+                    'info' => $current_species_info,
+                    'type_strain_synonyms' => join('=',@strain_synonyms),
+                    'neotype_strain_synonyms' => "",
+                };
+               @strain_synonyms = ();
+               @neotype_strain_synonyms = ();
+            }
             $current_species_name = "";
             $current_species_info = "";
-        }
+        	} 
+       
+       
     }
 
     if (! defined $genus) {
@@ -196,7 +238,7 @@ sub parse_genus_html {
 sub clean_LSPN_html_line {
     my $line = shift;
 
-    #$line = 'Bob &ampid; <i>Bobette</i>  <i>&eacute;</i> <a href="img.src" class="zzzzzz">Something is <b>here</b></a>';
+    #$line = 'Bob &ampid; <i>Bobette</i>  <i>&eacute;</i> = CIP <span class="strainnumber">123 <a href="img.src" class="zzzzzz">Something is <b>here</b></a>';
 
     # remove HTML markup
     $line =~ s/\&.{1,10}\;/?/g;
@@ -206,8 +248,19 @@ sub clean_LSPN_html_line {
 
     # remove hyperlinks
     $line =~ s#<a[^>]*>(.*?)<\/a>#$1#g;
+    
+    # remove hyperlinks
+    $line =~ s/<span class="strainnumber">//g;
+    
+    # replace ( now XXXX )
+    $line =~ s/(\w+) \(now (\w+)\) (\d+)/$1 $3 = $2 $3/g;
+    
+    # replace ( formerly XXXX )
+    $line =~ s/(\w+) \(formerly (\w+)\) (\d+)/$1 $3 = $2 $3/g;
+    
 
-    # print $line . "\n";
+
+    #print $line . "\n";
     return $line;
 }
 

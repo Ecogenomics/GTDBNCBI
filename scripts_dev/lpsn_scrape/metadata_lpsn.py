@@ -52,17 +52,27 @@ class MetadataLPSN(object):
             os.makedirs(output_dir)
 
         # identify type genera, species, and strains according to LPSN
-        fout_type_genera = open(os.path.join(output_dir, 'lpsn_genera.tsv'), 'w')
-        fout_type_species = open(os.path.join(output_dir, 'lpsn_species.tsv'), 'w')
-        fout_type_strains = open(os.path.join(output_dir, 'lpsn_strains.tsv'), 'w')
+        fout_type_genera = open(os.path.join(
+            output_dir, 'lpsn_genera.tsv'), 'w')
+        fout_type_species = open(os.path.join(
+            output_dir, 'lpsn_species.tsv'), 'w')
+        fout_type_strains = open(os.path.join(
+            output_dir, 'lpsn_strains.tsv'), 'w')
 
-        fout_type_genera.write('lpsn_genus\tlpsn_type_genus\tlpsn_genus_authority\n')
-        fout_type_species.write('lpsn_species\tlpsn_type_species\tlpsn_species_authority\n')
+        fout_type_genera.write(
+            'lpsn_genus\tlpsn_type_genus\tlpsn_genus_authority\n')
+        fout_type_species.write(
+            'lpsn_species\tlpsn_type_species\tlpsn_species_authority\n')
         fout_type_strains.write('lpsn_strain\n')
 
+        list_processed_strains = []
+        processed_genus = []
+        processed_species = []
+
         strains = set()
+
         for line in open(lpsn_scrape_file):
-            line_split = line.rstrip().split('\t')
+            line_split = line.rstrip('\n').split('\t')
 
             if line_split[0] == 'genus':
                 genus = 'g__' + line_split[2]
@@ -70,12 +80,16 @@ class MetadataLPSN(object):
 
                 family = ''
                 if int(line_split[1]) == 1:
-                    family = desc[desc.find('family ?') + len('family ?'):].strip()
+                    family = desc[desc.find(
+                        'family ?') + len('family ?'):].strip()
                     family = 'f__' + family.split()[0]
 
                 desc = desc.replace(' ?', '')
 
-                fout_type_genera.write('%s\t%s\t%s\n' % (genus, family, desc))
+                if (genus, family, desc) not in processed_genus:
+                    fout_type_genera.write('%s\t%s\t%s\n' %
+                                           (genus, family, desc))
+                    processed_genus.append((genus, family, desc))
             elif line_split[0] == 'species':
                 species = 's__' + line_split[2]
                 desc = line_split[3].strip()
@@ -84,20 +98,55 @@ class MetadataLPSN(object):
                 if int(line_split[1]) == 1:
                     genus = 'g__' + line_split[2].split()[0]
 
-                fout_type_species.write('%s\t%s\t%s\n' % (species, genus, desc))
+                if (species, genus, desc) not in processed_species:
+                    fout_type_species.write(
+                        '%s\t%s\t%s\n' % (species, genus, desc))
+                    processed_species.append((species, genus, desc))
                 processed_strains = []
-                for i, strain in enumerate(line_split[4:]):
+                strains = line_split[4].split("=")
+                print line_split
+                for i, strain in enumerate(strains):
                     if i == 0 and strain.startswith('strain '):
                         strain = strain.replace("strain ", "", 1)
                     strain = re.sub(r'\(.+\)', ' ', strain)
                     strain = ' '.join(strain.split())
-                    matchObj = re.match(r'^[\w|\s|\d|\.|-]+$', strain, re.M | re.I)
+                    matchObj = re.match(
+                        r'^[\w|\s|\d|\.|-]+$', strain, re.M | re.I)
                     if matchObj:
                         processed_strains.append(strain)
                         if " " in strain:
-                            strain = strain.replace(" ", "")
-                            processed_strains.append(strain)
-                fout_type_strains.write('{0} {1}\n'.format(line_split[2], "=".join(processed_strains)))
+                            nosp_strain = strain.replace(" ", "")
+                            processed_strains.append(nosp_strain)
+                        if "-" in strain:
+                            nohyp_strain = strain.replace("-", "")
+                            processed_strains.append(nohyp_strain)
+                            nohyp_neotype = strain.replace("", " ")
+                            processed_strains.append(nohyp_strain)
+                processed_neotypes = []
+                neotypes = line_split[5].split("=")
+                for i, neotype in enumerate(neotypes):
+                    if i == 0 and neotype.startswith('strain '):
+                        neotype = neotype.replace("strain ", "", 1)
+                    neotype = re.sub(r'\(.+\)', ' ', neotype)
+                    neotype = ' '.join(neotype.split())
+                    matchObj = re.match(
+                        r'^[\w|\s|\d|\.|-]+$', neotype, re.M | re.I)
+                    if matchObj:
+                        processed_neotypes.append(neotype)
+                        if " " in neotype:
+                            nosp_neotype = neotype.replace(" ", "")
+                            processed_neotypes.append(nosp_neotype)
+                        if "-" in neotype:
+                            nohyp_neotype = neotype.replace("-", "")
+                            processed_neotypes.append(nohyp_neotype)
+                            nohyp_neotype = neotype.replace("", " ")
+                            processed_neotypes.append(nohyp_neotype)
+                processed_strain_string = '{0}\t{1}\t{2}'.format(
+                    line_split[2], "=".join(processed_strains), "=".join(processed_neotypes))
+                if processed_strain_string not in list_processed_strains:
+                    fout_type_strains.write(
+                        '{0}\n'.format(processed_strain_string))
+                    list_processed_strains.append(processed_strain_string)
 
 
 #         for strain_id in line_split[4:]:
@@ -110,13 +159,17 @@ class MetadataLPSN(object):
         fout_type_species.close()
         fout_type_strains.close
 
+
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
     print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('lpsn_scrape_file', help='output file from scarping LPSN')
-    parser.add_argument('output_dir', help='file containing LPSN metadata fot GTDB')
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('lpsn_scrape_file',
+                        help='output file from scarping LPSN')
+    parser.add_argument(
+        'output_dir', help='file containing LPSN metadata fot GTDB')
 
     args = parser.parse_args()
 
