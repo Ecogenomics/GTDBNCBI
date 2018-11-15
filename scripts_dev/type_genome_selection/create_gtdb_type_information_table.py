@@ -132,9 +132,11 @@ class InfoGenerator(object):
                 if not infos[gtdb_accession_index].startswith('U_'):
                     # We processed the strains to be 'standardised'
                     pattern = re.compile('[\W_]+')
+                    created_list = re.split(
+                        ';|/', infos[gtdb_strain_identifiers_index])
 
-                    list_strains = [pattern.sub('', a).upper(
-                    ) for a in infos[gtdb_strain_identifiers_index].split('/') if (a != '' and a != 'none')]
+                    list_strains = [pattern.sub('', a.strip()).upper(
+                    ) for a in created_list if (a != '' and a != 'none')]
                     metadata_dictionary[infos[gtdb_accession_index]] = {
                         'ncbi_organism_name': infos[gtdb_ncbi_organism_name_index],
                         'taxonomy_species_name': infos[gtdb_taxonomy_species_name_index].split(';')[6].replace('s__',
@@ -213,11 +215,13 @@ class InfoGenerator(object):
         # For each
         start = time.time()
         for acc, info_genomes in mini_dict.iteritems():
-            # if count > 10:
+            # if count > 100:
             #    break
             count += 1
-            print "Thread {}: {}/{} done. ({}%)".format(i, count,
-                                                        num_element, round((float(count) * 100 / num_element), 3))
+            #==================================================================
+            # print "Thread {}: {}/{} done. ({}%)".format(i, count,
+            #                                             num_element, round((float(count) * 100 / num_element), 3))
+            #==================================================================
 
             ncbi_organism_name = info_genomes.get('ncbi_organism_name')
             ncbi_unfiltered_tax = info_genomes.get('ncbi_taxonomy_unfiltered')
@@ -303,33 +307,43 @@ class InfoGenerator(object):
             # We remove duplicates
             set_potential_names = set(potential_names)
             list_spes = []
-            if len(set_potential_names) > 0:
-                for spe in strain_dictionary:
-                    p = re.compile(spe + '(\s|\n|$)', re.IGNORECASE)
-                    # we look if any names in the lpsn strain dictionary is present in
-                    # the potential name
-                    for pot_name in set_potential_names:
-                        #p = re.compile(spe + '(\s|\n|$)', re.IGNORECASE)
-                        if 'subsp.' not in pot_name and p.search(pot_name):
-                            list_spes.append(spe)
-                            spe_list = spe.split()
-                            # we recreate the subspecies name for a specie name
-                            if len(spe_list) == 2:
-                                subspe = "{} {} subsp. {}".format(
-                                    spe_list[0], spe_list[1], spe_list[1])
-                                if subspe in strain_dictionary:
-                                    list_spes.append(subspe)
-                        elif 'subsp.' in spe and p.search(pot_name):
-                            list_spes.append(spe)
-                            spe_list = spe.split()
-                            # if the species name in the strain dictionary
-                            # like 'Clavibacter michiganense subsp. michiganense'
-                            # and 'Clavibacter michiganense' is also in the strain
-                            # dictioanry we add both
-                            if len(spe_list) == 4 and spe_list[1] == spe_list[3] \
-                                    and spe_list[0] + " " + spe_list[1] in strain_dictionary:
-                                list_spes.append(
-                                    spe_list[0] + " " + spe_list[1])
+            # if len(set_potential_names) > 0:
+            for pot_name in set_potential_names:
+                pot_name_list = pot_name.split(' ')
+                if len(pot_name_list) != 2:
+                    pot_name = re.sub(r'(?i)(candidatus\s)', r'', pot_name)
+                    pot_name = re.sub(r'(?i)(serotype.*)', r'', pot_name)
+                    pot_name = re.sub(r'(?i)(ser\..*)', r'', pot_name)
+                    pot_name = re.sub(r'\"|\'', r'', pot_name)
+                    pot_name = pot_name.strip()
+                    pot_name_list = pot_name.split(' ')
+                    if len(pot_name_list) == 4 and pot_name_list[2] == 'subsp.':
+                        list_spes.append('{} {} {} {}'.format(
+                            pot_name_list[0], pot_name_list[1], pot_name_list[2], pot_name_list[3]))
+                        if pot_name_list[1] == pot_name_list[3]:
+                            list_spes.append('{} {}'.format(
+                                pot_name_list[0], pot_name_list[1]))
+
+                    elif len(pot_name_list) >= 4 and pot_name_list[2] == 'subsp.':
+                        if pot_name_list[1] == pot_name_list[3]:
+                            list_spes.append(
+                                pot_name_list[0] + ' ' + pot_name_list[1])
+                            list_spes.append('{0} {1} subsp. {1}'.format(
+                                pot_name_list[0], pot_name_list[1]))
+                        if pot_name_list[1] != pot_name_list[3]:
+                            list_spes.append('{} {} {} {}'.format(
+                                pot_name_list[0], pot_name_list[1], pot_name_list[2], pot_name_list[3]))
+                    elif len(pot_name_list) >= 2:
+                        list_spes.append(
+                            pot_name_list[0] + ' ' + pot_name_list[1])
+                        list_spes.append('{0} {1} subsp. {1}'.format(
+                            pot_name_list[0], pot_name_list[1]))
+
+                elif pot_name_list[0] + ' ' + pot_name_list[1] in strain_dictionary:
+                    list_spes.append(
+                        pot_name_list[0] + ' ' + pot_name_list[1])
+                    list_spes.append('{0} {1} subsp. {1}'.format(
+                        pot_name_list[0], pot_name_list[1]))
 
             istype = False
             isneotype = False
@@ -342,58 +356,66 @@ class InfoGenerator(object):
             if list_spes:
                 set_spe = set(list_spes)
                 for spe_name in set_spe:
-                    list_strains = []
-                    if sourcest == 'lpsn':
-                        list_strains = strain_dictionary.get(
-                            spe_name).get('strains')
-                    else:
-                        list_strains = strain_dictionary.get(spe_name)
-                    for strain in list_strains.split("="):
-                        # "official" strains should start with a letter have at least 2 digits
-                        if sum(c.isdigit() for c in strain) > 1 and strain[0].isalpha():
-                            # if the strain if found in the list of potential
-                            # names or strains_identifiers from NCBI, this
-                            # genome is a type strain
-                            pattern = re.compile('[\W_]+')
-                            standard_pot_names = {pattern.sub(
-                                '', a).upper(): a for a in set_potential_names}
-                            if self.metadata_dictionary.get(acc).get('strain_identifiers') is not None and strain in self.metadata_dictionary.get(acc).get('strain_identifiers'):
-                                istype = True
-                                if spe_name in ncbi_organism_name:
-                                    only_synonyms = False
-                            else:
-                                for standard_pot_name in standard_pot_names:
-                                    if strain in standard_pot_name:
-                                        digit_pattern = re.compile('[\d]+')
-                                        last_digit = digit_pattern.sub(
-                                            '', strain).upper()
-                                        if last_digit + " " in standard_pot_names.get(standard_pot_name) or standard_pot_names.get(standard_pot_name).endswith(last_digit):
-                                            istype = True
-                                            if spe_name in ncbi_organism_name:
-                                                only_synonyms = False
-                    if sourcest == 'lpsn':
-                        list_neotypes = strain_dictionary.get(
-                            spe_name).get('neotypes')
-                        for neotype_st in list_neotypes.split("="):
-                            # "official" strains should have the formats "AAA123" or AAA 123"
-                            if sum(c.isdigit() for c in strain) > 1 and strain[0].isalpha():
+                    if spe_name in strain_dictionary:
+                        list_strains = []
+                        if sourcest == 'lpsn':
+                            list_strains = strain_dictionary.get(
+                                spe_name).get('strains')
+                        else:
+                            list_strains = strain_dictionary.get(spe_name)
+                        for strain in list_strains.split("="):
+                            if len(strain) > 1:
+                                # if the strain if found in the list of potential
+                                # names or strains_identifiers from NCBI, this
+                                # genome is a type strain
                                 pattern = re.compile('[\W_]+')
                                 standard_pot_names = {pattern.sub(
                                     '', a).upper(): a for a in set_potential_names}
-                                if self.metadata_dictionary.get(acc).get('strain_identifiers') is not None and neotype_st in self.metadata_dictionary.get(acc).get('strain_identifiers'):
-                                    isneotype = True
+                                if self.metadata_dictionary.get(acc).get('strain_identifiers') is not None and strain in self.metadata_dictionary.get(acc).get('strain_identifiers'):
+                                    istype = True
                                     if spe_name in ncbi_organism_name:
                                         only_synonyms = False
                                 else:
                                     for standard_pot_name in standard_pot_names:
-                                        if neotype_st in standard_pot_name:
-                                            digit_pattern = re.compile('[\d]+')
-                                            last_digit = digit_pattern.sub(
-                                                '', strain).upper()
-                                            if last_digit + " " in standard_pot_names.get(standard_pot_name) or standard_pot_names.get(standard_pot_name).endswith(last_digit):
-                                                isneotype = True
+                                        if strain in standard_pot_name:
+                                            first_char = strain[0]
+                                            last_char = strain[-1]
+                                            p = re.compile(' {}'.format(
+                                                first_char), re.IGNORECASE)
+                                            matches_beginning = p.search(
+                                                standard_pot_names.get(standard_pot_name))
+                                            q = re.compile('{}(\s|$)'.format(
+                                                last_char), re.IGNORECASE)
+                                            matches_end = q.search(
+                                                standard_pot_names.get(standard_pot_name))
+                                            if matches_beginning and matches_end:
+                                                istype = True
                                                 if spe_name in ncbi_organism_name:
                                                     only_synonyms = False
+                            if sourcest == 'lpsn':
+                                list_neotypes = strain_dictionary.get(
+                                    spe_name).get('neotypes')
+                                for neotype_st in list_neotypes.split("="):
+                                    # "official" strains should have the formats "AAA123" or AAA 123"
+                                    if len(neotype_st) > 1:
+                                        pattern = re.compile('[\W_]+')
+                                        standard_pot_names = {pattern.sub(
+                                            '', a).upper(): a for a in set_potential_names}
+                                        if self.metadata_dictionary.get(acc).get('strain_identifiers') is not None and neotype_st in self.metadata_dictionary.get(acc).get('strain_identifiers'):
+                                            isneotype = True
+                                            if spe_name in ncbi_organism_name:
+                                                only_synonyms = False
+                                        else:
+                                            for standard_pot_name in standard_pot_names:
+                                                if neotype_st in standard_pot_name:
+                                                    digit_pattern = re.compile(
+                                                        '[\d]+')
+                                                    last_digit = digit_pattern.sub(
+                                                        '', strain).upper()
+                                                    if last_digit + " " in standard_pot_names.get(standard_pot_name) or standard_pot_names.get(standard_pot_name).endswith(last_digit):
+                                                        isneotype = True
+                                                        if spe_name in ncbi_organism_name:
+                                                            only_synonyms = False
             end = time.time()
             # print "Mid:{}\tLast:{}".format(mid - start, end - mid)
 
