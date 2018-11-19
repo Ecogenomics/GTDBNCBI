@@ -88,8 +88,10 @@ class StandardizedTaxonomy(object):
             return False, "name contains the word 'archeaon'"
         if "-like" in test_name.lower():
             return False, "name contains '-like'"
-        if " group " in test_name.lower():
+        if " group" in test_name.lower():
             return False, "name contains 'group'"
+        if " subdivision" in test_name.lower():
+            return False, "name contains 'subdivision'"
         if " symbiont" in test_name.lower():
             return False, "name contains 'symbiont'"
         if " endosymbiont" in test_name.lower():

@@ -197,8 +197,7 @@ class TaxonomyNCBI(object):
                 print '[Warning] Assembly %s has an invalid taxid: %s' % (assembly_accession, tax_id)
                 continue
 
-            roots = ['cellular organisms', 'other sequences',
-                     'unclassified sequences', 'Viruses', 'Viroids']
+            roots = ['cellular organisms', 'other sequences', 'unclassified sequences', 'Viruses', 'Viroids']
             while name_records[cur_tax_id].name_txt not in roots:
                 if cur_tax_id == '1':
                     print '[Error] TaxId %s reached root of taxonomy tree: %s' % (tax_id, taxonomy)
@@ -208,8 +207,7 @@ class TaxonomyNCBI(object):
                     node_record = node_records[cur_tax_id]
 
                     if node_record.rank in Taxonomy.rank_labels:
-                        rank_index = Taxonomy.rank_labels.index(
-                            node_record.rank)
+                        rank_index = Taxonomy.rank_labels.index(node_record.rank)
                         rank_prefix = Taxonomy.rank_prefixes[rank_index]
                     else:
                         # unrecognized rank
