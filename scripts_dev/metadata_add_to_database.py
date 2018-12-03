@@ -61,6 +61,7 @@ class AddMetadata(object):
             line_split = line.strip('\n').split('\t')
             metadata_type[line_split[0]] = line_split[2]
             metadata_table[line_split[0]] = line_split[3]
+        print('Fields: %s' % ', '.join(metadata_table))
 
         # read metadata file
         metadata = defaultdict(lambda: defaultdict(str))
@@ -102,7 +103,6 @@ class AddMetadata(object):
                         genome_id = 'RS_' + genome_id
 
                     if not genome_list or genome_id in genome_list:
-                        #print (genome_id, value)
                         temp_file.write('%s\t%s\n' % (genome_id, value))
 
             temp_file.close()

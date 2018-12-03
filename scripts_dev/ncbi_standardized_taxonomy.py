@@ -49,6 +49,10 @@ class StandardizedTaxonomy(object):
         
         if species_name == 's__':
             return True, None
+            
+        # remove single quotes as sometimes given for 
+        # candidatus species names
+        species_name = species_name.replace("'", "")
         
         # test for prefix
         if require_prefix:
