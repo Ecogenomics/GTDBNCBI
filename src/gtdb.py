@@ -217,6 +217,7 @@ def CreateTreeData(db, args):
                            rep_genome_ids,
                            not args.no_alignment,
                            args.no_trim,
+                           args.reduced_msa,
                            args.individual,
                            not args.no_tree)
 
@@ -1368,8 +1369,15 @@ if __name__ == '__main__':
                                               help='Remove concatenated alignment in ARB metadata file.')
     optional_markers_create_tree.add_argument('--individual', action='store_true',
                                               help='Create individual FASTA files for each marker.')
-    optional_markers_create_tree.add_argument('--no_trim', dest='no_trim', action="store_true",
-                                              help='Skip the trimming step to return the full MSA.')
+
+    mutual_trimming_option = parser_tree_create.add_argument_group(
+        'mutually exclusive optional arguments')
+    mutex_trimming_group = mutual_trimming_option.add_mutually_exclusive_group(
+        required=False)
+    mutex_trimming_group.add_argument('--no_trim', dest='no_trim', action="store_true",
+                                      help='Skip the trimming step to return the full MSA.')
+    mutex_trimming_group.add_argument('--reduced_msa', dest='reduced_msa', action="store_true",
+                                      help='Reduced MSA to ~5K AA (evenly distributed accross all markers).')
 
     optional_markers_create_tree.add_argument('--no_tree', dest='no_tree', action="store_true",
                                               help="Output tree data, but do not infer a tree.")

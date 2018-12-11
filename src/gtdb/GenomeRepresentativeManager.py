@@ -524,7 +524,7 @@ class GenomeRepresentativeManager(object):
                     if v == path_genome:
                         ref_genome = k
                         break
-                ani = round(float(info[2]) / 100, 2)
+                ani = round(float(info[2]) / 100, 5)
                 af = round(float(info[3]) / float(info[4]), 2)
                 if unprocessed_genomes in dict_results and self.ani_threshold <= ani:
                     dict_results[unprocessed_genomes][ref_genome] = {
@@ -642,9 +642,7 @@ class GenomeRepresentativeManager(object):
             # assign genome to current representative
             if assigned_representative_dic:
                 sorted_reps = sorted(assigned_representative_dic.items(
-                ), key=operator.itemgetter(1), reverse=True)[0:10]
-                assigned_representative = self._calculate_fastani_distance(
-                    genome_id, sorted_reps)
+                ), key=operator.itemgetter(1))[0:10]
                 try:
                     assigned_representative = self._calculate_fastani_distance(
                         genome_id, sorted_reps)

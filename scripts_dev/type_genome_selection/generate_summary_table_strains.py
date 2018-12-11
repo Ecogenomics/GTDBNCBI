@@ -50,9 +50,11 @@ class SummaryEditor(object):
         self.straininfo_strain_dict = self.load_strain_dic(
             straininfo_strain_summary)
 
-        #print self.dsmz_strain_dict
-        self.lpsn_type_genus_list = self.load_type_genus_file(lpsn_type_genus_file)
-        self.dsmz_type_genus_list = self.load_type_genus_file(dsmz_type_genus_file)
+        # print self.dsmz_strain_dict
+        self.lpsn_type_genus_list = self.load_type_genus_file(
+            lpsn_type_genus_file)
+        self.dsmz_type_genus_list = self.load_type_genus_file(
+            dsmz_type_genus_file)
         self.combine_list = list(self.dsmz_type_genus_list)
         self.combine_list.extend(self.lpsn_type_genus_list)
         self.ncbi_names_dic = {}
@@ -66,14 +68,14 @@ class SummaryEditor(object):
             with open(ncbi_pickle, 'wb') as f:
                 pickle.dump(self.ncbi_names_dic, f, pickle.HIGHEST_PROTOCOL)
 
-    def load_type_genus_file(self,genus_file):
+    def load_type_genus_file(self, genus_file):
         list_type_genus_species = []
         with open(genus_file) as gf:
             headers = gf.readline()
             for line in gf:
                 infos = line.rstrip('\n').split('\t')
                 if infos[1] != '':
-                    list_type_genus_species.append(infos[0].replace('s__',''))
+                    list_type_genus_species.append(infos[0].replace('s__', ''))
         return list_type_genus_species
 
     def load_strain_dic(self, strain_summary_file):
@@ -84,11 +86,13 @@ class SummaryEditor(object):
         result_dict = {}
         with open(strain_summary_file) as ssf:
             for line in ssf:
-                infos = line.rstrip().split('\t')
-                if len(infos) == 2 :
-                    result_dict[infos[0]] = {"type":strtobool(infos[1]),'os':strtobool(infos[3]),'neotype':False}
+                infos = line.rstrip('\n').split('\t')
+                if len(infos) == 2:
+                    result_dict[infos[0]] = {"type": strtobool(
+                        infos[1]), 'os': strtobool(infos[3]), 'neotype': False}
                 else:
-                    result_dict[infos[0]] = {"type":strtobool(infos[1]),'os':strtobool(infos[3]),'neotype':strtobool(infos[2])}
+                    result_dict[infos[0]] = {"type": strtobool(infos[1]), 'os': strtobool(
+                        infos[3]), 'ncbi_on_match': strtobool(infos[4]), 'yd': infos[5], 'neotype': strtobool(infos[2])}
         return result_dict
 
     def load_metadata_dictionary(self, metadata_file):
@@ -157,40 +161,53 @@ class SummaryEditor(object):
 
     def run(self, outfile):
         outf = open(outfile, 'w')
-        out_syn = open(os.path.join(os.path.dirname(outfile),'only_synonyms.tsv'),'w')
+        only_ncbi_file = open(os.path.join(os.path.dirname(
+            outfile), 'only_ncbi_file.tsv'), 'w')
+        out_syn = open(os.path.join(os.path.dirname(
+            outfile), 'only_synonyms.tsv'), 'w')
 
         outf.write(
             "accession\tgtdb_type_material\tgtdb_type_material_sources\t")
         outf.write(
             "gtdb_type_species_of_genus\tgtdb_type_strain_of_species\tgtdb_type_strain_of_subspecies\t")
-        outf.write('ncbi_names\n')
+        outf.write('ncbi_names\tlpsn_year\tdsmz_year\tstraininfo_year\n')
 
         count = 0
+
         for acc, infos_genomes in self.metadata_dictionary.iteritems():
             infores = []
             infores.append(acc)
             sources_type = []
+            lpsn_year = ''
+            dsmz_year = ''
+            straininfo_year = ''
+
             if self.lpsn_strain_dict.get(acc).get('neotype'):
                 sources_type.append('lpsn(neotype)')
+                lpsn_year = self.lpsn_strain_dict.get(acc).get('yd')
             elif self.lpsn_strain_dict.get(acc).get('type'):
                 sources_type.append('lpsn')
-            #print self.dsmz_type_genus_list
+                lpsn_year = self.lpsn_strain_dict.get(acc).get('yd')
+            # print self.dsmz_type_genus_list
             if self.dsmz_strain_dict.get(acc).get('type'):
                 sources_type.append('dsmz')
+                dsmz_year = self.dsmz_strain_dict.get(acc).get('yd')
             if self.straininfo_strain_dict.get(acc).get('type'):
                 sources_type.append('straininfo')
-            #if infos_genomes.get('ncbi_type_material_designation') is not None and infos_genomes.get('ncbi_type_material_designation') != '' and infos_genomes.get('ncbi_type_material_designation') != 'none':
+                straininfo_year = self.straininfo_strain_dict.get(
+                    acc).get('yd')
+            # if infos_genomes.get('ncbi_type_material_designation') is not None and infos_genomes.get('ncbi_type_material_designation') != '' and infos_genomes.get('ncbi_type_material_designation') != 'none':
             #    sources_type.append('ncbi')
-            if len(sources_type) > 0 :
+            if len(sources_type) > 0:
                 infores.append('true')
             else:
                 infores.append('false')
             infores.append('_'.join(sources_type))
-            #TODO DO LATER : Implement type material of a genus
+            # TODO DO LATER : Implement type material of a genus
             infores.append('false')
             ######
             type_strain = False
-            if len(sources_type) > 0 :
+            if len(sources_type) > 0:
                 if 'subsp.' not in infos_genomes.get('ncbi_organism_name'):
                     infores.append('true')
                     type_strain = True
@@ -198,7 +215,7 @@ class SummaryEditor(object):
                 else:
                     spe_list = infos_genomes.get('ncbi_organism_name').split()
                     subsp_index = spe_list.index('subsp.')
-                    if spe_list[subsp_index -1] == spe_list[subsp_index +1]:
+                    if spe_list[subsp_index - 1] == spe_list[subsp_index + 1]:
                         infores.append('true')
                         type_strain = True
                     else:
@@ -217,22 +234,34 @@ class SummaryEditor(object):
                     infores.append('false')
             else:
                 infores.append('false')
-            #infores.append(infos_genomes.get('ncbi_organism_name'))
+            # infores.append(infos_genomes.get('ncbi_organism_name'))
             if infos_genomes.get('ncbi_taxid') in self.ncbi_names_dic:
                 infores.append(
                     '/'.join(self.ncbi_names_dic.get(infos_genomes.get('ncbi_taxid'))))
             else:
                 infores.append("None")
+            # infores.append(infos_genomes.get('ncbi_organism_name'))
+            infores.append(lpsn_year)
+            infores.append(dsmz_year)
+            infores.append(straininfo_year)
 
             outf.write("{}\n".format("\t".join(infores)))
 
             if 'true' in infores and self.lpsn_strain_dict.get(acc).get('os') and self.dsmz_strain_dict.get(acc).get('os') and self.straininfo_strain_dict.get(acc).get('os'):
-                print infos_genomes.keys()
-                out_syn.write('{}\t{}\t{}\t{}\n'.format(acc,infos_genomes.get('ncbi_organism_name'),
-                                                        infos_genomes.get('strain_identifiers'),
-                              '/'.join(self.ncbi_names_dic.get(infos_genomes.get('ncbi_taxid')))))
+                out_syn.write('{}\t{}\t{}\t{}\n'.format(acc, infos_genomes.get('ncbi_organism_name'),
+                                                        infos_genomes.get(
+                                                            'strain_identifiers'),
+                                                        '/'.join(self.ncbi_names_dic.get(infos_genomes.get('ncbi_taxid')))))
 
+            if 'true' in infores and self.lpsn_strain_dict.get(acc).get('ncbi_on_match') and self.dsmz_strain_dict.get(acc).get('ncbi_on_match') and self.straininfo_strain_dict.get(acc).get('ncbi_on_match'):
+                only_ncbi_file.write('{}\t{}\t{}\t{}\tOnly_org_name\n'.format(acc,
+                                                                              infos_genomes.get(
+                                                                                  'ncbi_organism_name'),
+                                                                              '/'.join(self.ncbi_names_dic.get(
+                                                                                  infos_genomes.get('ncbi_taxid'))),
+                                                                              infos_genomes.get('strain_identifiers')))
 
+        only_ncbi_file.close()
         outf.close()
 
 
@@ -248,8 +277,10 @@ if __name__ == '__main__':
         '--dsmz_strain_summary', help='DSMZ strain summary file created by the create_gtdb_type_information_table.py script.')
     parser.add_argument(
         '--straininfo_strain_summary', help='Straininfo strain summary file created by the create_gtdb_type_information_table.py script.')
-    parser.add_argument('--lpsn_type_genus_file', help='LPSN genus summary file created by previous step')
-    parser.add_argument('--dsmz_type_genus_file', help='DSMZ genus summary file created by previous step')
+    parser.add_argument('--lpsn_type_genus_file',
+                        help='LPSN genus summary file created by previous step')
+    parser.add_argument('--dsmz_type_genus_file',
+                        help='DSMZ genus summary file created by previous step')
     parser.add_argument('--metadata_file',
                         help='Metadata file generated by gtdb')
     parser.add_argument('--ncbi_names', help='Names.dmp file from NCBI')
