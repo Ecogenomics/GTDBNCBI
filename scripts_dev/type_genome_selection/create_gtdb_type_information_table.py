@@ -366,12 +366,20 @@ class InfoGenerator(object):
 
                 misspelling_names = self.standardise_names(self.ncbi_names_dic.get(
                     info_genomes.get('ncbi_taxid')).get('misspelling'), strain_dictionary)
+                unprocessed_misspelling_names = self.ncbi_names_dic.get(
+                    info_genomes.get('ncbi_taxid')).get('misspelling')
                 synonyms = self.standardise_names(self.ncbi_names_dic.get(
                     info_genomes.get('ncbi_taxid')).get('synonym'), strain_dictionary)
+                unprocessed_synonyms = self.ncbi_names_dic.get(
+                    info_genomes.get('ncbi_taxid')).get('synonym')
                 equivalent_names = self.standardise_names(self.ncbi_names_dic.get(
                     info_genomes.get('ncbi_taxid')).get('equivalent name'), strain_dictionary)
+                unprocessed_equivalent_names = self.ncbi_names_dic.get(
+                    info_genomes.get('ncbi_taxid')).get('equivalent name')
                 scientific_names = self.standardise_names(self.ncbi_names_dic.get(
                     info_genomes.get('ncbi_taxid')).get('scientific name'), strain_dictionary)
+                unprocessed_scientific_names = self.ncbi_names_dic.get(
+                    info_genomes.get('ncbi_taxid')).get('scientific names')
 
             # We remove duplicates
             non_official_potential_names = set(potential_names_notoff)
@@ -381,44 +389,51 @@ class InfoGenerator(object):
             non_official_spe_names = self.standardise_names(
                 non_official_potential_names, strain_dictionary)
 
-            category_name, istype, isneotype, spename_off, year_date = self.strain_match(
+            category_information_list = self.strain_match(
                 acc, official_spe_names, official_potential_names, misspelling_names, synonyms, equivalent_names, strain_dictionary, sourcest, True)
-            if category_name != 'official_name':
-                category_name, istype, isneotype, spename_off, year_date = self.strain_match(
+            if len(category_information_list) == 0:
+                category_information_list = self.strain_match(
                     acc, non_official_spe_names, non_official_potential_names, misspelling_names, synonyms, equivalent_names, strain_dictionary, sourcest, False)
 
             end = time.time()
             # print "Mid:{}\tLast:{}".format(mid - start, end - mid)
 
-            # dereplication of official names
-            dereplicated_names_list = []
-            fuzzy_score = 0
-            fuzzy_match = ''
-            for name in official_spe_names:
-                if len(name.split(' ')) == 4:
-                    infos = name.split(' ')
-                    if infos[1] != infos[3]:
+            for item_list in category_information_list:
+                category_name = item_list[0]
+                istype = item_list[1]
+                isneotype = item_list[2]
+                spename_off = item_list[3]
+                year_date = item_list[4]
+
+                # dereplication of official names
+                dereplicated_names_list = []
+                fuzzy_score = 0
+                fuzzy_match = ''
+                for name in official_spe_names:
+                    if len(name.split(' ')) == 4:
+                        infos = name.split(' ')
+                        if infos[1] != infos[3]:
+                            dereplicated_names_list.append(name)
+                            if fuzz.ratio(name, spename_off) > fuzzy_score:
+                                fuzzy_score = fuzz.ratio(name, spename_off)
+                                fuzzy_match = '{}/{}'.format(name, spename_off)
+                        else:
+                            dereplicated_names_list.append(
+                                infos[0] + ' ' + infos[1])
+                            if fuzz.ratio(infos[0] + ' ' + infos[1], spename_off) > fuzzy_score:
+                                fuzzy_score = fuzz.ratio(
+                                    infos[0] + ' ' + infos[1], spename_off)
+                                fuzzy_match = '{}/{}'.format(
+                                    infos[0] + ' ' + infos[1], spename_off)
+                    else:
                         dereplicated_names_list.append(name)
                         if fuzz.ratio(name, spename_off) > fuzzy_score:
                             fuzzy_score = fuzz.ratio(name, spename_off)
                             fuzzy_match = '{}/{}'.format(name, spename_off)
-                    else:
-                        dereplicated_names_list.append(
-                            infos[0] + ' ' + infos[1])
-                        if fuzz.ratio(infos[0] + ' ' + infos[1], spename_off) > fuzzy_score:
-                            fuzzy_score = fuzz.ratio(
-                                infos[0] + ' ' + infos[1], spename_off)
-                            fuzzy_match = '{}/{}'.format(
-                                infos[0] + ' ' + infos[1], spename_off)
-                else:
-                    dereplicated_names_list.append(name)
-                    if fuzz.ratio(name, spename_off) > fuzzy_score:
-                        fuzzy_score = fuzz.ratio(name, spename_off)
-                        fuzzy_match = '{}/{}'.format(name, spename_off)
-            dereplicated_names = set(dereplicated_names_list)
-
-            out_q.put((acc, year_date, istype, isneotype, category_name, spename_off, misspelling_names,
-                       synonyms, equivalent_names, scientific_names, dereplicated_names, fuzzy_score, fuzzy_match))
+                dereplicated_names = set(dereplicated_names_list)
+                out_q.put((acc, year_date, istype, isneotype, category_name, spename_off, dereplicated_names, fuzzy_match, fuzzy_score, unprocessed_misspelling_names,
+                           unprocessed_synonyms, unprocessed_equivalent_names, unprocessed_scientific_names))
+                # out_q.put(None)
             start = time.time()
         return True
 
@@ -484,17 +499,18 @@ class InfoGenerator(object):
         # list_names is the list of species name in LPSN,DSMZ or Straininfo
         # that have a match in the list of potential names
 
-        istype = False
-        isneotype = False
-        year_date = ''
-        category_name = ''
-        spename_off = ''
+        list_category = []
 
         if list_names:
             # we remove duplicates a second time after standardisation of the
             # names
             set_spe = set(list_names)
             for spe_name in set_spe:
+                istype = False
+                isneotype = False
+                year_date = ''
+                category_name = ''
+                spename_off = ''
                 if spe_name in strain_dictionary:
                     list_strains = []
                     if sourcest == 'lpsn':
@@ -511,7 +527,14 @@ class InfoGenerator(object):
                             spe_name).get('neotypes')
                         _neotype_category_name, isneotype, _neotype_spename_off, _neotype_year_date = self.strains_iterate(
                             acc, spe_name, list_neotypes, raw_potential_names, misspelling_names, synonyms, equivalent_names, isofficial, sourcest)
-        return category_name, istype, isneotype, spename_off, year_date
+                if category_name == 'official_name':
+                    list_category.append(
+                        [category_name, istype, isneotype, spename_off, year_date])
+                    return list_category
+                elif category_name != '':
+                    list_category.append(
+                        [category_name, istype, isneotype, spename_off, year_date])
+        return list_category
 
     def select_category_name(self, spe_name, misspelling_names, synonyms, equivalent_names):
         if spe_name in misspelling_names:
@@ -590,31 +613,50 @@ class InfoGenerator(object):
 
         # Wait for all worker processes to finish
         results = {}
-        for i in range(len(self.metadata_dictionary)):
-            id_genome, year_date, type_strain, neotype, category_name, spename_off, misspelling_names, synonyms, equivalent_names, scientific_names, dereplicated_names, fuzzy_score, fuzzy_match = out_q.get()
-            results[id_genome] = {
-                'type_strain': type_strain, 'yd': year_date, 'neotype': neotype, 'cat_name': category_name,
-                'species_name_match': spename_off, 'scientific_names': scientific_names, 'derep_set': dereplicated_names, 'fuzzy_score': fuzzy_score, 'fuzzy_match': fuzzy_match,
-                'synonyms': synonyms, 'misspellings': misspelling_names, 'equivalent_names': equivalent_names}
-
-        file_out = open(filename, 'w')
-        file_out.write(
-            'genome_id\tis_type_strain\is_neotype_strain\tpriority_date\n')
-        for k, infos in results.iteritems():
-            file_out.write("{}\t{}\t{}\t{}\n".format(
-                k, infos.get('type_strain'), infos.get('neotype'), infos.get('yd')))
-        file_out.close()
-
+        # for i in range(len(self.metadata_dictionary)):
+        count = 0
+        for id_genome, year_date, type_strain, neotype, category_name, spename_off, dereplicated_names, fuzzy_match, fuzzy_score, misspelling_names, synonyms, equivalent_names, scientific_names in iter(out_q.get, None):
+            print id_genome
+            print count
+            count += 1
+            if id_genome in results:
+                results.get(id_genome).append({
+                    'type_strain': type_strain, 'yd': year_date, 'neotype': neotype, 'cat_name': category_name,
+                    'species_name_match': spename_off, 'scientific_names': scientific_names, 'derep_set': dereplicated_names, 'fuzzy_match': fuzzy_match, 'fuzzy_score': fuzzy_score,
+                    'synonyms': synonyms, 'misspellings': misspelling_names, 'equivalent_names': equivalent_names})
+            else:
+                results[id_genome] = [{
+                    'type_strain': type_strain, 'yd': year_date, 'neotype': neotype, 'cat_name': category_name,
+                    'species_name_match': spename_off, 'scientific_names': scientific_names, 'derep_set': dereplicated_names, 'fuzzy_match': fuzzy_match, 'fuzzy_score': fuzzy_score,
+                    'synonyms': synonyms, 'misspellings': misspelling_names, 'equivalent_names': equivalent_names}]
+        print "we process the data2"
         file_catout = open(filename.replace('summary', 'category'), 'w')
         file_catout.write(
-            'genome\tofficial_names\tmissspellings\tequivalent_names\tsynonyms\t{0}_match_type\t{0}_match_name\t{0}_fuzzy_score\t{0}_fuzzy_match\n'.format(sourcest))
-        for k, infos in results.iteritems():
-            file_catout.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(k, '/'.join(infos.get('derep_set')),
-                                                                            '/'.join(infos.get('misspellings')), '/'.join(
-                                                                                infos.get('equivalent_names')),
-                                                                            '/'.join(infos.get('synonyms')), infos.get(
-                                                                                'cat_name'), infos.get('species_name_match'),
-                                                                            infos.get('fuzzy_score'), infos.get('fuzzy_match')))
+            'genome\tofficial_names\tmissspellings\tequivalent_names\tsynonyms\t{0}_match_type\t{0}_match_name\t{0}_fuzzy_score\t{0}_fuzzy_match\ttype_strain\tneotype\tpriority_date\n'.format(sourcest))
+        for k, infos_list in results.iteritems():
+            for infos in infos_list:
+                if infos.get('cat_name') != '':
+                    file_catout.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                        k, '/'.join(infos.get('derep_set')),
+                        '/'.join(
+                            infos.get('misspellings')),
+                        '/'.join(
+                            infos.get('equivalent_names')),
+                        '/'.join(
+                            infos.get('synonyms')),
+                        infos.get(
+                            'cat_name'),
+                        infos.get(
+                            'species_name_match'),
+                        infos.get(
+                            'fuzzy_score'),
+                        infos.get(
+                            'fuzzy_match'),
+                        infos.get(
+                            'type_strain'),
+                        infos.get(
+                            'neotype'),
+                        infos.get('yd')))
 
         file_catout.close()
 
