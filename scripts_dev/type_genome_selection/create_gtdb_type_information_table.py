@@ -391,7 +391,7 @@ class InfoGenerator(object):
 
             category_information_list = self.strain_match(
                 acc, official_spe_names, official_potential_names, misspelling_names, synonyms, equivalent_names, strain_dictionary, sourcest, True)
-            if len(category_information_list) == 0:
+            if len(category_information_list) == 0 or category_information_list[0][0] != 'official_name':
                 category_information_list = self.strain_match(
                     acc, non_official_spe_names, non_official_potential_names, misspelling_names, synonyms, equivalent_names, strain_dictionary, sourcest, False)
 
@@ -479,7 +479,6 @@ class InfoGenerator(object):
                                 standard_pot_names.get(standard_pot_name))
                             if matches_beginning and matches_end:
                                 if not isofficial:
-                                    if spe_name in standard_pot_names.get(standard_pot_name):
                                         istype = True
                                         spename_off = spe_name
                                         category_name = self.select_category_name(
@@ -528,10 +527,12 @@ class InfoGenerator(object):
                         _neotype_category_name, isneotype, _neotype_spename_off, _neotype_year_date = self.strains_iterate(
                             acc, spe_name, list_neotypes, raw_potential_names, misspelling_names, synonyms, equivalent_names, isofficial, sourcest)
                 if category_name == 'official_name':
+                    list_category=[[category_name, istype, isneotype, spename_off, year_date]]
+                    return list_category
+                elif category_name != '' :
                     list_category.append(
                         [category_name, istype, isneotype, spename_off, year_date])
-                    return list_category
-                elif category_name != '':
+                elif self.metadata_dictionary.get(acc).get('ncbi_type_material_designation')!='none':
                     list_category.append(
                         [category_name, istype, isneotype, spename_off, year_date])
         return list_category
@@ -615,9 +616,9 @@ class InfoGenerator(object):
         results = {}
         # for i in range(len(self.metadata_dictionary)):
         count = 0
-        for id_genome, year_date, type_strain, neotype, category_name, spename_off, dereplicated_names, fuzzy_match, fuzzy_score, misspelling_names, synonyms, equivalent_names, scientific_names in iter(out_q.get, None):
-            print id_genome
-            print count
+        isemptylist = False
+        while not isemptylist:
+            id_genome, year_date, type_strain, neotype, category_name, spename_off, dereplicated_names, fuzzy_match, fuzzy_score, misspelling_names, synonyms, equivalent_names, scientific_names = out_q.get()
             count += 1
             if id_genome in results:
                 results.get(id_genome).append({
@@ -629,15 +630,20 @@ class InfoGenerator(object):
                     'type_strain': type_strain, 'yd': year_date, 'neotype': neotype, 'cat_name': category_name,
                     'species_name_match': spename_off, 'scientific_names': scientific_names, 'derep_set': dereplicated_names, 'fuzzy_match': fuzzy_match, 'fuzzy_score': fuzzy_score,
                     'synonyms': synonyms, 'misspellings': misspelling_names, 'equivalent_names': equivalent_names}]
-        print "we process the data2"
+            if out_q.empty():
+                time.sleep(10)
+                if out_q.empty():
+                    isemptylist = True
+
+        print "we process the data"
         file_catout = open(filename.replace('summary', 'category'), 'w')
         file_catout.write(
-            'genome\tofficial_names\tmissspellings\tequivalent_names\tsynonyms\t{0}_match_type\t{0}_match_name\t{0}_fuzzy_score\t{0}_fuzzy_match\ttype_strain\tneotype\tpriority_date\n'.format(sourcest))
+            'genome\tncbi_type_designation\tofficial_names\tmissspellings\tequivalent_names\tsynonyms\t{0}_match_type\t{0}_match_name\t{0}_fuzzy_score\t{0}_fuzzy_match\ttype_strain\tneotype\tpriority_date\n'.format(sourcest))
         for k, infos_list in results.iteritems():
             for infos in infos_list:
                 if infos.get('cat_name') != '':
-                    file_catout.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                        k, '/'.join(infos.get('derep_set')),
+                    file_catout.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                        k,self.metadata_dictionary.get(k).get('ncbi_type_material_designation'), '/'.join(infos.get('derep_set')),
                         '/'.join(
                             infos.get('misspellings')),
                         '/'.join(
