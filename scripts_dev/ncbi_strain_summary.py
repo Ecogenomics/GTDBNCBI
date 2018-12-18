@@ -70,7 +70,7 @@ class StrainParser(object):
     def run(self, genome_dir_file, out_dir):
         outf = open(os.path.join(out_dir, "strain_summary_file.txt"), "w")
         outf.write(
-            "genome_id\tOrganism name\tstrain_identifiers\ttype_material_designation\n")
+            "genome_id\tOrganism name\tncbi_strain_identifiers\tncbi_type_material_designation\n")
         pattern_strain = re.compile('^\s+\/strain=".+')
         pattern_isolate = re.compile('^\s+\/isolate=".+')
         number_of_genomes = self.file_len(genome_dir_file)
@@ -85,17 +85,6 @@ class StrainParser(object):
                 line_split = line.strip().split('\t')
 
                 genome_id = line_split[0]
-                #==============================================================
-                # if genome_id not in ['GCF_000756285.1', 'GCF_900104035.1', 'GCF_000013925.1', 'GCF_900099745.1', 'GCF_000006605.1', 'GCF_000953375.1', 'GCF_000285595.1',
-                #                      'GCF_001013905.1', 'GCF_001281105.1', 'GCF_000006805.1', 'GCF_000022905.1', 'GCF_002151505.1']:
-                #     continue
-                #==============================================================
-
-                #==============================================================
-                # if genome_id not in ['GCF_000006805.1']:
-                #     continue
-                #==============================================================
-
                 genome_path = line_split[1]
                 genome_dir_id = os.path.basename(os.path.normpath(genome_path))
 
@@ -171,15 +160,6 @@ class StrainParser(object):
                     wstrain = wstrain.split("substr.")[0].rstrip()
 
                 combined_strain = []
-                #==============================================================
-                # print strain
-                # print isolate
-                # print wstrain
-                # print wsisolate
-                # print gstrains
-                # print gisolates
-                #==============================================================
-
                 combined_strain.extend(self.standardise_strain([strain]))
                 combined_strain.extend(self.standardise_strain([isolate]))
                 combined_strain.extend(self.standardise_strain([wstrain]))
@@ -187,18 +167,16 @@ class StrainParser(object):
                 combined_strain.extend(self.standardise_strain(gstrains))
                 combined_strain.extend(self.standardise_strain(gisolates))
 
+                # strip all element from the list
                 stripped_combined_strain = map(str.strip, combined_strain)
-
-                #==============================================================
-                # print (genome_id, ';'.join(
-                #     set(filter(None, stripped_combined_strain))))
-                #==============================================================
 
                 if genome_id.startswith('GCA'):
                     typemat = self.genbank_dictionary.get(genome_id)
                 else:
                     typemat = self.refseq_dictionary.get(genome_id)
 
+                # filter(None, stripped_combined_strain) remove all empty item
+                # from the list
                 outf.write("{0}\t{1}\t{2}\t{3}\n".format(
                     genome_id, species, ';'.join(set(filter(None, stripped_combined_strain))), typemat))
         outf.close()
