@@ -167,7 +167,7 @@ class StrainParser(object):
                 combined_strain.extend(self.standardise_strain(gstrains))
                 combined_strain.extend(self.standardise_strain(gisolates))
 
-                # strip all element from the list
+                # strip all elements from the list
                 stripped_combined_strain = map(str.strip, combined_strain)
 
                 if genome_id.startswith('GCA'):
