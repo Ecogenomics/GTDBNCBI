@@ -57,6 +57,9 @@ class AddCheckM(object):
         genome_list = set()
         if genome_list_file:
             for line in open(genome_list_file):
+                if line[0] == '#':
+                    continue
+                    
                 if len(line.split('\t')) >= len(line.split(',')):
                     genome_list.add(line.rstrip().split('\t')[0])
                 else:

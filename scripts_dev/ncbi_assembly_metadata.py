@@ -145,7 +145,7 @@ class Metadata(object):
         self.stats.extend(['spanned-gaps', 'total-gap-length', 'total-length', 'ungapped-length', 'unspanned-gaps'])
         self.stats.extend(['contig-N50', 'scaffold-N50', 'scaffold-L50', 'scaffold-N75', 'scaffold-N90'])
 
-        self.gff_fields = ['protein_count', 'tRNA_count', 'ncRNA_count', 'rRNA_count', 'ssu_count']
+        self.gff_fields = ['cds_count', 'tRNA_count', 'ncRNA_count', 'rRNA_count', 'ssu_count']
 
         self.gbff_fields = ['translation_table']
 
@@ -214,7 +214,7 @@ class Metadata(object):
             return metadata_gff
 
         gff_parser = GenericFeatureParser(gff_file)
-        metadata_gff[self.gff_fields.index('protein_count')] = gff_parser.cds_count
+        metadata_gff[self.gff_fields.index('cds_count')] = gff_parser.cds_count
         metadata_gff[self.gff_fields.index('tRNA_count')] = gff_parser.tRNA_count
         metadata_gff[self.gff_fields.index('ncRNA_count')] = gff_parser.ncRNA_count
         metadata_gff[self.gff_fields.index('rRNA_count')] = gff_parser.rRNA_count

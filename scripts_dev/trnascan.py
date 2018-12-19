@@ -38,7 +38,6 @@ import multiprocessing as mp
 
 from biolib.common import remove_extension
 from biolib.external.execute import check_dependencies
-from biolib.external.prodigal import Prodigal
 from biolib.checksum import sha256
 
 
