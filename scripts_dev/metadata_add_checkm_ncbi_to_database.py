@@ -24,7 +24,7 @@ __author__ = 'Donovan Parks'
 __copyright__ = 'Copyright 2015'
 __credits__ = ['Donovan Parks']
 __license__ = 'GPL3'
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __maintainer__ = 'Donovan Parks'
 __email__ = 'donovan.parks@gmail.com'
 __status__ = 'Development'
@@ -50,7 +50,7 @@ class AddCheckM(object):
                          '# markers': ['checkm_marker_count', 'INT'],
                          '# marker sets': ['checkm_marker_set_count', 'INT']}
 
-    def run(self, checkm_qa_file, genome_list_file):
+    def run(self, checkm_profile_file, checkm_qa_sh100_file, genome_list_file):
         """Add CheckM data to database."""
 
         # get genomes to process
@@ -65,16 +65,17 @@ class AddCheckM(object):
                 else:
                     genome_list.add(line.rstrip().split(',')[0])
 
+        # add CheckM profile fields
         for header, data in self.metadata.iteritems():
             db_header, data_type = data
 
             temp_file = tempfile.NamedTemporaryFile(delete=False)
-            with open(checkm_qa_file) as f:
+            with open(checkm_profile_file) as f:
                 headers = f.readline().rstrip().split('\t')
                 col_index = headers.index(header)
 
                 for line in f:
-                    line_split = line.split('\t')
+                    line_split = line.rstrip().split('\t')
                     genome_id = line_split[0]
                     genome_id = genome_id[0:genome_id.find('_', 4)]
 
@@ -94,20 +95,52 @@ class AddCheckM(object):
             print cmd
             os.system(cmd)
             os.remove(temp_file.name)
+            
+        # add strain heterogeneity results at 100%
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        with open(checkm_qa_sh100_file) as f:
+            headers = f.readline().rstrip().split('\t')
+            sh_index = headers.index('Strain heterogeneity')
+
+            for line in f:
+                line_split = line.rstrip().split('\t')
+                genome_id = line_split[0]
+                genome_id = genome_id[0:genome_id.find('_', 4)]
+
+                if genome_id.startswith('GCA_'):
+                    genome_id = 'GB_' + genome_id
+                elif genome_id.startswith('GCF_'):
+                    genome_id = 'RS_' + genome_id
+
+                if genome_id not in genome_list:
+                    continue
+
+                sh = line_split[sh_index]
+                temp_file.write('%s\t%s\n' % (genome_id, sh))
+
+        temp_file.close()
+        
+        db_header = 'checkm_strain_heterogeneity_100'
+        data_type = 'FLOAT'
+        cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_genes', db_header, data_type, temp_file.name)
+        print cmd
+        os.system(cmd)
+        os.remove(temp_file.name)
 
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
     print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('checkm_qa_file', help='CheckM QA file for all genomes of interest')
+    parser.add_argument('checkm_profile_file', help='CheckM profile file for all genomes of interest')
+    parser.add_argument('checkm_qa_sh100_file', help='CheckM QA file for 100%% strain heterogeneity for all genomes of interest')
     parser.add_argument('--genome_list', help='only process genomes in this list', default=None)
 
     args = parser.parse_args()
 
     try:
         p = AddCheckM()
-        p.run(args.checkm_qa_file, args.genome_list)
+        p.run(args.checkm_profile_file, args.checkm_qa_sh100_file, args.genome_list)
     except SystemExit:
         print "\nControlled exit resulting from an unrecoverable error or warning."
     except:

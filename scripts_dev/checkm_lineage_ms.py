@@ -24,7 +24,7 @@ __author__ = 'Donovan Parks'
 __copyright__ = 'Copyright 2015'
 __credits__ = ['Donovan Parks']
 __license__ = 'GPL3'
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __maintainer__ = 'Donovan Parks'
 __email__ = 'donovan.parks@gmail.com'
 __status__ = 'Development'
@@ -149,6 +149,10 @@ class RunCheckm(object):
 
       profile_file = os.path.join(checkm_output_dir, 'profile.chunk%d.tsv' % i)
       os.system('checkm join_tables -f %s %s %s' % (profile_file, qa_file, tree_qa_file))
+      
+      qa_file_sh100 = os.path.join(checkm_output_dir, 'qa_sh100.chunk%d.tsv' % i)
+      alignment_file = os.path.join(checkm_output_dir, 'alignment_file.chunk%d.tsv' % i)
+      os.system('checkm qa --aai_strain 0.9999 -t %d -a %s --tab_table -f %s %s %s' % (cpus, alignment_file, qa_file_sh100, os.path.join(checkm_output_dir, 'lineage.ms'), checkm_output_dir))
 
     # create single file with CheckM results
     print 'Creating single file with CheckM results.'
@@ -163,8 +167,33 @@ class RunCheckm(object):
         for line in f:
           fout.write(line)
     fout.close()
+    
+    # create single file with CheckM strain heterogeneity results at 100%
+    print 'Creating single file with CheckM results.'
+    checkm_output = os.path.join(output_dir, 'checkm.qa_sh100.tsv')
+    fout = open(checkm_output, 'w')
+    for i in xrange(0, num_chunks):
+      qa_file = os.path.join(output_dir, 'chunk%d' % i, 'qa_sh100.chunk%d.tsv' % i)
+      with open(qa_file) as f:
+        if i != 0:
+          f.readline()
 
-    print '  CheckM results written to: %s' % checkm_output
+        for line in f:
+          fout.write(line)
+    fout.close()
+    
+    # create single file with CheckM alignments for multi-copy genes
+    print 'Creating single file with CheckM results.'
+    checkm_output = os.path.join(output_dir, 'checkm.alignment_file.tsv')
+    fout = open(checkm_output, 'w')
+    for i in xrange(0, num_chunks):
+      align_file = os.path.join(output_dir, 'chunk%d' % i, 'alignment_file.chunk%d.tsv' % i)
+      with open(align_file) as f:
+        for line in f:
+          fout.write(line)
+    fout.close()
+
+    print 'CheckM results written to: %s' % checkm_output
 
 if __name__ == '__main__':
   print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
