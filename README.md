@@ -1,6 +1,6 @@
 # Genome Tree Database (GTDB)
 
-<b>[This project is in active development and not currently recommended for public use.]</b>
+<b>[This project is in active development. It is not intended for public use.]</b>
 
 The GTDB provides the software infrastructure for working with a large collections of genomic resources. The database contains
 genomes aquired from NCBI along with population genomes recovered at the Australian Centre for Ecogenomics and by our 
