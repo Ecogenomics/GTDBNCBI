@@ -354,8 +354,8 @@ class GenomeRepresentativeManager(object):
         self.cur.execute(query_al_mark, (genome_id, 2))
         aligned_arc_count = self.cur.fetchone()[0]
 
-        arc_aa_per = (aligned_arc_count * 100 / len_arc_marker)
-        bac_aa_per = (aligned_bac_count * 100 / len_bac_marker)
+        arc_aa_per = (aligned_arc_count * 100.0 / len_arc_marker)
+        bac_aa_per = (aligned_bac_count * 100.0 / len_bac_marker)
         if arc_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD and bac_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
             domain = None
         elif bac_aa_per >= arc_aa_per:
