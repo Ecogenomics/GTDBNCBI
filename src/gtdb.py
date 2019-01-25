@@ -205,8 +205,14 @@ def CreateTreeData(db, args):
                            args.cont_threshold,
                            args.min_perc_aa,
                            args.min_rep_perc_aa,
+                           args.cols_per_gene,
+                           args.min_consensus,
+                           args.max_consensus,
+                           args.rnd_seed,
                            args.min_perc_taxa,
-                           args.consensus,
+                           args.prot_model,
+                           args.no_support,
+                           args.no_gamma,
                            args.taxa_filter,
                            args.guaranteed_taxa_filter,
                            args.excluded_genome_list_ids,
@@ -217,7 +223,6 @@ def CreateTreeData(db, args):
                            rep_genome_ids,
                            not args.no_alignment,
                            args.no_trim,
-                           args.reduced_msa,
                            args.individual,
                            not args.no_tree)
 
@@ -1342,10 +1347,27 @@ if __name__ == '__main__':
                                               help='Filter genomes with an insufficient percentage of AA in the MSA.')
     optional_markers_create_tree.add_argument('--min_rep_perc_aa', type=float, default=20,
                                               help='Filter representative genomes with an insufficient percentage of AA in the MSA.')
+
+    optional_markers_create_tree.add_argument('--custom_msa_filters', action="store_true",
+                                              help=('perform custom filtering of MSA with cols_per_gene, min_consensus '
+                                                    + 'max_consensus, and min_perc_taxa parameters instead of using canonical mask'))
+    optional_markers_create_tree.add_argument('--cols_per_gene', type=int, default=42,
+                                              help='maximum number of columns to retain per gene')
+    optional_markers_create_tree.add_argument('--min_consensus', type=float, default=25,
+                                              help='minimum percentage of the same amino acid required to retain column (inclusive bound)')
+    optional_markers_create_tree.add_argument('--max_consensus', type=float, default=95,
+                                              help='maximum percentage of the same amino acid required to retain column (exclusive bound)')
     optional_markers_create_tree.add_argument('--min_perc_taxa', type=float, default=50,
-                                              help='minimum percentage of taxa required required to retain column.')
-    optional_markers_create_tree.add_argument('--consensus', type=float, default=25,
-                                              help='minimum percentage of the same amino acid required to retain column.')
+                                              help='minimum percentage of taxa required to retain column (inclusive bound)')
+    optional_markers_create_tree.add_argument('--rnd_seed', type=int, default=None,
+                                              help='random seed to use for selecting columns')
+
+    optional_markers_create_tree.add_argument('--prot_model', choices=['JTT', 'WAG', 'LG'],
+                                              help='protein substitution model for tree inference', default='WAG')
+    optional_markers_create_tree.add_argument('--no_support', action="store_true",
+                                              help="do not compute local support values using the Shimodaira-Hasegawa test")
+    optional_markers_create_tree.add_argument('--no_gamma', action="store_true",
+                                              help="do not rescale branch lengths to optimize the Gamma20 likelihood")
 
     optional_markers_create_tree.add_argument('--excluded_genome_list_ids',
                                               help='Genome list IDs (comma separated) indicating genomes to exclude from the tree.')
@@ -1370,14 +1392,8 @@ if __name__ == '__main__':
     optional_markers_create_tree.add_argument('--individual', action='store_true',
                                               help='Create individual FASTA files for each marker.')
 
-    mutual_trimming_option = parser_tree_create.add_argument_group(
-        'mutually exclusive optional arguments')
-    mutex_trimming_group = mutual_trimming_option.add_mutually_exclusive_group(
-        required=False)
-    mutex_trimming_group.add_argument('--no_trim', dest='no_trim', action="store_true",
-                                      help='Skip the trimming step to return the full MSA.')
-    mutex_trimming_group.add_argument('--reduced_msa', dest='reduced_msa', action="store_true",
-                                      help='Reduced MSA to ~5K AA (evenly distributed accross all markers).')
+    optional_markers_create_tree.add_argument('--no_trim', dest='no_trim', action="store_true",
+                                              help='Skip the trimming step to return the full MSA.')
 
     optional_markers_create_tree.add_argument('--no_tree', dest='no_tree', action="store_true",
                                               help="Output tree data, but do not infer a tree.")

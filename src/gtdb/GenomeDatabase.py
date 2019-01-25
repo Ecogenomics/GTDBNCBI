@@ -22,6 +22,8 @@ import logging
 import prettytable
 
 from biolib.external.fasttree import FastTree
+from biolib.external.execute import check_dependencies
+
 
 import Config
 from Exceptions import GenomeDatabaseError
@@ -762,8 +764,14 @@ class GenomeDatabase(object):
                      cont_threshold,
                      min_perc_aa,
                      min_rep_perc_aa,
+                     cols_per_gene,
+                     min_consensus,
+                     max_consensus,
+                     rnd_seed,
                      min_perc_taxa,
-                     consensus,
+                     prot_model,
+                     no_support,
+                     no_gamma,
                      taxa_filter,
                      guaranteed_taxa_filter,
                      excluded_genome_list_ids,
@@ -774,7 +782,6 @@ class GenomeDatabase(object):
                      rep_genome_ids,
                      alignment,
                      no_trim,
-                     reduced_msa,
                      individual,
                      build_tree=True):
 
@@ -866,8 +873,11 @@ class GenomeDatabase(object):
 
             msa_file = tree_mngr.writeFiles(marker_ids,
                                             genomes_to_retain,
+                                            cols_per_gene,
+                                            min_consensus,
+                                            max_consensus,
+                                            rnd_seed,
                                             min_perc_taxa,
-                                            consensus,
                                             min_perc_aa,
                                             chosen_markers_order,
                                             chosen_markers,
@@ -875,8 +885,7 @@ class GenomeDatabase(object):
                                             individual,
                                             directory,
                                             prefix,
-                                            no_trim,
-                                            reduced_msa)
+                                            no_trim)
 
             self.conn.commit()
 
@@ -885,17 +894,48 @@ class GenomeDatabase(object):
             return False
 
         if build_tree:
+
+            if self.threads > 1:
+                check_dependencies(['FastTreeMP'])
+            else:
+                check_dependencies(['FastTree'])
+
             self.logger.info(
-                'Inferring tree for %d genomes under the WAG and GAMMA models.' % len(genomes_to_retain))
+                'Inferring tree for {} genomes under the {}+GAMMA models.'.format(len(genomes_to_retain), prot_model))
 
             output_tree = os.path.join(
-                directory, prefix + '_phylogeny.wag_gamma.tree')
+                directory, prefix + '_phylogeny.{}_gamma.tree'.format(prot_model.lower()))
             output_tree_log = os.path.join(directory, prefix + '_fasttree.log')
             log_file = os.path.join(directory, prefix + '_fasttree_output.txt')
 
-            fasttree = FastTree(multithreaded=True)
-            fasttree.run(
-                msa_file, 'prot', 'wag', output_tree, output_tree_log, log_file)
+            if prot_model == 'JTT':
+                model_str = ''
+            elif prot_model == 'WAG':
+                model_str = ' -wag'
+            elif prot_model == 'LG':
+                model_str = ' -lg'
+
+            support_str = ''
+            if no_support:
+                support_str = ' -nosupport'
+
+            gamma_str = ' -gamma'
+            if no_gamma:
+                gamma_str = ''
+
+            cmd = '-quiet%s%s%s -log %s %s > %s 2> %s' % (support_str,
+                                                          model_str,
+                                                          gamma_str,
+                                                          output_tree_log,
+                                                          msa_file,
+                                                          output_tree,
+                                                          log_file)
+            if self.threads > 1:
+                cmd = 'FastTreeMP ' + cmd
+            else:
+                cmd = 'FastTree ' + cmd
+            self.logger.info('Running: %s' % cmd)
+            os.system(cmd)
 
         self.logger.info('Done.')
 

@@ -32,6 +32,9 @@ from Exceptions import GenomeDatabaseError
 from collections import Counter
 from collections import defaultdict
 
+from numpy import (mean as np_mean,
+                   std as np_std)
+
 
 class TreeManager(object):
     """Manages genomes, concatenated alignment, and metadata for tree inference and visualization."""
@@ -232,7 +235,7 @@ class TreeManager(object):
             'Filtering genomes with insufficient amino acids in the MSA.')
         filter_on_aa = set()
         for genome_id in genomes_to_retain:
-            aligned_marker_query = ("SELECT sequence, multiple_hits " +
+            aligned_marker_query = ("SELECT sequence, multiple_hits,hit_number,unique_genes " +
                                     "FROM aligned_markers " +
                                     "WHERE genome_id = %s " +
                                     "AND sequence is NOT NULL " +
@@ -242,8 +245,10 @@ class TreeManager(object):
                              (genome_id, tuple(marker_ids)))
 
             total_aa = 0
-            for sequence, multiple_hits in self.cur:
+            for sequence, multiple_hits, hit_number, unique_genes in self.cur:
                 if not multiple_hits:
+                    total_aa += len(sequence) - sequence.count('-')
+                elif unique_genes == 1:
                     total_aa += len(sequence) - sequence.count('-')
 
             # should retain guaranteed genomes unless they have zero amino
@@ -359,8 +364,11 @@ class TreeManager(object):
     def writeFiles(self,
                    marker_ids,
                    genomes_to_retain,
+                   cols_per_gene,
+                   min_consensus,
+                   max_consensus,
+                   rnd_seed,
                    min_perc_taxa,
-                   consensus,
                    min_perc_aa,
                    chosen_markers_order,
                    chosen_markers,
@@ -368,8 +376,7 @@ class TreeManager(object):
                    individual,
                    directory,
                    prefix,
-                   no_trim,
-                   reduced_msa):
+                   no_trim):
         '''
         Write summary files and arb files
 
@@ -422,6 +429,7 @@ class TreeManager(object):
 
         individual_marker_fasta = dict()
         single_copy = defaultdict(int)
+        multi_copy_identical = defaultdict(int)
         ubiquitous = defaultdict(int)
         multi_hits_details = defaultdict(list)
         msa = {}
@@ -431,7 +439,7 @@ class TreeManager(object):
             external_genome_id = genome_metadata[genome_name_index]
 
             # get aligned markers
-            aligned_marker_query = ("SELECT am.marker_id, sequence, multiple_hits, evalue " +
+            aligned_marker_query = ("SELECT am.marker_id, sequence, multiple_hits, evalue,unique_genes " +
                                     "FROM aligned_markers am " +
                                     "LEFT JOIN markers m on m.id=am.marker_id " +
                                     "WHERE genome_id = %s " +
@@ -450,26 +458,36 @@ class TreeManager(object):
             genome_info = dict()
             genome_info['markers'] = dict()
             genome_info['multiple_hits'] = dict()
-            for marker_id, sequence, multiple_hits, evalue in self.cur:
+            genome_info['unique_genes'] = dict()
+            for marker_id, sequence, multiple_hits, evalue, unique_genes in self.cur:
                 if evalue:  # markers without an e-value are missing
                     genome_info['markers'][marker_id] = sequence
                 genome_info['multiple_hits'][marker_id] = multiple_hits
+                if unique_genes is not None:
+                    genome_info['unique_genes'][marker_id] = int(unique_genes)
+                else:
+                    genome_info['unique_genes'][marker_id] = 0
 
             aligned_seq = ''
             for marker_id in chosen_markers_order:
                 multiple_hits = genome_info['multiple_hits'][marker_id]
+                unique_genes = genome_info['unique_genes'][marker_id]
 
                 if (marker_id in genome_info['markers']):
                     ubiquitous[marker_id] += 1
                     if not multiple_hits:
                         single_copy[marker_id] += 1
                         multi_hits_details[db_genome_id].append('Single')
+                    elif multiple_hits and unique_genes == 1:
+                        multi_copy_identical[marker_id] += 1
+                        multi_hits_details[db_genome_id].append(
+                            'Multi_Identical')
                     else:
                         multi_hits_details[db_genome_id].append('Multiple')
                 else:
                     multi_hits_details[db_genome_id].append('Missing')
 
-                if (marker_id in genome_info['markers']) and not multiple_hits:
+                if (marker_id in genome_info['markers']) and (not multiple_hits or (multiple_hits and unique_genes == 1)):
                     sequence = genome_info['markers'][marker_id]
                     fasta_outstr = ">%s\n%s\n" % (external_genome_id, sequence)
 
@@ -502,20 +520,17 @@ class TreeManager(object):
         else:
             self.logger.info(
                 'Trimming columns with insufficient taxa or poor consensus.')
-            trimmed_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons, mask = self._trim_seqs(
-                msa, min_perc_taxa / 100.0, consensus / 100.0, min_perc_aa / 100.0)
-            self.logger.info('Trimmed alignment from %d to %d AA (%d by minimum taxa percent, %d by consensus).' % (len(msa[msa.keys()[0]]),
-                                                                                                                    len(trimmed_seqs[trimmed_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons))
-            self.logger.info('After trimming %d taxa have amino acids in <%.1f%% of columns.' % (
-                len(pruned_seqs), min_perc_aa))
-            trimmed_seqs.update(pruned_seqs)
+            mask, pruned_seqs = self._trim_seqs2(cols_per_gene,
+                                                 min_perc_aa / 100.0,
+                                                 min_consensus / 100.0,
+                                                 max_consensus / 100.0,
+                                                 min_perc_taxa / 100.0,
+                                                 rnd_seed,
+                                                 msa,
+                                                 chosen_markers_order,
+                                                 chosen_markers)
 
-        if reduced_msa:
-            self.logger.info('Trimming columns to reduced msa.')
-            mask, trimmed_seqs = self.trim_to_reduced_seqs(msa,
-                                                           mask,
-                                                           chosen_markers_order,
-                                                           chosen_markers)
+            trimmed_seqs = dict(pruned_seqs)
 
             # write out mask for MSA
             msa_mask_out = open(os.path.join(
@@ -604,139 +619,149 @@ class TreeManager(object):
 
         return fasta_concat_filename
 
-    def identify_valid_columns(self, start, end, seqs):
+    def _trim_seqs2(self, cols_per_gene, min_perc_aa,
+                    min_consensus,
+                    max_consensus,
+                    min_per_taxa,
+                    rnd_seed,
+                    msa,
+                    chosen_markers_order,
+                    chosen_markers):
+        """Randomly select a subset of columns from the MSA of each marker."""
+
+        markers_sizeinfo = []
+
+        for chosen_marker in chosen_markers_order:
+            markers_sizeinfo.append((chosen_markers.get(
+                chosen_marker).get('id_in_database'),
+                chosen_markers.get(
+                chosen_marker).get('name'),
+                chosen_markers.get(chosen_marker).get('size')))
+
+        max_gaps = 1.0 - min_per_taxa
+
+        # randomly select columns meeting filtering criteria
+        self.logger.info(
+            'Randomly sampling %d columns passing filtering criteria from each marker gene.' % self.subset)
+
+        mask, output_seqs = self.subsample_msa(
+            msa, markers_sizeinfo, cols_per_gene, max_gaps, min_consensus, max_consensus, rnd_seed)
+        return mask, output_seqs
+
+    def subsample_msa(self, seqs, markers, cols_per_gene, max_gaps, min_identical_aa, max_identical_aa, rnd_seed):
+        """Sample columns from each marker in multiple sequence alignment."""
+
+        alignment_length = len(seqs.values()[0])
+        sampled_cols = []
+        start = 0
+        lack_sufficient_cols = 0
+        lack_cols_marker_ids = []
+        avg_perc_cols = []
+
+        count_wrong_pa = 0
+        count_wrong_cons = 0
+
+        random.seed(rnd_seed)
+
+        for marker_id, marker_name, marker_len in markers:
+            end = start + marker_len
+
+            valid_cols, count_wrong_pa, count_wrong_cons = self.identify_valid_columns(marker_name, count_wrong_pa,
+                                                                                       count_wrong_cons,
+                                                                                       start,
+                                                                                       end,
+                                                                                       seqs,
+                                                                                       max_gaps,
+                                                                                       min_identical_aa,
+                                                                                       max_identical_aa)
+
+            assert(len(valid_cols) <= marker_len)  # sanity check
+
+            self.logger.info('%s: S:%d, E:%d, LEN:%d, COLS:%d, PERC:%.1f' % (
+                marker_name,
+                start,
+                end,
+                marker_len,
+                len(valid_cols),
+                len(valid_cols) * 100.0 / marker_len))
+
+            avg_perc_cols.append(len(valid_cols) * 100.0 / marker_len)
+
+            if len(valid_cols) < cols_per_gene:
+                self.logger.warning(
+                    'Marker has <%d columns after filtering.' % cols_per_gene)
+                lack_sufficient_cols += 1
+                lack_cols_marker_ids.append(marker_id)
+
+            offset_valid_cols = [i + start for i in valid_cols]
+            sampled_cols.extend(random.sample(
+                offset_valid_cols, min(cols_per_gene, len(offset_valid_cols))))
+
+            start = end
+        mask = [1 if i in sampled_cols else 0 for i in range(alignment_length)]
+
+        self.logger.info('Identified %d of %d marker genes with <%d columns for sampling:' % (
+            lack_sufficient_cols,
+            len(markers),
+            cols_per_gene))
+        self.logger.info('%s' % ', '.join(lack_cols_marker_ids))
+        self.logger.info('Marker genes had %.1f+/-%.1f%% of columns available for selection on average.' % (
+            np_mean(avg_perc_cols),
+            np_std(avg_perc_cols)))
+
+        # trim columns
+        output_seqs = {}
+        for seq_id, seq in seqs.iteritems():
+            masked_seq = ''.join([seq[i]
+                                  for i in xrange(0, len(mask)) if mask[i]])
+            output_seqs[seq_id] = masked_seq
+
+        self.logger.info('Trimmed alignment from %d to %d AA (%d by minimum taxa percent, %d by consensus, maximum of %d columns per genes).' % (len(seqs[seqs.keys()[0]]),
+                                                                                                                                                 len(output_seqs[output_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons, cols_per_gene))
+        self.logger.info('Final MSA contains %d columns.' % len(sampled_cols))
+
+        return mask, output_seqs
+
+    def identify_valid_columns(self, name, count_wrong_pa, count_wrong_cons, start, end, seqs, max_gaps, min_identical_aa, max_identical_aa):
         """Identify columns meeting gap and amino acid ubiquity criteria."""
+
+        GAP_CHARS = set(['-', '.', '_', '*'])
+        STANDARD_AMINO_ACIDS = set('ACDEFGHIKLMNPQRSTVWY')
 
         gap_count = defaultdict(int)
         amino_acids = [list() for _ in xrange(end - start)]
+        num_genomes = 0
         for seq_id, seq in seqs.iteritems():
-            gene_seq = seq[start:end]
+            num_genomes += 1
+            gene_seq = seq[start:end].upper()
             for i, ch in enumerate(gene_seq):
-                if ch == '_' or ch == '.':
+                if ch in GAP_CHARS:
                     gap_count[i] += 1
                 else:
                     amino_acids[i].append(ch)
 
         valid_cols = set()
         for i in xrange(0, end - start):
-            if float(gap_count.get(i, 0)) / len(seqs) <= self.max_gaps:
+            if float(gap_count.get(i, 0)) / num_genomes <= max_gaps:
                 c = Counter(amino_acids[i])
+
                 if not c.most_common(1):
-                    aa_ratio = 0
-                else:
-                    _letter, count = c.most_common(1)[0]
-                    aa_ratio = float(count) / len(seqs)
+                    continue
 
-                if aa_ratio >= self.reduced_consensus and c.most_common(1)[0][0] != '-':
+                letter, count = c.most_common(1)[0]
+                if letter not in STANDARD_AMINO_ACIDS:
+                    self.logger.warning(
+                        'Most common amino acid was not in standard alphabet: %s' % letter)
+
+                aa_ratio = float(count) / (num_genomes - gap_count.get(i, 0))
+                if min_identical_aa <= aa_ratio < max_identical_aa:
                     valid_cols.add(i)
-        return valid_cols
-
-    def trim_to_reduced_seqs(self, seqs, mask, dict_marker_order, dict_marker):
-        """Trim multiple sequence alignment."""
-
-        alignment_length = len(seqs.values()[0])
-        all_coords = []
-        start = 0
-        for marker in dict_marker_order:
-            end = start + dict_marker.get(marker).get('size')
-            submask = mask[start:end]
-
-            valid_cols = self.identify_valid_columns(
-                start, end, seqs)
-
-            # if len(valid_cols) == 0:
-            #    sys.exit()
-
-            coords = []
-            for i, presence in enumerate(submask):
-                if presence and i in valid_cols:
-                    coords.append(start + i)
-
-            if len(coords) < self.subset:
-                all_coords.extend(coords)
-            else:
-                all_coords.extend(random.sample(coords, self.subset))
-            start = end
-
-        # print all_coords
-        new_mask = [
-            1 if x in all_coords else 0 for x in range(alignment_length)]
-
-        # trim columns
-        output_seqs = {}
-        for seq_id, seq in seqs.iteritems():
-            masked_seq = ''.join([seq[i]
-                                  for i in xrange(0, len(mask)) if new_mask[i]])
-            output_seqs[seq_id] = masked_seq
-
-        return new_mask, output_seqs
-
-    def _trim_seqs(self, seqs, min_per_taxa, consensus, min_per_bp):
-        """Trim multiple sequence alignment.
-
-        Adapted from the biolib package.
-
-        Parameters
-        ----------
-        seqs : d[seq_id] -> sequence
-            Aligned sequences.
-        min_per_taxa : float
-            Minimum percentage of taxa required to retain a column [0,1].
-        min_per_bp : float
-            Minimum percentage of base pairs required to keep trimmed sequence [0,1].
-        Returns
-        -------
-        dict : d[seq_id] -> sequence
-            Dictionary of trimmed sequences.
-        dict : d[seq_id] -> sequence
-            Dictionary of pruned sequences.
-        """
-
-        alignment_length = len(seqs.values()[0])
-
-        # count number of taxa represented in each column
-        column_count = [0] * alignment_length
-        column_chars = [list() for _ in xrange(alignment_length)]
-        for seq in seqs.values():
-            for i, ch in enumerate(seq):
-                if ch != '.' and ch != '-':
-                    column_count[i] += 1
-                    column_chars[i].append(ch)
-
-        mask = [False] * alignment_length
-        count_wrong_pa = 0
-        count_wrong_cons = 0
-        for i, count in enumerate(column_count):
-            if count >= min_per_taxa * len(seqs):
-                c = Counter(column_chars[i])
-                if len(c.most_common(1)) == 0:
-                    ratio = 0
-                else:
-                    _letter, count = c.most_common(1)[0]
-                    ratio = float(count) / len(column_chars[i])
-                if ratio >= consensus:
-                    mask[i] = True
                 else:
                     count_wrong_cons += 1
             else:
                 count_wrong_pa += 1
 
-        # trim columns
-        output_seqs = {}
-        pruned_seqs = {}
-        for seq_id, seq in seqs.iteritems():
-            masked_seq = ''.join([seq[i]
-                                  for i in xrange(0, len(mask)) if mask[i]])
-
-            valid_bases = len(masked_seq) - \
-                masked_seq.count('.') - masked_seq.count('-')
-            if valid_bases < len(masked_seq) * min_per_bp:
-                pruned_seqs[seq_id] = masked_seq
-                continue
-
-            output_seqs[seq_id] = masked_seq
-
-        return output_seqs, pruned_seqs, count_wrong_pa, count_wrong_cons, mask
+        return valid_cols, count_wrong_pa, count_wrong_cons
 
     def _filterOnGenomeQuality(self, genome_ids, quality_threshold, quality_weight, comp_threshold, cont_threshold):
         """Filter genomes on completeness and contamination thresholds.
