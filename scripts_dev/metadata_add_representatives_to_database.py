@@ -24,7 +24,7 @@ __author__ = 'Donovan Parks'
 __copyright__ = 'Copyright 2016'
 __credits__ = ['Donovan Parks']
 __license__ = 'GPL3'
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __maintainer__ = 'Donovan Parks'
 __email__ = 'donovan.parks@gmail.com'
 __status__ = 'Development'
@@ -72,9 +72,10 @@ class AddRepresentativeGenomes(object):
         DumpDBErrors(self.db)
         sys.exit(-1)
 
-  def run(self, cluster_file, gtdb_version):
+  def run(self, type_genome_cluster_file, rep_genome_cluster_file, gtdb_version):
     """Add metadata."""
     
+    self.logger.info('Connecting to %s.' % gtdb_version)
     self.setup_db(gtdb_version)
     
     # clear representative fields
@@ -94,18 +95,25 @@ class AddRepresentativeGenomes(object):
     
     # determine representative assignment of genomes
     temp_genome_rep_file = tempfile.NamedTemporaryFile(delete=False)
-    for line in open(cluster_file):
-        line_split = line.strip().split('\t')
-        
-        rep_genome = line_split[0]
-        genome_ids = None
-        if len(line_split) == 4:
-            genome_ids = line_split[3].split(',')
-            for genome_id in genome_ids:
-                temp_genome_rep_file.write('%s\t%s\n' % (genome_id, rep_genome))
+    for cf in [type_genome_cluster_file, rep_genome_cluster_file]:
+        with open(cf) as f:
+            headers = f.readline().strip().split('\t')
             
-        temp_genome_rep_file.write('%s\t%s\n' % (rep_genome, rep_genome))
-        is_rep[rep_genome] = True
+            rep_index = headers.index('Type genome')
+            clustered_genomes_index = headers.index('Clustered genomes')
+            
+            for line in f:
+                line_split = line.strip().split('\t')
+                
+                rep_genome = line_split[rep_index]
+                genome_ids = None
+                if len(line_split) > clustered_genomes_index:
+                    genome_ids = line_split[clustered_genomes_index].split(',')
+                    for genome_id in genome_ids:
+                        temp_genome_rep_file.write('%s\t%s\n' % (genome_id, rep_genome))
+                    
+                temp_genome_rep_file.write('%s\t%s\n' % (rep_genome, rep_genome))
+                is_rep[rep_genome] = True
     temp_genome_rep_file.close()
      
     cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_genome_representative --type TEXT --metadatafile %s' % (temp_genome_rep_file.name)
@@ -130,14 +138,15 @@ if __name__ == '__main__':
     print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('cluster_file', help="cluster file produced with 'genometreetk cluster'")
+    parser.add_argument('type_genome_cluster_file', help="clusters for named species")
+    parser.add_argument('rep_genome_cluster_file', help='de novo clusters')
     parser.add_argument('gtdb_version', help='GTDB database version (i.e., gtdb_releaseX)')
 
     args = parser.parse_args()
 
     try:
         p = AddRepresentativeGenomes()
-        p.run(args.cluster_file, args.gtdb_version)
+        p.run(args.type_genome_cluster_file, args.rep_genome_cluster_file, args.gtdb_version)
     except SystemExit:
         print "\nControlled exit resulting from an unrecoverable error or warning."
     except:

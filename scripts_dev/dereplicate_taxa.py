@@ -47,11 +47,11 @@ csv.field_size_limit(sys.maxsize)
 class DereplicateTaxa(object):
     """Sample taxa."""
 
-    def __init__(self):
+    def __init__(self, min_n50, max_contig_count, max_scaffold_count):
         
-        self.max_scaffolds = 500
-        self.max_contigs = 1000
-        self.min_n50_scaffolds = 10000
+        self.max_scaffolds = max_scaffold_count
+        self.max_contigs = max_contig_count
+        self.min_n50_scaffolds = min_n50
         self.max_ambiguous = 100000
         self.max_total_gap_length = 1e6
         
@@ -117,7 +117,7 @@ class DereplicateTaxa(object):
         bHeader = True
         for row in csv_reader:
             if bHeader:
-                genome_index = row.index('genome')
+                genome_index = row.index('accession')
                 org_index = row.index('organism_name')
                 comp_index = row.index('checkm_completeness')
                 cont_index = row.index('checkm_contamination')
@@ -569,10 +569,14 @@ if __name__ == '__main__':
     parser.add_argument('--min_rps16', help='minimum number of single-copy genes in rps16 marker set (18 HMMs)', type=int, default=9)
     parser.add_argument('--min_rps23', help='minimum number of single-copy genes in rps23 marker set (27 HMMs)', type=int, default=14)
     
+    parser.add_argument('--min_n50', help='minimum scaffold N50 to consider genome', type=int, default=10000)
+    parser.add_argument('--max_contig_count', help='maximum contig count to consider genome', type=int, default=1000)
+    parser.add_argument('--max_scaffold_count', help='maximum scaffolds count to consider genome', type=int, default=500)
+    
     args = parser.parse_args()
 
     try:
-        p = DereplicateTaxa()
+        p = DereplicateTaxa(args.min_n50, args.max_contig_count, args.max_scaffold_count)
         p.run(args.metadata_file,
                 args.ar122_count_file,
                 args.bac120_count_file,

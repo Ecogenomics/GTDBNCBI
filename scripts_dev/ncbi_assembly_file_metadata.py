@@ -24,7 +24,7 @@ __author__ = 'Donovan Parks'
 __copyright__ = 'Copyright 2015'
 __credits__ = ['Donovan Parks']
 __license__ = 'GPL3'
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __maintainer__ = 'Donovan Parks'
 __email__ = 'donovan.parks@gmail.com'
 __status__ = 'Development'
@@ -41,10 +41,19 @@ class Metadata(object):
     """Create metadata file from the assembly stats file of each NCBI assembly."""
 
     def __init__(self):
-        self.fields = ['bioproject', 'wgs_master', 'refseq_category', 'species_taxid', 'isolate', 'version_status',
-                       'seq_rel_date', 'asm_name', 'gbrs_paired_asm', 'paired_asm_comp', 'relation_to_type_material']
+        self.fields = {'bioproject':'ncbi_bioproject', 
+                        'wgs_master':'ncbi_wgs_master', 
+                        'refseq_category':'ncbi_refseq_category', 
+                        'species_taxid':'ncbi_species_taxid', 
+                        'isolate':'ncbi_isolate', 
+                        'version_status':'ncbi_version_status',
+                        'seq_rel_date':'ncbi_seq_rel_date', 
+                        'asm_name':'ncbi_asm_name', 
+                        'gbrs_paired_asm':'ncbi_gbrs_paired_asm', 
+                        'paired_asm_comp':'ncbi_paired_asm_comp', 
+                        'relation_to_type_material':'ncbi_type_material_designation'}
 
-    def run(self, assembly_metadata_file, genome_id_file, output_file):
+    def run(self, refseq_assembly_summary_file, genbank_assembly_summary_file, genome_id_file, output_file):
         """Create metadata by parsing NCBI assembly metadata file."""
 
         # get identifier of genomes in GTDB
@@ -67,39 +76,41 @@ class Metadata(object):
 
         # write out metadata
         fout = open(output_file, 'w')
-        fout.write('Assembly accession')
-        fout.write(
-            '\t' + '\t'.join(['ncbi_' + x.lower().replace(' ', '_') for x in self.fields]))
-        fout.write('\n')
+        fout.write('genome_id')
 
-        with open(assembly_metadata_file) as f:
-            headers = f.readline().rstrip().split('\t')
-            indices = [i for i, header in enumerate(
-                headers) if header in self.fields]
-
-            if len(headers) == 1:
-                # NCBI sometimes throws an extra comment at the top of the file
+        write_header = True
+        for assembly_file in [refseq_assembly_summary_file, genbank_assembly_summary_file]:
+            with open(assembly_file) as f:
+                f.readline() # first comment line
                 headers = f.readline().rstrip().split('\t')
-                indices = [i for i, header in enumerate(
-                    headers) if header in self.fields]
-
-            for line in f:
-                line_split = line.rstrip('\n').split('\t')
-
-                genome_id = line_split[0]
-                if genome_id.startswith('GCA_'):
-                    genome_id = 'GB_' + genome_id
-                elif genome_id.startswith('GCF_'):
-                    genome_id = 'RS_' + genome_id
-
-                if genome_id in genome_ids:
-                    fout.write(genome_id)
-                    for i in indices:
-                        fout.write('\t' + line_split[i])
+                
+                indices = []
+                for i, header in enumerate(headers):
+                    if header in self.fields:
+                        if write_header:
+                            fout.write('\t' + self.fields[header])
+                        indices.append(i)
+                        
+                if write_header:
                     fout.write('\n')
+                    write_header = False
+                    
+                for line in f:
+                    line_split = line.rstrip('\n').split('\t')
+
+                    genome_id = line_split[0]
+                    if genome_id.startswith('GCA_'):
+                        genome_id = 'GB_' + genome_id
+                    elif genome_id.startswith('GCF_'):
+                        genome_id = 'RS_' + genome_id
+
+                    if genome_id in genome_ids:
+                        fout.write(genome_id)
+                        for i in indices:
+                            fout.write('\t' + line_split[i])
+                        fout.write('\n')
 
         fout.close()
-
 
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
@@ -107,18 +118,16 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('assembly_metadata_file',
-                        help='assembly metadata file from NCBI')
-    parser.add_argument(
-        'genome_id_file', help='genome identifiers for genomes in GTDB')
+    parser.add_argument('refseq_assembly_summary_file', help='RefSeq assembly summary file (assembly_summary_refseq.txt)')
+    parser.add_argument('genbank_assembly_summary_file', help='GenBank assembly summary file (assembly_summary_genbank.txt)')
+    parser.add_argument('genome_id_file', help='genome identifiers for genomes in GTDB')
     parser.add_argument('output_file', help='output metadata file')
 
     args = parser.parse_args()
 
     try:
         p = Metadata()
-        p.run(args.assembly_metadata_file,
-              args.genome_id_file, args.output_file)
+        p.run(args.refseq_assembly_summary_file, args.genbank_assembly_summary_file, args.genome_id_file, args.output_file)
     except SystemExit:
         print "\nControlled exit resulting from an unrecoverable error or warning."
     except:
