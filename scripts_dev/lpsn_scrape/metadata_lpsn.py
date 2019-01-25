@@ -104,43 +104,24 @@ class MetadataLPSN(object):
                     processed_species.append((species, genus, desc))
                 processed_strains = []
                 strains = line_split[4].split("=")
-                print line_split
+                pattern = re.compile('[\W_]+')
                 for i, strain in enumerate(strains):
                     if i == 0 and strain.startswith('strain '):
                         strain = strain.replace("strain ", "", 1)
                     strain = re.sub(r'\(.+\)', ' ', strain)
                     strain = ' '.join(strain.split())
-                    matchObj = re.match(
-                        r'^[\w|\s|\d|\.|-]+$', strain, re.M | re.I)
-                    if matchObj:
-                        processed_strains.append(strain)
-                        if " " in strain:
-                            nosp_strain = strain.replace(" ", "")
-                            processed_strains.append(nosp_strain)
-                        if "-" in strain:
-                            nohyp_strain = strain.replace("-", "")
-                            processed_strains.append(nohyp_strain)
-                            nohyp_neotype = strain.replace("", " ")
-                            processed_strains.append(nohyp_strain)
+                    b = pattern.sub('', strain).upper()
+                    processed_strains.append(b)
                 processed_neotypes = []
-                neotypes = line_split[5].split("=")
-                for i, neotype in enumerate(neotypes):
-                    if i == 0 and neotype.startswith('strain '):
-                        neotype = neotype.replace("strain ", "", 1)
-                    neotype = re.sub(r'\(.+\)', ' ', neotype)
-                    neotype = ' '.join(neotype.split())
-                    matchObj = re.match(
-                        r'^[\w|\s|\d|\.|-]+$', neotype, re.M | re.I)
-                    if matchObj:
-                        processed_neotypes.append(neotype)
-                        if " " in neotype:
-                            nosp_neotype = neotype.replace(" ", "")
-                            processed_neotypes.append(nosp_neotype)
-                        if "-" in neotype:
-                            nohyp_neotype = neotype.replace("-", "")
-                            processed_neotypes.append(nohyp_neotype)
-                            nohyp_neotype = neotype.replace("", " ")
-                            processed_neotypes.append(nohyp_neotype)
+                neotypes = line_split[5].strip().split("=")
+                if line_split[5] != '' and len(neotypes) > 0:
+                    for i, neotype in enumerate(neotypes):
+                        if i == 0 and neotype.startswith('strain '):
+                            neotype = neotype.replace("strain ", "", 1)
+                        neotype = re.sub(r'\(.+\)', ' ', neotype)
+                        neotype = ' '.join(neotype.split())
+                        b = pattern.sub('', strain).upper()
+                        processed_neotypes.append(b)
                 processed_strain_string = '{0}\t{1}\t{2}'.format(
                     line_split[2], "=".join(processed_strains), "=".join(processed_neotypes))
                 if processed_strain_string not in list_processed_strains:
