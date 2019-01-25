@@ -138,6 +138,8 @@ class AlignedMarkerManager(object):
         final_multihits = []
         final_evalue = []
         final_bitscore = []
+        final_multihits_number = []
+        final_multihits_derep = []
 
         marker_dbs = {"PFAM": self.pfam_top_hit_suffix,
                       "TIGR": self.tigrfam_top_hit_suffix}
@@ -204,15 +206,23 @@ class AlignedMarkerManager(object):
                             oldbitscore = gene_dict.get(
                                 markerid).get("bitscore")
                             if oldbitscore < bitscore:
+                                list_multihits = gene_dict.get(
+                                    markerid).get('multihits_number')
+                                list_multihits.append(
+                                    all_genes_dict.get(genename))
                                 gene_dict[markerid] = {"marker_path": marker_dict_original.get(markerid).get("path"),
                                                        "gene": genename,
                                                        "gene_seq": all_genes_dict.get(genename),
                                                        "evalue": evalue,
                                                        "bitscore": bitscore,
                                                        "multihit": True,
-                                                       "db_marker_id": marker_dict_original.get(markerid).get("db_marker_id")}
+                                                       "db_marker_id": marker_dict_original.get(markerid).get("db_marker_id"),
+                                                       "multihits_number": list_multihits}
+
                             else:
                                 gene_dict.get(markerid)["multihit"] = True
+                                gene_dict.get(markerid).get('multihits_number').append(
+                                    all_genes_dict.get(genename))
                         else:
                             gene_dict[markerid] = {"marker_path": marker_dict_original.get(markerid).get("path"),
                                                    "gene": genename,
@@ -220,7 +230,8 @@ class AlignedMarkerManager(object):
                                                    "evalue": evalue,
                                                    "bitscore": bitscore,
                                                    "multihit": False,
-                                                   "db_marker_id": marker_dict_original.get(markerid).get("db_marker_id")}
+                                                   "db_marker_id": marker_dict_original.get(markerid).get("db_marker_id"),
+                                                   "multihits_number": [all_genes_dict.get(genename)]}
 
             for mid, info in marker_dict_original.iteritems():
                 if mid not in gene_dict:
@@ -230,6 +241,8 @@ class AlignedMarkerManager(object):
                     final_multihits.append(False)
                     final_evalue.append(None)
                     final_bitscore.append(None)
+                    final_multihits_number.append(None)
+                    final_multihits_derep.append(None)
 
             result_aligns = self._runHmmAlign(gene_dict, db_genome_id)
             for result_align in result_aligns:
@@ -239,15 +252,19 @@ class AlignedMarkerManager(object):
                 final_multihits.append(result_align[3])
                 final_evalue.append(result_align[4])
                 final_bitscore.append(result_align[5])
+                final_multihits_number.append(int(result_align[6]))
+                final_multihits_derep.append(int(result_align[7]))
 
         if final_genome:
-            query = "SELECT upsert_aligned_markers(%s,%s,%s,%s,%s,%s)"
+            query = "SELECT upsert_aligned_markers(%s,%s,%s,%s,%s,%s,%s::int[],%s::int[])"
             temp_cur.execute(query, (final_genome,
                                      final_markerid,
                                      final_seq,
                                      final_multihits,
                                      final_evalue,
-                                     final_bitscore))
+                                     final_bitscore,
+                                     final_multihits_number,
+                                     final_multihits_derep))
         temp_con.commit()
         temp_cur.close()
         temp_con.ClosePostgresConnection()
@@ -287,7 +304,7 @@ class AlignedMarkerManager(object):
             if len(result) < 1:
                 return "TODO"
             result_genomes_dict.append((genome, marker_info.get("db_marker_id"), result, marker_info.get(
-                "multihit"), marker_info.get("evalue"), marker_info.get("bitscore")))
+                "multihit"), marker_info.get("evalue"), marker_info.get("bitscore"), len(marker_info.get('multihits_number')), len(set(marker_info.get('multihits_number')))))
             input_count += 1
         shutil.rmtree(hmmalign_dir)
         return result_genomes_dict

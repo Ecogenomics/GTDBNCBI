@@ -17,10 +17,17 @@
 
 import logging
 import itertools
-
+import tempfile
 import psycopg2
+import operator
+import os
+import shutil
+import pickle
 
 from biolib.parallel import Parallel
+from biolib.common import remove_extension, make_sure_path_exists
+
+from Tools import fastaPathGenerator, splitchunks
 
 from Exceptions import GenomeDatabaseError
 from GenomeManager import GenomeManager
@@ -55,6 +62,7 @@ class GenomeRepresentativeManager(object):
 
         # threshold used to assign genome to representative
         self.aai_threshold = DefaultValues.AAI_CLUSTERING_THRESHOLD
+        self.ani_threshold = DefaultValues.FASTANI_CLUSTERING_THRESHOLD
 
     def _aai_test(self, seq1, seq2, threshold):
         """Test AAI between sequences.
@@ -392,7 +400,7 @@ class GenomeRepresentativeManager(object):
                                   "FROM metadata_taxonomy LEFT JOIN gtdb_taxonomy_view USING (id) " +
                                   "WHERE id = %s;")
             self.cur.execute(query_taxonomy_req, (genome_id,))
-            gtdb_domain, ncbi_taxonomy, gtdb_taxonomy = self.cur.fetchone()
+            _gtdb_domain, ncbi_taxonomy, gtdb_taxonomy = self.cur.fetchone()
 
             domain, arc_aa_per, bac_aa_per = self._domainAssignment(
                 genome_id, len_arc_marker, len_bac_marker)
@@ -403,6 +411,129 @@ class GenomeRepresentativeManager(object):
                 external_genome_id, domain, arc_aa_per, bac_aa_per, ncbi_taxonomy, gtdb_taxonomy))
 
         fout.close()
+
+    def _calculate_fastani_distance(self, user_genome, genome_reps):
+        """ Calculate the FastANI distance between all user genomes and the reference to classify them at the species level
+
+        Parameters
+        ----------
+        user_leaf : User genome
+        genome_reps : list of representatives genomes
+
+        """
+        try:
+            self.tmp_output_dir = tempfile.mkdtemp()
+            make_sure_path_exists(self.tmp_output_dir)
+
+            # we write the two input files for fastani, the query file and
+            # reference file
+            query_list_file = open(os.path.join(
+                self.tmp_output_dir, 'query_list.txt'), 'w')
+
+            # We need to rebuild the path for each unprocessed genomes
+            genome_dirs_query = ("SELECT g.id, g.fasta_file_location,gs.external_id_prefix "
+                                 "FROM genomes g " +
+                                 "LEFT JOIN genome_sources gs ON gs.id = g.genome_source_id " +
+                                 "WHERE g.id in %s")
+            self.cur.execute(genome_dirs_query,
+                             (tuple([user_genome]),))
+            raw_results = self.cur.fetchall()
+            genome_dir_user = {a: fastaPathGenerator(
+                b, c) for a, b, c in raw_results}
+            for _k, v in genome_dir_user.iteritems():
+                query_list_file.write('{}\n'.format(v))
+            query_list_file.close()
+
+            # We need to rebuild the path for each potential reps
+            genome_dirs_query = ("SELECT g.id, g.fasta_file_location,gs.external_id_prefix "
+                                 "FROM genomes g " +
+                                 "LEFT JOIN genome_sources gs ON gs.id = g.genome_source_id " +
+                                 "WHERE g.id in %s")
+            self.cur.execute(genome_dirs_query,
+                             (tuple(list(zip(*genome_reps))[0]),))
+            raw_results = self.cur.fetchall()
+            genome_dirs = {a: fastaPathGenerator(
+                b, c) for a, b, c in raw_results}
+            ref_list_file = open(os.path.join(
+                self.tmp_output_dir, 'ref_list.txt'), 'w')
+            for _k, v in genome_dirs.iteritems():
+                ref_list_file.write('{}\n'.format(v))
+            ref_list_file.close()
+
+            # run fastANI
+            if not os.path.isfile(os.path.join(self.tmp_output_dir, 'query_list.txt')) or not os.path.isfile(os.path.join(self.tmp_output_dir, 'ref_list.txt')):
+                raise
+
+            cmd = 'fastANI --ql {0} --rl {1} -o {2} > /dev/null 2>{3}'.format(os.path.join(self.tmp_output_dir, 'query_list.txt'),
+                                                                              os.path.join(
+                                                                                  self.tmp_output_dir, 'ref_list.txt'),
+                                                                              os.path.join(
+                                                                                  self.tmp_output_dir, 'results.tab'),
+                                                                              os.path.join(self.tmp_output_dir, 'error.log'))
+            os.system(cmd)
+
+            if not os.path.isfile(os.path.join(self.tmp_output_dir, 'results.tab')):
+                errstr = 'FastANI has stopped:\n'
+                if os.path.isfile(os.path.join(self.tmp_output_dir, 'error.log')):
+                    with open(os.path.join(self.tmp_output_dir, 'error.log')) as debug:
+                        for line in debug:
+                            finalline = line
+                        errstr += finalline
+                raise ValueError(errstr)
+
+            dict_parser_distance = self._parse_fastani_results(
+                os.path.join(self.tmp_output_dir, 'results.tab'), genome_dirs, user_genome)
+            if len(dict_parser_distance) == 0:
+                return None
+            sorted_dict = sorted(dict_parser_distance.get(
+                user_genome).iteritems(), key=lambda(_x, y): y['ani'], reverse=True)
+            fastani_matching_reference = sorted_dict[0][0]
+            shutil.rmtree(self.tmp_output_dir)
+            return fastani_matching_reference
+
+        except ValueError as error:
+            if os.path.exists(self.tmp_output_dir):
+                shutil.rmtree(self.tmp_output_dir)
+            raise error
+        except Exception as error:
+            if os.path.exists(self.tmp_output_dir):
+                shutil.rmtree(self.tmp_output_dir)
+            raise error
+
+    def _parse_fastani_results(self, fastout_file, genome_dirs, unprocessed_genomes):
+        """ Parse the fastani output file
+
+
+        Parameters
+        ----------
+        fastout_file : fastani output file.
+
+
+        Returns
+        -------
+        dictionary
+            dict_results[user_g]={ref_genome1:{"af":af,"ani":ani},ref_genome2:{"af":af,"ani":ani}}
+        """
+        dict_results = {}
+        with open(fastout_file) as fastfile:
+            for line in fastfile:
+                info = line.strip().split()
+                path_genome = info[1]
+                ref_genome = None
+                for k, v in genome_dirs.iteritems():
+                    if v == path_genome:
+                        ref_genome = k
+                        break
+                ani = round(float(info[2]) / 100, 5)
+                af = round(float(info[3]) / float(info[4]), 2)
+                if unprocessed_genomes in dict_results and self.ani_threshold <= ani:
+                    dict_results[unprocessed_genomes][ref_genome] = {
+                        "ani": ani, 'af': af}
+                elif self.ani_threshold <= ani:
+                    dict_results[unprocessed_genomes] = {
+                        ref_genome: {"ani": ani, "af": af}}
+
+        return dict_results
 
     def assignToRepresentative(self):
         """Assign genomes to representatives.
@@ -471,7 +602,6 @@ class GenomeRepresentativeManager(object):
         self.cur.execute(
             "SELECT count(*) from marker_set_contents where set_id = 2;")
         len_arc_marker = self.cur.fetchone()[0]
-
         # process each genome
         assigned_to_rep_count = 0
         for genome_id in unprocessed_genome_ids:
@@ -481,57 +611,70 @@ class GenomeRepresentativeManager(object):
             genome_ar_align = marker_set_mngr.concatenatedAlignedMarkers(
                 genome_id, ar_marker_index)
 
+            domain, _arc_aa_per, _bac_aa_per = self._domainAssignment(
+                genome_id, len_arc_marker, len_bac_marker)
+
             assigned_representative = None
+            assigned_representative_dic = {}
             bac_max_mismatches = (1.0 - self.aai_threshold) * \
                 (len(genome_bac_align) - genome_bac_align.count('-'))
             ar_max_mismatches = (1.0 - self.aai_threshold) * \
                 (len(genome_ar_align) - genome_ar_align.count('-'))
-            original_threshold = bac_max_mismatches
             for rep_id in rep_genome_ids:
                 rep_bac_align = rep_bac_aligns[rep_id]
                 rep_ar_align = rep_ar_aligns[rep_id]
-                if rep_genome_dictionary[rep_id] == 'd__Bacteria':
-                    m = self._aai_mismatches(
-                        genome_bac_align, rep_bac_align, bac_max_mismatches)
-                    if m is not None:  # necessary to distinguish None and 0
-                        assigned_representative = rep_id
-                        bac_max_mismatches = m
+                if rep_genome_dictionary[rep_id] == domain:
+                    if rep_genome_dictionary[rep_id] == 'd__Bacteria':
+                        m = self._aai_mismatches(
+                            genome_bac_align, rep_bac_align, bac_max_mismatches)
+                        if m is not None:  # necessary to distinguish None and 0
+                            #assigned_representative = rep_id
+                            assigned_representative_dic[rep_id] = m
+                            #bac_max_mismatches = m
 
-                elif rep_genome_dictionary[rep_id] == 'd__Archaea':
-                    m = self._aai_mismatches(
-                        genome_ar_align, rep_ar_align, ar_max_mismatches)
-                    if m is not None:  # necessary to distinguish None and 0
-                        assigned_representative = rep_id
-                        ar_max_mismatches = m
+                    elif rep_genome_dictionary[rep_id] == 'd__Archaea':
+                        m = self._aai_mismatches(
+                            genome_ar_align, rep_ar_align, ar_max_mismatches)
+                        if m is not None:  # necessary to distinguish None and 0
+                            assigned_representative_dic[rep_id] = m
+                            ar_max_mismatches = m
 
             # assign genome to current representative
-            if assigned_representative:
-                assigned_to_rep_count += 1
-                query = ("UPDATE metadata_taxonomy " +
-                         "SET gtdb_genome_representative = %s " +
-                         "WHERE id = %s")
-                self.cur.execute(
-                    query, (external_ids[assigned_representative], genome_id))
-                query_taxonomy_req = ("SELECT gtdb_class, gtdb_species, " +
-                                      "gtdb_phylum, gtdb_family, gtdb_domain, gtdb_order, gtdb_genus " +
-                                      "FROM metadata_taxonomy WHERE id = %s;")
-                self.cur.execute(query_taxonomy_req, (genome_id,))
-                if all(v is None or v == '' for v in self.cur.fetchone()):
-                    query_taxonomy_update = ("UPDATE metadata_taxonomy as mt_newg SET " +
-                                             "gtdb_class = mt_repr.gtdb_class," +
-                                             "gtdb_species = mt_repr.gtdb_species," +
-                                             "gtdb_phylum = mt_repr.gtdb_phylum," +
-                                             "gtdb_family = mt_repr.gtdb_family," +
-                                             "gtdb_domain =  mt_repr.gtdb_domain," +
-                                             "gtdb_order = mt_repr.gtdb_order," +
-                                             "gtdb_genus =  mt_repr.gtdb_genus " +
-                                             "FROM metadata_taxonomy mt_repr " +
-                                             "WHERE mt_repr.id = %s " +
-                                             "AND mt_newg.id = %s")
-                    self.cur.execute(query_taxonomy_update,
-                                     (assigned_representative, genome_id))
+            if assigned_representative_dic:
+                sorted_reps = sorted(assigned_representative_dic.items(
+                ), key=operator.itemgetter(1))[0:10]
+                try:
+                    assigned_representative = self._calculate_fastani_distance(
+                        genome_id, sorted_reps)
+                except Exception as error:
+                    raise GenomeDatabaseError(error.message)
+                if assigned_representative:
+                    assigned_to_rep_count += 1
+                    query = ("UPDATE metadata_taxonomy " +
+                             "SET gtdb_genome_representative = %s " +
+                             "WHERE id = %s")
+                    self.cur.execute(
+                        query, (external_ids[assigned_representative], genome_id))
+                    query_taxonomy_req = ("SELECT gtdb_class, gtdb_species," +
+                                          "gtdb_phylum, gtdb_family, gtdb_domain, gtdb_order, gtdb_genus " +
+                                          "FROM metadata_taxonomy WHERE id = %s;")
+                    self.cur.execute(query_taxonomy_req, (genome_id,))
+                    if all(v is None or v == '' for v in self.cur.fetchone()):
+                        query_taxonomy_update = ("UPDATE metadata_taxonomy as mt_newg SET " +
+                                                 "gtdb_class = mt_repr.gtdb_class," +
+                                                 "gtdb_species = mt_repr.gtdb_species," +
+                                                 "gtdb_phylum = mt_repr.gtdb_phylum," +
+                                                 "gtdb_family = mt_repr.gtdb_family," +
+                                                 "gtdb_domain =  mt_repr.gtdb_domain," +
+                                                 "gtdb_order = mt_repr.gtdb_order," +
+                                                 "gtdb_genus =  mt_repr.gtdb_genus " +
+                                                 "FROM metadata_taxonomy mt_repr " +
+                                                 "WHERE mt_repr.id = %s " +
+                                                 "AND mt_newg.id = %s")
+                        self.cur.execute(query_taxonomy_update,
+                                         (assigned_representative, genome_id))
             else:
-                query_taxonomy_req = ("SELECT gtdb_class, gtdb_species, " +
+                query_taxonomy_req = ("SELECT gtdb_class, gtdb_species," +
                                       "gtdb_phylum, gtdb_family, gtdb_domain, gtdb_order, gtdb_genus " +
                                       "FROM metadata_taxonomy WHERE id = %s;")
                 self.cur.execute(query_taxonomy_req, (genome_id,))
@@ -551,24 +694,3 @@ class GenomeRepresentativeManager(object):
         query = "UPDATE metadata_taxonomy SET gtdb_representative = %s WHERE id = %s"
         self.cur.executemany(query, [('False', genome_id)
                                      for genome_id in unprocessed_genome_ids])
-
-        #======================================================================
-        # # Once d_domain is defined for each new genomes we can calculate Trna information
-        # query = ("SELECT gs.external_id_prefix||'_'||g.id_at_source,gtdb_domain,fasta_file_location from genomes g "+
-        #           "LEFT JOIN metadata_taxonomy USING(id) "+
-        #           "LEFT JOIN genome_sources gs ON gs.id =  g.genome_source_id "+
-        #           "WHERE id = %s")
-        #
-        #
-        # for genome_id in unprocessed_genome_ids:
-        #     self.cur.execute(query, (genome_id,))
-        #     accession,gtdb_domain,fasta_file_location =  self.cur.fetchone()
-        #     print accession
-        #     print gtdb_domain
-        #     print fasta_file_location
-        #
-        #     meta_mngr = MetadataManager(self.cur, self.currentUser)
-        #     meta_mngr.run_trna_scan(fasta_file_location,accession,gtdb_domain)
-        #
-        #     sys.exit()
-        #======================================================================

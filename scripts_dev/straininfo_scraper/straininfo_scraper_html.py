@@ -21,7 +21,6 @@ import os
 import sys
 import argparse
 import urllib
-import xml.etree.ElementTree as ET
 from datetime import timedelta, datetime
 import re
 from multiprocessing.pool import ThreadPool as Pool
@@ -60,8 +59,11 @@ class PNUClient(object):
             testfile.retrieve(url, "toparse{0}.html".format(intpage))
 
             with open("toparse{0}.html".format(intpage), 'r') as htmlpagespe:
+                author = False
+                title = False
                 spename = False
                 species = ''
+                dates = []
                 for line in htmlpagespe:
                     if spename and len(species) == 0:
                         matchObj = re.match(
@@ -95,8 +97,28 @@ class PNUClient(object):
                             list_strains.append(strain)
                             list_strains.append(strain.replace(" ", ""))
 
+                    if 'class="authors"' in line:
+                        author = True
+                        continue
+                    if author and 'class="publication_title"' in line:
+                        title = True
+                        continue
+                    if (author or title) and '</tbody>' in line:
+                        author = False
+                        title = False
+                    elif author and title:
+                        print line
+                        matchObj_sub = re.match(
+                            '\s+<div>([^<]+)<\/div>', line)
+                        if matchObj_sub:
+                            dates.append(matchObj_sub.group(1))
+                            author = False
+                            title = False
+
             os.remove("toparse{0}.html".format(intpage))
-            out_q.put((species, "=".join(set(list_strains))))
+            print dates
+            out_q.put(
+                (species, "=".join(set(list_strains)), '/'.join(set(dates))))
 
         except IOError:
             print 'url does not exist.'
@@ -110,8 +132,8 @@ class PNUClient(object):
         manager = multiprocessing.Manager()
         out_q = manager.Queue()
         workers = [self.pool.apply_async(
+            # self.worker, (i, out_q)) for i in [376, 377, 378]]
             self.worker, (i, out_q)) for i in range(400000)]
-
         # Collect all results into a single result dict. We know how many dicts
         # with results to expect.
         while out_q.empty():
@@ -123,7 +145,7 @@ class PNUClient(object):
         while not out_q.empty():
             info = out_q.get()
             if info[0] != '' and info[1] != '':
-                outf.write("{0}\t{1}\n".format(info[0], info[1]))
+                outf.write("{0}\t{1}\t{2}\n".format(info[0], info[1], info[2]))
         outf.close()
 
 
