@@ -317,6 +317,23 @@ class InfoGenerator(object):
                     lpsn_strains_dic[infos[0]] = {
                         'strains': '='.join(set(list_strains)), 'neotypes': '='.join(set(list_neotypes))}
         return lpsn_strains_dic
+        
+    def _read_type_species_of_genus(self, species_file):
+        """Read type species of genus."""
+        
+        type_species_of_genus = {}
+        with open(species_file) as lpstr:
+            lpstr.readline()
+            
+            for line in lpstr:
+                line_split = line.rstrip('\n').split('\t')
+                sp, genus, authority = line_split
+                
+                if genus:
+                    sp = sp.replace('s__', '')
+                    type_species_of_genus[sp] = genus
+                
+        return type_species_of_genus
 
     def remove_brackets(self, sp_name):
         """Remove brackets from species name.
@@ -819,6 +836,8 @@ class InfoGenerator(object):
                             lpsn_summary_file,
                             dsmz_summary_file,
                             straininfo_summary_file,
+                            lpsn_type_species_of_genus,
+                            dsmz_type_species_of_genus,
                             summary_table_file):
         """Generate type strain summary file across all strain repositories."""
 
@@ -840,9 +859,12 @@ class InfoGenerator(object):
         missing_type_at_gtdb = 0
         agreed_type_of_species = 0
         agreed_type_of_subspecies = 0
+        num_type_species_of_genus = 0
         for gid, metadata in self.metadata.iteritems():
             fout.write(gid)
-            fout.write('\t%s\t%s\t%s\t%s' % (self.get_species_name(gid),
+            
+            species_name = self.get_species_name(gid)
+            fout.write('\t%s\t%s\t%s\t%s' % (species_name,
                                                 metadata['ncbi_organism_name'], 
                                                 metadata['ncbi_strain_ids'],
                                                 '; '.join(metadata['ncbi_expanded_standardized_strain_ids'])))
@@ -856,6 +878,14 @@ class InfoGenerator(object):
                 if gid in sr and self.type_priority.index(sr[gid].type_designation) < highest_priority_designation:
                     highest_priority_designation = sr[gid].type_designation
             fout.write('\t%s' % highest_priority_designation)
+
+            type_species_of_genus = False
+            canonical_sp_name = ' '.join(species_name.split()[0:2])
+            if (highest_priority_designation == 'type strain of species' and 
+                    (species_name in lpsn_type_species_of_genus or species_name in dsmz_type_species_of_genus
+                        or canonical_sp_name in lpsn_type_species_of_genus or canonical_sp_name in dsmz_type_species_of_genus)):
+                type_species_of_genus = True
+                num_type_species_of_genus += 1
             
             gtdb_type_sources = []
             for sr_id, sr in [('LPSN', lpsn), ('DSMZ', dsmz), ('StrainInfo', straininfo)]:
@@ -869,7 +899,7 @@ class InfoGenerator(object):
             fout.write('\t%s\t%s\t%s' % (lpsn[gid].priority_year if gid in lpsn else '', 
                                             dsmz[gid].priority_year if gid in dsmz else '', 
                                             straininfo[gid].priority_year if gid in straininfo else ''))
-            fout.write('\t%s\n' % '') #***HOW DO WE DETERMINE THIS?
+            fout.write('\t%s\n' % type_species_of_genus)
             
             if metadata['ncbi_type_material_designation'] == 'none' and highest_priority_designation == self.TYPE_SPECIES: 
                 missing_type_at_ncbi += 1
@@ -886,6 +916,7 @@ class InfoGenerator(object):
                 if sp_tokens[2] == 'subsp.' and sp_tokens[1] != sp_tokens[3]:
                     agreed_type_of_subspecies += 1
                 
+        self.logger.info('Identified %d genomes designated as the type species of genus.' % num_type_species_of_genus)
         self.logger.info('Genomes that appear to have missing type species information at NCBI: %d' % missing_type_at_ncbi)
         self.logger.info('Genomes that are only effectively published or erroneously missing type species information at GTDB: %d' % missing_type_at_gtdb)
         self.logger.info('Genomes where GTDB and NCBI both designate type strain of species: %d' % agreed_type_of_species)
@@ -984,12 +1015,20 @@ class InfoGenerator(object):
                                 
         # generate global summary file if information was generated from all sources
         if sourcest == 'all':
+            lpsn_type_species_of_genus = self._read_type_species_of_genus(os.path.join(lpsn_dir, 'lpsn_species.tsv'))
+            dsmz_type_species_of_genus = self._read_type_species_of_genus(os.path.join(dsmz_dir, 'dsmz_species.tsv'))
+            self.logger.info('Identified %d LPSN and %d DSMZ type species of genus.' % (
+                                len(lpsn_type_species_of_genus), 
+                                len(dsmz_type_species_of_genus)))
+            
             self.logger.info('Generating summary type information table across all strain repositories.')
             summary_table_file = os.path.join(self.output_dir, 'gtdb_type_strain_summary.tsv')
             self.type_summary_table(ncbi_authority,
                                     lpsn_summary_file,
                                     dsmz_summary_file,
                                     straininfo_summary_file,
+                                    lpsn_type_species_of_genus,
+                                    dsmz_type_species_of_genus,
                                     summary_table_file)
 
         self.logger.info('Done.')

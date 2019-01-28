@@ -56,8 +56,6 @@ class TreeManager(object):
         self.currentUser = currentUser
 
         self.subset = Config.SUBSET
-        self.max_gaps = Config.MAX_GAPS
-        self.reduced_consensus = Config.REDUCED_CONSENSUS
 
     def _taxa_filter(self, taxa_filter, genome_ids, guaranteed_ids, retain_guaranteed):
         """Filter genomes to specified taxa."""
