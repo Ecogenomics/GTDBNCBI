@@ -78,7 +78,7 @@ class AddTaxonomy(object):
     cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_taxonomy', 'ncbi_taxonomy', 'TEXT', temp_file.name)
     print cmd
     os.system(cmd)
-    #os.remove(temp_file.name)
+    os.remove(temp_file.name)
 
 if __name__ == '__main__':
   print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__

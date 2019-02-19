@@ -24,7 +24,7 @@ __author__ = 'Donovan Parks'
 __copyright__ = 'Copyright 2015'
 __credits__ = ['Donovan Parks']
 __license__ = 'GPL3'
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 __maintainer__ = 'Donovan Parks'
 __email__ = 'donovan.parks@gmail.com'
 __status__ = 'Development'
@@ -190,44 +190,61 @@ class TaxonomyNCBI(object):
             else:
                 if len(test_name.split(' ')) <= 1:
                     return False, 'name appears to be missing the generic name'
-                    
+
         # get putative binomial name
         if 'candidatus' in test_name.lower():
-            test_name = ' '.join(test_name.split()[0:3])
+            sp_name = ' '.join(test_name.split()[0:3])
         else:
-            test_name = ' '.join(test_name.split()[0:2])
+            sp_name = ' '.join(test_name.split()[0:2])
 
         # check for tell-tale signs on invalid species names
-        if test_name[0].islower():
+        if sp_name[0].islower():
             return False, 'first letter of name is lowercase'
-        if test_name.split()[-1].isupper():
+        if sp_name.split()[-1].isupper():
             return False, 'first letter of specific name is uppercase'
-        if " bacterium" in test_name.lower():
+        if " bacterium" in sp_name.lower():
             return False, "name contains the word 'bacterium'"
-        if " archaeon" in test_name.lower():
+        if " bacteirum" in sp_name.lower():
+            return False, "name contains the word 'bacteirum'"
+        if " archaeon" in sp_name.lower():
             return False, "name contains the word 'archaeon'"
-        if " archeaon" in test_name.lower():
+        if " archeaon" in sp_name.lower():
             return False, "name contains the word 'archeaon'"
-        if "-like" in test_name.lower():
-            return False, "name contains '-like'"
-        if " group" in test_name.lower():
+        if " group" in sp_name.lower():
             return False, "name contains 'group'"
-        if " subdivision" in test_name.lower():
+        if " subdivision" in sp_name.lower():
             return False, "name contains 'subdivision'"
-        if " symbiont" in test_name.lower():
-            return False, "name contains 'symbiont'"
-        if " endosymbiont" in test_name.lower():
-            return False, "name contains 'endosymbiont'"
-        if " taxon" in test_name.lower():
+        if " taxon" in sp_name.lower():
             return False, "name contains 'taxon'"
-        if " cluster" in test_name.lower():
+        if " cluster" in sp_name.lower():
             return False, "name contains 'cluster'"
-        if " of " in test_name.lower():
+        if " clade" in sp_name.lower():
+            return False, "name contains 'clade'"
+        if " of " in sp_name.lower():
             return False, "name contains 'of'"
-        if 'sp.' in test_name.lower():
+        if 'sp.' in sp_name.lower():
             return False, "name contains 'sp.'"
+        if 'cf.' in sp_name.lower():
+            return False, "name contains 'cf.'"
+        if sp_name.lower().split()[1] == 'oral':
+            return False, "specific name is 'oral'"
+        if 'candidatus' in sp_name.lower() and sp_name.lower().split()[2] == 'oral':
+            return False, "specific name is 'oral'"
+        if '-like' in test_name.lower():
+            return False, "full name contains '-like'"
+        if 'symbiont' in test_name.lower().split():
+            return False, "full name contains 'symbiont'"
+        if 'endosymbiont' in test_name.lower().split():
+            return False, "full name contains 'endosymbiont'"
+        if 'mycovirus' in test_name.lower().split():
+            return False, "full name contains 'mycovirus'"
+            
+        # check that binomial name contains only valid characters
+        for ch in sp_name: #***
+            if not ch.isalpha() and ch not in [' ', '[', ']']:
+                return False, 'species name contains invalid character'
 
-        return True, 's__' + test_name
+        return True, 's__' + sp_name
 
     def standardize_taxonomy(self, ncbi_taxonomy_file, output_consistent, output_inconsistent):
         """Produce standardized 7-rank taxonomy file from NCBI taxonomy strings."""
@@ -239,6 +256,9 @@ class TaxonomyNCBI(object):
 
             assembly_accesssion = line_split[0]
             taxonomy = line_split[1].split(';')
+            
+            if not ('d__Bacteria' in taxonomy or 'd__Archaea' in taxonomy):
+                continue
 
             # remove unrecognized ranks (i.e., 'x__') and strain classification
             revised_taxonomy = []
@@ -263,15 +283,7 @@ class TaxonomyNCBI(object):
                 for i in xrange(0, max(canonical_taxonomy.keys())):
                     if i in canonical_taxonomy  and (i+1) not in canonical_taxonomy:
                         canonical_taxonomy[i+1] = Taxonomy.rank_prefixes[i+1]
-                        #===========================================================
-                        # taxon = canonical_taxonomy[i][3:]
-                        # if taxon[0] == '{':
-                        #     canonical_taxonomy[i+1] = Taxonomy.rank_prefixes[i+1] + taxon.replace(Taxonomy.rank_labels[i]+'}', 
-                        #                                                                             Taxonomy.rank_labels[i+1]+'}')
-                        # else:
-                        #     canonical_taxonomy[i+1] = Taxonomy.rank_prefixes[i+1] + '{undefined %s %s}' % (taxon, Taxonomy.rank_labels[i+1])
-                        #===========================================================
-
+                        
             cur_taxonomy = []
             for i in xrange(0, len(Taxonomy.rank_prefixes)):
                 if i in canonical_taxonomy:

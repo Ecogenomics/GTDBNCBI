@@ -40,16 +40,30 @@ class PullHits(object):
     def __init__(self):
         """Initialize."""
         
-        self.ssu_dir = 'rna_silva'
+        self.ssu_dir = 'rna_silva_132'
         
     def run(self, 
-                genome_file, 
+                genome_file,
+                gtdb_metadata_file,
                 min_iden, 
                 min_len,
                 min_aln_len,
                 output_file):
         """Create table with 16S rRNA assignments for GTDB genomes."""
         
+        # read GTDB taxonomy strings
+        gtdb_taxonomy = {}
+        with open(gtdb_metadata_file) as f:
+            header = f.readline().strip().split('\t')
+            
+            gtdb_taxonomy_index = header.index('gtdb_taxonomy')
+            
+            for line in f:
+                line_split = line.strip().split('\t')
+                
+                gtdb_taxonomy[line_split[0]] = line_split[gtdb_taxonomy_index]
+        
+        # pull all SILVA 16S hits
         fout = open(output_file, 'w')
         
         bHeader = True
@@ -71,7 +85,7 @@ class PullHits(object):
             with open(taxonomy_file) as f:
                 headers = f.readline().strip().split('\t')
                 if bHeader:
-                    fout.write('Genome ID\t' + '\t'.join(headers) + '\n')
+                    fout.write('Genome ID\t' + '\t'.join(headers) + '\tGTDB taxonomy' + '\n')
                     bHeader = False
                 
                 pident_index = headers.index('blast_perc_identity')
@@ -86,7 +100,7 @@ class PullHits(object):
                     ssu_len = int(line_split[ssu_len_index])
                     
                     if pident >= min_iden and aln_len >= min_aln_len and ssu_len >= min_len:
-                        fout.write('%s\t%s' % (gid, line))
+                        fout.write('%s\t%s\t%s\n' % (gid, line.rstrip('\n'), gtdb_taxonomy[gid]))
                         
         fout.close()
 
@@ -96,7 +110,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('genome_file', help='file indicating path to genome files')
-    parser.add_argument('--min_iden', help='minimum identity to report assignment', default=0.95)
+    parser.add_argument('gtdb_metadata_file', help='GTDB metadata file to obtain GTDB taxonomy strings (TSV format)')
+    parser.add_argument('--min_iden', help='minimum identity to report assignment', type=float, default=95)
     parser.add_argument('--min_len', help='minimum length of 16S rRNA gene to report assignment', default=500)
     parser.add_argument('--min_aln_len', help='minimum alignment length to report assignment', default=500)
     parser.add_argument('output_file', help="output file")
@@ -105,7 +120,8 @@ if __name__ == '__main__':
 
     try:
         p = PullHits()
-        p.run(args.genome_file, 
+        p.run(args.genome_file,
+                args.gtdb_metadata_file,
                 args.min_iden,
                 args.min_len,
                 args.min_aln_len,
