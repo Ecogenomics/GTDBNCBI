@@ -55,11 +55,6 @@ class TreeManager(object):
         self.cur = cur
         self.currentUser = currentUser
 
-<<<<<<< HEAD
-=======
-        self.subset = Config.SUBSET
-
->>>>>>> 157ef3b507f422b3d56282f21b552f6ba5c492cc
     def _taxa_filter(self, taxa_filter, genome_ids, guaranteed_ids, retain_guaranteed):
         """Filter genomes to specified taxa."""
 
