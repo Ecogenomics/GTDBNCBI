@@ -84,7 +84,9 @@ class PNUClient(object):
                     genus_type_species_dict[item.get(
                         'type_species')] = item.get('label')
             if results.get("next") is not None:
-                self.getGenera(outfile, urlreq)
+                temp_dict = self.getGenera(outfile, urlreq)
+                for k, v in temp_dict.iteritems():
+                    genus_type_species_dict[k] = v
 #             OUTPUT:
 #             object of type 'dict' with the fields 'count', 'previous', 'results', 'next'
 # the different genera in field 'results' are separated by ',' e.g.

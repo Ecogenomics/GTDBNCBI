@@ -55,10 +55,6 @@ class TreeManager(object):
         self.cur = cur
         self.currentUser = currentUser
 
-        self.subset = Config.SUBSET
-        self.max_gaps = Config.MAX_GAPS
-        self.reduced_consensus = Config.REDUCED_CONSENSUS
-
     def _taxa_filter(self, taxa_filter, genome_ids, guaranteed_ids, retain_guaranteed):
         """Filter genomes to specified taxa."""
 
@@ -520,15 +516,15 @@ class TreeManager(object):
         else:
             self.logger.info(
                 'Trimming columns with insufficient taxa or poor consensus.')
-            mask, pruned_seqs = self._trim_seqs2(cols_per_gene,
-                                                 min_perc_aa / 100.0,
-                                                 min_consensus / 100.0,
-                                                 max_consensus / 100.0,
-                                                 min_perc_taxa / 100.0,
-                                                 rnd_seed,
-                                                 msa,
-                                                 chosen_markers_order,
-                                                 chosen_markers)
+            mask, pruned_seqs = self._trim_seqs(cols_per_gene,
+                                                min_perc_aa / 100.0,
+                                                min_consensus / 100.0,
+                                                max_consensus / 100.0,
+                                                min_perc_taxa / 100.0,
+                                                rnd_seed,
+                                                msa,
+                                                chosen_markers_order,
+                                                chosen_markers)
 
             trimmed_seqs = dict(pruned_seqs)
 
@@ -619,14 +615,14 @@ class TreeManager(object):
 
         return fasta_concat_filename
 
-    def _trim_seqs2(self, cols_per_gene, min_perc_aa,
-                    min_consensus,
-                    max_consensus,
-                    min_per_taxa,
-                    rnd_seed,
-                    msa,
-                    chosen_markers_order,
-                    chosen_markers):
+    def _trim_seqs(self, cols_per_gene, min_perc_aa,
+                   min_consensus,
+                   max_consensus,
+                   min_per_taxa,
+                   rnd_seed,
+                   msa,
+                   chosen_markers_order,
+                   chosen_markers):
         """Randomly select a subset of columns from the MSA of each marker."""
 
         markers_sizeinfo = []
@@ -642,7 +638,7 @@ class TreeManager(object):
 
         # randomly select columns meeting filtering criteria
         self.logger.info(
-            'Randomly sampling %d columns passing filtering criteria from each marker gene.' % self.subset)
+            'Randomly sampling %d columns passing filtering criteria from each marker gene.' % cols_per_gene)
 
         mask, output_seqs = self.subsample_msa(
             msa, markers_sizeinfo, cols_per_gene, max_gaps, min_consensus, max_consensus, rnd_seed)

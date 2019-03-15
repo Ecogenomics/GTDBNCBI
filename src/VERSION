@@ -1,10 +1,13 @@
-software_version=2.2.2
+software_version=2.3.0
 ncbi_database_version=release 89
 gtdb_version=1.3.1
-taxonomy_version=v86.0
+taxonomy_version=v86.1
 
 GTDB software versions
 ----------------------
+v2.3.0 (March 15,2019):
+- Trimming similar to GTDB-Tk.
+- Multiple identical genes included in MSA.
 v2.2.2 (April 04, 2018):
 - Bug fixes
 v2.2.1 (November 21, 2017):
@@ -96,6 +99,11 @@ v0.0.1:
 
 GTDB database versions
 ----------------------
+v1.4.0 (March 15th, 2019):
+- new table metadata_type_material ( gtdb_type_designation,gtdb_type_designation_sources,lpsn_type_designation,
+  dsmz_type_designation,straininfo_type_designation,lpsn_priority_year,dsmz_priority_year,straininfo_priority_year,
+  gtdb_type_species_of_genus)
+- removal type_material_information table
 v1.3.1 (November 21, 2017):
 - addition of ncbi_taxonomy_unfiltered field in the metadata_taxonomy table,
 - creation of dsmz_genera,dsmz_species,dsmz_strains,straininfo_strains tables
