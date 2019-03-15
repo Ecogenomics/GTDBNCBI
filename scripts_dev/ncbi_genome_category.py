@@ -17,20 +17,21 @@
 #                                                                             #
 ###############################################################################
 
-__prog_name__ = 'ncbi_genome_type.py'
+__prog_name__ = 'ncbi_genome_category.py'
 __prog_desc__ = 'Identify genomes marked by NCBI as being a MAG or SAG.'
 
 __author__ = 'Donovan Parks'
 __copyright__ = 'Copyright 2018'
 __credits__ = ['Donovan Parks']
 __license__ = 'GPL3'
-__version__ = '0.0.1'
+__version__ = '0.0.3'
 __maintainer__ = 'Donovan Parks'
 __email__ = 'donovan.parks@gmail.com'
 __status__ = 'Development'
 
 import os
 import sys
+import re
 import argparse
 from collections import defaultdict
 
@@ -43,8 +44,10 @@ class GenomeType(object):
     def run(self, genome_file, output_file):
         """Identify genomes marked by NCBI as being a MAG or SAG."""
         
+        metagenome_pattern = re.compile(r'derived from(\w|\s)*metagenome', re.I)
+        
         fout = open(output_file, 'w')
-        fout.write('genome_id\tncbi_genome_type\n')
+        fout.write('genome_id\tncbi_genome_category\n')
         fout_sanity_check = open(output_file + '.raw', 'w')
         genome_count = 0
         for idx, line in enumerate(open(genome_file)):
@@ -60,15 +63,29 @@ class GenomeType(object):
 
             assembly_id = os.path.basename(os.path.normpath(genome_dir))
             wgs_file = os.path.join(genome_dir, assembly_id + '_genomic.gbff')
+            types = set()
             for line in open(wgs_file):
-                if 'derived from metagenome' in line:
-                    fout.write('%s\t%s\n' % (gid, 'derived from metagenome'))
-                    fout_sanity_check.write(line)
-                    break
+                if 'metagenome' in line:
+                    if('/metagenome_source' in line
+                        or re.search(metagenome_pattern, line)):
+                        types.add('MAG')
+                        fout_sanity_check.write('%s\t\%s' % (gid, line))
                 elif 'single cell' in line:
-                    fout.write('%s\t%s\n' % (gid, 'derived from single cell'))
-                    fout_sanity_check.write(line)
-                    break
+                    types.add('SAG')
+                    fout_sanity_check.write('%s\t\%s' % (gid, line))
+                elif '/environmental_sample' in line or "derived from environmental source" in line:
+                    types.add('ENV')
+                    fout_sanity_check.write('%s\t\%s' % (gid, line))
+                    
+            if 'MAG' in types and 'SAG' in types:
+                print('[WARNING] Genome %s is annotated as both a MAG and SAG.' % gid)
+                    
+            if 'MAG' in types:
+                fout.write('%s\t%s\n' % (gid, 'derived from metagenome'))
+            elif 'SAG' in types:
+                fout.write('%s\t%s\n' % (gid, 'derived from single cell'))
+            elif 'ENV' in types:
+                fout.write('%s\t%s\n' % (gid, 'derived from environmental_sample'))
         sys.stdout.flush()
                     
         fout.close()
