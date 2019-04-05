@@ -156,6 +156,22 @@ class MetadataManager(object):
         except GenomeDatabaseError as e:
             raise e
 
+    def exportTaxonomyMapping(self, src, dest, output_file):
+        """Summarises the source taxonomy mapping to the destination taxonomy.
+
+        Parameters
+        ----------
+        :param src: str
+            Indicates the source taxonomy ('GTDB' or 'SILVA')
+        :param dest: str
+            Indicates the destination taxonomy ('SILVA', or 'GTDB')
+        :param output_file: str
+            Output file.
+        :return: None
+        """
+        pass
+
+
     def importMetadata(self, table=None, field=None, typemeta=None, metafile=None):
         '''
         Function importMetadata

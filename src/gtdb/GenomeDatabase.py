@@ -1526,6 +1526,48 @@ class GenomeDatabase(object):
 
         return True
 
+    def ExportTaxonomyMapping(self, src, dest, output_file):
+        """Summarises the source taxonomy mapping to the destination taxonomy.
+
+        Parameters
+        ----------
+        :param src: str
+            Indicates the source taxonomy ('GTDB' or 'SILVA')
+        :param dest: str
+            Indicates the destination taxonomy ('SILVA', or 'GTDB')
+        :param output_file: str
+            Output file.
+        :return: bool
+            True if the method succeeded, false otherwise.
+        """
+
+        valid_db = ['GTDB', 'SILVA']
+        assert(src in valid_db and dest in valid_db and src != dest)
+
+        try:
+            cur = self.conn.cursor()
+
+            # ensure all genomes have been assigned to a representatives
+            # TODO: Re-enable this later.
+            # genome_rep_mngr = GenomeRepresentativeManager(cur,
+            #                                               self.currentUser,
+            #                                               self.threads,
+            #                                               self.db_release)
+            # genome_rep_mngr.assignToRepresentative()
+
+            metaman = MetadataManager(cur, self.currentUser)
+            metaman.exportTaxonomyMapping(src, dest, output_file)
+
+            self.conn.commit()
+
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+
+
+
     def ReportStats(self):
         """Report general database statistics."""
 
