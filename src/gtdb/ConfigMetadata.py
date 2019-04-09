@@ -14,6 +14,8 @@ GTDB_SSU_SILVA_DB = '/srv/whitlam/bio/db/silva/123.1/SILVA_123.1_SSURef_Nr99_tax
 GTDB_SSU_SILVA_TAXONOMY = '/srv/whitlam/bio/db/silva/123.1/silva_taxonomy.ssu.tsv'
 GTDB_SSU_SILVA_OUTPUT_DIR = 'rna_silva'
 GTDB_SSU_SILVA_PREFIX = 'ssu_silva'
+GTDB_SSU_SILVA_MAPPING = '/srv/whitlam/bio/db/silva/123.1/tax_slv_ssu_123.1.txt'
+GTDB_SSU_SILVA_AGGREGATE = '/srv/db/gtdb/metadata/release86/ssu_hits/aggregate_all_blast_hits.tsv'
 
 GTDB_LSU_SILVA_DB = '/srv/db/silva/123.1/SILVA_123.1_LSURef_tax_silva.fasta'
 GTDB_LSU_SILVA_TAXONOMY = '/srv/whitlam/bio/db/silva/123.1/silva_taxonomy.lsu.tsv'

@@ -15,19 +15,20 @@
 #                                                                             #
 ###############################################################################
 
-import os
 import logging
+import os
+import re
 import sys
+from collections import defaultdict, Counter
 
 import psycopg2
+from biolib.seq_io import read_fasta
+from biolib.taxonomy import Taxonomy
 from psycopg2.extensions import AsIs
 
-import ConfigMetadata
 import Config
+import ConfigMetadata
 from Exceptions import GenomeDatabaseError
-
-from biolib.taxonomy import Taxonomy
-from biolib.seq_io import read_fasta
 
 
 class MetadataManager(object):
@@ -155,6 +156,141 @@ class MetadataManager(object):
             print 'Taxonomy information written to: %s' % output_file
         except GenomeDatabaseError as e:
             raise e
+
+    def exportTaxonomyMapping(self, src, dest, output_file):
+        # type: (str, str, str) -> None
+        """Summarises the source taxonomy mapping to the destination taxonomy (only for representative species).
+
+        Parameters
+        ----------
+        :param src: str
+            Indicates the source taxonomy ('GTDB' or 'SILVA')
+        :param dest: str
+            Indicates the destination taxonomy ('SILVA', or 'GTDB')
+        :param output_file: str
+            Output file.
+        :return: None
+        """
+
+        valid_db = ['GTDB', 'SILVA']
+        assert (src in valid_db and dest in valid_db and src != dest)
+
+        # Get the taxonomy for each representative species
+        try:
+            self.cur.execute("""SELECT mt.id, mt.gtdb_domain, mt.gtdb_phylum, mt.gtdb_class, mt.gtdb_order, 
+                                    mt.gtdb_family, mt.gtdb_genus, mt.gtdb_species, mn.ncbi_wgs_master
+                                FROM metadata_taxonomy mt
+                                LEFT JOIN metadata_ncbi mn ON mn.id = mt.id
+                                WHERE gtdb_representative""")
+        except GenomeDatabaseError as e:
+            raise e
+
+        gtdb_taxonomy = dict()
+        for id, gtdb_domain, gtdb_phylum, gtdb_class, gtdb_order, gtdb_family, gtdb_genus, gtdb_species, ncbi_wgs_master in self.cur.fetchall():
+            gtdb_taxonomy[id] = {'domain': gtdb_domain, 'phylum': gtdb_phylum, 'class': gtdb_class, 'order': gtdb_order,
+                             'family': gtdb_family, 'genus': gtdb_genus, 'species': gtdb_species}
+
+        # Load the SILVA taxonomic rank information
+        silva_mapping = self._parse_silva_mapping(ConfigMetadata.GTDB_SSU_SILVA_MAPPING)
+
+        # Load the aggregate SILVA SSU blast hits
+        ssu_agg = self._parse_silva_ssu_aggregate(ConfigMetadata.GTDB_SSU_SILVA_AGGREGATE)
+
+        def _get_most_significant_hit(blast_hits, min_align_length):
+            # Remove those under the threshold
+            trim_set = list()
+            for hit in blast_hits:
+                if hit['blast_align_len'] > min_align_length:
+                    trim_set.append(hit)
+
+            # Annotate with the consensus
+            tax_seen = defaultdict(list)
+            for hit in trim_set:
+                tax_seen[hit['taxonomy']].append(True)
+
+            new_hits = list()
+            for hit in blast_hits:
+                new_hit = hit
+                hit['tax_count'] = len(tax_seen[hit['taxonomy']])
+                new_hits.append(new_hit)
+
+            hits_sorted = sorted(new_hits, key=lambda k: (-k['tax_count'], -k['blast_bitscore'], -k['blast_align_len']))
+            for hit in hits_sorted:
+                return hit
+            return None
+
+        def _match_silva_taxonomy(input_taxonomy, silva_taxonomy):
+            out = dict()
+
+            # Try and match all of the ranks
+            input_ranks = input_taxonomy.split(';')
+            for i in range(1, len(input_ranks)):
+                cur_tax_string = ';'.join(input_ranks[0:i])
+                cur_rank = silva_taxonomy.get(cur_tax_string + ';')
+                out[cur_rank] = input_ranks[i - 1]
+
+            out['species'] = input_ranks[-1]
+
+            return out
+
+        def _create_output_file(a_to_b, output_path):
+            with open(output_path, 'w') as f:
+                f.write('%s\t%s\t%s\t%s\t%s\n' % ('tax_rank', 'tax_from', 'num_genomes', 'num_ranks', 'tax_to'))
+                for rank in ['domain', 'phylum', 'class', 'order', 'family', 'genus', 'species']:
+                    a_tax_dict = a_to_b[rank]
+                    for a_tax, a_tax_list in a_tax_dict.items():
+                        counts = Counter(a_tax_list)
+
+                        list_props = list()
+                        for cur_rank, cur_count in sorted(counts.items(), key=lambda v: -v[1]):
+                            cur_prop = (float(cur_count) / len(a_tax_list)) * 100.0
+                            list_props.append('%s (%.2f%%)' % (cur_rank, cur_prop))
+
+                        prop_str = ', '.join(list_props)
+                        f.write('%s\t%s\t%d\t%d\t%s\n' % (rank, a_tax, len(a_tax_list), len(counts), prop_str))
+
+        # Variables for reporting.
+        removed_due_to_eukaryota_contamination = set()
+        had_no_significant_hits = set()
+
+        # Iterate over all BLAST hits for each genome id
+        gtdb_to_silva = defaultdict(lambda: defaultdict(list))
+        silva_to_gtdb = defaultdict(lambda: defaultdict(list))
+        for gid, blast_hits in ssu_agg.items():
+
+            # Take the consensus taxonomy
+            most_sig_hit = _get_most_significant_hit(blast_hits, min_align_length=900)
+
+            if most_sig_hit is None:
+                had_no_significant_hits.add(gid)
+                continue
+            if most_sig_hit['taxonomy'][0:9] == 'Eukaryota':
+                removed_due_to_eukaryota_contamination.add(gid)
+                continue
+
+            # Find the corresponding taxonomy in GTDB
+            cur_silva_tax = _match_silva_taxonomy(most_sig_hit['taxonomy'], silva_mapping)
+            cur_gtdb_tax = gtdb_taxonomy[gid]
+
+            # Find where the taxonomies agree/disagree.
+            identity_thresholds = [('domain', 0), ('phylum', 75.0), ('class', 78.5), ('order', 82.0), ('family', 86.5),
+                                   ('genus', 94.5), ('species', 98.7)]
+            for cur_domain, cur_thresh in identity_thresholds:
+                if most_sig_hit['blast_perc_identity'] >= cur_thresh:
+                    if cur_domain not in cur_silva_tax:
+                        continue
+                    gtdb_to_silva[cur_domain][cur_gtdb_tax[cur_domain]].append(cur_silva_tax[cur_domain])
+                    silva_to_gtdb[cur_domain][cur_silva_tax[cur_domain]].append(cur_gtdb_tax[cur_domain])
+
+        # Create the output file
+        if src == 'GTDB' and dest == 'SILVA':
+            _create_output_file(gtdb_to_silva, output_file)
+        else:
+            _create_output_file(silva_to_gtdb, output_file)
+
+        print('Number of genomes which were ignored due to poor BLAST hits: %d' % len(had_no_significant_hits))
+        print('Number of genomes which were ignored due to Eukaryota contamination in BLAST hits: %d' % len(removed_due_to_eukaryota_contamination))
+
 
     def importMetadata(self, table=None, field=None, typemeta=None, metafile=None):
         '''
@@ -657,3 +793,44 @@ class MetadataManager(object):
                                                                                                                                                         trna_aa_count,
                                                                                                                                                         db_genome_id)
             self.cur.execute(query_trna)
+
+    def _parse_silva_mapping(self, path):
+        # type: (str) -> dict
+        """ Parses the SILVA taxonomy to rank file and returns it as a dictionary.
+        e.g. https://www.arb-silva.de/fileadmin/silva_databases/release_123_1/Exports/taxonomy/tax_slv_ssu_123.1.txt
+
+        Parameters
+        ----------
+        :param path: str
+            The path to the file provided.
+        :return: dict
+            A dictionary containing the mapping.
+        """
+        out = dict()
+        with open(path, 'r') as f:
+            re_hits = re.findall(r'(.+;)\t+[\d]+\t+(\w+)\t.*\n', f.read())
+        for hit in re_hits:
+            out[hit[0]] = hit[1]  # out[full SILVA taxonomy string] = [rank]
+        return out
+
+    def _parse_silva_ssu_aggregate(self, path):
+        # type: (str) -> dict
+        """ Parses the SSU file which is an aggregate of all BLAST hits against 16s seqs for representatives.
+
+        Parameters
+        ----------
+        :param path str
+            The path to the aggregate file
+        :return: dict
+            A dictionary containing the BLAST hits for each genome id.
+        """
+        out = defaultdict(list)
+        with open(path, 'r') as f:
+            for line in f.readlines():
+                line = line.rstrip()
+                vals = line.split('\t')
+                out[int(vals[0])].append({'query_id': vals[1], 'taxonomy': vals[2], 'length': int(vals[3]),
+                                          'blast_subject_id': vals[4], 'blast_evalue': float(vals[5]),
+                                          'blast_bitscore': float(vals[6]), 'blast_align_len': int(vals[7]),
+                                          'blast_perc_identity': float(vals[8])})
+        return out

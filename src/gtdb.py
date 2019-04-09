@@ -484,6 +484,11 @@ def exportTaxonomyGTDB(db, args):
 def exportTaxonomyNCBI(db, args):
     return db.ExportTaxonomy('NCBI', args.outfile)
 
+def exportTaxonomyGTDBtoSILVA(db, args):
+    return db.ExportTaxonomyMapping('GTDB', 'SILVA', args.outfile)
+
+def exportTaxonomySILVAtoGTDB(db, args):
+    return db.ExportTaxonomyMapping('SILVA', 'GTDB', args.outfile)
 
 def DatabaseStatsData(db, args):
     return db.ReportStats()
@@ -1259,7 +1264,7 @@ if __name__ == '__main__':
 
     taxonomy_gtdb_export.set_defaults(func=exportTaxonomyGTDB)
 
-    # NCBI taxonmoy export parser
+    # NCBI taxonomy export parser
     taxonomy_ncbi_export = taxonomy_category_subparser.add_parser('ncbi_export',
                                                                   add_help=False,
                                                                   formatter_class=CustomHelpFormatter,
@@ -1275,6 +1280,38 @@ if __name__ == '__main__':
                                                help="Show help message.")
 
     taxonomy_ncbi_export.set_defaults(func=exportTaxonomyNCBI)
+
+    # GTDB -> SILVA taxonomy export parser
+    taxonomy_gtdb_silva_export = taxonomy_category_subparser.add_parser('gtdb_silva_export',
+                                                                           add_help=False,
+                                                                           formatter_class=CustomHelpFormatter,
+                                                                           help='Export the GTDB to SILVA taxonomy of representative species as a TSV file.')
+
+    required_taxonomy_gtdb_silva_export = taxonomy_gtdb_silva_export.add_argument_group('required arguments')
+    required_taxonomy_gtdb_silva_export.add_argument('--output', dest='outfile', default=None, required=True,
+                                                        help='Name of the output file.')
+
+    optional_taxonomy_gtdb_silva_export = taxonomy_gtdb_silva_export.add_argument_group('optional arguments')
+    optional_taxonomy_gtdb_silva_export.add_argument('-h', '--help', action="help",
+                                                        help="Show help message.")
+
+    taxonomy_gtdb_silva_export.set_defaults(func=exportTaxonomyGTDBtoSILVA)
+
+    # SILVA -> GTDB taxonomy export parser
+    taxonomy_silva_gtdb_export = taxonomy_category_subparser.add_parser('silva_gtdb_export',
+                                                                           add_help=False,
+                                                                           formatter_class=CustomHelpFormatter,
+                                                                           help='Export the SILVA to GTDB taxonomy of representative species as a TSV file.')
+
+    required_taxonomy_silva_gtdb_export = taxonomy_silva_gtdb_export.add_argument_group('required arguments')
+    required_taxonomy_silva_gtdb_export.add_argument('--output', dest='outfile', default=None, required=True,
+                                                        help='Name of the output file.')
+
+    optional_taxonomy_silva_gtdb_export = taxonomy_silva_gtdb_export.add_argument_group('optional arguments')
+    optional_taxonomy_silva_gtdb_export.add_argument('-h', '--help', action="help",
+                                                        help="Show help message.")
+
+    taxonomy_silva_gtdb_export.set_defaults(func=exportTaxonomySILVAtoGTDB)
 
 # -------- Generate Tree Data
     parser_tree_create = tree_category_subparser.add_parser('create',
