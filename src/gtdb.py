@@ -1285,7 +1285,7 @@ if __name__ == '__main__':
     taxonomy_gtdb_silva_export = taxonomy_category_subparser.add_parser('gtdb_silva_export',
                                                                            add_help=False,
                                                                            formatter_class=CustomHelpFormatter,
-                                                                           help='Export the GTDB to SILVA taxonomy as a TSV file.')
+                                                                           help='Export the GTDB to SILVA taxonomy of representative species as a TSV file.')
 
     required_taxonomy_gtdb_silva_export = taxonomy_gtdb_silva_export.add_argument_group('required arguments')
     required_taxonomy_gtdb_silva_export.add_argument('--output', dest='outfile', default=None, required=True,
@@ -1301,7 +1301,7 @@ if __name__ == '__main__':
     taxonomy_silva_gtdb_export = taxonomy_category_subparser.add_parser('silva_gtdb_export',
                                                                            add_help=False,
                                                                            formatter_class=CustomHelpFormatter,
-                                                                           help='Export the SILVA to GTDB taxonomy as a TSV file.')
+                                                                           help='Export the SILVA to GTDB taxonomy of representative species as a TSV file.')
 
     required_taxonomy_silva_gtdb_export = taxonomy_silva_gtdb_export.add_argument_group('required arguments')
     required_taxonomy_silva_gtdb_export.add_argument('--output', dest='outfile', default=None, required=True,

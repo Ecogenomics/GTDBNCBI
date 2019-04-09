@@ -1527,7 +1527,7 @@ class GenomeDatabase(object):
         return True
 
     def ExportTaxonomyMapping(self, src, dest, output_file):
-        """Summarises the source taxonomy mapping to the destination taxonomy.
+        """Summarises the source taxonomy mapping to the destination taxonomy (only for representative species).
 
         Parameters
         ----------
@@ -1548,12 +1548,11 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
-            # TODO: Re-enable this later.
-            # genome_rep_mngr = GenomeRepresentativeManager(cur,
-            #                                               self.currentUser,
-            #                                               self.threads,
-            #                                               self.db_release)
-            # genome_rep_mngr.assignToRepresentative()
+            genome_rep_mngr = GenomeRepresentativeManager(cur,
+                                                          self.currentUser,
+                                                          self.threads,
+                                                          self.db_release)
+            genome_rep_mngr.assignToRepresentative()
 
             metaman = MetadataManager(cur, self.currentUser)
             metaman.exportTaxonomyMapping(src, dest, output_file)
