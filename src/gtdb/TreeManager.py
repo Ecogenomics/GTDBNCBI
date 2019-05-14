@@ -64,7 +64,7 @@ class TreeManager(object):
         genome_ids_from_taxa = self._genomesFromTaxa(
             genome_ids, taxa_to_retain)
 
-        retained_guaranteed_ids = guaranteed_ids - genome_ids_from_taxa
+        retained_guaranteed_ids = set(guaranteed_ids) - genome_ids_from_taxa
         if retain_guaranteed:
             if len(retained_guaranteed_ids):
                 self.logger.warning('Retaining %d guaranteed genomes from taxa not specified by the taxa filter.' % len(

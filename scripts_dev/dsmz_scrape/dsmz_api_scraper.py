@@ -51,8 +51,8 @@ class PNUClient(object):
 
     headers = {'Accept': 'application/json'}
 
-    USERNAME = 'To SET'
-    PASSWORD = 'TO SET'
+    USERNAME = 'TOSET'
+    PASSWORD = 'TOSET'
     credentials = HTTPBasicAuth(USERNAME, PASSWORD)
 
     def getGenera(self, outfile, urlreq=None):

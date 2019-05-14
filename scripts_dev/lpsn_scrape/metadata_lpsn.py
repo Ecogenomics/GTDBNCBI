@@ -99,6 +99,9 @@ class MetadataLPSN(object):
                     genus = 'g__' + line_split[2].split()[0]
 
                 if (species, genus, desc) not in processed_species:
+                    cleanr = re.compile('<.*?>')
+                    species = re.sub(cleanr, '', species)
+                    genus = re.sub(cleanr, '', genus)
                     fout_type_species.write(
                         '%s\t%s\t%s\n' % (species, genus, desc))
                     processed_species.append((species, genus, desc))

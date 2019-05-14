@@ -58,12 +58,15 @@ class UpdateGenbankFolder(object):
 
         self.extensions = ("_feature_table.txt.gz", "_genomic.gbff.gz",
                            "_genomic.gff.gz", "_protein.gpff.gz", "_wgsmaster.gbff.gz")
-        self.reports = ("_assembly_report.txt", "_assembly_stats.txt", "_hashes.txt")
+        self.reports = ("_assembly_report.txt",
+                        "_assembly_stats.txt", "_hashes.txt")
         self.allExts = self.fastaExts + self.extensions + self.reports
         self.allbutFasta = self.extensions + self.reports
 
-        self.log = open(os.path.join(new_genbank_folder, "extra_gbk_report_gcf.log"), "w")
-        self.select_gca = open(os.path.join(new_genbank_folder, "gca_selection.log"), "w")
+        self.log = open(os.path.join(new_genbank_folder,
+                                     "extra_gbk_report_gcf.log"), "w")
+        self.select_gca = open(os.path.join(
+            new_genbank_folder, "gca_selection.log"), "w")
 
     def runComparison(self, ftp_genbank, new_genbank, ftp_genbank_genome_dirs, old_genbank_genome_dirs, new_refseq_genome_dirs):
         '''
@@ -85,8 +88,6 @@ class UpdateGenbankFolder(object):
             with open(ftp_genbank_genome_dirs, 'r') as new_genome_dirs_file:
                 new_dict = {new_line.split("\t")[0]: new_line.split("\t")[1].strip()
                             for new_line in new_genome_dirs_file if "/{0}/".format(domain) in new_line.split("\t")[1] and new_line.split("\t")[0] in listGCA}
-
-            
 
             # new genomes in FTP
             added_dict = {added_key: new_dict[added_key] for added_key in list(
@@ -180,7 +181,8 @@ class UpdateGenbankFolder(object):
 
         tmp_ftp_dir = tempfile.mkdtemp()
         tmp_target = os.path.join(tmp_ftp_dir, os.path.basename(target_dir))
-        shutil.copytree(ftp_dir, tmp_target, symlinks=True, ignore=shutil.ignore_patterns("*_assembly_structure"))
+        shutil.copytree(ftp_dir, tmp_target, symlinks=True,
+                        ignore=shutil.ignore_patterns("*_assembly_structure"))
         for compressed_file in glob.glob(tmp_target + "/*.gz"):
             if os.path.isdir(compressed_file) == False:
                 inF = gzip.open(compressed_file, 'rb')
@@ -197,8 +199,10 @@ class UpdateGenbankFolder(object):
                 outF.close()
                 os.remove(compressed_file)
 
-        ftpdict, ftpdict_fasta, ftpdict_faa, ftpdict_extra_fasta = self.parse_checksum(tmp_target)
-        gtdbdict, gtdbdict_fasta, gtdbdict_faa, gtdbdict_extra_fasta = self.parse_checksum(gtdb_dir)
+        ftpdict, ftpdict_fasta, ftpdict_faa, ftpdict_extra_fasta = self.parse_checksum(
+            tmp_target)
+        gtdbdict, gtdbdict_fasta, gtdbdict_faa, gtdbdict_extra_fasta = self.parse_checksum(
+            gtdb_dir)
 
         # if the genomic.fna.gz or the protein.faa.gz are missing, we set this
         # record as incomplete
@@ -208,7 +212,8 @@ class UpdateGenbankFolder(object):
             print gtdb_dir
             print gtdbdict_fasta.keys()
             status.append("incomplete")
-            shutil.copytree(tmp_target, target_dir, symlinks=True, ignore=shutil.ignore_patterns("*_assembly_structure"))
+            shutil.copytree(tmp_target, target_dir, symlinks=True,
+                            ignore=shutil.ignore_patterns("*_assembly_structure"))
             # we unzip of gz file
 
         else:
@@ -218,6 +223,11 @@ class UpdateGenbankFolder(object):
             for key, value in ftpdict_fasta.iteritems():
                 if value != gtdbdict_fasta.get(key):
                     ftp_folder = True
+
+            # Exception
+            if gcf_record == 'GCA_000465535.1':
+                ftp_folder = True
+
             # if one of the 2 files is different than the previous version , we
             # use the ftp record over the previous gtdb one , we then need to
             # re run the metadata generation
@@ -275,7 +285,8 @@ class UpdateGenbankFolder(object):
                     elif len(target_files) == 0 and len(ftp_files) == 0 and report == '_hashes.txt':
                         status.append("old_folder_dir")
                     elif len(target_files) == 0 and len(ftp_files) == 1 and report == '_hashes.txt':
-                        shutil.copy2(ftp_dir[0], ftp_dir[0].replace(ftp_dir.target_dir))
+                        shutil.copy2(ftp_dir[0], ftp_dir[0].replace(
+                            ftp_dir.target_dir))
                         status.append("new_hashes")
                     else:
                         print "########"
@@ -303,13 +314,13 @@ class UpdateGenbankFolder(object):
                 split_line = line.split("\t")
                 gcf_access = split_line[17]
                 full_gca_access = split_line[0]
-		###########
-		#if full_gca_access == 'GCA_900092125.1':
-		#    print full_gca_access
-		    #sys.exit()
-		#else:
-		#    continue
-		###########
+                ###########
+                # if full_gca_access == 'GCA_900092125.1':
+                #    print full_gca_access
+                # sys.exit()
+                # else:
+                #    continue
+                ###########
                 latest = split_line[10]
 
                 if latest == "latest":
@@ -397,13 +408,16 @@ class UpdateGenbankFolder(object):
 
         for name in glob.glob(os.path.join(pathtodir, '*')):
             if name.endswith(self.extrafastaExts):
-                out_dict_extra_fasta[os.path.basename(name)] = self.sha256Calculator(name)
+                out_dict_extra_fasta[os.path.basename(
+                    name)] = self.sha256Calculator(name)
                 os.chmod(name, 0o664)
             elif name.endswith(self.genomic_ext):
-                out_dict_fasta[os.path.basename(name)] = self.sha256Calculator(name)
+                out_dict_fasta[os.path.basename(
+                    name)] = self.sha256Calculator(name)
                 os.chmod(name, 0o664)
             elif name.endswith(self.protein_ext):
-                out_dict_faa[os.path.basename(name)] = self.sha256Calculator(name)
+                out_dict_faa[os.path.basename(
+                    name)] = self.sha256Calculator(name)
                 os.chmod(name, 0o664)
             elif name.endswith(self.allbutFasta):
                 out_dict[os.path.basename(name)] = self.sha256Calculator(name)

@@ -900,11 +900,6 @@ class GenomeDatabase(object):
             else:
                 check_dependencies(['FastTree'])
 
-            self.logger.info(
-                'Inferring tree for {} genomes under the {}+GAMMA models.'.format(len(genomes_to_retain), prot_model))
-
-            output_tree = os.path.join(
-                directory, prefix + '_phylogeny.{}_gamma.tree'.format(prot_model.lower()))
             output_tree_log = os.path.join(directory, prefix + '_fasttree.log')
             log_file = os.path.join(directory, prefix + '_fasttree_output.txt')
 
@@ -920,8 +915,18 @@ class GenomeDatabase(object):
                 support_str = ' -nosupport'
 
             gamma_str = ' -gamma'
+            gamma_log = '+GAMMA'
+            gamma_tree_out = '_gamma'
             if no_gamma:
                 gamma_str = ''
+                gamma_log = ''
+                gamma_tree_out = ''
+
+            self.logger.info(
+                'Inferring tree for {} genomes under the {}{} model(s).'.format(len(genomes_to_retain), prot_model, gamma_log))
+
+            output_tree = os.path.join(
+                directory, prefix + '_phylogeny.{}{}.tree'.format(prot_model.lower(), gamma_tree_out))
 
             cmd = '-quiet%s%s%s -log %s %s > %s 2> %s' % (support_str,
                                                           model_str,
@@ -935,6 +940,7 @@ class GenomeDatabase(object):
             else:
                 cmd = 'FastTree ' + cmd
             self.logger.info('Running: %s' % cmd)
+            print cmd
             os.system(cmd)
 
         self.logger.info('Done.')
