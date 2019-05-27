@@ -322,6 +322,7 @@ class InfoGenerator(object):
         """Read type species of genus."""
         
         type_species_of_genus = {}
+        genus_type_species = {}
         with open(species_file) as lpstr:
             lpstr.readline()
             
@@ -332,8 +333,13 @@ class InfoGenerator(object):
                 if genus:
                     sp = sp.replace('s__', '')
                     type_species_of_genus[sp] = genus
+                    
+                    if genus in genus_type_species:
+                        self.logger.warning('Identified multiple type species for %s in %s.' % (genus, species_file))
+                    else:
+                        genus_type_species[genus] = sp
                 
-        return type_species_of_genus
+        return type_species_of_genus, genus_type_species
 
     def remove_brackets(self, sp_name):
         """Remove brackets from species name.
@@ -1015,8 +1021,17 @@ class InfoGenerator(object):
                                 
         # generate global summary file if information was generated from all sources
         if sourcest == 'all':
-            lpsn_type_species_of_genus = self._read_type_species_of_genus(os.path.join(lpsn_dir, 'lpsn_species.tsv'))
-            dsmz_type_species_of_genus = self._read_type_species_of_genus(os.path.join(dsmz_dir, 'dsmz_species.tsv'))
+            lpsn_type_species_of_genus, lpsn_genus_type_species = self._read_type_species_of_genus(os.path.join(lpsn_dir, 'lpsn_species.tsv'))
+            dsmz_type_species_of_genus, dsmz_genus_type_species = self._read_type_species_of_genus(os.path.join(dsmz_dir, 'dsmz_species.tsv'))
+            
+            for genus in lpsn_genus_type_species:
+                if genus in dsmz_genus_type_species:
+                    if lpsn_genus_type_species[genus] != dsmz_genus_type_species[genus]:
+                        self.logger.warning('LPSN and DSMZ disagree of type species for %s: %s %s' % (
+                                                genus, 
+                                                lpsn_genus_type_species[genus],
+                                                dsmz_genus_type_species[genus]))
+            
             self.logger.info('Identified %d LPSN and %d DSMZ type species of genus.' % (
                                 len(lpsn_type_species_of_genus), 
                                 len(dsmz_type_species_of_genus)))

@@ -95,6 +95,7 @@ class AddRepresentativeGenomes(object):
     
     # determine representative assignment of genomes
     temp_genome_rep_file = tempfile.NamedTemporaryFile(delete=False)
+    num_sp_reps = 0
     with open(final_cluster_file) as f:
         headers = f.readline().strip().split('\t')
         
@@ -113,7 +114,11 @@ class AddRepresentativeGenomes(object):
                 
             temp_genome_rep_file.write('%s\t%s\n' % (rep_genome, rep_genome))
             is_rep[rep_genome] = True
+            num_sp_reps += 1
     temp_genome_rep_file.close()
+    
+    print('Identified %d species clusters.' % num_sp_reps)
+    print('Identified %d genomes marked as representatives.' % sum([1 for rid in is_rep if is_rep[rid]]))
      
     cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_genome_representative --type TEXT --metadatafile %s' % (temp_genome_rep_file.name)
     print cmd
