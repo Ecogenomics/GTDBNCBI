@@ -859,6 +859,9 @@ class TreeManager(object):
         fout.write('\tSRT "*\\=="\n')
         fout.write('\tWRITE "%s"\n\n' % 'organism_name')
 
+        ncbi_taxonomy_index = metadata_fields.index('ncbi_taxonomy')
+        metadata_fields.insert(ncbi_taxonomy_index + 1, 'ncbi_genus')
+        metadata_fields.insert(ncbi_taxonomy_index + 2, 'ncbi_species')
         fields = metadata_fields + ['msa_gene_count',
                                     'msa_num_marker_genes',
                                     'msa_aa_count',
@@ -890,10 +893,20 @@ class TreeManager(object):
         # customize output relative to raw database table
         if external_genome_id.startswith('GB') or external_genome_id.startswith('RS'):
             metadata_values = list(metadata_values)
+            metadata_fields = list(metadata_fields)
             organism_name_index = metadata_fields.index('organism_name')
             ncbi_organism_name_index = metadata_fields.index(
                 'ncbi_organism_name')
             metadata_values[organism_name_index] = metadata_values[ncbi_organism_name_index]
+            ncbi_taxonomy_index = metadata_fields.index('ncbi_taxonomy')
+            ncbi_genus = metadata_values[ncbi_taxonomy_index].split(';')[
+                5].strip()
+            ncbi_species = metadata_values[ncbi_taxonomy_index].split(';')[
+                6].strip()
+            metadata_fields.insert(ncbi_taxonomy_index + 1, 'ncbi_genus')
+            metadata_fields.insert(ncbi_taxonomy_index + 2, 'ncbi_species')
+            metadata_values.insert(ncbi_taxonomy_index + 1, ncbi_genus)
+            metadata_values.insert(ncbi_taxonomy_index + 2, ncbi_species)
 
         fout.write("BEGIN\n")
         fout.write("db_name=%s\n" % external_genome_id)
