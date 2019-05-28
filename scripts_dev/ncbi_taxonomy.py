@@ -24,7 +24,7 @@ __author__ = 'Donovan Parks'
 __copyright__ = 'Copyright 2015'
 __credits__ = ['Donovan Parks']
 __license__ = 'GPL3'
-__version__ = '0.0.3'
+__version__ = '0.0.5'
 __maintainer__ = 'Donovan Parks'
 __email__ = 'donovan.parks@gmail.com'
 __status__ = 'Development'
@@ -210,6 +210,8 @@ class TaxonomyNCBI(object):
             return False, "name contains the word 'archaeon'"
         if " archeaon" in sp_name.lower():
             return False, "name contains the word 'archeaon'"
+        if " archaeum" in sp_name.lower():
+            return False, "name contains the word 'archaeum'"
         if " group" in sp_name.lower():
             return False, "name contains 'group'"
         if " subdivision" in sp_name.lower():
@@ -226,18 +228,28 @@ class TaxonomyNCBI(object):
             return False, "name contains 'sp.'"
         if 'cf.' in sp_name.lower():
             return False, "name contains 'cf.'"
+        if ' endosymbiont' in sp_name.lower():
+            return False, "name contains 'endosymbiont'"
+        if ' symbiont' in sp_name.lower():
+            return False, "name contains 'symbiont'"
+        if ' mycovirus' in sp_name.lower():
+            return False, "name contains 'mycovirus'"
         if sp_name.lower().split()[1] == 'oral':
             return False, "specific name is 'oral'"
         if 'candidatus' in sp_name.lower() and sp_name.lower().split()[2] == 'oral':
             return False, "specific name is 'oral'"
         if '-like' in test_name.lower():
             return False, "full name contains '-like'"
-        if 'symbiont' in test_name.lower().split():
-            return False, "full name contains 'symbiont'"
         if 'endosymbiont' in test_name.lower().split():
             return False, "full name contains 'endosymbiont'"
+        if 'symbiont' in test_name.lower().split():
+            return False, "full name contains 'symbiont'"
         if 'mycovirus' in test_name.lower().split():
             return False, "full name contains 'mycovirus'"
+        if 'phytoplasma' in test_name.split():
+            # note the Phytoplasma is a valid genus so we are
+            # specifically looking for a lowercase 'p'
+            return False, "full name contains 'phytoplasma'"
             
         # check that binomial name contains only valid characters
         for ch in sp_name: #***
@@ -246,15 +258,15 @@ class TaxonomyNCBI(object):
 
         return True, 's__' + sp_name
 
-    def standardize_taxonomy(self, ncbi_taxonomy_file, output_consistent, output_inconsistent):
+    def standardize_taxonomy(self, ncbi_taxonomy_file, output_consistent):
         """Produce standardized 7-rank taxonomy file from NCBI taxonomy strings."""
 
         fout_consistent = open(output_consistent, 'w')
-        fout_inconsistent = open(output_inconsistent, 'w')
+        failed_filters = set()
         for line in open(ncbi_taxonomy_file):
             line_split = line.strip().split('\t')
 
-            assembly_accesssion = line_split[0]
+            gid = line_split[0]
             taxonomy = line_split[1].split(';')
             
             if not ('d__Bacteria' in taxonomy or 'd__Archaea' in taxonomy):
@@ -273,8 +285,18 @@ class TaxonomyNCBI(object):
                 if rank_prefix in Taxonomy.rank_prefixes:
                     if rank_prefix == 's__':
                         valid_name, canonical_species_name = self._valid_species_name(taxon)
+
                         if valid_name:
                             canonical_taxonomy[Taxonomy.rank_prefixes.index(rank_prefix)] = canonical_species_name
+                        else:
+                            if ('full name' in canonical_species_name and 
+                                ('oral' in canonical_species_name
+                                or '-like' in canonical_species_name
+                                or 'endosymbiont' in canonical_species_name
+                                or 'symbiont' in canonical_species_name
+                                or 'mycovirus' in canonical_species_name
+                                or 'phytoplasma' in canonical_species_name)):
+                                failed_filters.add(taxon)
                     else:
                         canonical_taxonomy[Taxonomy.rank_prefixes.index(rank_prefix)] = taxon
                     
@@ -294,15 +316,17 @@ class TaxonomyNCBI(object):
             if len(cur_taxonomy) > 0:
                 if len(cur_taxonomy) != len(Taxonomy.rank_prefixes):
                     cur_taxonomy = cur_taxonomy + list(Taxonomy.rank_prefixes[len(cur_taxonomy):])
-                fout_consistent.write('%s\t%s\n' % (assembly_accesssion, ';'.join(cur_taxonomy)))
-            else:
-                fout_inconsistent.write('%s\t%s\n' % (assembly_accesssion, ';'.join(taxonomy)))
+                fout_consistent.write('%s\t%s\n' % (gid, ';'.join(cur_taxonomy)))
 
         fout_consistent.close()
-        fout_inconsistent.close()
+        
+        # Sanity check particular filters
+        fout = open('failed_filters.tsv', 'w')
+        for sp in failed_filters:
+            fout.write(sp + '\n')
+        fout.close()
 
         print 'Genomes with a consistent taxonomy written to: %s' % output_consistent
-        print 'Genomes with an inconsistent taxonomy written to: %s' % output_inconsistent
 
     def run(self, 
             taxonomy_dir, 
@@ -335,7 +359,7 @@ class TaxonomyNCBI(object):
         print 'Number of assemblies: %d' % len(assembly_to_tax_id)
         for assembly_accession, tax_id in assembly_to_tax_id.iteritems():
             # traverse taxonomy tree to the root which is 'cellular organism' for genomes,
-            # 'other suquences' for plasmids, and 'unclassified sequences' for metagenomic libraries
+            # 'other sequences' for plasmids, and 'unclassified sequences' for metagenomic libraries
             taxonomy = []
             cur_tax_id = tax_id
 
@@ -378,8 +402,7 @@ class TaxonomyNCBI(object):
         fout.close()
         
         self.standardize_taxonomy(taxonomy_file, 
-                                    output_prefix + '_standardized.tsv',
-                                    output_prefix + '_inconsistent.tsv')
+                                    output_prefix + '_standardized.tsv')
 
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
