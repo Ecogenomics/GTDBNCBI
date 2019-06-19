@@ -242,18 +242,18 @@ class PowerUserManager(object):
                 if mimag_low_quality:
                     print 'Incorrectly marked genome %s as MIMAG low quality.' % gid
             elif checkm_completeness >= 50 and checkm_contamination <= 10:
-                if not mimag_high_quality:
+                if mimag_high_quality:
                     print 'Incorrectly marked genome %s as MIMAG high quality.' % gid
-                if mimag_medium_quality:
+                if not mimag_medium_quality:
                     print 'Failed to mark genome %s as MIMAG medium quality.' % gid
                 if mimag_low_quality:
                     print 'Incorrectly marked genome %s as MIMAG low quality.' % gid
             elif checkm_contamination <= 10:
-                if not mimag_high_quality:
+                if mimag_high_quality:
                     print 'Incorrectly marked genome %s as MIMAG high quality.' % gid
                 if mimag_medium_quality:
                     print 'Incorrectly marked genome %s as MIMAG medium quality.' % gid
-                if mimag_low_quality:
+                if not mimag_low_quality:
                     print 'Failed to mark genome %s as MIMAG low quality.' % gid
 
     def runSanityCheck(self):
@@ -268,8 +268,10 @@ class PowerUserManager(object):
             self._validateSSU_LSU()
 
             # validate type strains
-            self.logger.info('Validating type strain.')
-            self._validateTypeStrains()
+            #==========We should review this later==============================
+            # self.logger.info('Validating type strain.')
+            # self._validateTypeStrains()
+            #===================================================================
 
             # validate MIMAG assignments
             self.logger.info('Validating MIMAG assignments.')

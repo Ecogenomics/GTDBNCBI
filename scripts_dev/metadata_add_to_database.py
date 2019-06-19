@@ -76,6 +76,7 @@ class AddMetadata(object):
                 for i, value in enumerate(line_split[1:]):
                     metadata[fields[i + 1]][genome_id] = value
 
+
         # add each field to the database
         for field in metadata:
             temp_file = tempfile.NamedTemporaryFile(delete=False)
