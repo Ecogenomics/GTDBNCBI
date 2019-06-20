@@ -325,7 +325,7 @@ class MetadataTable(object):
         fout_ssu_silva_count.write('%s\t%s\n' % ('genome_id', 'ssu_count'))
         fout_lsu_silva_23s_count.write(
             '%s\t%s\n' % ('genome_id', 'lsu_23s_count'))
-        fout_lsu_5S_count.write('%s\t%s\n' % ('genome_id', 'lsu_5S_count'))
+        fout_lsu_5S_count.write('%s\t%s\n' % ('genome_id', 'lsu_5s_count'))
 
         # generate metadata for NCBI assemblies
         for ncbi_genome_dir in [genbank_genome_dir, refseq_genome_dir]:
