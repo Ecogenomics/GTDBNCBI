@@ -201,7 +201,7 @@ class PowerUserManager(object):
                             print 'Missing type strain assignment to %s: %s' % (authority.upper(), gid)
 
     def _validateMIMAG(self):
-        """Validationg MIMAG assignments."""
+        """Validating MIMAG assignments."""
 
         query = ("SELECT accession, mimag_high_quality, mimag_medium_quality, mimag_low_quality, "
                  "checkm_completeness, checkm_contamination, trna_aa_count, "
@@ -228,7 +228,8 @@ class PowerUserManager(object):
             elif gtdb_domain == 'd__Archaea':
                 min_ssu_length = 900
             else:
-                print 'Genome %s has an unrecognized domain assignment: %s' % (gid, gtdb_domain)
+                if not gid.startswith('U_'):
+                    print('Genome %s has an unrecognized domain assignment: %s' % (gid, gtdb_domain))
 
             if (checkm_completeness > 90 and checkm_contamination < 5 and
                     trna_aa_count >= 18 and

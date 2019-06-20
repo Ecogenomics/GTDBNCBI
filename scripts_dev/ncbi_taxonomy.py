@@ -206,6 +206,10 @@ class TaxonomyNCBI(object):
             return False, "name contains the word 'bacterium'"
         if " bacteirum" in sp_name.lower():
             return False, "name contains the word 'bacteirum'"
+        if " bacteria" in sp_name.lower():
+            return False, "name contains the word 'bacteria'"
+        if " archaea" in sp_name.lower():
+            return False, "name contains the word 'archaea'"
         if " archaeon" in sp_name.lower():
             return False, "name contains the word 'archaeon'"
         if " archeaon" in sp_name.lower():
