@@ -23,10 +23,18 @@ __author__ = 'Pierre Chaumeil and Donovan Parks'
 __copyright__ = 'Copyright 2018'
 __credits__ = ['Pierre Chaumeil', 'Donovan Parks']
 __license__ = 'GPL3'
-__version__ = '0.0.4'
+__version__ = '0.0.5'
 __maintainer__ = 'Donovan Parks'
 __email__ = 'donovan.parks@gmail.com'
 __status__ = 'Development'
+
+""" VERSION HISTORY
+
+0.0.5
+- fixed issue with priority date not being set for type strain of species when
+  the strain match was through an "unofficial" name
+
+"""
 
 import sys
 import argparse
@@ -383,7 +391,7 @@ class InfoGenerator(object):
         
     def get_priority_year(self, spe_name, sourcest):
         """Get year of priority for species."""
-        
+
         if spe_name in self.year_table:
             if self.year_table[spe_name][sourcest] != '':
                 return int(self.year_table[spe_name][sourcest])
@@ -425,13 +433,14 @@ class InfoGenerator(object):
                             istype = True
             
             if istype:
+                year_date = self.get_priority_year(standard_name, sourcest)
+                
                 if not isofficial:
                     category_name = self.select_category_name(standard_name, 
                                                                 misspelling_names, 
                                                                 synonyms, 
                                                                 equivalent_names)
                 else:
-                    year_date = self.get_priority_year(standard_name, sourcest)
                     category_name = 'official_name'
                 
                 matched_strain_id = repository_strain_id
@@ -513,7 +522,7 @@ class InfoGenerator(object):
                 repository_strain_ids = strain_dictionary.get(standard_name).get('strains')
             else:
                 repository_strain_ids = strain_dictionary.get(standard_name)
-                
+
             matched_strain_id, category, istype, year_date = self.strains_iterate(gid, 
                                                                 standard_name, 
                                                                 repository_strain_ids, 
@@ -638,7 +647,7 @@ class InfoGenerator(object):
         return standardized
 
     def parse_strains(self, sourcest, strain_dictionary, outfile):
-        """Parse information for a single strain resouce (e.g., LPSN, DSMZ, or StrainInfo)."""
+        """Parse information for a single strain resource (e.g., LPSN, DSMZ, or StrainInfo)."""
         
         worker_queue = mp.Queue()
         writer_queue = mp.Queue()
