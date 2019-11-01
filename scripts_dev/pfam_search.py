@@ -24,7 +24,7 @@ __author__ = 'Donovan Parks'
 __copyright__ = 'Copyright 2015'
 __credits__ = ['Donovan Parks']
 __license__ = 'GPL3'
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __maintainer__ = 'Donovan Parks'
 __email__ = 'donovan.parks@gmail.com'
 __status__ = 'Development'
@@ -39,172 +39,204 @@ from biolib.external.execute import check_dependencies
 
 
 class PfamSearch(object):
-  """Runs pfam_search.pl over a set of genomes.
+    """Runs pfam_search.pl over a set of genomes.
 
-  This script assumes that genomes are stored in individual
-  directories in the following format:
+    This script assumes that genomes are stored in individual
+    directories in the following format:
 
-  <domain>/<genome_id>/<assembly_id>/<assembly_id>_protein.faa
+    <domain>/<genome_id>/<assembly_id>/<assembly_id>_protein.faa
 
-  where <domain> is either 'archaea' or 'bacteria', and there
-    may be multiple assembly_id for a given genome_id. These
-    typically represent different strains from a species.
+    where <domain> is either 'archaea' or 'bacteria', and there
+      may be multiple assembly_id for a given genome_id. These
+      typically represent different strains from a species.
 
-  This is the directory structure which results from extract_ncbi.py.
-  """
+    This is the directory structure which results from extract_ncbi.py.
+    """
 
-  def __init__(self):
-    check_dependencies(['hmmsearch'])
+    def __init__(self):
+        check_dependencies(['hmmsearch'])
 
-    self.pfam_hmm_dir = '/srv/db/pfam/27/'
+        self.pfam_hmm_dir = '/srv/db/pfam/27/'
 
-    self.protein_file_ext = '_protein.faa'
+        self.protein_file_ext = '_protein.faa'
 
-  def __workerThread(self, queueIn, queueOut):
-    """Process each data item in parallel."""
-    while True:
-      gene_file = queueIn.get(block=True, timeout=None)
-      if gene_file == None:
-        break
+    def __workerThread(self, queueIn, queueOut):
+        """Process each data item in parallel."""
+        while True:
+            gene_file = queueIn.get(block=True, timeout=None)
+            if gene_file is None:
+                break
 
-      assembly_dir, filename = os.path.split(gene_file)
+            assembly_dir, filename = os.path.split(gene_file)
 
-      running_file = os.path.join(assembly_dir, filename.replace(self.protein_file_ext, '_pfam.running'))
-      if not os.path.exists(running_file):
-        fout = open(running_file, 'w')
-        fout.write('running')
-        fout.close()
+            running_file = os.path.join(assembly_dir, filename.replace(
+                self.protein_file_ext, '_pfam.running'))
+            if not os.path.exists(running_file):
+                fout = open(running_file, 'w')
+                fout.write('running')
+                fout.close()
 
-        output_hit_file = os.path.join(assembly_dir, filename.replace(self.protein_file_ext, '_pfam.tsv'))
-        if not os.path.exists(output_hit_file):
-          cmd = 'pfam_search.pl -outfile %s -cpu 1 -fasta %s -dir %s' % (output_hit_file, gene_file, self.pfam_hmm_dir)
-          os.system(cmd)
+                output_hit_file = os.path.join(
+                    assembly_dir, filename.replace(self.protein_file_ext, '_pfam.tsv'))
+                if not os.path.exists(output_hit_file):
+                    cmd = 'pfam_search.pl -outfile %s -cpu 1 -fasta %s -dir %s' % (
+                        output_hit_file, gene_file, self.pfam_hmm_dir)
+                    os.system(cmd)
 
-          # calculate checksum
-          checksum = sha256(output_hit_file)
-          fout = open(output_hit_file + '.sha256', 'w')
-          fout.write(checksum)
-          fout.close()
+                    # calculate checksum
+                    checksum = sha256(output_hit_file)
+                    fout = open(output_hit_file + '.sha256', 'w')
+                    fout.write(checksum)
+                    fout.close()
 
-        if os.path.exists(running_file):
-          os.remove(running_file)
+                if os.path.exists(running_file):
+                    os.remove(running_file)
 
-      queueOut.put(gene_file)
+            queueOut.put(gene_file)
 
-  def __writerThread(self, numDataItems, writerQueue):
-    """Store or write results of worker threads in a single thread."""
-    processedItems = 0
-    while True:
-      a = writerQueue.get(block=True, timeout=None)
-      if a == None:
-        break
+    def __writerThread(self, numDataItems, writerQueue):
+        """Store or write results of worker threads in a single thread."""
+        processedItems = 0
+        while True:
+            a = writerQueue.get(block=True, timeout=None)
+            if a is None:
+                break
 
-      processedItems += 1
-      statusStr = 'Finished processing %d of %d (%.2f%%) items.' % (processedItems, numDataItems, float(processedItems)*100/numDataItems)
-      sys.stdout.write('%s\r' % statusStr)
-      sys.stdout.flush()
+            processedItems += 1
+            statusStr = 'Finished processing %d of %d (%.2f%%) items.' % (
+                processedItems, numDataItems, float(processedItems) * 100 / numDataItems)
+            sys.stdout.write('%s\r' % statusStr)
+            sys.stdout.flush()
 
-    sys.stdout.write('\n')
+        sys.stdout.write('\n')
 
-  def run(self, genome_dir, genome_report, threads):
-    # get list of genomes to consider
-    genomes_to_consider = set()
-    for line in open(genome_report):
-        line_split = line.strip().split('\t')
-        genome_id = line_split[1]
+    def run(self, input_dir, genome_report, threads):
+        # get list of genomes to consider
+        genomes_to_consider = set()
+        for line in open(genome_report):
+            line_split = line.strip().split('\t')
+            genome_id = line_split[1]
 
-        attributes = line_split[2].split(';')
-        for attribute in attributes:
-            if attribute == 'new' or attribute == 'modified':
-                genomes_to_consider.add(genome_id)
+            attributes = line_split[2].split(';')
+            for attribute in attributes:
+                if attribute == 'new' or attribute == 'modified':
+                    genomes_to_consider.add(genome_id)
 
-    print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
+        print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
 
-    # get path to all unprocessed genome gene files
-    print 'Reading genomes.'
-    gene_files = []
-    for species_dir in os.listdir(genome_dir):
-      cur_genome_dir = os.path.join(genome_dir, species_dir)
-      if os.path.isdir(cur_genome_dir):
-        for assembly_id in os.listdir(cur_genome_dir):
-          prodigal_dir = os.path.join(cur_genome_dir, assembly_id, 'prodigal')
-          genome_id = assembly_id[0:assembly_id.find('_', 4)]
-          
-          pfam_file = os.path.join(prodigal_dir, genome_id + '_pfam.tsv')
-          if os.path.exists(pfam_file):
-                # verify checksum
-                checksum_file = pfam_file + '.sha256'
-                if os.path.exists(checksum_file):
-                  checksum = sha256(pfam_file)
-                  cur_checksum = open(checksum_file).readline().strip()
-                  if checksum == cur_checksum:
-                    if genome_id in genomes_to_consider:
-                        print '[WARNING] Genome %s is marked as new or modified, but already has Pfam annotations.' % genome_id
-                        print '[WARNING] Genome is being skipped!'
+        # get path to all unprocessed genome gene files
+        print 'Reading genomes.'
+        gene_files = []
+
+        for first_three in os.listdir(input_dir):
+            onethird_species_dir = os.path.join(input_dir, first_three)
+            print onethird_species_dir
+            if os.path.isfile(onethird_species_dir):
+                continue
+            for second_three in os.listdir(onethird_species_dir):
+                twothird_species_dir = os.path.join(
+                    onethird_species_dir, second_three)
+                # print twothird_species_dir
+                if os.path.isfile(twothird_species_dir):
                     continue
-                    
-                print '[WARNING] Genome %s has Pfam annotations, but an invalid checksum and was not marked for reannotation.' % genome_id
-                print '[WARNING] Genome will be reannotated.'
-      
-          elif genome_id not in genomes_to_consider:
-            print '[WARNING] Genome %s has no Pfam annotations, but is also not marked for processing?' % genome_id
-            print '[WARNING] Genome will be reannotated!'
+                for third_three in os.listdir(twothird_species_dir):
+                    threethird_species_dir = os.path.join(
+                        twothird_species_dir, third_three)
+                    # print threethird_species_dir
+                    if os.path.isfile(threethird_species_dir):
+                        continue
+                    for complete_name in os.listdir(threethird_species_dir):
+                        full_path = os.path.join(
+                            threethird_species_dir, complete_name)
+                        if os.path.isfile(full_path):
+                            continue
+                        genome_id = complete_name[0:complete_name.find('_', 4)]
+                        prodigal_dir = os.path.join(full_path, 'prodigal')
+                        pfam_file = os.path.join(
+                            prodigal_dir, genome_id + '_pfam.tsv')
+                        if os.path.exists(pfam_file):
+                            # verify checksum
+                            checksum_file = pfam_file + '.sha256'
+                            if os.path.exists(checksum_file):
+                                checksum = sha256(pfam_file)
+                                cur_checksum = open(
+                                    checksum_file).readline().strip()
+                                if checksum == cur_checksum:
+                                    if genome_id in genomes_to_consider:
+                                        print '[WARNING] Genome %s is marked as new or modified, but already has Pfam annotations.' % genome_id
+                                        print '[WARNING] Genome is being skipped!'
+                                    continue
 
-          gene_file = os.path.join(prodigal_dir, genome_id + self.protein_file_ext)
-          if os.path.exists(gene_file):
-            if os.stat(gene_file).st_size == 0:
-                print '[Warning] Protein file appears to be empty: %s' % gene_file
-            else:
-                gene_files.append(gene_file)
+                            print '[WARNING] Genome %s has Pfam annotations, but an invalid checksum and was not marked for reannotation.' % genome_id
+                            print '[WARNING] Genome will be reannotated.'
 
-    print '  Number of unprocessed genomes: %d' % len(gene_files)
+                        elif genome_id not in genomes_to_consider:
+                            print '[WARNING] Genome %s has no Pfam annotations, but is also not marked for processing?' % genome_id
+                            print '[WARNING] Genome will be reannotated!'
 
-    # populate worker queue with data to process
-    workerQueue = mp.Queue()
-    writerQueue = mp.Queue()
+                        gene_file = os.path.join(
+                            prodigal_dir, genome_id + self.protein_file_ext)
+                        if os.path.exists(gene_file):
+                            if os.stat(gene_file).st_size == 0:
+                                print '[Warning] Protein file appears to be empty: %s' % gene_file
+                            else:
+                                gene_files.append(gene_file)
 
-    for f in gene_files:
-      workerQueue.put(f)
+        print '  Number of unprocessed genomes: %d' % len(gene_files)
 
-    for _ in range(threads):
-      workerQueue.put(None)
+        # populate worker queue with data to process
+        workerQueue = mp.Queue()
+        writerQueue = mp.Queue()
 
-    try:
-      workerProc = [mp.Process(target = self.__workerThread, args = (workerQueue, writerQueue)) for _ in range(threads)]
-      writeProc = mp.Process(target = self.__writerThread, args = (len(gene_files), writerQueue))
+        for f in gene_files:
+            workerQueue.put(f)
 
-      writeProc.start()
+        for _ in range(threads):
+            workerQueue.put(None)
 
-      for p in workerProc:
-        p.start()
+        try:
+            workerProc = [mp.Process(target=self.__workerThread, args=(
+                workerQueue, writerQueue)) for _ in range(threads)]
+            writeProc = mp.Process(target=self.__writerThread, args=(
+                len(gene_files), writerQueue))
 
-      for p in workerProc:
-        p.join()
+            writeProc.start()
 
-      writerQueue.put(None)
-      writeProc.join()
-    except:
-      for p in workerProc:
-        p.terminate()
+            for p in workerProc:
+                p.start()
 
-      writeProc.terminate()
+            for p in workerProc:
+                p.join()
+
+            writerQueue.put(None)
+            writeProc.join()
+        except:
+            for p in workerProc:
+                p.terminate()
+
+            writeProc.terminate()
+
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
+    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
-  parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  parser.add_argument('genome_dir', help='directory containing genomes in individual directories')
-  parser.add_argument('genome_report', help='report log indicating new, modified, unmodified, ..., genomes')
-  parser.add_argument('-t', '--threads', type=int, help='number of threads', default=1)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        'genome_dir', help='directory containing genomes in individual directories')
+    parser.add_argument(
+        'genome_report', help='report log indicating new, modified, unmodified, ..., genomes')
+    parser.add_argument('-t', '--threads', type=int,
+                        help='number of threads', default=1)
 
-  args = parser.parse_args()
+    args = parser.parse_args()
 
-  try:
-    p = PfamSearch()
-    p.run(args.genome_dir, args.genome_report, args.threads)
-  except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
-  except:
-    print "\nUnexpected error:", sys.exc_info()[0]
-    raise
+    try:
+        p = PfamSearch()
+        p.run(args.genome_dir, args.genome_report, args.threads)
+    except SystemExit:
+        print "\nControlled exit resulting from an unrecoverable error or warning."
+    except:
+        print "\nUnexpected error:", sys.exc_info()[0]
+        raise

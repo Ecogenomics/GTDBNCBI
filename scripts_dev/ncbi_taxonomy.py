@@ -49,11 +49,13 @@ class TaxonomyNCBI(object):
         self.bacterial_division = '0'
         self.unassigned_division = '8'
 
-    def _assembly_organism_name(self, refseq_assembly_file, genbank_assembly_file, output_organism_name_file):
+    def _assembly_organism_name(self, refseq_archaea_assembly_file, refseq_bacteria_assembly_file,
+                                genbank_archaea_assembly_file, genbank_bacteria_assembly_file, output_organism_name_file):
         """Parse out organism name for each genome."""
 
         fout = open(output_organism_name_file, 'w')
-        for assembly_file in [refseq_assembly_file, genbank_assembly_file]:
+        for assembly_file in [refseq_archaea_assembly_file, refseq_bacteria_assembly_file,
+                              genbank_archaea_assembly_file, genbank_bacteria_assembly_file]:
             with open(assembly_file) as f:
                 f.readline()
                 header = f.readline().strip().split('\t')
@@ -71,7 +73,8 @@ class TaxonomyNCBI(object):
                     fout.write('%s\t%s\n' % (gid, org_name))
         fout.close()
 
-    def _assembly_to_tax_id(self, refseq_assembly_file, genbank_assembly_file):
+    def _assembly_to_tax_id(self, refseq_archaea_assembly_file, refseq_bacteria_assembly_file,
+                            genbank_archaea_assembly_file, genbank_bacteria_assembly_file):
         """Determine taxonomic identifier for each assembly.
 
         Returns
@@ -81,7 +84,8 @@ class TaxonomyNCBI(object):
         """
 
         d = {}
-        for assembly_file in [refseq_assembly_file, genbank_assembly_file]:
+        for assembly_file in [refseq_archaea_assembly_file, refseq_bacteria_assembly_file,
+                              genbank_archaea_assembly_file, genbank_bacteria_assembly_file, ]:
             with open(assembly_file) as f:
                 headers = f.readline().strip().split('\t')
                 try:
@@ -143,7 +147,7 @@ class TaxonomyNCBI(object):
           Path to NCBI names.dmp file.
 
         Returns
-        -------
+        ------- 
         dict : d[tax_id] -> NameRecord
           Name record of nodes marked as 'scientific name'.
         """
@@ -161,22 +165,22 @@ class TaxonomyNCBI(object):
                 d[tax_id] = self.NameRecord(name_txt)
 
         return d
-        
+
     def _valid_species_name(self, species_name, require_full=True, require_prefix=True):
         """Check if species name is a valid binomial name."""
-        
+
         if species_name == 's__':
             return True, None
-            
-        # remove single quotes as sometimes given for 
+
+        # remove single quotes as sometimes given for
         # candidatus species names
         species_name = species_name.replace("'", "")
-        
+
         # test for prefix
         if require_prefix:
             if not species_name.startswith('s__'):
                 return False, 'name is missing the species prefix'
-            
+
         # remove prefix before testing other properties
         test_name = species_name
         if test_name.startswith('s__'):
@@ -254,9 +258,9 @@ class TaxonomyNCBI(object):
             # note the Phytoplasma is a valid genus so we are
             # specifically looking for a lowercase 'p'
             return False, "full name contains 'phytoplasma'"
-            
+
         # check that binomial name contains only valid characters
-        for ch in sp_name: #***
+        for ch in sp_name:  # ***
             if not ch.isalpha() and ch not in [' ', '[', ']']:
                 return False, 'species name contains invalid character'
 
@@ -272,7 +276,7 @@ class TaxonomyNCBI(object):
 
             gid = line_split[0]
             taxonomy = line_split[1].split(';')
-            
+
             if not ('d__Bacteria' in taxonomy or 'd__Archaea' in taxonomy):
                 continue
 
@@ -288,42 +292,48 @@ class TaxonomyNCBI(object):
                 rank_prefix = taxon[0:3]
                 if rank_prefix in Taxonomy.rank_prefixes:
                     if rank_prefix == 's__':
-                        valid_name, canonical_species_name = self._valid_species_name(taxon)
+                        valid_name, canonical_species_name = self._valid_species_name(
+                            taxon)
 
                         if valid_name:
-                            canonical_taxonomy[Taxonomy.rank_prefixes.index(rank_prefix)] = canonical_species_name
+                            canonical_taxonomy[Taxonomy.rank_prefixes.index(
+                                rank_prefix)] = canonical_species_name
                         else:
-                            if ('full name' in canonical_species_name and 
+                            if ('full name' in canonical_species_name and
                                 ('oral' in canonical_species_name
-                                or '-like' in canonical_species_name
-                                or 'endosymbiont' in canonical_species_name
-                                or 'symbiont' in canonical_species_name
-                                or 'mycovirus' in canonical_species_name
-                                or 'phytoplasma' in canonical_species_name)):
+                                 or '-like' in canonical_species_name
+                                 or 'endosymbiont' in canonical_species_name
+                                 or 'symbiont' in canonical_species_name
+                                 or 'mycovirus' in canonical_species_name
+                                 or 'phytoplasma' in canonical_species_name)):
                                 failed_filters.add(taxon)
                     else:
-                        canonical_taxonomy[Taxonomy.rank_prefixes.index(rank_prefix)] = taxon
-                    
+                        canonical_taxonomy[Taxonomy.rank_prefixes.index(
+                            rank_prefix)] = taxon
+
             # fill in missing ranks where possible
             if canonical_taxonomy:
                 for i in xrange(0, max(canonical_taxonomy.keys())):
-                    if i in canonical_taxonomy  and (i+1) not in canonical_taxonomy:
-                        canonical_taxonomy[i+1] = Taxonomy.rank_prefixes[i+1]
-                        
+                    if i in canonical_taxonomy and (i + 1) not in canonical_taxonomy:
+                        canonical_taxonomy[i +
+                                           1] = Taxonomy.rank_prefixes[i + 1]
+
             cur_taxonomy = []
             for i in xrange(0, len(Taxonomy.rank_prefixes)):
                 if i in canonical_taxonomy:
                     cur_taxonomy.append(canonical_taxonomy[i])
                 else:
-                    break # unable to correctly determine a valid taxonomy below this rank
+                    break  # unable to correctly determine a valid taxonomy below this rank
 
             if len(cur_taxonomy) > 0:
                 if len(cur_taxonomy) != len(Taxonomy.rank_prefixes):
-                    cur_taxonomy = cur_taxonomy + list(Taxonomy.rank_prefixes[len(cur_taxonomy):])
-                fout_consistent.write('%s\t%s\n' % (gid, ';'.join(cur_taxonomy)))
+                    cur_taxonomy = cur_taxonomy + \
+                        list(Taxonomy.rank_prefixes[len(cur_taxonomy):])
+                fout_consistent.write('%s\t%s\n' %
+                                      (gid, ';'.join(cur_taxonomy)))
 
         fout_consistent.close()
-        
+
         # Sanity check particular filters
         fout = open('failed_filters.tsv', 'w')
         for sp in failed_filters:
@@ -332,21 +342,27 @@ class TaxonomyNCBI(object):
 
         print 'Genomes with a consistent taxonomy written to: %s' % output_consistent
 
-    def run(self, 
-            taxonomy_dir, 
-            refseq_assembly_file, 
-            genbank_assembly_file, 
+    def run(self,
+            taxonomy_dir,
+            refseq_archaea_assembly_file,
+            refseq_bacteria_assembly_file,
+            genbank_archaea_assembly_file,
+            genbank_bacteria_assembly_file,
             output_prefix):
         """Read NCBI taxonomy information and create summary output files."""
 
         # parse organism name
-        self._assembly_organism_name(refseq_assembly_file, 
-                                        genbank_assembly_file,
-                                        output_prefix + '_organism_names.tsv')
+        self._assembly_organism_name(refseq_archaea_assembly_file,
+                                     refseq_bacteria_assembly_file,
+                                     genbank_archaea_assembly_file,
+                                     genbank_bacteria_assembly_file,
+                                     output_prefix + '_organism_names.tsv')
 
         # parse metadata file and taxonomy files
-        assembly_to_tax_id = self._assembly_to_tax_id(refseq_assembly_file, 
-                                                        genbank_assembly_file)
+        assembly_to_tax_id = self._assembly_to_tax_id(refseq_archaea_assembly_file,
+                                                      refseq_bacteria_assembly_file,
+                                                      genbank_archaea_assembly_file,
+                                                      genbank_bacteria_assembly_file)
 
         node_records = self._read_nodes(
             os.path.join(taxonomy_dir, 'nodes.dmp'))
@@ -371,7 +387,8 @@ class TaxonomyNCBI(object):
                 print '[Warning] Assembly %s has an invalid taxid: %s' % (assembly_accession, tax_id)
                 continue
 
-            roots = ['cellular organisms', 'other sequences', 'unclassified sequences', 'Viruses', 'Viroids']
+            roots = ['cellular organisms', 'other sequences',
+                     'unclassified sequences', 'Viruses', 'Viroids']
             while name_records[cur_tax_id].name_txt not in roots:
                 if cur_tax_id == '1':
                     print '[Error] TaxId %s reached root of taxonomy tree: %s' % (tax_id, taxonomy)
@@ -381,7 +398,8 @@ class TaxonomyNCBI(object):
                     node_record = node_records[cur_tax_id]
 
                     if node_record.rank in Taxonomy.rank_labels:
-                        rank_index = Taxonomy.rank_labels.index(node_record.rank)
+                        rank_index = Taxonomy.rank_labels.index(
+                            node_record.rank)
                         rank_prefix = Taxonomy.rank_prefixes[rank_index]
                     elif node_record.rank == 'subspecies':
                         rank_prefix = 'sb__'
@@ -404,28 +422,39 @@ class TaxonomyNCBI(object):
             fout.write('%s\t%s\n' % (assembly_accession, taxa_str))
 
         fout.close()
-        
-        self.standardize_taxonomy(taxonomy_file, 
-                                    output_prefix + '_standardized.tsv')
+
+        self.standardize_taxonomy(taxonomy_file,
+                                  output_prefix + '_standardized.tsv')
+
 
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
     print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('taxonomy_dir', help='directory containing NCBI taxonomy files')
-    parser.add_argument('refseq_assembly_file', help='file with metadata for each RefSeq assembly')
-    parser.add_argument('genbank_assembly_file', help='file with metadata for each GenBank assembly')
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        'taxonomy_dir', help='directory containing NCBI taxonomy files')
+    parser.add_argument('refseq_archaea_assembly_file',
+                        help='file with metadata for each RefSeq assembly')
+    parser.add_argument('refseq_bacteria_assembly_file',
+                        help='file with metadata for each GenBank assembly')
+    parser.add_argument('genbank_archaea_assembly_file',
+                        help='file with metadata for each GenBank assembly')
+    parser.add_argument('genbank_bacteria_assembly_file',
+                        help='file with metadata for each GenBank assembly')
     parser.add_argument('output_prefix', help='output prefix')
 
     args = parser.parse_args()
 
     try:
         p = TaxonomyNCBI()
-        p.run(args.taxonomy_dir, 
-                args.refseq_assembly_file,
-                args.genbank_assembly_file,
-                args.output_prefix)
+        p.run(args.taxonomy_dir,
+              args.refseq_archaea_assembly_file,
+              args.refseq_bacteria_assembly_file,
+              args.genbank_archaea_assembly_file,
+              args.genbank_bacteria_assembly_file,
+              args.output_prefix)
     except SystemExit:
         print "\nControlled exit resulting from an unrecoverable error or warning."
     except:

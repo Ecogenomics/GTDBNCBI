@@ -35,6 +35,7 @@ import re
 import argparse
 from collections import defaultdict
 
+
 class GenomeType(object):
     """Identify genomes marked by NCBI as being a MAG or SAG."""
 
@@ -43,9 +44,10 @@ class GenomeType(object):
 
     def run(self, genome_file, output_file):
         """Identify genomes marked by NCBI as being a MAG or SAG."""
-        
-        metagenome_pattern = re.compile(r'derived from(\w|\s)*metagenome', re.I)
-        
+
+        metagenome_pattern = re.compile(
+            r'derived from(\w|\s)*metagenome', re.I)
+
         fout = open(output_file, 'w')
         fout.write('genome_id\tncbi_genome_category\n')
         fout_sanity_check = open(output_file + '.raw', 'w')
@@ -54,9 +56,9 @@ class GenomeType(object):
             if idx % 100 == 0:
                 sys.stdout.write('==> Processed %d genomes.\r' % idx)
                 sys.stdout.flush()
-                
-            gid, genome_dir = line.strip().split('\t')
-            
+
+            gid, genome_dir, _fgid = line.strip().split('\t')
+
             if gid.startswith('U_'):
                 fout.write('%s\t%s\n' % (gid, 'derived from metagenome'))
                 continue
@@ -67,7 +69,7 @@ class GenomeType(object):
             for line in open(wgs_file):
                 if 'metagenome' in line:
                     if('/metagenome_source' in line
-                        or re.search(metagenome_pattern, line)):
+                            or re.search(metagenome_pattern, line)):
                         types.add('MAG')
                         fout_sanity_check.write('%s\t\%s' % (gid, line))
                 elif 'single cell' in line:
@@ -76,27 +78,31 @@ class GenomeType(object):
                 elif '/environmental_sample' in line or "derived from environmental source" in line:
                     types.add('ENV')
                     fout_sanity_check.write('%s\t\%s' % (gid, line))
-                    
+
             if 'MAG' in types and 'SAG' in types:
                 print('[WARNING] Genome %s is annotated as both a MAG and SAG.' % gid)
-                    
+
             if 'MAG' in types:
                 fout.write('%s\t%s\n' % (gid, 'derived from metagenome'))
             elif 'SAG' in types:
                 fout.write('%s\t%s\n' % (gid, 'derived from single cell'))
             elif 'ENV' in types:
-                fout.write('%s\t%s\n' % (gid, 'derived from environmental_sample'))
+                fout.write('%s\t%s\n' %
+                           (gid, 'derived from environmental_sample'))
         sys.stdout.flush()
-                    
+
         fout.close()
         fout_sanity_check.close()
+
 
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
     print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('genome_file', help='file indicating path to GTDB genome files')
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        'genome_file', help='file indicating path to GTDB genome files')
     parser.add_argument('output_file', help='output file')
 
     args = parser.parse_args()

@@ -37,11 +37,11 @@ import tempfile
 from collections import defaultdict
 
 from gtdb import GenomeDatabase
-from gtdb.Exceptions import (GenomeDatabaseError, 
-                                DumpDBErrors, 
-                                DumpDBWarnings, 
-                                ErrorReport)
-                                
+from gtdb.Exceptions import (GenomeDatabaseError,
+                             DumpDBErrors,
+                             DumpDBWarnings,
+                             ErrorReport)
+
 import psycopg2
 from psycopg2.extensions import AsIs
 
@@ -55,7 +55,7 @@ class AddMetadata(object):
                             datefmt="%Y-%m-%d %H:%M:%S",
                             level=logging.DEBUG)
         self.logger = logging
-        
+
     def setup_db(self, gtdb_version):
         """Setup database."""
 
@@ -72,19 +72,20 @@ class AddMetadata(object):
             DumpDBErrors(self.db)
             sys.exit(-1)
 
-    def run(self, metadata_file, 
-                    metadata_desc_file, 
-                    genome_list_file,
-                    do_not_null_field,
-                    gtdb_version):
+    def run(self, metadata_file,
+            metadata_desc_file,
+            genome_list_file,
+            do_not_null_field,
+            gtdb_version):
         """Add metadata."""
-        
+
         # get fields in metadata file
         with open(metadata_file) as f:
             metadata_fields = f.readline().strip().split('\t')[1:]
-        self.logger.info('Metadata file contains {} fields.'.format(len(metadata_fields)))
+        self.logger.info(
+            'Metadata file contains {} fields.'.format(len(metadata_fields)))
         self.logger.info('Fields: %s' % ', '.join(metadata_fields))
-        
+
         # get database table and data type of each metadata field
         metadata_type = {}
         metadata_table = {}
@@ -95,30 +96,33 @@ class AddMetadata(object):
                 if field in metadata_fields:
                     metadata_type[field] = line_split[2]
                     metadata_table[field] = line_split[3]
-        self.logger.info('Identified {} matching fields in metadata description file.'.format(len(metadata_table)))
+        self.logger.info('Identified {} matching fields in metadata description file.'.format(
+            len(metadata_table)))
         self.logger.info('Fields: %s' % ', '.join(metadata_table))
-        
+
         # set fields to NULL if requested
         if not do_not_null_field:
             response = ''
             while response.lower() not in ['y', 'n']:
-                response = raw_input("Set fields to NULL for all genomes [y/n]: ")
-                
+                response = raw_input(
+                    "Set fields to NULL for all genomes [y/n]: ")
+
             if response.lower() == 'n':
                 sys.exit(0)
-            
+
             self.logger.info('Connecting to %s.' % gtdb_version)
             self.setup_db(gtdb_version)
             cur = self.db.conn.cursor()
-            
+
             for field in metadata_table:
-                q = ("UPDATE {} SET {} = NULL".format(metadata_table[field], field))
+                q = ("UPDATE {} SET {} = NULL".format(
+                    metadata_table[field], field))
                 print(q)
                 cur.execute(q)
                 self.db.conn.commit()
 
             cur.close()
-        
+
         # get genomes to process
         genome_list = set()
         if genome_list_file:
@@ -140,7 +144,6 @@ class AddMetadata(object):
                 # print line_split
                 for i, value in enumerate(line_split[1:]):
                     metadata[fields[i + 1]][genome_id] = value
-
 
         # add each field to the database
         for field in metadata:
@@ -174,9 +177,10 @@ class AddMetadata(object):
                         records_to_update += 1
 
             temp_file.close()
-            
-            self.logger.info('Updating {} for {} genomes.'.format(field, records_to_update))
-            
+
+            self.logger.info('Updating {} for {} genomes.'.format(
+                field, records_to_update))
+
             cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % (
                 table, field, data_type, temp_file.name)
             print(cmd)
@@ -196,20 +200,21 @@ if __name__ == '__main__':
         'metadata_desc_file', help='tab-separated values table with description of metadata fields')
     parser.add_argument(
         '--genome_list', help='only process genomes in this list', default=None)
-    parser.add_argument('--do_not_null_field', 
-                            help='Do not set fields to NULL for all genomes before updating values',
-                            action='store_true')
-    parser.add_argument('--gtdb_version', help='GTDB database version (i.e., gtdb_releaseX)')
+    parser.add_argument('--do_not_null_field',
+                        help='Do not set fields to NULL for all genomes before updating values',
+                        action='store_true')
+    parser.add_argument(
+        '--gtdb_version', help='GTDB database version (i.e., gtdb_releaseX)')
 
     args = parser.parse_args()
 
     try:
         p = AddMetadata()
-        p.run(args.metadata_file, 
-                args.metadata_desc_file, 
-                args.genome_list,
-                args.do_not_null_field,
-                args.gtdb_version)
+        p.run(args.metadata_file,
+              args.metadata_desc_file,
+              args.genome_list,
+              args.do_not_null_field,
+              args.gtdb_version)
     except SystemExit:
         print "\nControlled exit resulting from an unrecoverable error or warning."
     except:

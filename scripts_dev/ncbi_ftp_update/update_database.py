@@ -51,12 +51,13 @@ class UpdateGTDBDatabase(object):
     def __init__(self, db, date):
 
         self.db = db
-        self.id_database = 3  # By default we set the id to genbank (it is either 2 or 3
+        # By default we set the id to genbank (it is either 2 or 3
+        self.id_database = 3
         if db == "refseq":
             self.id_database = 2
         self.domains = ["archaea", "bacteria"]
         self.report_database_update = open(
-            "report_beta_{0}_{1}_update_db.log".format(db, date), "w")
+            "report_{0}_{1}_update_db.log".format(db, date), "w")
 
         self.temp_con = GenomeDatabaseConnectionFTPUpdate.GenomeDatabaseConnectionFTPUpdate()
         self.temp_con.MakePostgresConnection()
@@ -69,15 +70,20 @@ class UpdateGTDBDatabase(object):
         list_checkm_records = self._populateNewRecords(checkm)
         genome_dirs_dict = self._populateGenomeDirs(genome_dirs_file)
         # Check if the genome is an existing genome
-        # short_checkm_records list the records that are either to add or version
-        short_checkm_records = self._updateExistingGenomes(dict_existing_records, list_checkm_records, genome_dirs_dict)
+        # short_checkm_records list the records that are either to add or
+        # version
+        short_checkm_records = self._updateExistingGenomes(
+            dict_existing_records, list_checkm_records, genome_dirs_dict)
         self.temp_con.commit()
-        self._addOrVersionNewGenomes(dict_existing_records, short_checkm_records, genome_dirs_dict, update_date)
+        self._addOrVersionNewGenomes(
+            dict_existing_records, short_checkm_records, genome_dirs_dict, update_date)
         self.temp_con.commit()
 
-        # Because we have added and updated script we repopulate dict_existing_records
+        # Because we have added and updated script we repopulate
+        # dict_existing_records
         dict_existing_records = self._populateExistingRecords()
-        self._checkPathorRemoveRecord(dict_existing_records, genome_dirs_dict, short_checkm_records)
+        self._checkPathorRemoveRecord(
+            dict_existing_records, genome_dirs_dict, short_checkm_records)
         self.temp_con.commit()
         self.report_database_update.close()
 
@@ -86,14 +92,16 @@ class UpdateGTDBDatabase(object):
         for record in dict_existing_records:
             print "_checkPathorRemoveRecord: {0}/{1}".format(count, len(dict_existing_records))
             count += 1
-            # if the record was part of the checkm file, it has already been updated
+            # if the record was part of the checkm file, it has already been
+            # updated
             if record in list_checkm_records:
                 continue
             else:
                 if record not in genome_dirs_dict:
                     self._removeRecord(record)
                 else:
-                    self._checkPathRecord(record, dict_existing_records[record], genome_dirs_dict[record])
+                    self._checkPathRecord(
+                        record, dict_existing_records[record], genome_dirs_dict[record])
 
     def _removeRecord(self, record):
         self.report_database_update.write(
@@ -108,7 +116,8 @@ class UpdateGTDBDatabase(object):
         raw_results = self.temp_cur.fetchall()
         self.report_database_update.write("{0}\n".format(record))
         if len(raw_results) > 0:
-            self.report_database_update.write("modified list(s) [{0}]:\n".format(record))
+            self.report_database_update.write(
+                "modified list(s) [{0}]:\n".format(record))
             for result in raw_results:
                 self.report_database_update.write(
                     "list_id:{0}\tlist_name:{1}\t,list_owner:{2}\n".format(*result))
@@ -122,16 +131,20 @@ class UpdateGTDBDatabase(object):
 
     def _checkPathRecord(self, record, path_in_db, path_in_folder):
         if path_in_db not in path_in_folder:
-            path_in_folder = re.sub(r"(^.+\/)(archaea\/|bacteria\/)", r"\g<2>", path_in_folder)
+            path_in_folder = re.sub(
+                r"(^.+\/)(genbank\/|refseq\/)", r"\g<2>", path_in_folder)
             path_in_folder += "/" + os.path.basename(path_in_folder)
             path_in_db = re.sub(r"(.+)(_genomic.fna)", r"\g<1>", path_in_db)
             query = "update genomes set fasta_file_location = replace(fasta_file_location, '{0}', '{1}') where id_at_source like '{2}'".format(
                     path_in_db, path_in_folder, record)
-            self.report_database_update.write("{0}\t{1}\tupdate path\t{2}\t{3}\n".format(self.db, record, path_in_db, path_in_folder))
+            self.report_database_update.write("{0}\t{1}\tupdate path\t{2}\t{3}\n".format(
+                self.db, record, path_in_db, path_in_folder))
             self.temp_cur.execute(query)
-            pathinfo = path_in_folder.rsplit('/',1)
-            genes_path = os.path.join(pathinfo[0],'prodigal',record+"_protein.faa").replace("\\","/")
-            query = "update genomes set genes_file_location = '{0}' where id_at_source like '{1}'".format(genes_path, record)
+            pathinfo = path_in_folder.rsplit('/', 1)
+            genes_path = os.path.join(
+                pathinfo[0], 'prodigal', record + "_protein.faa").replace("\\", "/")
+            query = "update genomes set genes_file_location = '{0}' where id_at_source like '{1}'".format(
+                genes_path, record)
             self.temp_cur.execute(query)
 
     def _addOrVersionNewGenomes(self, dict_existing_records, list_checkm_records, genome_dirs_dict, update_date):
@@ -144,9 +157,15 @@ class UpdateGTDBDatabase(object):
                 id_record = self._checkPreviousVersion(check_record_base)
                 if id_record < 0:  # -1
                     # we add the genome to the database
-                    self._addNewGenomes(checkm_record, genome_dirs_dict, update_date)
+                    self._addNewGenomes(
+                        checkm_record, genome_dirs_dict, update_date)
                 else:
-                    self._addNewGenomes(checkm_record, genome_dirs_dict, update_date, id_record)
+                    self._addNewGenomes(
+                        checkm_record, genome_dirs_dict, update_date, id_record)
+
+    def normaliseID(self, accession):
+        normaccession = "G" + accession[4:accession.find('.', 0)]
+        return normaccession
 
     def _addNewGenomes(self, checkm_record, genome_dirs_dict, update_date, id_record=None):
         list_genome_details = [checkm_record]
@@ -155,7 +174,8 @@ class UpdateGTDBDatabase(object):
         list_genome_details.append(None)
         fasta_file_path = os.path.join(genome_dirs_dict[checkm_record],
                                        os.path.basename(genome_dirs_dict[checkm_record]) + "_genomic.fna")
-        fasta_file_path_shorten = re.sub(r"(.+/)(archaea\/|bacteria\/)", r"\g<2>", fasta_file_path)
+        fasta_file_path_shorten = re.sub(
+            r"(.+/)(genbank\/|refseq\/)", r"\g<2>", fasta_file_path)
         list_genome_details.append(fasta_file_path_shorten)
         list_genome_details.append(self.sha256Calculator(fasta_file_path))
         list_genome_details.append(self.id_database)
@@ -165,17 +185,22 @@ class UpdateGTDBDatabase(object):
         list_genome_details.append(update_date)
         _genome_path, genome_id = ntpath.split(genome_dirs_dict[checkm_record])
         genome_id = genome_id[0:genome_id.find('_', 4)]
-        gene_file_path = os.path.join(genome_dirs_dict[checkm_record], "prodigal", genome_id + "_protein.faa")
-        gene_file_path_shorten = re.sub(r"(.+/)(archaea\/|bacteria\/)", r"\g<2>", gene_file_path)
+        gene_file_path = os.path.join(
+            genome_dirs_dict[checkm_record], "prodigal", genome_id + "_protein.faa")
+        gene_file_path_shorten = re.sub(
+            r"(.+/)(genbank\/|refseq\/)", r"\g<2>", gene_file_path)
         list_genome_details.append(gene_file_path_shorten)
         list_genome_details.append(self.sha256Calculator(gene_file_path))
+        list_genome_details.append(self.normaliseID(checkm_record))
         if id_record is None:
-            self.report_database_update.write("{0}\t{1}\tadd\n".format(self.db, checkm_record))
+            self.report_database_update.write(
+                "{0}\t{1}\tadd\n".format(self.db, checkm_record))
             self.temp_cur.execute("INSERT INTO genomes " +
-                                  "(name,description,owned_by_root,owner_id,fasta_file_location,fasta_file_sha256,genome_source_id,id_at_source,date_added,has_changed,last_update,genes_file_location,genes_file_sha256) " +
-                                  "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", list_genome_details)
+                                  "(name,description,owned_by_root,owner_id,fasta_file_location,fasta_file_sha256,genome_source_id,id_at_source,date_added,has_changed,last_update,genes_file_location,genes_file_sha256,formatted_source_id) " +
+                                  "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", list_genome_details)
         else:
-            self.report_database_update.write("{0}\t{1}\tversion\n".format(self.db, checkm_record))
+            self.report_database_update.write(
+                "{0}\t{1}\tversion\n".format(self.db, checkm_record))
             self.temp_cur.execute("UPDATE genomes " +
                                   "SET name = %s,description = %s, " +
                                   "owned_by_root = %s,owner_id = %s,  " +
@@ -183,8 +208,11 @@ class UpdateGTDBDatabase(object):
                                   "genome_source_id = %s,id_at_source = %s,  " +
                                   "date_added = %s,has_changed = %s,  " +
                                   "last_update = %s,genes_file_location = %s,  " +
-                                  "genes_file_sha256 = %s WHERE id = {0}; ".format(id_record), list_genome_details)
-            self.temp_cur.execute("DELETE FROM aligned_markers where genome_id = {0};".format(id_record))
+                                  "genes_file_sha256 = %s, " +
+                                  "formatted_source_id = %s WHERE id = {0}; ".format(id_record), list_genome_details)
+
+            self.temp_cur.execute(
+                "DELETE FROM aligned_markers where genome_id = {0};".format(id_record))
 
     def _updateExistingGenomes(self, dict_existing_records, list_checkm_records, genome_dirs_dict):
         new_list_checkm_records = []
@@ -193,12 +221,17 @@ class UpdateGTDBDatabase(object):
             print "_updateExistingGenomes: {0}/{1}".format(count, len(list_checkm_records))
             count += 1
             if (checkm_record in dict_existing_records) and (checkm_record in genome_dirs_dict):
-                self.report_database_update.write("{0}\t{1}\tupdate protein file\n".format(self.db, checkm_record))
-                path_gtdb = re.sub(r"(^.+\/)(archaea\/|bacteria\/)", r"\g<2>", genome_dirs_dict[checkm_record])
+                self.report_database_update.write(
+                    "{0}\t{1}\tupdate protein file\n".format(self.db, checkm_record))
+                path_gtdb = re.sub(
+                    r"(^.+\/)(genbank\/|refseq\/)", r"\g<2>", genome_dirs_dict[checkm_record])
                 path_gtdb += "/" + os.path.basename(path_gtdb)
-                path_database = re.sub(r"(.+)(_genomic.fna)", r"\g<1>", dict_existing_records[checkm_record])
-                path_protein_database = re.sub(r"(.+)/(GC._[^_]+)(.*)", r"\g<1>/prodigal/\g<2>_protein.faa", path_database)
-                # If the record is in a different folder , we need to change it's path in the database
+                path_database = re.sub(
+                    r"(.+)(_genomic.fna)", r"\g<1>", dict_existing_records[checkm_record])
+                path_protein_database = re.sub(
+                    r"(.+)/(GC._[^_]+)(.*)", r"\g<1>/prodigal/\g<2>_protein.faa", path_database)
+                # If the record is in a different folder , we need to change
+                # it's path in the database
                 if path_database not in path_gtdb:
                     query = "update genomes set fasta_file_location = replace(fasta_file_location, '{0}', '{1}') where name like '{2}'".format(
                             path_database, path_gtdb, checkm_record)
@@ -207,18 +240,23 @@ class UpdateGTDBDatabase(object):
                             path_protein_database, checkm_record)
                     self.temp_cur.execute(query)
 
-                # if the records is in the Checkm folder that means genomics and protein files have changed. We need to re write their sha256 values
-                genomic_files = glob.glob(genome_dirs_dict[checkm_record] + "/*_genomic.fna")
+                # if the records is in the Checkm folder that means genomics
+                # and protein files have changed. We need to re write their
+                # sha256 values
+                genomic_files = glob.glob(
+                    genome_dirs_dict[checkm_record] + "/*_genomic.fna")
                 if len(genomic_files) == 1:
                     genomic_file = genomic_files[0]
                     new_md5_genomic = self.sha256Calculator(genomic_file)
                     query = "update genomes set fasta_file_sha256 = '{0}' where name like '{1}'".format(
                         new_md5_genomic, checkm_record)
                     self.temp_cur.execute(query)
-                _genome_path, genome_id = ntpath.split(genome_dirs_dict[checkm_record])
+                _genome_path, genome_id = ntpath.split(
+                    genome_dirs_dict[checkm_record])
                 genome_id = genome_id[0:genome_id.find('_', 4)]
-                gene_file_path = os.path.join(genome_dirs_dict[checkm_record], "prodigal")
-                gene_files = glob.glob(gene_file_path + "/*_protein.faa")        
+                gene_file_path = os.path.join(
+                    genome_dirs_dict[checkm_record], "prodigal")
+                gene_files = glob.glob(gene_file_path + "/*_protein.faa")
                 if len(gene_files) == 1:
                     gene_file = gene_files[0]
                     new_md5_gene = self.sha256Calculator(gene_file)
@@ -284,6 +322,7 @@ class UpdateGTDBDatabase(object):
         except ValueError:
             raise ValueError("Incorrect data format, should be YYYY-MM-DD")
         return parse(date_text)
+
 
 if __name__ == "__main__":
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__

@@ -299,7 +299,7 @@ class MetadataTable(object):
 
     def run(self, genbank_genome_dir, refseq_genome_dir, user_genome_dir, output_dir):
         """Create metadata tables."""
-        
+
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
@@ -334,72 +334,91 @@ class MetadataTable(object):
 
             print 'Reading NCBI assembly directories: %s' % ncbi_genome_dir
             processed_assemblies = defaultdict(list)
-            for domain in ['archaea', 'bacteria']:
-                domain_dir = os.path.join(ncbi_genome_dir, domain)
-                for species_dir in os.listdir(domain_dir):
-                    full_species_dir = os.path.join(domain_dir, species_dir)
-                    for assembly_dir in os.listdir(full_species_dir):
-                        accession = assembly_dir[0:assembly_dir.find('_', 4)]
-                        processed_assemblies[accession].append(species_dir)
-                        full_assembly_dir = os.path.join(
-                            full_species_dir, assembly_dir)
+            for first_three in os.listdir(ncbi_genome_dir):
+                onethird_species_dir = os.path.join(
+                    ncbi_genome_dir, first_three)
+                print onethird_species_dir
+                if os.path.isfile(onethird_species_dir):
+                    continue
+                for second_three in os.listdir(onethird_species_dir):
+                    twothird_species_dir = os.path.join(
+                        onethird_species_dir, second_three)
+                    # print twothird_species_dir
+                    if os.path.isfile(twothird_species_dir):
+                        continue
+                    for third_three in os.listdir(twothird_species_dir):
+                        threethird_species_dir = os.path.join(
+                            twothird_species_dir, third_three)
+                        # print threethird_species_dir
+                        if os.path.isfile(threethird_species_dir):
+                            continue
+                        for complete_name in os.listdir(threethird_species_dir):
+                            assembly_dir = os.path.join(
+                                threethird_species_dir, complete_name)
+                            if os.path.isfile(assembly_dir):
+                                continue
+                            accession = complete_name[0:complete_name.find(
+                                '_', 4)]
+                            processed_assemblies[accession].append(
+                                assembly_dir)
 
-                        genome_id = assembly_dir[0:assembly_dir.find('_', 4)]
-                        protein_file = os.path.join(full_assembly_dir, "prodigal", genome_id + "_protein.faa")
+                            metadata_nt_file = os.path.join(
+                                assembly_dir, self.metadata_nt_file)
+                            self._parse_nt(
+                                accession, metadata_nt_file, fout_nt)
 
-                        metadata_nt_file = os.path.join(full_assembly_dir, self.metadata_nt_file)
-                        self._parse_nt(accession, metadata_nt_file, fout_nt)
+                            metadata_gene_file = os.path.join(
+                                assembly_dir, self.metadata_gene_file)
+                            self._parse_gene(
+                                accession, metadata_gene_file, fout_gene)
 
-                        metadata_gene_file = os.path.join(full_assembly_dir, self.metadata_gene_file)
-                        self._parse_gene(accession, metadata_gene_file, fout_gene)
-                        
-                        ssu_gg_taxonomy_file = os.path.join(
-                            full_assembly_dir, self.ssu_gg_taxonomy_file)
-                        ssu_gg_fna_file = os.path.join(
-                            full_assembly_dir, self.ssu_gg_fna_file)
-                        self._parse_taxonomy_file(
-                            accession, ssu_gg_taxonomy_file, fout_gg_taxonomy, 'ssu_gg', ssu_gg_fna_file)
+                            ssu_gg_taxonomy_file = os.path.join(
+                                assembly_dir, self.ssu_gg_taxonomy_file)
+                            ssu_gg_fna_file = os.path.join(
+                                assembly_dir, self.ssu_gg_fna_file)
+                            self._parse_taxonomy_file(
+                                accession, ssu_gg_taxonomy_file, fout_gg_taxonomy, 'ssu_gg', ssu_gg_fna_file)
 
-                        ssu_silva_taxonomy_file = os.path.join(
-                            full_assembly_dir, self.ssu_silva_taxonomy_file)
-                        ssu_silva_fna_file = os.path.join(
-                            full_assembly_dir, self.ssu_silva_fna_file)
-                        ssu_silva_summary_file = os.path.join(
-                            full_assembly_dir, self.ssu_silva_summary_file)
-                        ssu_count = self._parse_taxonomy_file(accession, 
-                                                                ssu_silva_taxonomy_file, 
-                                                                fout_ssu_silva_taxonomy, 
-                                                                'ssu_silva', 
-                                                                ssu_silva_fna_file, 
-                                                                ssu_silva_summary_file)
+                            ssu_silva_taxonomy_file = os.path.join(
+                                assembly_dir, self.ssu_silva_taxonomy_file)
+                            ssu_silva_fna_file = os.path.join(
+                                assembly_dir, self.ssu_silva_fna_file)
+                            ssu_silva_summary_file = os.path.join(
+                                assembly_dir, self.ssu_silva_summary_file)
+                            ssu_count = self._parse_taxonomy_file(accession,
+                                                                  ssu_silva_taxonomy_file,
+                                                                  fout_ssu_silva_taxonomy,
+                                                                  'ssu_silva',
+                                                                  ssu_silva_fna_file,
+                                                                  ssu_silva_summary_file)
 
-                        lsu_silva_23s_taxonomy_file = os.path.join(
-                            full_assembly_dir, self.lsu_silva_23s_taxonomy_file)
-                        lsu_silva_23s_fna_file = os.path.join(
-                            full_assembly_dir, self.lsu_silva_23s_fna_file)
-                        lsu_silva_23s_summary_file = os.path.join(
-                            full_assembly_dir, self.lsu_silva_23s_summary_file)
-                        lsu_23s_count = self._parse_taxonomy_file(
-                            accession, lsu_silva_23s_taxonomy_file, fout_lsu_silva_23s_taxonomy, 'lsu_silva_23s', lsu_silva_23s_fna_file, lsu_silva_23s_summary_file)
+                            lsu_silva_23s_taxonomy_file = os.path.join(
+                                assembly_dir, self.lsu_silva_23s_taxonomy_file)
+                            lsu_silva_23s_fna_file = os.path.join(
+                                assembly_dir, self.lsu_silva_23s_fna_file)
+                            lsu_silva_23s_summary_file = os.path.join(
+                                assembly_dir, self.lsu_silva_23s_summary_file)
+                            lsu_23s_count = self._parse_taxonomy_file(
+                                accession, lsu_silva_23s_taxonomy_file, fout_lsu_silva_23s_taxonomy, 'lsu_silva_23s', lsu_silva_23s_fna_file, lsu_silva_23s_summary_file)
 
-                        lsu_5S_fna_file = os.path.join(
-                            full_assembly_dir, self.lsu_5S_fna_file)
-                        lsu_5S_summary_file = os.path.join(
-                            full_assembly_dir, self.lsu_5S_summary_file)
-                        lsu_5S_count = self._parse_lsu_5S_files(
-                            accession, fout_lsu_5S, lsu_5S_fna_file, lsu_5S_summary_file)
+                            lsu_5S_fna_file = os.path.join(
+                                assembly_dir, self.lsu_5S_fna_file)
+                            lsu_5S_summary_file = os.path.join(
+                                assembly_dir, self.lsu_5S_summary_file)
+                            lsu_5S_count = self._parse_lsu_5S_files(
+                                accession, fout_lsu_5S, lsu_5S_fna_file, lsu_5S_summary_file)
 
-                        fout_ssu_silva_count.write(
-                            '%s\t%d\n' % (accession, ssu_count))
-                        fout_lsu_silva_23s_count.write(
-                            '%s\t%d\n' % (accession, lsu_23s_count))
-                        fout_lsu_5S_count.write(
-                            '%s\t%d\n' % (accession, lsu_5S_count))
+                            fout_ssu_silva_count.write(
+                                '%s\t%d\n' % (accession, ssu_count))
+                            fout_lsu_silva_23s_count.write(
+                                '%s\t%d\n' % (accession, lsu_23s_count))
+                            fout_lsu_5S_count.write(
+                                '%s\t%d\n' % (accession, lsu_5S_count))
 
-                        trna_file = os.path.join(
-                            full_assembly_dir, 'trna', accession + '_trna_stats.tsv')
-                        self._parse_trna_file(
-                            accession, trna_file, fout_trna_count)
+                            trna_file = os.path.join(
+                                assembly_dir, 'trna', accession + '_trna_stats.tsv')
+                            self._parse_trna_file(
+                                accession, trna_file, fout_trna_count)
 
         # generate metadata for user genomes
         print 'Reading user genome directories.'

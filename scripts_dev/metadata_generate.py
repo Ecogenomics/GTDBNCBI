@@ -77,24 +77,46 @@ class Metadata(object):
         # generate metadata for NCBI assemblies
         print 'Reading NCBI assembly directories.'
         processed_assemblies = defaultdict(list)
-        for domain in ['archaea', 'bacteria']:
-            domain_dir = os.path.join(ncbi_genome_dir, domain)
-            for species_dir in os.listdir(domain_dir):
-                full_species_dir = os.path.join(domain_dir, species_dir)
-                for assembly_dir in os.listdir(full_species_dir):
-                    accession = assembly_dir[0:assembly_dir.find('_', 4)]
+        rfq_dir = os.path.join(ncbi_genome_dir, 'refseq', 'GCF')
+        gbk_dir = os.path.join(ncbi_genome_dir, 'genbank', 'GCA')
 
-                    processed_assemblies[accession].append(species_dir)
-                    if len(processed_assemblies[accession]) >= 2:
+        for input_dir in (rfq_dir, gbk_dir):
+            for first_three in os.listdir(input_dir):
+                onethird_species_dir = os.path.join(input_dir, first_three)
+                print onethird_species_dir
+                if os.path.isfile(onethird_species_dir):
+                    continue
+                for second_three in os.listdir(onethird_species_dir):
+                    twothird_species_dir = os.path.join(
+                        onethird_species_dir, second_three)
+                    # print twothird_species_dir
+                    if os.path.isfile(twothird_species_dir):
                         continue
+                    for third_three in os.listdir(twothird_species_dir):
+                        threethird_species_dir = os.path.join(
+                            twothird_species_dir, third_three)
+                        # print threethird_species_dir
+                        if os.path.isfile(threethird_species_dir):
+                            continue
+                        for complete_name in os.listdir(threethird_species_dir):
+                            assembly_dir = os.path.join(
+                                threethird_species_dir, complete_name)
+                            if os.path.isfile(assembly_dir):
+                                continue
 
-                    full_assembly_dir = os.path.join(
-                        full_species_dir, assembly_dir)
-                    genome_file = os.path.join(
-                        full_assembly_dir, assembly_dir + '_genomic.fna')
-                    gff_file = os.path.join(
-                        full_assembly_dir, 'prodigal', accession + '_protein.gff')
-                    input_files.append([genome_file, gff_file])
+                            accession = complete_name[0:complete_name.find(
+                                '_', 4)]
+
+                            processed_assemblies[accession].append(
+                                assembly_dir)
+                            if len(processed_assemblies[accession]) >= 2:
+                                continue
+
+                            genome_file = os.path.join(
+                                assembly_dir, complete_name + '_genomic.fna')
+                            gff_file = os.path.join(
+                                assembly_dir, 'prodigal', accession + '_protein.gff')
+                            input_files.append([genome_file, gff_file])
 
         # generate metadata for user genomes
         if user_genome_dir != 'NONE':

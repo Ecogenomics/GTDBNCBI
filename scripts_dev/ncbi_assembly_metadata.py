@@ -95,7 +95,8 @@ class GenericFeatureParser():
                 end = int(line_split[4])
 
                 self.genes[seq_id][gene_id] = [start, end]
-                self.last_coding_base[seq_id] = max(self.last_coding_base[seq_id], end)
+                self.last_coding_base[seq_id] = max(
+                    self.last_coding_base[seq_id], end)
 
     def _coding_mask(self, seq_id):
         """Build mask indicating which bases in a sequences are coding."""
@@ -137,15 +138,22 @@ class Metadata(object):
     """Create metadata file from the assembly stats file of each NCBI assembly."""
 
     def __init__(self):
-        self.fields = ['Assembly name', 'Organism name', 'Taxid', 'Submitter', 'Date']
-        self.fields.extend(['BioSample', 'Assembly type', 'Release type', 'Assembly level'])
-        self.fields.extend(['Genome representation', 'GenBank assembly accession', 'RefSeq assembly and GenBank assemblies identical'])
+        self.fields = ['Assembly name', 'Organism name',
+                       'Taxid', 'Submitter', 'Date']
+        self.fields.extend(['BioSample', 'Assembly type',
+                            'Release type', 'Assembly level'])
+        self.fields.extend(['Genome representation', 'GenBank assembly accession',
+                            'RefSeq assembly and GenBank assemblies identical'])
 
-        self.stats = ['molecule-count', 'contig-count', 'scaffold-count', 'region-count', 'top-level-count']
-        self.stats.extend(['spanned-gaps', 'total-gap-length', 'total-length', 'ungapped-length', 'unspanned-gaps'])
-        self.stats.extend(['contig-N50', 'scaffold-N50', 'scaffold-L50', 'scaffold-N75', 'scaffold-N90'])
+        self.stats = ['molecule-count', 'contig-count',
+                      'scaffold-count', 'region-count', 'top-level-count']
+        self.stats.extend(['spanned-gaps', 'total-gap-length',
+                           'total-length', 'ungapped-length', 'unspanned-gaps'])
+        self.stats.extend(['contig-N50', 'scaffold-N50', 'contig-L50', 'component-count',
+                           'scaffold-L50', 'scaffold-N75', 'scaffold-N90'])
 
-        self.gff_fields = ['cds_count', 'tRNA_count', 'ncRNA_count', 'rRNA_count', 'ssu_count']
+        self.gff_fields = ['cds_count', 'tRNA_count',
+                           'ncRNA_count', 'rRNA_count', 'ssu_count']
 
         self.gbff_fields = ['translation_table']
 
@@ -183,7 +191,8 @@ class Metadata(object):
                 if field in self.fields:
                     if field == 'Organism name' and '(' in value:
                         metadata_index = self.fields.index(field)
-                        metadata_fields[metadata_index] = value[0:value.find('(')].strip()
+                        metadata_fields[metadata_index] = value[0:value.find(
+                            '(')].strip()
                     else:
                         metadata_index = self.fields.index(field)
                         metadata_fields[metadata_index] = value
@@ -215,10 +224,14 @@ class Metadata(object):
 
         gff_parser = GenericFeatureParser(gff_file)
         metadata_gff[self.gff_fields.index('cds_count')] = gff_parser.cds_count
-        metadata_gff[self.gff_fields.index('tRNA_count')] = gff_parser.tRNA_count
-        metadata_gff[self.gff_fields.index('ncRNA_count')] = gff_parser.ncRNA_count
-        metadata_gff[self.gff_fields.index('rRNA_count')] = gff_parser.rRNA_count
-        metadata_gff[self.gff_fields.index('ssu_count')] = gff_parser.rRNA_16S_count
+        metadata_gff[self.gff_fields.index(
+            'tRNA_count')] = gff_parser.tRNA_count
+        metadata_gff[self.gff_fields.index(
+            'ncRNA_count')] = gff_parser.ncRNA_count
+        metadata_gff[self.gff_fields.index(
+            'rRNA_count')] = gff_parser.rRNA_count
+        metadata_gff[self.gff_fields.index(
+            'ssu_count')] = gff_parser.rRNA_16S_count
 
         return metadata_gff
 
@@ -233,67 +246,99 @@ class Metadata(object):
         for line in open(genbank_file):
             if '/transl_table=' in line:
                 translation_table = line[line.rfind('=') + 1:].strip()
-                metadata_gbff[self.gbff_fields.index('translation_table')] = translation_table
+                metadata_gbff[self.gbff_fields.index(
+                    'translation_table')] = translation_table
                 break
 
         return metadata_gbff
 
-    def run(self, genome_dir, output_file):
+    def run(self, ncbi_genome_dir, output_file):
         """Create metadata by parsing assembly stats files."""
 
         fout = open(output_file, 'w')
         fout.write('Assembly accession')
-        fout.write('\t' + '\t'.join(['ncbi_' + x.lower().replace(' ', '_') for x in self.fields]))
-        fout.write('\t' + '\t'.join(['ncbi_' + x.lower().replace('-', '_') for x in self.stats]))
-        fout.write('\t' + '\t'.join(['ncbi_' + x.lower() for x in self.gff_fields]))
-        fout.write('\t' + '\t'.join(['ncbi_' + x.lower() for x in self.gbff_fields]))
+        fout.write(
+            '\t' + '\t'.join(['ncbi_' + x.lower().replace(' ', '_') for x in self.fields]))
+        fout.write(
+            '\t' + '\t'.join(['ncbi_' + x.lower().replace('-', '_') for x in self.stats]))
+        fout.write('\t' + '\t'.join(['ncbi_' + x.lower()
+                                     for x in self.gff_fields]))
+        fout.write('\t' + '\t'.join(['ncbi_' + x.lower()
+                                     for x in self.gbff_fields]))
         fout.write('\n')
 
         processed_assemblies = defaultdict(list)
-        for domain in ['archaea', 'bacteria']:
-            domain_dir = os.path.join(genome_dir, domain)
-            for species_dir in os.listdir(domain_dir):
-                full_species_dir = os.path.join(domain_dir, species_dir)
-                for assembly_dir in os.listdir(full_species_dir):
-                    accession = assembly_dir[0:assembly_dir.find('_', 4)]
-
-                    processed_assemblies[accession].append(species_dir)
-                    if len(processed_assemblies[accession]) >= 2:
-                        print '%s\t%s' % (accession, ','.join(processed_assemblies[accession]))
+        print 'Reading NCBI assembly directories: %s' % ncbi_genome_dir
+        for first_three in os.listdir(ncbi_genome_dir):
+            onethird_species_dir = os.path.join(
+                ncbi_genome_dir, first_three)
+            print onethird_species_dir
+            if os.path.isfile(onethird_species_dir):
+                continue
+            for second_three in os.listdir(onethird_species_dir):
+                twothird_species_dir = os.path.join(
+                    onethird_species_dir, second_three)
+                # print twothird_species_dir
+                if os.path.isfile(twothird_species_dir):
+                    continue
+                for third_three in os.listdir(twothird_species_dir):
+                    threethird_species_dir = os.path.join(
+                        twothird_species_dir, third_three)
+                    # print threethird_species_dir
+                    if os.path.isfile(threethird_species_dir):
                         continue
+                    for complete_name in os.listdir(threethird_species_dir):
+                        assembly_dir = os.path.join(
+                            threethird_species_dir, complete_name)
+                        if os.path.isfile(assembly_dir):
+                            continue
+                        accession = complete_name[0:complete_name.find(
+                            '_', 4)]
+                        processed_assemblies[accession].append(
+                            assembly_dir)
 
-                    full_assembly_dir = os.path.join(full_species_dir, assembly_dir)
+                        if len(processed_assemblies[accession]) >= 2:
+                            print '%s\t%s' % (accession, ','.join(processed_assemblies[accession]))
+                            continue
 
-                    #protein_file = os.path.join(full_assembly_dir, assembly_dir + '_protein.faa')
-                    genome_id = assembly_dir[0:assembly_dir.find('_', 4)]
-                    protein_file = os.path.join(full_assembly_dir, "prodigal", genome_id + "_protein.faa")
-                    if not os.path.exists(protein_file):
-                        continue
+                        protein_file = os.path.join(
+                            assembly_dir, "prodigal", accession + "_protein.faa")
+                        if not os.path.exists(protein_file):
+                            continue
 
-                    assembly_stat_file = os.path.join(full_assembly_dir, assembly_dir + '_assembly_stats.txt')
-                    if os.path.exists(assembly_stat_file):
-                        metadata_fields, metadata_stats = self._parse_assembly_stats(assembly_stat_file)
-                        fout.write(accession + '\t%s\t%s' % ('\t'.join(metadata_fields),
-                                                             '\t'.join(metadata_stats)))
+                        assembly_stat_file = os.path.join(
+                            assembly_dir, complete_name + '_assembly_stats.txt')
+                        if os.path.exists(assembly_stat_file):
+                            metadata_fields, metadata_stats = self._parse_assembly_stats(
+                                assembly_stat_file)
+                            fout.write(accession + '\t%s\t%s' % ('\t'.join(metadata_fields),
+                                                                 '\t'.join(metadata_stats)))
 
-                        gff_file = os.path.join(full_assembly_dir, assembly_dir + '_genomic.gff')
-                        gff_stats = self._parse_gff(gff_file)
-                        fout.write('\t%s' % ('\t'.join(map(str, gff_stats))))
+                            gff_file = os.path.join(
+                                assembly_dir, complete_name + '_genomic.gff')
+                            gff_stats = self._parse_gff(gff_file)
+                            fout.write('\t%s' %
+                                       ('\t'.join(map(str, gff_stats))))
 
-                        genbank_file = os.path.join(full_assembly_dir, assembly_dir + '_genomic.gbff')
-                        gbff_stats = self._parse_gbff(genbank_file)
-                        fout.write('\t%s' % ('\t'.join(map(str, gbff_stats))))
+                            genbank_file = os.path.join(
+                                assembly_dir, complete_name + '_genomic.gbff')
+                            gbff_stats = self._parse_gbff(genbank_file)
+                            fout.write('\t%s' %
+                                       ('\t'.join(map(str, gbff_stats))))
 
-                    fout.write('\n')
+                        fout.write('\n')
 
         fout.close()
+
 
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
     print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('genome_dir', help='base directory leading to NCBI archaeal and bacterial genome assemblies')
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        'genome_dir', help='base directory leading to NCBI archaeal and bacterial genome assemblies')
     parser.add_argument('output_file', help='output metadata file')
 
     args = parser.parse_args()

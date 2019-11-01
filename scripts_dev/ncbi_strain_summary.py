@@ -40,9 +40,12 @@ import re
 class StrainParser(object):
     """Extract genes in nucleotide space."""
 
-    def __init__(self, assembly_summary_genbank, assembly_summary_refseq):
-        self.genbank_dictionary = self.parse_summary(assembly_summary_genbank)
-        self.refseq_dictionary = self.parse_summary(assembly_summary_refseq)
+    def __init__(self, assembly_summary_bacteria_genbank, assembly_summary_archaea_genbank,
+                 assembly_summary_bacteria_refseq, assembly_summary_archaea_refseq):
+        self.genbank_dictionary = self.parse_summary(
+            assembly_summary_bacteria_genbank, assembly_summary_archaea_genbank)
+        self.refseq_dictionary = self.parse_summary(
+            assembly_summary_bacteria_refseq, assembly_summary_archaea_refseq)
 
     def file_len(self, fname):
         with open(fname) as f:
@@ -50,21 +53,22 @@ class StrainParser(object):
                 pass
         return i + 1
 
-    def parse_summary(self, assembly_summary):
+    def parse_summary(self, assembly_bacteria_summary, assembly_archaea_summary):
         assembly_summary_dict = {}
-        with open(assembly_summary) as as_file:
-            as_file.readline()
-            for line in as_file:
-                if line.startswith('#'):
-                    line = line.replace('# ', '')
-                    headers = line.strip('\n').split('\t')
-                    index_genome_id = headers.index('assembly_accession')
-                    relation_to_type_material_index = headers.index(
-                        'relation_to_type_material')
-                else:
-                    line_infos = line.strip('\n').split('\t')
-                    assembly_summary_dict[line_infos[index_genome_id]
-                                          ] = line_infos[relation_to_type_material_index]
+        for assembly_summary in [assembly_bacteria_summary, assembly_archaea_summary]:
+            with open(assembly_summary) as as_file:
+                as_file.readline()
+                for line in as_file:
+                    if line.startswith('#'):
+                        line = line.replace('# ', '')
+                        headers = line.strip('\n').split('\t')
+                        index_genome_id = headers.index('assembly_accession')
+                        relation_to_type_material_index = headers.index(
+                            'relation_to_type_material')
+                    else:
+                        line_infos = line.strip('\n').split('\t')
+                        assembly_summary_dict[line_infos[index_genome_id]
+                                              ] = line_infos[relation_to_type_material_index]
         return assembly_summary_dict
 
     def run(self, genome_dir_file, out_dir):
@@ -210,18 +214,22 @@ if __name__ == '__main__':
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--genome_dir_file',
                         help='file indicating path to all genomes directories')
-    parser.add_argument('--assembly_summary_genbank',
+    parser.add_argument('--assembly_summary_bacteria_genbank',
                         help='assembly_summary_genbank.txt downloaded from NCBI')
-    parser.add_argument('--assembly_summary_refseq',
-                        help='assembly_summary_refseq.txt downloaded from NCBI')
+    parser.add_argument('--assembly_summary_archaea_genbank',
+                        help='assembly_summary_genbank.txt downloaded from NCBI')
+    parser.add_argument('--assembly_summary_bacteria_refseq',
+                        help='assembly_summary_bacteria_refseq.txt downloaded from NCBI')
+    parser.add_argument('--assembly_summary_archaea_refseq',
+                        help='assembly_summary_archaea_refseq.txt downloaded from NCBI')
 
     parser.add_argument('--out_dir', help='output directory')
 
     args = parser.parse_args()
 
     try:
-        p = StrainParser(args.assembly_summary_genbank,
-                         args.assembly_summary_refseq)
+        p = StrainParser(args.assembly_summary_bacteria_genbank, args.assembly_summary_archaea_genbank,
+                         args.assembly_summary_bacteria_refseq, args.assembly_summary_archaea_refseq)
         p.run(args.genome_dir_file, args.out_dir)
     except SystemExit:
         print "\nControlled exit resulting from an unrecoverable error or warning."

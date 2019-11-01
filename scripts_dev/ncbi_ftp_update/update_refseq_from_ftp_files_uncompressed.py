@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 
 ###############################################################################
 #                                                                             #
@@ -21,35 +22,38 @@ __prog_name__ = 'update_refseq_from_ftp_files_uncompressed.py'
 __prog_desc__ = ('Update the Refseq folder with the latest genome downloaded from FTP.' +
                  'This is an updated version of update_refseq_from_ftp_files where the checksum comparison is made on unarchived files.' +
                  'Before this update, make sure the genome folder is in RW mode to be able to delete or add genomes.' +
-                 'We assume that all paths are in the form bacteria_name/latest_assembly_Version/GCA or GCF number.')
+                 'This version is based on the new structure of the NCBI FTP server GCA(GCF)/000/000/000/GCA000000000.1/ ')
 
 __author__ = 'Pierre Chaumeil'
 __copyright__ = 'Copyright 2016'
 __credits__ = ['Pierre Chaumeil']
 __license__ = 'GPL3'
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __maintainer__ = 'Pierre Chaumeil'
-__email__ = 'p.chaumeil@qfab.org'
+__email__ = 'uqpchaum@uq.edu.au'
 __status__ = 'Development'
 
 import os
 import shutil
 import hashlib
-import re
 import glob
 import gzip
 import sys
-import datetime
 import argparse
 import tempfile
+from datetime import datetime
+import multiprocessing as mp
 
 
 class UpdateRefSeqFolder(object):
 
-    def __init__(self, new_refseq_folder):
+    def __init__(self, new_refseq_folder, cpus):
 
         self.domains = ["archaea", "bacteria"]
-        #self.domains = ["bacteria"]
+        # self.domains = ["bacteria"]
+        self.genome_domain_dict = {}
+
+        self.threads = cpus
 
         self.genomic_ext = "_genomic.fna"
         self.protein_ext = "_protein.faa"
@@ -61,57 +65,97 @@ class UpdateRefSeqFolder(object):
 
         self.extensions = ("_feature_table.txt", "_genomic.gbff",
                            "_genomic.gff", "_protein.gpff", "_wgsmaster.gbff")
-        self.reports = ("_assembly_report.txt", "_assembly_stats.txt", "_hashes.txt")
+        self.reports = ("_assembly_report.txt",
+                        "_assembly_stats.txt", "_hashes.txt")
         self.allExts = self.fastaExts + self.extensions + self.reports
         self.allbutFasta = self.extensions + self.reports
 
-        self.report_gcf = open(os.path.join(new_refseq_folder, "report_gcf.log"), "w", 1)
-        self.stats_update = open(os.path.join(new_refseq_folder, "stats_update.log"), "w")
+        self.report_gcf = open(os.path.join(
+            new_refseq_folder, "report_gcf.log"), "w", 1)
+        self.genomes_to_review = open(os.path.join(
+            new_refseq_folder, "gid_to_review.log"), "w", 1)
+        self.stats_update = open(os.path.join(
+            new_refseq_folder, "stats_update.log"), "w")
 
-    def runComparison(self, ftp_refseq, new_refseq, ftp_genome_dirs, old_genome_dirs):
+    def runComparison(self, ftp_refseq, new_refseq, ftp_genome_dirs, old_genome_dirs, archaea_assembly_summary, bacteria_assembly_summary):
         '''
         runComparison function is walking across all directories recursively
         only folder containing latest_assembly_versions but not containing _assembly_structure
         are of interest
         '''
 
-        # for each domain
-        for domain in self.domains:
+        # old_dict lists all records from the previous gtdb update
+        with open(old_genome_dirs, 'r') as old_file:
+            old_dict = {old_line.split("\t")[0]: old_line.split("\t")[1].strip()
+                        for old_line in old_file}
+        print("{}:old_dict loaded".format(str(datetime.now())))
 
-            # old_dict lists all records from the previous gtdb update
-            with open(old_genome_dirs, 'r') as old_file:
-                old_dict = {old_line.split("\t")[0]: old_line.split("\t")[1].strip()
-                            for old_line in old_file if "/{0}/".format(domain) in old_line.split("\t")[1]}
+        # This is a one of for the transtion from the old directory structure
+        # to the new one
+        with open(old_genome_dirs, 'r') as old_file:
+            old_dict_domain = {old_line.split("\t")[0]: old_line.split("\t")[1].strip().split("/")[8]
+                               for old_line in old_file}
+        print("{}:old_dict_domain loaded".format(str(datetime.now())))
 
-            # new list list all records from the ftp folder and considered as
-            # latest
-            ftp_assembly_summary = os.path.join(
-                ftp_refseq, domain, "assembly_summary.txt")
-            with open(ftp_assembly_summary, 'r') as ftp_assembly_summary_file:
-                ftp_assembly_summary_file.readline()
-                new_list = [new_line.split(
-                    "\t")[0] for new_line in ftp_assembly_summary_file if new_line.split("\t")[10] == "latest"]
-            # new dict lists all records from FTP which are in new_list
-            with open(ftp_genome_dirs, 'r') as new_genome_dirs_file:
-                new_dict = {new_line.split("\t")[0]: new_line.split("\t")[1].strip()
-                            for new_line in new_genome_dirs_file if "/{0}/".format(domain) in new_line.split("\t")[1] and new_line.split("\t")[0] in new_list}
+        # new list list all records from the ftp folder and considered as
+        # latest
+        new_list = []
+        with open(archaea_assembly_summary, 'r') as ftp_assembly_summary_file:
+            ftp_assembly_summary_file.readline()
+            new_list = [new_line.split(
+                "\t")[0] for new_line in ftp_assembly_summary_file if new_line.split("\t")[10] == "latest"]
+        self.genome_domain_dict = {arcid: "Archaea" for arcid in new_list}
+        with open(bacteria_assembly_summary, 'r') as ftp_assembly_summary_file:
+            ftp_assembly_summary_file.readline()
+            bacterial_new_list = [new_line.split(
+                "\t")[0] for new_line in ftp_assembly_summary_file if new_line.split("\t")[10] == "latest"]
+        for bacid in bacterial_new_list:
+            self.genome_domain_dict[bacid] = "Bacteria"
+        new_list.extend(bacterial_new_list)
+        print("{}:new_list loaded".format(str(datetime.now())))
 
-            # new genomes in FTP
-            added_dict = {added_key: new_dict[added_key] for added_key in list(
-                set(new_dict.keys()) - set(old_dict.keys()))}
-            self.addGenomes(added_dict, ftp_refseq, new_refseq, domain)
+        # new dict lists all records from FTP which are in new_list
+        new_dict = {}
+        cter = 0
+        print("loading new_dict.....")
+        with open(ftp_genome_dirs, 'r') as new_genome_dirs_file:
+            for new_line in new_genome_dirs_file:
+                cter += 1
+                # print('{}'.format(cter), end='\r')
+                new_line_split = new_line.split("\t")
+                if new_line_split[0].startswith("GCF") and new_line_split[0] in new_list:
+                    new_dict[new_line_split[0]] = new_line_split[1].strip()
 
-            # delete genomes from the Database
-            removed_dict = {removed_key: old_dict[removed_key] for removed_key in list(
-                set(old_dict.keys()) - set(new_dict.keys()))}
-            self.removeGenomes(removed_dict, domain)
+            #==================================================================
+            # new_dict = {new_line_split[0]: new_line_split[1].strip()
+            #             for new_line in new_genome_dirs_file if new_line.split("\t")[0] in new_list}
+            #==================================================================
+        print("{}:new_dict loaded".format(str(datetime.now())))
 
-            intersect_list = list(
-                set(old_dict.keys()).intersection(set(new_dict.keys())))
-            self.compareGenomes(
-                intersect_list, old_dict, new_dict, ftp_refseq, new_refseq, domain)
+#=========================================================================
+#         # new genomes in FTP
+#         added_dict = {added_key: new_dict[added_key] for added_key in list(
+#             set(new_dict.keys()) - set(old_dict.keys()))}
+#         self.addGenomes(added_dict, ftp_refseq, new_refseq)
+#
+#         # delete genomes from the Database
+#         removed_dict = {removed_key: old_dict[removed_key] for removed_key in list(
+#                 set(old_dict.keys()) - set(new_dict.keys()))}
+#         self.removeGenomes(removed_dict, old_dict_domain)
+#=========================================================================
 
-    def addGenomes(self, added_dict, ftp_refseq, new_refseq, domain):
+        print("{}:Generating intersection list.....".format(str(datetime.now())))
+        intersect_list = list(
+            set(old_dict.keys()).intersection(set(new_dict.keys())))
+        print("{}:Intersection list:{} genomes".format(
+            str(datetime.now()), len(intersect_list)))
+        self.compareGenomes(
+            intersect_list, old_dict, new_dict, ftp_refseq, new_refseq, self.threads)
+        self.report_gcf.close()
+        self.genomes_to_review.close()
+        self.stats_update.close()
+
+    def addGenomes(self, added_dict, ftp_refseq, new_refseq):
         '''
         addGenomes function insert new genomes in the GTDB database. New genomes are present in the FTP folder
         but not in the previous version of GTDB.
@@ -124,16 +168,15 @@ class UpdateRefSeqFolder(object):
         :param added_dict: dictionary of genomes to be added (genome_id:path to genome)
         :param ftp_refseq: base directory leading the the FTP repository for refseq
         :param new_refseq:base directory leading the new repository for refseq
-        :param update_date:Date when the FTP download has been run (format YYYY-MM-DD)
         '''
 
         for gcf_record in added_dict:
-            target_dir = added_dict[gcf_record].replace(ftp_refseq, new_refseq).replace(
-                "/latest_assembly_versions", "")
+            target_dir = os.path.join(
+                new_refseq, added_dict[gcf_record].replace(ftp_refseq, ''))
             shutil.copytree(added_dict[
                             gcf_record], target_dir, symlinks=True, ignore=shutil.ignore_patterns("*_assembly_structure"))
             self.report_gcf.write(
-                "{0}\t{1}\tnew\n".format(domain.upper(), gcf_record))
+                "{0}\t{1}\tnew\n".format(self.genome_domain_dict.get(gcf_record).upper(), gcf_record))
             for compressed_file in glob.glob(target_dir + "/*.gz"):
                 if os.path.isdir(compressed_file) == False:
                     inF = gzip.open(compressed_file, 'rb')
@@ -144,7 +187,7 @@ class UpdateRefSeqFolder(object):
                     outF.close()
                     os.remove(compressed_file)
 
-    def removeGenomes(self, removed_dict, domain):
+    def removeGenomes(self, removed_dict, old_dict_domain):
         '''
         removeGenomes function removes all outdated genomes from the gtdb database
         In addition it tracks the lists(name and owner) that have been modified while deleting those genomes
@@ -154,9 +197,26 @@ class UpdateRefSeqFolder(object):
 
         for gcf_record in removed_dict:
             self.report_gcf.write(
-                "{0}\t{1}\tremoved\n".format(domain.upper(), gcf_record))
+                "{0}\t{1}\tremoved\n".format(old_dict_domain.get(gcf_record).upper(), gcf_record))
 
-    def compareGenomes(self, intersect_list, old_dict, new_dict, ftp_refseq, new_refseq, domain):
+#=========================================================================
+#     def compareGenomes(self, intersect_list, old_dict, new_dict, ftp_refseq, new_refseq):
+#         '''
+#         compare the genomes existing in both folders ( FTP folder and previous gtdb update).
+#
+#         :param intersect_list:
+#         :param old_dict:
+#         :param new_dict:
+#         '''
+#         for gcf_record in intersect_list:
+#             gtdb_dir = old_dict.get(gcf_record)
+#             ftp_dir = new_dict.get(gcf_record)
+#             target_dir = os.path.join(new_refseq, ftp_dir.replace(ftp_refseq, ''))
+#             self.readmd5Checksum(
+#                 gtdb_dir, ftp_dir, target_dir, gcf_record)
+#=========================================================================
+
+    def compareGenomes(self, intersect_list, old_dict, new_dict, ftp_refseq, new_refseq, threads):
         '''
         compare the genomes existing in both folders ( FTP folder and previous gtdb update).
 
@@ -164,15 +224,68 @@ class UpdateRefSeqFolder(object):
         :param old_dict:
         :param new_dict:
         '''
+        # populate worker queue with data to process
+        workerQueue = mp.Queue()
+        writerQueue = mp.Queue()
+
         for gcf_record in intersect_list:
             gtdb_dir = old_dict.get(gcf_record)
             ftp_dir = new_dict.get(gcf_record)
-            target_dir = ftp_dir.replace(ftp_refseq, new_refseq).replace(
-                "latest_assembly_versions/", "")
-            self.readmd5Checksum(
-                gtdb_dir, ftp_dir, target_dir, gcf_record, domain)
+            target_dir = os.path.join(
+                new_refseq, ftp_dir.replace(ftp_refseq, ''))
+            workerQueue.put((gtdb_dir, ftp_dir, target_dir, gcf_record))
 
-    def readmd5Checksum(self, gtdb_dir, ftp_dir, target_dir, gcf_record, domain):
+        for _ in range(threads):
+            workerQueue.put((None, None, None, None))
+
+        workerProc = [mp.Process(target=self.__workerThread, args=(
+            workerQueue, writerQueue)) for _ in range(threads)]
+        writeProc = mp.Process(target=self.__writerThread, args=(
+            len(intersect_list), writerQueue))
+
+        writeProc.start()
+
+        for p in workerProc:
+            p.start()
+
+        for p in workerProc:
+            p.join()
+
+        writerQueue.put(None)
+        writeProc.join()
+
+        writeProc.terminate()
+
+    def __workerThread(self, queueIn, queueOut):
+        """Process each data item in parallel."""
+        while True:
+            gtdb_dir, ftp_dir, target_dir, gca_record = queueIn.get(
+                block=True, timeout=None)
+            if gca_record is None:
+                break
+
+            status_gcf = self.readmd5Checksum(
+                gtdb_dir, ftp_dir, target_dir, gca_record)
+            queueOut.put(status_gcf)
+
+    def __writerThread(self, numgenometoprocess, writerQueue):
+        """Store or write results of worker threads in a single thread."""
+        processedItems = 0
+        while True:
+            a = writerQueue.get(block=True, timeout=None)
+            if a is None:
+                break
+            self.report_gcf.write(a)
+
+            processedItems += 1
+            statusStr = 'Finished processing %d of %d (%.2f%%) genome pairs.' % (
+                processedItems, numgenometoprocess, float(processedItems) * 100 / numgenometoprocess)
+            sys.stdout.write('%s\r' % statusStr)
+            sys.stdout.flush()
+
+        sys.stdout.write('\n')
+
+    def readmd5Checksum(self, gtdb_dir, ftp_dir, target_dir, gcf_record):
         '''
         Compare the checksum of the file listed in the checksums.txt
         '''
@@ -183,9 +296,10 @@ class UpdateRefSeqFolder(object):
 
         tmp_ftp_dir = tempfile.mkdtemp()
         tmp_target = os.path.join(tmp_ftp_dir, os.path.basename(target_dir))
-        shutil.copytree(ftp_dir, tmp_target, symlinks=True, ignore=shutil.ignore_patterns("*_assembly_structure"))
+        shutil.copytree(ftp_dir, tmp_target, symlinks=True,
+                        ignore=shutil.ignore_patterns("*_assembly_structure"))
         for compressed_file in glob.glob(tmp_target + "/*.gz"):
-            if os.path.isdir(compressed_file) == False:
+            if os.path.isdir(compressed_file) is False:
                 inF = gzip.open(compressed_file, 'rb')
                 try:
                     outF = open(
@@ -200,18 +314,21 @@ class UpdateRefSeqFolder(object):
                 outF.close()
                 os.remove(compressed_file)
 
-        ftpdict, ftpdict_fasta, ftpdict_faa, ftpdict_extra_fasta = self.parse_checksum(tmp_target)
-        gtdbdict, gtdbdict_fasta, gtdbdict_faa, gtdbdict_extra_fasta = self.parse_checksum(gtdb_dir)
+        ftpdict, ftpdict_fasta, ftpdict_faa, ftpdict_extra_fasta = self.parse_checksum(
+            tmp_target)
+        gtdbdict, gtdbdict_fasta, gtdbdict_faa, gtdbdict_extra_fasta = self.parse_checksum(
+            gtdb_dir)
 
         # if the genomic.fna.gz or the protein.faa.gz are missing, we set this
         # record as incomplete
         if len(list(set(ftpdict_fasta.keys()).symmetric_difference(set(gtdbdict_fasta.keys())))) > 0:
-            print tmp_target
-            print ftpdict_fasta.keys()
-            print gtdb_dir
-            print gtdbdict_fasta.keys()
+            self.genomes_to_review.write("tmp_target:{}\nftpdict_fasta.keys():{}\ngtdb_dir:{}\ngtdbdict_fasta.keys():{}\n\n".format(tmp_target,
+                                                                                                                                    ftpdict_fasta.keys(),
+                                                                                                                                    gtdb_dir,
+                                                                                                                                    gtdbdict_fasta.keys()))
             status.append("incomplete")
-            shutil.copytree(tmp_target, target_dir, symlinks=True, ignore=shutil.ignore_patterns("*_assembly_structure"))
+            shutil.copytree(tmp_target, target_dir, symlinks=True,
+                            ignore=shutil.ignore_patterns("*_assembly_structure"))
             # we unzip of gz file
 
         else:
@@ -278,20 +395,22 @@ class UpdateRefSeqFolder(object):
                     elif len(target_files) == 0 and len(ftp_files) == 0 and report == '_hashes.txt':
                         status.append("old_folder_dir")
                     elif len(target_files) == 0 and len(ftp_files) == 1 and report == '_hashes.txt':
-                        shutil.copy2(ftp_dir[0], ftp_dir[0].replace(ftp_dir.target_dir))
+                        shutil.copy2(ftp_dir[0], ftp_dir[0].replace(
+                            ftp_dir.target_dir))
                         status.append("new_hashes")
                     else:
-                        print "########"
-                        print target_dir
-                        print target_files
-                        print ftp_dir
-                        print ftp_files
-                        print "IT SHOULDN'T HAPPEN"
-                        print "########"
+                        print("########")
+                        print(target_dir)
+                        print(target_files)
+                        print(ftp_dir)
+                        print(ftp_files)
+                        print("IT SHOULDN'T HAPPEN")
+                        print("########")
                         sys.exit()
-        self.report_gcf.write("{0}\t{1}\t{2}\n".format(
-            domain.upper(), gcf_record, ';'.join([x for x in set(status)])))
+        status_gcf = "{0}\t{1}\t{2}\n".format(self.genome_domain_dict.get(
+            gcf_record).upper(), gcf_record, ';'.join([x for x in set(status)]))
         shutil.rmtree(tmp_ftp_dir)
+        return status_gcf
 
 # Tools
 
@@ -351,13 +470,16 @@ class UpdateRefSeqFolder(object):
 
         for name in glob.glob(os.path.join(pathtodir, '*')):
             if name.endswith(self.extrafastaExts):
-                out_dict_extra_fasta[os.path.basename(name)] = self.sha256Calculator(name)
+                out_dict_extra_fasta[os.path.basename(
+                    name)] = self.sha256Calculator(name)
                 os.chmod(name, 0o664)
             elif name.endswith(self.genomic_ext):
-                out_dict_fasta[os.path.basename(name)] = self.sha256Calculator(name)
+                out_dict_fasta[os.path.basename(
+                    name)] = self.sha256Calculator(name)
                 os.chmod(name, 0o664)
             elif name.endswith(self.protein_ext):
-                out_dict_faa[os.path.basename(name)] = self.sha256Calculator(name)
+                out_dict_faa[os.path.basename(
+                    name)] = self.sha256Calculator(name)
                 os.chmod(name, 0o664)
             elif name.endswith(self.allbutFasta):
                 out_dict[os.path.basename(name)] = self.sha256Calculator(name)
@@ -366,8 +488,8 @@ class UpdateRefSeqFolder(object):
 
 
 if __name__ == "__main__":
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -379,15 +501,21 @@ if __name__ == "__main__":
                         help='metadata file listing all directories for the FTP folder (generated by genome_dirs.py)')
     parser.add_argument('--old_genome_dirs_file', dest="old_genome_dirs", required=True,
                         help='metadata file listing all directories from the previous NCBI update date  (generated by genome_dirs.py)')
+    parser.add_argument('--arc_assembly_summary', required=True,
+                        help='metadata file downloaded from ncbi.')
+    parser.add_argument('--bac_assembly_summary', required=True,
+                        help='metadata file downloaded from ncbi.')
+    parser.add_argument('--cpus', type=int, default=1,
+                        help='Number of cpus')
 
     args = parser.parse_args()
 
     try:
-        update_mngr = UpdateRefSeqFolder(args.new_refseq)
+        update_mngr = UpdateRefSeqFolder(args.new_refseq, args.cpus)
         update_mngr.runComparison(
-            args.ftp_refseq, args.new_refseq, args.ftp_genome_dirs, args.old_genome_dirs)
+            args.ftp_refseq, args.new_refseq, args.ftp_genome_dirs, args.old_genome_dirs, args.arc_assembly_summary, args.bac_assembly_summary)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

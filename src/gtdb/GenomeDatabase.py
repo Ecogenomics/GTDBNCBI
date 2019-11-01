@@ -1571,8 +1571,6 @@ class GenomeDatabase(object):
 
         return True
 
-
-
     def ReportStats(self):
         """Report general database statistics."""
 
@@ -1792,7 +1790,7 @@ class GenomeDatabase(object):
         try:
             cur = self.conn.cursor()
             power_user_mngr = PowerUserManager(
-                cur, self.currentUser, self.db_release)
+                cur, self.currentUser, self.db_release, self.threads)
             power_user_mngr.RealignNCBIgenomes()
 
             cur.close()

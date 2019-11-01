@@ -64,7 +64,8 @@ class TigrfamTopHit(object):
                 break
 
             assembly_dir, filename = os.path.split(tigrfam_file)
-            output_tophit_file = os.path.join(assembly_dir, filename.replace(self.tigrfam_ext, '_tigrfam_tophit.tsv'))
+            output_tophit_file = os.path.join(assembly_dir, filename.replace(
+                self.tigrfam_ext, '_tigrfam_tophit.tsv'))
 
             tophits = {}
             for line in open(tigrfam_file):
@@ -107,36 +108,57 @@ class TigrfamTopHit(object):
                 break
 
             processedItems += 1
-            statusStr = 'Finished processing %d of %d (%.2f%%) items.' % (processedItems, numDataItems, float(processedItems) * 100 / numDataItems)
+            statusStr = 'Finished processing %d of %d (%.2f%%) items.' % (
+                processedItems, numDataItems, float(processedItems) * 100 / numDataItems)
             sys.stdout.write('%s\r' % statusStr)
             sys.stdout.flush()
 
         sys.stdout.write('\n')
 
-    def run(self, genome_dir, threads):
+    def run(self, input_dir, threads):
         # get path to all unprocessed TIGRfam HMM result files
         print 'Reading TIGRfam HMM files.'
         tigrfam_files = []
-        for genome_id in os.listdir(genome_dir):
-            cur_genome_dir = os.path.join(genome_dir, genome_id)
-            if os.path.isdir(cur_genome_dir):
-                for assembly_id in os.listdir(cur_genome_dir):
-                    assembly_dir = os.path.join(cur_genome_dir, assembly_id)
-                    groups = assembly_id.split('_')
-                    processed_assembly_id = '_'.join(groups[:2])
-                    tigrfam_tophit_file = os.path.join(assembly_dir, 'prodigal', processed_assembly_id + '_tigrfam_tophit.tsv')
-                    if os.path.exists(tigrfam_tophit_file):
-                        # verify checksum
-                        checksum_file = tigrfam_tophit_file + '.sha256'
-                        if os.path.exists(checksum_file):
-                            checksum = sha256(tigrfam_tophit_file)
-                            cur_checksum = open(checksum_file).readline().strip()
-                            if checksum == cur_checksum:
-                                continue
+        for first_three in os.listdir(input_dir):
+            onethird_species_dir = os.path.join(input_dir, first_three)
+            print onethird_species_dir
+            if os.path.isfile(onethird_species_dir):
+                continue
+            for second_three in os.listdir(onethird_species_dir):
+                twothird_species_dir = os.path.join(
+                    onethird_species_dir, second_three)
+                # print twothird_species_dir
+                if os.path.isfile(twothird_species_dir):
+                    continue
+                for third_three in os.listdir(twothird_species_dir):
+                    threethird_species_dir = os.path.join(
+                        twothird_species_dir, third_three)
+                    # print threethird_species_dir
+                    if os.path.isfile(threethird_species_dir):
+                        continue
+                    for complete_name in os.listdir(threethird_species_dir):
+                        assembly_dir = os.path.join(
+                            threethird_species_dir, complete_name)
+                        if os.path.isfile(assembly_dir):
+                            continue
+                        groups = complete_name.split('_')
+                        processed_assembly_id = '_'.join(groups[:2])
+                        tigrfam_tophit_file = os.path.join(
+                            assembly_dir, 'prodigal', processed_assembly_id + '_tigrfam_tophit.tsv')
+                        if os.path.exists(tigrfam_tophit_file):
+                            # verify checksum
+                            checksum_file = tigrfam_tophit_file + '.sha256'
+                            if os.path.exists(checksum_file):
+                                checksum = sha256(tigrfam_tophit_file)
+                                cur_checksum = open(
+                                    checksum_file).readline().strip()
+                                if checksum == cur_checksum:
+                                    continue
 
-                    tigrfam_file = os.path.join(assembly_dir, 'prodigal', processed_assembly_id + self.tigrfam_ext)
-                    if os.path.exists(tigrfam_file):
-                        tigrfam_files.append(tigrfam_file)
+                        tigrfam_file = os.path.join(
+                            assembly_dir, 'prodigal', processed_assembly_id + self.tigrfam_ext)
+                        if os.path.exists(tigrfam_file):
+                            tigrfam_files.append(tigrfam_file)
 
         print '  Number of unprocessed genomes: %d' % len(tigrfam_files)
 
@@ -151,8 +173,10 @@ class TigrfamTopHit(object):
             workerQueue.put(None)
 
         try:
-            workerProc = [mp.Process(target=self.__workerThread, args=(workerQueue, writerQueue)) for _ in range(threads)]
-            writeProc = mp.Process(target=self.__writerThread, args=(len(tigrfam_files), writerQueue))
+            workerProc = [mp.Process(target=self.__workerThread, args=(
+                workerQueue, writerQueue)) for _ in range(threads)]
+            writeProc = mp.Process(target=self.__writerThread, args=(
+                len(tigrfam_files), writerQueue))
 
             writeProc.start()
 
@@ -170,13 +194,17 @@ class TigrfamTopHit(object):
 
             writeProc.terminate()
 
+
 if __name__ == '__main__':
     print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
     print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('genome_dir', help='directory containing genomes in individual directories')
-    parser.add_argument('-t', '--threads', type=int, help='number of threads', default=1)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        'genome_dir', help='directory containing genomes in individual directories')
+    parser.add_argument('-t', '--threads', type=int,
+                        help='number of threads', default=1)
 
     args = parser.parse_args()
 
