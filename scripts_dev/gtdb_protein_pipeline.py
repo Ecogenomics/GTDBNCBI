@@ -79,10 +79,10 @@ class Pipeline(object):
                     
                 if 'transl_table=' in line:
                     trans_num = line[line.rfind('=')+1:].strip()
-                    gene_feature_file = int(trans_num)
+                    ncbi_transl_table = int(trans_num)
                     break
                     
-        return gene_feature_file
+        return ncbi_transl_table
         
     def _run_prodigal(self, genome_paths):
         """Run Prodigal on genomes."""
