@@ -56,6 +56,11 @@ class RunProdigal(object):
 
     def __init__(self):
         check_dependencies(['prodigal'])
+        
+        print('SCRIPT NEEDS IMPROVEMENT!')
+        print('Prodigal should use the translation table specified by NCBI.')
+        print('See gtdb_protein_pipeline.py for example.')
+        sys.exit(-1)
 
     def run(self, input_dir, tmp_dir, threads):
         # get path to all unprocessed genome files
