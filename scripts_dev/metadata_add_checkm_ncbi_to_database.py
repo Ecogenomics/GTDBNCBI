@@ -69,6 +69,7 @@ class AddCheckM(object):
         for header, data in self.metadata.iteritems():
             db_header, data_type = data
 
+            num_genomes = 0
             temp_file = tempfile.NamedTemporaryFile(delete=False)
             with open(checkm_profile_file) as f:
                 headers = f.readline().rstrip().split('\t')
@@ -76,8 +77,8 @@ class AddCheckM(object):
 
                 for line in f:
                     line_split = line.rstrip().split('\t')
-                    genome_id = line_split[0]
-                    genome_id = genome_id[0:genome_id.find('_', 4)]
+                    orig_genome_id = line_split[0]
+                    genome_id = orig_genome_id[0:orig_genome_id.find('_', 4)]
 
                     if genome_id.startswith('GCA_'):
                         genome_id = 'GB_' + genome_id
@@ -85,10 +86,16 @@ class AddCheckM(object):
                         genome_id = 'RS_' + genome_id
 
                     if genome_id not in genome_list:
+                        print('Skipping genome: {}'.format(genome_id))
                         continue
 
                     data = line_split[col_index]
                     temp_file.write('%s\t%s\n' % (genome_id, data))
+                    num_genomes += 1
+                    
+            if num_genomes == 0:
+                print('No genomes identified.')
+                sys.exit(-1)
 
             temp_file.close()
             cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_genes', db_header, data_type, temp_file.name)

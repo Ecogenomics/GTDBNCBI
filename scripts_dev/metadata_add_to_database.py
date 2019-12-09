@@ -107,21 +107,24 @@ class AddMetadata(object):
                 response = raw_input(
                     "Set fields to NULL for all genomes [y/n]: ")
 
-            if response.lower() == 'n':
-                sys.exit(0)
-
-            self.logger.info('Connecting to %s.' % gtdb_version)
-            self.setup_db(gtdb_version)
-            cur = self.db.conn.cursor()
-
-            for field in metadata_table:
-                q = ("UPDATE {} SET {} = NULL".format(
-                    metadata_table[field], field))
+            if response.lower() == 'y':
+                self.logger.info('Connecting to %s.' % gtdb_version)
+                self.setup_db(gtdb_version)
+                cur = self.db.conn.cursor()
+        
+                for field in metadata_table:
+                    q = ("UPDATE {} SET {} = NULL".format(
+                        metadata_table[field], field))
                 print(q)
                 cur.execute(q)
                 self.db.conn.commit()
 
-            cur.close()
+                cur.close()
+            elif response.lower() == 'n':
+                pass
+            else:
+                self.logger.error('Unrecognized input.')
+                sys.exit(-1)
 
         # get genomes to process
         genome_list = set()
@@ -156,7 +159,7 @@ class AddMetadata(object):
             table = metadata_table[field]
 
             records_to_update = 0
-            for genome_id, value in metadata[field].iteritems():
+            for orig_genome_id, value in metadata[field].iteritems():
 
                 try:
                     if float(value) and data_type in ['INT', 'INTEGER']:
@@ -167,12 +170,15 @@ class AddMetadata(object):
                     pass
 
                 if value.strip():
+                    genome_id = str(orig_genome_id)
                     if genome_id.startswith('GCA_'):
                         genome_id = 'GB_' + genome_id
                     elif genome_id.startswith('GCF_'):
                         genome_id = 'RS_' + genome_id
 
-                    if not genome_list or genome_id in genome_list:
+                    if (not genome_list 
+                            or genome_id in genome_list 
+                            or orig_genome_id in genome_list):
                         temp_file.write('%s\t%s\n' % (genome_id, value))
                         records_to_update += 1
 

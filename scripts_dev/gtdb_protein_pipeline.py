@@ -392,16 +392,16 @@ class Pipeline(object):
                 gpath = line_split[1]
                 genome_paths[gid] = gpath
                 
-                #***prodigal_dir = os.path.join(gpath, 'prodigal')
-                #***if os.path.exists(prodigal_dir):
-                #***    shutil.rmtree(prodigal_dir)
+                prodigal_dir = os.path.join(gpath, 'prodigal')
+                if os.path.exists(prodigal_dir):
+                    shutil.rmtree(prodigal_dir)
 
         # run Prodigal
-        #***self._run_prodigal(genome_paths)
+        self._run_prodigal(genome_paths)
         
         # run TIGRfam and Pfam
-        #***self._run_annotation(genome_paths, self.__tigr_worker, 'TIGRfam')
-        #***self._run_annotation(genome_paths, self.__pfam_worker, 'Pfam')
+        self._run_annotation(genome_paths, self.__tigr_worker, 'TIGRfam')
+        self._run_annotation(genome_paths, self.__pfam_worker, 'Pfam')
         
         # calculate protein metadata
         self._protein_metadata(genome_paths)
