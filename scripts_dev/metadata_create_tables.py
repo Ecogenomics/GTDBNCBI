@@ -53,19 +53,20 @@ class MetadataTable(object):
         self.ssu_gg_taxonomy_file = os.path.join('ssu_gg', 'ssu.taxonomy.tsv')
         self.ssu_gg_fna_file = os.path.join('ssu_gg', 'ssu.fna')
         self.ssu_silva_taxonomy_file = os.path.join(
-            'rna_silva', 'ssu.taxonomy.tsv')
-        self.ssu_silva_fna_file = os.path.join('rna_silva', 'ssu.fna')
+            'rna_silva_132', 'ssu.taxonomy.tsv')
+        self.ssu_silva_fna_file = os.path.join('rna_silva_132', 'ssu.fna')
         self.ssu_silva_summary_file = os.path.join(
-            'rna_silva', 'ssu.hmm_summary.tsv')
+            'rna_silva_132', 'ssu.hmm_summary.tsv')
         self.lsu_silva_23s_taxonomy_file = os.path.join(
-            'rna_silva', 'lsu_23S.taxonomy.tsv')
-        self.lsu_silva_23s_fna_file = os.path.join('rna_silva', 'lsu_23S.fna')
+            'rna_silva_132', 'lsu_23S.taxonomy.tsv')
+        self.lsu_silva_23s_fna_file = os.path.join(
+            'rna_silva_132', 'lsu_23S.fna')
         self.lsu_silva_23s_summary_file = os.path.join(
-            'rna_silva', 'lsu_23S.hmm_summary.tsv')
+            'rna_silva_132', 'lsu_23S.hmm_summary.tsv')
 
-        self.lsu_5S_fna_file = os.path.join('lsu_5S', 'lsu_5S.fna')
+        self.lsu_5S_fna_file = os.path.join('rna_silva_132', 'lsu_5S.fna')
         self.lsu_5S_summary_file = os.path.join(
-            'lsu_5S', 'lsu_5S.hmm_summary.tsv')
+            'rna_silva_132', 'lsu_5S.hmm_summary.tsv')
 
         self.write_nt_header = True
         self.write_gene_header = True
