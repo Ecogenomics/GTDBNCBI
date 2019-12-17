@@ -79,10 +79,10 @@ class Pipeline(object):
                     
                 if 'transl_table=' in line:
                     trans_num = line[line.rfind('=')+1:].strip()
-                    gene_feature_file = int(trans_num)
+                    ncbi_transl_table = int(trans_num)
                     break
                     
-        return gene_feature_file
+        return ncbi_transl_table
         
     def _run_prodigal(self, genome_paths):
         """Run Prodigal on genomes."""
@@ -392,16 +392,16 @@ class Pipeline(object):
                 gpath = line_split[1]
                 genome_paths[gid] = gpath
                 
-                #***prodigal_dir = os.path.join(gpath, 'prodigal')
-                #***if os.path.exists(prodigal_dir):
-                #***    shutil.rmtree(prodigal_dir)
+                prodigal_dir = os.path.join(gpath, 'prodigal')
+                if os.path.exists(prodigal_dir):
+                    shutil.rmtree(prodigal_dir)
 
         # run Prodigal
-        #***self._run_prodigal(genome_paths)
+        self._run_prodigal(genome_paths)
         
         # run TIGRfam and Pfam
-        #***self._run_annotation(genome_paths, self.__tigr_worker, 'TIGRfam')
-        #***self._run_annotation(genome_paths, self.__pfam_worker, 'Pfam')
+        self._run_annotation(genome_paths, self.__tigr_worker, 'TIGRfam')
+        self._run_annotation(genome_paths, self.__pfam_worker, 'Pfam')
         
         # calculate protein metadata
         self._protein_metadata(genome_paths)

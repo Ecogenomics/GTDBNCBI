@@ -56,7 +56,7 @@ class RunCheckm(object):
         """Initialization."""
         pass
 
-    def run(self, genome_dir, genome_report, process_all, cpus, output_dir):
+    def run(self, genome_dir, gtdb_genome_path_file, genome_report, process_all, cpus, output_dir):
         """Applying CheckM to genomes."""
 
         tmp_dir = os.path.join(output_dir, 'genome_chunks')
@@ -83,49 +83,61 @@ class RunCheckm(object):
 
             # determine gene files
             gene_files = []
-            assembly_ids = {}
-            for first_three in os.listdir(genome_dir):
-                onethird_species_dir = os.path.join(genome_dir, first_three)
-                print onethird_species_dir
-                if os.path.isfile(onethird_species_dir):
-                    continue
-                for second_three in os.listdir(onethird_species_dir):
-                    twothird_species_dir = os.path.join(
-                        onethird_species_dir, second_three)
-                    # print twothird_species_dir
-                    if os.path.isfile(twothird_species_dir):
+            
+            if gtdb_genome_path_file:
+                genome_paths = {}
+                for line in open(gtdb_genome_path_file):
+                    line_split = line.strip().split('\t')
+                    genome_paths[line_split[0]] = line_split[1]
+                
+                for gid in genomes_to_consider:
+                    gpath = genome_paths[gid]
+                    gene_file = os.path.join(gpath, 'prodigal', gid + '_protein.faa')
+                    gene_files.append(gene_file)
+            else:
+                assembly_ids = {}
+                for first_three in os.listdir(genome_dir):
+                    onethird_species_dir = os.path.join(genome_dir, first_three)
+                    print onethird_species_dir
+                    if os.path.isfile(onethird_species_dir):
                         continue
-                    for third_three in os.listdir(twothird_species_dir):
-                        threethird_species_dir = os.path.join(
-                            twothird_species_dir, third_three)
-                        # print threethird_species_dir
-                        if os.path.isfile(threethird_species_dir):
+                    for second_three in os.listdir(onethird_species_dir):
+                        twothird_species_dir = os.path.join(
+                            onethird_species_dir, second_three)
+                        # print twothird_species_dir
+                        if os.path.isfile(twothird_species_dir):
                             continue
-                        for complete_name in os.listdir(threethird_species_dir):
-                            assembly_dir = os.path.join(
-                                threethird_species_dir, complete_name)
-                            if os.path.isfile(assembly_dir):
+                        for third_three in os.listdir(twothird_species_dir):
+                            threethird_species_dir = os.path.join(
+                                twothird_species_dir, third_three)
+                            # print threethird_species_dir
+                            if os.path.isfile(threethird_species_dir):
                                 continue
-                            genome_id = complete_name[0:complete_name.find(
-                                '_', 4)]
-                            if genome_report != 'None' and genome_id not in genomes_to_consider:
-                                continue
+                            for complete_name in os.listdir(threethird_species_dir):
+                                assembly_dir = os.path.join(
+                                    threethird_species_dir, complete_name)
+                                if os.path.isfile(assembly_dir):
+                                    continue
+                                genome_id = complete_name[0:complete_name.find(
+                                    '_', 4)]
+                                if genome_report != 'None' and genome_id not in genomes_to_consider:
+                                    continue
 
-                            if complete_name in assembly_ids:
-                                print 'Duplicate assembly_id:'
-                                print assembly_ids[complete_name]
-                                print assembly_dir
-                                continue
+                                if complete_name in assembly_ids:
+                                    print 'Duplicate assembly_id:'
+                                    print assembly_ids[complete_name]
+                                    print assembly_dir
+                                    continue
 
-                            assembly_ids[complete_name] = assembly_dir
+                                assembly_ids[complete_name] = assembly_dir
 
-                            gene_file = os.path.join(
-                                assembly_dir, 'prodigal', genome_id + '_protein.faa')
-                            if os.path.exists(gene_file):
-                                if os.stat(gene_file).st_size == 0:
-                                    print '[Warning] Protein file appears to be empty: %s' % gene_file
-                                else:
-                                    gene_files.append(gene_file)
+                                gene_file = os.path.join(
+                                    assembly_dir, 'prodigal', genome_id + '_protein.faa')
+                                if os.path.exists(gene_file):
+                                    if os.stat(gene_file).st_size == 0:
+                                        print '[Warning] Protein file appears to be empty: %s' % gene_file
+                                    else:
+                                        gene_files.append(gene_file)
             print '  Identified %d gene files.' % len(gene_files)
 
             # copy genomes in batches of 1000
@@ -239,6 +251,7 @@ if __name__ == '__main__':
     parser.add_argument(
         'genome_report', help='report log indicating new, modified, unmodified, ..., genomes')
     parser.add_argument('output_dir', help='output directory')
+    parser.add_argument('--gtdb_genome_path_file', help='file indicating path to GTDB genomes; used instead of search through all genome directories')
     parser.add_argument('--all', action='store_true',
                         help='process all genomes')
     parser.add_argument(
@@ -248,8 +261,12 @@ if __name__ == '__main__':
 
     try:
         runCheckm = RunCheckm()
-        runCheckm.run(args.genome_dir, args.genome_report,
-                      args.all, args.cpus, args.output_dir)
+        runCheckm.run(args.genome_dir, 
+                        args.gtdb_genome_path_file,
+                        args.genome_report,
+                        args.all, 
+                        args.cpus, 
+                        args.output_dir)
     except SystemExit:
         print "\nControlled exit resulting from an unrecoverable error or warning."
     except:
