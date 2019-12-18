@@ -364,6 +364,7 @@ class GenomeRepresentativeManager(object):
 
         arc_aa_per = (aligned_arc_count * 100.0 / len_arc_marker)
         bac_aa_per = (aligned_bac_count * 100.0 / len_bac_marker)
+
         if arc_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD and bac_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
             domain = None
         elif bac_aa_per >= arc_aa_per:
@@ -389,24 +390,23 @@ class GenomeRepresentativeManager(object):
             "SELECT count(*) from marker_set_contents where set_id = 2;")
         len_arc_marker = self.cur.fetchone()[0]
 
+        # get mapping from internal to external genome IDs
         genome_mngr = GenomeManager(self.cur, self.currentUser)
+        external_genome_ids = genome_mngr.genomeIdsToExternalGenomeIds(genome_ids)
 
         # process each genome
         fout = open(outfile, 'w')
         fout.write(
             'Genome Id\tPredicted domain\tArchaeal Marker Percentage\tBacterial Marker Percentage\tNCBI taxonomy\tGTDB taxonomy\n')
-        for genome_id in genome_ids:
-            query_taxonomy_req = ("SELECT gtdb_domain, ncbi_taxonomy, gtdb_taxonomy " +
-                                  "FROM metadata_taxonomy LEFT JOIN gtdb_taxonomy_view USING (id) " +
-                                  "WHERE id = %s;")
-            self.cur.execute(query_taxonomy_req, (genome_id,))
-            _gtdb_domain, ncbi_taxonomy, gtdb_taxonomy = self.cur.fetchone()
-
+            
+        query_taxonomy_req = ("SELECT id, ncbi_taxonomy, gtdb_taxonomy " +
+                                  "FROM metadata_taxonomy LEFT JOIN gtdb_taxonomy_view USING (id);")
+        self.cur.execute(query_taxonomy_req)
+        for genome_id, ncbi_taxonomy, gtdb_taxonomy in self.cur.fetchall():
             domain, arc_aa_per, bac_aa_per = self._domainAssignment(
                 genome_id, len_arc_marker, len_bac_marker)
 
-            external_genome_id = genome_mngr.genomeIdsToExternalGenomeIds([genome_id])[
-                genome_id]
+            external_genome_id = external_genome_ids[genome_id]
             fout.write('%s\t%s\t%.2f\t%.2f\t%s\t%s\n' % (
                 external_genome_id, domain, arc_aa_per, bac_aa_per, ncbi_taxonomy, gtdb_taxonomy))
 

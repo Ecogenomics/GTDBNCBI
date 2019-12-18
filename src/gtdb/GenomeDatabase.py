@@ -840,6 +840,7 @@ class GenomeDatabase(object):
                 genomes_to_exclude.update(db_genome_ids)
 
             # make sure all markers are aligned
+            self.logger.info('Verifying markers are aligned for {} genomes.'.format(len(genome_ids)))
             aligned_mngr = AlignedMarkerManager(
                 cur, self.threads, self.db_release)
             aligned_mngr.calculateAlignedMarkerSets(genome_ids, marker_ids)
@@ -894,7 +895,6 @@ class GenomeDatabase(object):
             return False
 
         if build_tree:
-
             if self.threads > 1:
                 check_dependencies(['FastTreeMP'])
             else:
