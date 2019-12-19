@@ -115,8 +115,8 @@ class AddMetadata(object):
                 for field in metadata_table:
                     q = ("UPDATE {} SET {} = NULL".format(
                         metadata_table[field], field))
-                print(q)
-                cur.execute(q)
+                    print(q)
+                    cur.execute(q)
                 self.db.conn.commit()
 
                 cur.close()
