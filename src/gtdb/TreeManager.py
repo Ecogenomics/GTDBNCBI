@@ -411,7 +411,7 @@ class TreeManager(object):
 
         # identify columns of interest
         genome_id_index = col_headers.index('id')
-        genome_name_index = col_headers.index('accession')
+        genome_name_index = col_headers.index('formatted_accession')
         col_headers.remove('id')
         col_headers.remove('accession')
 
@@ -891,7 +891,7 @@ class TreeManager(object):
         """Write out ARB record for genome."""
 
         # customize output relative to raw database table
-        if external_genome_id.startswith('GB') or external_genome_id.startswith('RS'):
+        if external_genome_id.startswith('G'):
             metadata_values = list(metadata_values)
             metadata_fields = list(metadata_fields)
             organism_name_index = metadata_fields.index('organism_name')
