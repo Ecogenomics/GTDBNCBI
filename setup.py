@@ -20,7 +20,7 @@ def add_py_scripts(root):
     return out
 
 
-py_scripts = ['bin/gtdb']
+py_scripts = ['src/gtdb.py']
 py_scripts.extend(add_py_scripts('scripts_user'))
 py_scripts.extend(add_py_scripts('scripts_dev'))
 
@@ -29,7 +29,8 @@ setup(
     version=version(),
     author='Pierre-Alain Chaumeil and Donovan Parks',
     author_email='donovan.parks@gmail.com',
-    packages=['src/gtdb'],
+    packages=['gtdb'],
+    package_dir= {'gtdb': 'src/gtdb'},
     scripts=py_scripts,
     package_data={'gtdb': ['VERSION',
                            'MANIFEST.in']},
