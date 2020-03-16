@@ -20,7 +20,7 @@ def add_py_scripts(root):
     return out
 
 
-py_scripts = ['src/gtdb.py']
+py_scripts = ['bin/gtdb']
 py_scripts.extend(add_py_scripts('scripts_user'))
 py_scripts.extend(add_py_scripts('scripts_dev'))
 
@@ -34,11 +34,17 @@ setup(
     scripts=py_scripts,
     package_data={'gtdb': ['VERSION',
                            'MANIFEST.in']},
+    data_files=[('', ['src/VERSION', 'README.md'])],
     url='https://github.com/Ecogenomics/GTDBNCBI',
     license='GPL3',
     description='The GTDB provides the software infrastructure for working with a large collections of genomic resources.',
     long_description=open('README.md').read(),
     install_requires=[
-        "numpy >= 1.8.0"
+        "numpy >= 1.8.0",
+        'biolib < 0.1.0',
+        'requests',
+        'unidecode',
+        'matplotlib',
+        'python-dateutil'
     ]
 )
