@@ -28,8 +28,7 @@ def version():
     str
         Software, NCBI database, and GTDB database versions.
     """
-    dir_src = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    with open(os.path.join(dir_src, 'VERSION')) as fh:
+    with open(os.path.join(os.path.dirname(__file__), 'VERSION')) as fh:
         software_version = fh.readline().strip()
         software_version = software_version[software_version.find('=') + 1:]
 
@@ -43,3 +42,5 @@ def version():
         taxonomy_version = taxonomy_version[taxonomy_version.find('=') + 1:]
 
     return software_version, ncbi_version, gtdb_version, taxonomy_version
+
+__version__, __ncbi_version__, __gtdb_version__, __taxonomy_version__ = version()

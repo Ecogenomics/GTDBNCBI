@@ -30,7 +30,7 @@ from biolib.misc.custom_help_formatter import CustomHelpFormatter
 from gtdb import Config
 from gtdb import DefaultValues
 from gtdb import GenomeDatabase
-from gtdb import version
+from gtdb import __version__, __ncbi_version__, __gtdb_version__, __taxonomy_version__
 from gtdb.Exceptions import GenomeDatabaseError, DumpDBErrors, DumpDBWarnings, ErrorReport
 from gtdb.Tools import confirm
 
@@ -43,9 +43,7 @@ def versionInfo():
     str
         String indication software and NCBI version information.
     """
-
-    software_version, ncbi_version, gtdb_version, taxonomy_version = version()
-    return 'GTDB v{0} (NCBI RefSeq {1}; Internal database v{2}; Taxonomy {3})'.format(software_version, ncbi_version, gtdb_version, taxonomy_version)
+    return 'GTDB v{0} (NCBI RefSeq {1}; Internal database v{2}; Taxonomy {3})'.format(__version__, __ncbi_version__, __gtdb_version__, __taxonomy_version__)
 
 
 def loggerSetup(output_dir, release, silent=False):
