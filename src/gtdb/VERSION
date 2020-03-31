@@ -1,10 +1,14 @@
-software_version=2.3.0
+software_version=2.3.2
 ncbi_database_version=release 95
 gtdb_version=1.4.1
 taxonomy_version=v95.0
 
 GTDB software versions
 ----------------------
+v2.3.2 (March 31, 2020):
+- Improved packaging for installation.
+v2.3.1 (March 18, 2020):
+- Improved packaging for installation.
 v2.3.0 (March 15,2019):
 - Trimming similar to GTDB-Tk.
 - Multiple identical genes included in MSA.
