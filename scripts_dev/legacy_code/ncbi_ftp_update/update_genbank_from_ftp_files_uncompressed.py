@@ -201,6 +201,7 @@ class UpdateGenbankFolder(object):
             target_dir = os.path.join(
                 new_genbank, ftp_dir.replace(ftp_genbank, ''))
             workerQueue.put((gtdb_dir, ftp_dir, target_dir, gca_record))
+            break
 
         for _ in range(threads):
             workerQueue.put((None, None, None, None))
