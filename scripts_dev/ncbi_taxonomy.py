@@ -220,6 +220,8 @@ class TaxonomyNCBI(object):
             return False, "name contains the word 'archeaon'"
         if " archaeum" in sp_name.lower():
             return False, "name contains the word 'archaeum'"
+        if "cyanobacterium" in sp_name.lower().split()[-1]:
+            return False, "specific name is 'cyanobacterium'"
         if " group" in sp_name.lower():
             return False, "name contains 'group'"
         if " subdivision" in sp_name.lower():

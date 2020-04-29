@@ -98,10 +98,28 @@ class RNA_LTP(object):
                                                            total_items,
                                                            processed_items * 100.0 / total_items)
 
-    def run(self, ncbi_genome_dir, user_genome_dir, cpus):
+    def run(self, ncbi_genome_dir, user_genome_dir, genome_path_file, cpus):
         """Create metadata by parsing assembly stats files."""
 
         input_files = []
+
+        # process genomes specified in genome path file
+        if genome_path_file:
+            print('Processing genomes in genome path file.')
+            
+            with open(genome_path_file) as f:
+                for idx, line in enumerate(f):
+                    tokens = line.strip().split('\t')
+
+                    gp = tokens[1]
+                    ssu_file = os.path.join(gp, self.silva_output_dir, 'ssu.fna')
+                    if os.path.exists(ssu_file):
+                        assembly_id = os.path.basename(os.path.normpath(gp))
+                        genome_file = os.path.join(gp, assembly_id + '_genomic.fna')
+                        input_files.append((genome_file, ssu_file))
+                        
+                    if idx % 1000 == 0:
+                        print(idx)
 
         # generate metadata for NCBI assemblies
         if ncbi_genome_dir != 'NONE':
@@ -116,18 +134,21 @@ class RNA_LTP(object):
                     print onethird_species_dir
                     if os.path.isfile(onethird_species_dir):
                         continue
+                        
                     for second_three in os.listdir(onethird_species_dir):
                         twothird_species_dir = os.path.join(
                             onethird_species_dir, second_three)
                         # print twothird_species_dir
                         if os.path.isfile(twothird_species_dir):
                             continue
+                            
                         for third_three in os.listdir(twothird_species_dir):
                             threethird_species_dir = os.path.join(
                                 twothird_species_dir, third_three)
                             # print threethird_species_dir
                             if os.path.isfile(threethird_species_dir):
                                 continue
+                                
                             for complete_name in os.listdir(threethird_species_dir):
                                 assembly_dir = os.path.join(
                                     threethird_species_dir, complete_name)
@@ -189,6 +210,7 @@ if __name__ == '__main__':
         'ncbi_genome_dir', help='base directory leading to NCBI archaeal and bacterial genome assemblies or NONE to skip')
     parser.add_argument(
         'user_genome_dir', help='base directory leading to user genomes or NONE to skip')
+    parser.add_argument('--genome_path_file', help='path to genome directories to process; typically used with genome directories set to NONE')
     parser.add_argument('-t', '--threads',
                         help='number of CPUs to use', type=int, default=32)
 
@@ -198,7 +220,10 @@ if __name__ == '__main__':
 
     try:
         p = RNA_LTP()
-        p.run(args.ncbi_genome_dir, args.user_genome_dir, args.threads)
+        p.run(args.ncbi_genome_dir, 
+                args.user_genome_dir, 
+                args.genome_path_file,
+                args.threads)
     except SystemExit:
         print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
