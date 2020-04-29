@@ -413,7 +413,7 @@ class TreeManager(object):
         genome_id_index = col_headers.index('id')
         genome_name_index = col_headers.index('formatted_accession')
         col_headers.remove('id')
-        col_headers.remove('accession')
+        col_headers.remove('formatted_accession')
 
         # create ARB import filter
         arb_import_filter = os.path.join(directory, prefix + "_arb_filter.ift")
@@ -554,6 +554,7 @@ class TreeManager(object):
             # take special care of the genome identifier and name as these
             # are handle as a special case in the ARB metadata file
             genome_metadata = list(genome_metadata)
+
             db_genome_id = genome_metadata[genome_id_index]
             external_genome_id = genome_metadata[genome_name_index]
             del genome_metadata[max(genome_id_index, genome_name_index)]
@@ -894,19 +895,29 @@ class TreeManager(object):
         if external_genome_id.startswith('G'):
             metadata_values = list(metadata_values)
             metadata_fields = list(metadata_fields)
-            organism_name_index = metadata_fields.index('organism_name')
-            ncbi_organism_name_index = metadata_fields.index(
-                'ncbi_organism_name')
-            metadata_values[organism_name_index] = metadata_values[ncbi_organism_name_index]
             ncbi_taxonomy_index = metadata_fields.index('ncbi_taxonomy')
             ncbi_genus = metadata_values[ncbi_taxonomy_index].split(';')[
                 5].strip()
             ncbi_species = metadata_values[ncbi_taxonomy_index].split(';')[
                 6].strip()
-            metadata_fields.insert(ncbi_taxonomy_index + 1, 'ncbi_genus')
-            metadata_fields.insert(ncbi_taxonomy_index + 2, 'ncbi_species')
-            metadata_values.insert(ncbi_taxonomy_index + 1, ncbi_genus)
-            metadata_values.insert(ncbi_taxonomy_index + 2, ncbi_species)
+            if 'ncbi_genus' not in metadata_fields:
+                metadata_fields.insert(ncbi_taxonomy_index + 1, 'ncbi_genus')
+                metadata_values.insert(ncbi_taxonomy_index + 1, ncbi_genus)
+            else:
+                metadata_values.insert(
+                    metadata_fields.index('ncbi_genus'), ncbi_genus)
+
+            if 'ncbi_species' not in metadata_fields:
+                metadata_fields.insert(ncbi_taxonomy_index + 2, 'ncbi_species')
+                metadata_values.insert(ncbi_taxonomy_index + 2, ncbi_species)
+            else:
+                metadata_values.insert(metadata_fields.index(
+                    'ncbi_species'), ncbi_species)
+            organism_name_index = metadata_fields.index('organism_name')
+            ncbi_organism_name_index = metadata_fields.index(
+                'ncbi_organism_name')
+            metadata_values[organism_name_index] = metadata_values[ncbi_organism_name_index]
+            metadata_values[organism_name_index] = metadata_values[ncbi_organism_name_index]
 
         fout.write("BEGIN\n")
         fout.write("db_name=%s\n" % external_genome_id)

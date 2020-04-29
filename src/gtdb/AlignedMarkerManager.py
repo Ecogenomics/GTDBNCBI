@@ -200,7 +200,7 @@ class AlignedMarkerManager(object):
                             continue
 
                         evalue = sublist[1]
-                        bitscore = sublist[2].strip()
+                        bitscore = float(sublist[2].strip())
 
                         if markerid in gene_dict:
                             oldbitscore = gene_dict.get(
@@ -304,7 +304,7 @@ class AlignedMarkerManager(object):
             if len(result) < 1:
                 return "TODO"
             result_genomes_dict.append((genome, marker_info.get("db_marker_id"), result, marker_info.get(
-                "multihit"), marker_info.get("evalue"), marker_info.get("bitscore"), len(marker_info.get('multihits_number')), len(set(marker_info.get('multihits_number')))))
+                "multihit"), marker_info.get("evalue"), str(marker_info.get("bitscore")), len(marker_info.get('multihits_number')), len(set(marker_info.get('multihits_number')))))
             input_count += 1
         shutil.rmtree(hmmalign_dir)
         return result_genomes_dict

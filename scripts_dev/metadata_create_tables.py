@@ -243,7 +243,7 @@ class MetadataTable(object):
                 for line in fsum:
                     identified_genes += 1
 
-                    line_split = map(str.strip, line.strip().split('\t'))
+                    line_split = list(map(str.strip, line.strip().split('\t')))
                     seq_id = line_split[0]
                     contig_len = int(line_split[idx_seq_len])
                     seq_len = len(seqs[seq_id])
