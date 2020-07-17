@@ -78,6 +78,18 @@ class GenomeType(object):
                 elif '/environmental_sample' in line or "derived from environmental source" in line:
                     types.add('ENV')
                     fout_sanity_check.write('%s\t\%s' % (gid, line))
+                    
+            assembly_report = os.path.join(genome_dir, assembly_id + '_assembly_report.txt')
+            for line in open(assembly_report):
+                if re.search(metagenome_pattern, line):
+                    types.add('MAG')
+                    fout_sanity_check.write('%s\t\%s' % (gid, line))
+                elif 'single cell' in line:
+                    types.add('SAG')
+                    fout_sanity_check.write('%s\t\%s' % (gid, line))
+                elif "derived from environmental source" in line:
+                    types.add('ENV')
+                    fout_sanity_check.write('%s\t\%s' % (gid, line))
 
             if 'MAG' in types and 'SAG' in types:
                 print('[WARNING] Genome %s is annotated as both a MAG and SAG.' % gid)
@@ -88,7 +100,7 @@ class GenomeType(object):
                 fout.write('%s\t%s\n' % (gid, 'derived from single cell'))
             elif 'ENV' in types:
                 fout.write('%s\t%s\n' %
-                           (gid, 'derived from environmental_sample'))
+                           (gid, 'derived from environmental sample'))
         sys.stdout.flush()
 
         fout.close()
@@ -96,8 +108,8 @@ class GenomeType(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -111,7 +123,8 @@ if __name__ == '__main__':
         p = GenomeType()
         p.run(args.genome_file, args.output_file)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
+        raise
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise
