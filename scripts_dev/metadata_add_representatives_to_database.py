@@ -37,6 +37,8 @@ import argparse
 import tempfile
 from collections import defaultdict
 
+from biolib.common import canonical_gid
+
 from gtdb import GenomeDatabase
 from gtdb.Exceptions import (GenomeDatabaseError, 
                                 DumpDBErrors, 
@@ -74,24 +76,27 @@ class AddRepresentativeGenomes(object):
 
   def run(self, final_cluster_file, gtdb_version):
     """Add metadata."""
-    
-    self.logger.info('Connecting to %s.' % gtdb_version)
-    self.setup_db(gtdb_version)
-    
+
     # clear representative fields
+    self.logger.info('Setting GTDB representative fields to NULL.')
+    self.setup_db(gtdb_version)
     cur = self.db.conn.cursor()
         
     q = ("UPDATE metadata_taxonomy SET gtdb_representative = NULL, gtdb_genome_representative = NULL")
     cur.execute(q)
     self.db.conn.commit()
     
-    # mark all genomes as not being representatives
+    # mark all genomes as not being representatives and get translation
+    # between canonical genome IDs and NCBI accessions
     q = ("SELECT accession FROM metadata_view")
     cur.execute(q)
     
+    gid_to_ncbi_accn = {}
     is_rep = {}
     for r in cur:
-        is_rep[r[0]] = False
+        ncbi_accn = r[0]
+        gid_to_ncbi_accn[canonical_gid(ncbi_accn)] = ncbi_accn
+        is_rep[ncbi_accn] = False
     
     # determine representative assignment of genomes
     temp_genome_rep_file = tempfile.NamedTemporaryFile(delete=False)
@@ -99,21 +104,25 @@ class AddRepresentativeGenomes(object):
     with open(final_cluster_file) as f:
         headers = f.readline().strip().split('\t')
         
-        rep_index = headers.index('Type genome')
+        rep_index = headers.index('Representative')
         clustered_genomes_index = headers.index('Clustered genomes')
         
         for line in f:
             line_split = line.strip().split('\t')
             
-            rep_genome = line_split[rep_index]
-            genome_ids = None
+            rep_accn = gid_to_ncbi_accn[line_split[rep_index]]
             if len(line_split) > clustered_genomes_index:
-                genome_ids = [gid.strip() for gid in line_split[clustered_genomes_index].split(',')]
-                for genome_id in genome_ids:
-                    temp_genome_rep_file.write('%s\t%s\n' % (genome_id, rep_genome))
+                gids = [gid.strip() for gid in line_split[clustered_genomes_index].split(',')]
+                for gid in gids:
+                    ncbi_accn = gid_to_ncbi_accn[gid]
+                    temp_genome_rep_file.write('%s\t%s\n' % (
+                                                    ncbi_accn, 
+                                                    rep_accn))
                 
-            temp_genome_rep_file.write('%s\t%s\n' % (rep_genome, rep_genome))
-            is_rep[rep_genome] = True
+            temp_genome_rep_file.write('%s\t%s\n' % (
+                                        rep_accn, 
+                                        rep_accn))
+            is_rep[rep_accn] = True
             num_sp_reps += 1
     temp_genome_rep_file.close()
     
@@ -127,8 +136,8 @@ class AddRepresentativeGenomes(object):
     
     # mark representative genomes
     temp_rep_file = tempfile.NamedTemporaryFile(delete=False)
-    for genome_id, rep_status in is_rep.iteritems():
-        temp_rep_file.write('%s\t%s\n' % (genome_id, str(rep_status)))
+    for rep_accn, rep_status in is_rep.iteritems():
+        temp_rep_file.write('%s\t%s\n' % (rep_accn, str(rep_status)))
     temp_rep_file.close()
     
     cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_representative --type BOOLEAN --metadatafile %s' % (temp_rep_file.name)
