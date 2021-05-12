@@ -392,15 +392,16 @@ class GenomeRepresentativeManager(object):
 
         # get mapping from internal to external genome IDs
         genome_mngr = GenomeManager(self.cur, self.currentUser)
-        external_genome_ids = genome_mngr.genomeIdsToExternalGenomeIds(genome_ids)
+        external_genome_ids = genome_mngr.genomeIdsToExternalGenomeIds(
+            genome_ids)
 
         # process each genome
         fout = open(outfile, 'w')
         fout.write(
             'Genome Id\tPredicted domain\tArchaeal Marker Percentage\tBacterial Marker Percentage\tNCBI taxonomy\tGTDB taxonomy\n')
-            
+
         query_taxonomy_req = ("SELECT id, ncbi_taxonomy, gtdb_taxonomy " +
-                                  "FROM metadata_taxonomy LEFT JOIN gtdb_taxonomy_view USING (id);")
+                              "FROM metadata_taxonomy LEFT JOIN gtdb_taxonomy_view USING (id);")
         self.cur.execute(query_taxonomy_req)
         for genome_id, ncbi_taxonomy, gtdb_taxonomy in self.cur.fetchall():
             domain, arc_aa_per, bac_aa_per = self._domainAssignment(
@@ -605,6 +606,7 @@ class GenomeRepresentativeManager(object):
         # process each genome
         assigned_to_rep_count = 0
         for genome_id in unprocessed_genome_ids:
+
             # get canonical alignment
             genome_bac_align = marker_set_mngr.concatenatedAlignedMarkers(
                 genome_id, bac_marker_index)

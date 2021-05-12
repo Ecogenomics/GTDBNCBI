@@ -424,6 +424,9 @@ def viewMetadata(db, args):
 def exportMetadata(db, args):
     return db.ExportMetadata(args.outfile, args.outmetaformat)
 
+def exportLPSNMetadata(db, args):
+    return db.exportLPSNMetadata(args.outfile, args.outmetaformat)
+
 
 def importMetadata(db, args):
     if not db.currentUser.isRootUser():
@@ -1155,6 +1158,25 @@ if __name__ == '__main__':
                                           help="Show help message.")
 
     parser_metadata_export.set_defaults(func=exportMetadata)
+
+    # LPSN metadata export parser
+    parser_lpsn_metadata_export = metadata_category_subparser.add_parser('export_lpsn',
+                                                                    add_help=False,
+                                                                    formatter_class=CustomHelpFormatter,
+                                                                    help='Export a CSV file with all metadata fields.')
+    required_lpsn_metadata_export = parser_lpsn_metadata_export.add_argument_group(
+        'required arguments')
+    required_lpsn_metadata_export.add_argument('--output', dest='outfile', default=None, required=True,
+                                          help='Name of output file.')
+
+    optional_lpsn_metadata_export = parser_lpsn_metadata_export.add_argument_group(
+        'optional arguments')
+    optional_lpsn_metadata_export.add_argument('--format', dest='outmetaformat', choices=['csv', 'tab'], default='csv',
+                                          help="Select the output format of the Metadata file.")
+    optional_lpsn_metadata_export.add_argument('-h', '--help', action="help",
+                                          help="Show help message.")
+
+    parser_lpsn_metadata_export.set_defaults(func=exportLPSNMetadata)
 
     # metadata view parser
     parser_metadata_view = metadata_category_subparser.add_parser('view',

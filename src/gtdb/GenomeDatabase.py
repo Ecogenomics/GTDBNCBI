@@ -1462,6 +1462,20 @@ class GenomeDatabase(object):
 
         return True
 
+    def exportLPSNMetadata(self, path, outformat):
+        try:
+            cur = self.conn.cursor()
+
+            metaman = MetadataManager(cur, self.currentUser)
+            metaman.exportLPSNMetadata(path, outformat)
+
+            self.conn.commit()
+        except GenomeDatabaseError as e:
+            self.ReportError(e.message)
+            return False
+
+        return True
+
     def ExportGenomePaths(self, path):
         try:
             cur = self.conn.cursor()

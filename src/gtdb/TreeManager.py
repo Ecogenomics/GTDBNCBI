@@ -413,7 +413,7 @@ class TreeManager(object):
         genome_id_index = col_headers.index('id')
         genome_name_index = col_headers.index('formatted_accession')
         col_headers.remove('id')
-        col_headers.remove('formatted_accession')
+        # col_headers.remove('formatted_accession')
 
         # create ARB import filter
         arb_import_filter = os.path.join(directory, prefix + "_arb_filter.ift")
@@ -429,7 +429,9 @@ class TreeManager(object):
         ubiquitous = defaultdict(int)
         multi_hits_details = defaultdict(list)
         msa = {}
+
         for genome_metadata in metadata:
+
             # genome_metadata = list(genome_metadata)
             db_genome_id = genome_metadata[genome_id_index]
             external_genome_id = genome_metadata[genome_name_index]
@@ -557,8 +559,13 @@ class TreeManager(object):
 
             db_genome_id = genome_metadata[genome_id_index]
             external_genome_id = genome_metadata[genome_name_index]
-            del genome_metadata[max(genome_id_index, genome_name_index)]
-            del genome_metadata[min(genome_id_index, genome_name_index)]
+            del genome_metadata[genome_id_index]
+            #==================================================================
+            # del genome_metadata[max(genome_id_index, genome_name_index)]
+            # print(genome_metadata[0:10])
+            # del genome_metadata[min(genome_id_index, genome_name_index)]
+            # print(genome_metadata[0:10])
+            #==================================================================
 
             # write out ARB record
             multiple_hit_count = sum(
@@ -881,6 +888,27 @@ class TreeManager(object):
 
         fout.close()
 
+    def canonical_gid(self,gid):
+        """Get canonical form of NCBI genome accession.
+
+        Example:
+            G005435135 -> G005435135
+            GCF_005435135.1 -> G005435135
+            GCF_005435135.1_ASM543513v1_genomic -> G005435135
+            RS_GCF_005435135.1 -> G005435135
+            GB_GCA_005435135.1 -> G005435135
+        """
+
+        if gid.startswith('U'):
+            return gid
+
+        gid = gid.replace('RS_', '').replace('GB_', '')
+        gid = gid.replace('GCA_', 'G').replace('GCF_', 'G')
+        if '.' in gid:
+            gid = gid[0:gid.find('.')]
+
+        return gid
+
     def _arbRecord(self, fout,
                    external_genome_id,
                    metadata_fields,
@@ -917,7 +945,10 @@ class TreeManager(object):
             ncbi_organism_name_index = metadata_fields.index(
                 'ncbi_organism_name')
             metadata_values[organism_name_index] = metadata_values[ncbi_organism_name_index]
-            metadata_values[organism_name_index] = metadata_values[ncbi_organism_name_index]
+
+            gtdb_clustered_genomes_index = metadata_fields.index('gtdb_clustered_genomes')
+            if metadata_values[gtdb_clustered_genomes_index] != None:
+                metadata_values[gtdb_clustered_genomes_index] = ';'.join([self.canonical_gid(x) for x in metadata_values[gtdb_clustered_genomes_index].split(';')])
 
         fout.write("BEGIN\n")
         fout.write("db_name=%s\n" % external_genome_id)

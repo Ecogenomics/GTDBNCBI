@@ -450,7 +450,7 @@ class InfoGenerator(object):
 
             if istype:
                 year_date = self.get_priority_year(standard_name, sourcest)
-                
+
                 if not isofficial:
                     category_name = self.select_category_name(standard_name,
                                                               misspelling_names,
@@ -540,16 +540,15 @@ class InfoGenerator(object):
             else:
                 repository_strain_ids = strain_dictionary.get(standard_name)
 
-            matched_strain_id, category, istype, year_date = self.strains_iterate(gid, 
-                                                                standard_name, 
-                                                                repository_strain_ids, 
-                                                                raw_names, 
-                                                                misspelling_names, 
-                                                                synonyms, 
-                                                                equivalent_names, 
-                                                                isofficial, 
-                                                                sourcest)
-            
+            matched_strain_id, category, istype, year_date = self.strains_iterate(gid,
+                                                                                  standard_name,
+                                                                                  repository_strain_ids,
+                                                                                  raw_names,
+                                                                                  misspelling_names,
+                                                                                  synonyms,
+                                                                                  equivalent_names,
+                                                                                  isofficial,
+                                                                                  sourcest)
 
             isneotype = False
             if not istype and sourcest == 'lpsn':
@@ -669,13 +668,8 @@ class InfoGenerator(object):
         return standardized
 
     def parse_strains(self, sourcest, strain_dictionary, outfile):
-<<<<<<< Updated upstream
         """Parse information for a single strain resource (e.g., LPSN, DSMZ, or StrainInfo)."""
-        
-=======
-        """Parse information for a single strain resouce (e.g., LPSN, DSMZ, or StrainInfo)."""
 
->>>>>>> Stashed changes
         worker_queue = mp.Queue()
         writer_queue = mp.Queue()
 
