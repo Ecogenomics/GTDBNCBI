@@ -1,11 +1,11 @@
-software_version=2.3.3
+software_version=2.4.0
 ncbi_database_version=release 202
 gtdb_version=1.4.1
 taxonomy_version=v202.0
 
 GTDB software versions
 ----------------------
-v2.3.3 (May 12, 2021):
+v2.4.0 (May 12, 2021):
 - Clean database to remove user genomes and UBA genomes
         - clean functionalities
 - add export_lpsn function

@@ -20,7 +20,7 @@ def add_py_scripts(root):
     for subdir, dirs, files in os.walk(root):
         for cur_f in files:
             cur_path = os.path.join(subdir, cur_f)
-            if cur_f != '__init__.py':
+            if cur_f != '__init__.py' and cur_f != 'README':
                 out.append(cur_path)
     return out
 
@@ -34,6 +34,7 @@ py_scripts.extend(add_py_scripts('scripts_dev'))
 all_f_names = [os.path.basename(x) for x in py_scripts]
 if len(all_f_names) != len(set(all_f_names)):
     print('All script names are not unique.')
+    print(all_f_names)
     sys.exit(1)
 
 # Create the package
