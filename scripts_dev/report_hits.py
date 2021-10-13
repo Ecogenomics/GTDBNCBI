@@ -166,12 +166,12 @@ class ReportHits(object):
                 #print accession, line_split[1].strip()
                 num_hits += 1
 
-      print 'Num. hits in %s: %d' % (domain, num_hits)
-      print 'Num. genomes in %s: %d' % (domain, num_genomes)
+      print('Num. hits in %s: %d' % (domain, num_hits))
+      print('Num. genomes in %s: %d' % (domain, num_genomes))
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('ncbi_genome_dir', help='base directory leading to NCBI archaeal and bacterial genome assemblies')
@@ -183,7 +183,7 @@ if __name__ == '__main__':
     p = ReportHits()
     p.run(args.ncbi_genome_dir, args.gene_id)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

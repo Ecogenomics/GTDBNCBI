@@ -38,4 +38,4 @@ for line in open('gtdb_clusters_99.5.tsv'):
         genome_ids = line_split[3].split(',')
         for genome_id in genome_ids:
             if not genome_id.startswith('U_'):
-                print '%s\t%s\t%s\t%s' % (ref_id, str(genome_quality[ref_id]), genome_id, str(genome_quality[genome_id]))
+                print('%s\t%s\t%s\t%s' % (ref_id, str(genome_quality[ref_id]), genome_id, str(genome_quality[genome_id])))

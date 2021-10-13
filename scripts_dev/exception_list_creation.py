@@ -70,16 +70,16 @@ class ExceptionListGenerator(object):
                     sys.exit('Can not select taxonomy')
 
         cmd = "gtdb -r genome_lists create --name 'Archaeal exception list for GTDB {0}' --genome_ids {1} --description 'Archaeal exception list for GTDB {0}' --set_public".format(rel_id, ','.join(arc_gids))
-        print cmd
+        print(cmd)
         os.system(cmd)
 
         cmd = "gtdb -r genome_lists create --name 'Bacterial exception list for GTDB {0}' --genome_ids {1} --description 'Bacterial exception list for GTDB {0}' --set_public".format(rel_id, ','.join(bac_gids))
-        print cmd
+        print(cmd)
         os.system(cmd)
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -92,7 +92,7 @@ if __name__ == '__main__':
         p = ExceptionListGenerator()
         p.createExceptionLists(args.except_file, args.rel_id)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

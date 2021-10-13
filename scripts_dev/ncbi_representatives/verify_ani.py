@@ -91,7 +91,7 @@ class VerifyANI(object):
             genome_dir_id = os.path.basename(os.path.normpath(genome_path))
             gene_files[genome_id] = os.path.join(line_split[1], genome_dir_id + '_protein.fna')
             
-        print 'Read path for %d genomes.' % len(gene_files)
+        print('Read path for %d genomes.' % len(gene_files))
 
         # process all clusters
         fout = open(output_prefix + '.ani.tsv', 'w')
@@ -138,8 +138,8 @@ class VerifyANI(object):
         fout_summary.close()
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('cluster_file', help='cluster file from genometreetk aai_cluster')
@@ -152,7 +152,7 @@ if __name__ == '__main__':
         p = VerifyANI()
         p.run(args.cluster_file, args.genome_dir_file, args.output_prefix)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

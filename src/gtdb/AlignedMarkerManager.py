@@ -25,9 +25,9 @@ import time
 
 import psycopg2
 
-import ConfigMetadata
-from GenomeDatabaseConnection import GenomeDatabaseConnection
-from Tools import fastaPathGenerator, splitchunks
+from . import ConfigMetadata
+from .GenomeDatabaseConnection import GenomeDatabaseConnection
+from .Tools import fastaPathGenerator, splitchunks
 
 from biolib.seq_io import read_fasta
 
@@ -143,7 +143,7 @@ class AlignedMarkerManager(object):
 
         marker_dbs = {"PFAM": self.pfam_top_hit_suffix,
                       "TIGR": self.tigrfam_top_hit_suffix}
-        for marker_db, marker_suffix in marker_dbs.iteritems():
+        for marker_db, marker_suffix in marker_dbs.items():
             query = ("SELECT m.id_in_database,m.marker_file_location,m.size,m.id " +
                      "FROM genomes as g, markers as m " +
                      "LEFT JOIN marker_databases as md " +
@@ -174,7 +174,7 @@ class AlignedMarkerManager(object):
             # Prodigal adds an asterisks at the end of each called genes,
             # These asterisks sometimes appear in the MSA, which can be an
             # issue for some softwares downstream
-            for seq_id, seq in all_genes_dict.iteritems():
+            for seq_id, seq in all_genes_dict.items():
                 if seq[-1] == '*':
                     all_genes_dict[seq_id] = seq[:-1]
 
@@ -233,7 +233,7 @@ class AlignedMarkerManager(object):
                                                    "db_marker_id": marker_dict_original.get(markerid).get("db_marker_id"),
                                                    "multihits_number": [all_genes_dict.get(genename)]}
 
-            for mid, info in marker_dict_original.iteritems():
+            for mid, info in marker_dict_original.items():
                 if mid not in gene_dict:
                     final_genome.append(db_genome_id)
                     final_markerid.append(info.get("db_marker_id"))
@@ -285,7 +285,7 @@ class AlignedMarkerManager(object):
         result_genomes_dict = []
         hmmalign_dir = tempfile.mkdtemp()
         input_count = 0
-        for _markerid, marker_info in marker_dict.iteritems():
+        for _markerid, marker_info in marker_dict.items():
             hmmalign_gene_input = os.path.join(
                 hmmalign_dir, "input_gene{0}.fa".format(input_count))
             input_count += 1
@@ -298,7 +298,7 @@ class AlignedMarkerManager(object):
             proc.wait()
 
             for line in proc.stderr:
-                print "TODO"
+                print("TODO")
             result = self._getAlignedMarker(
                 marker_info.get("gene"), proc.stdout)
             if len(result) < 1:
@@ -336,7 +336,7 @@ class AlignedMarkerManager(object):
             return None
 
         aligned_marker = ""
-        for pos in xrange(0, len(mask_seq)):
+        for pos in range(0, len(mask_seq)):
             if mask_seq[pos] != 'x':
                 continue
             aligned_marker += hit_seq[pos]

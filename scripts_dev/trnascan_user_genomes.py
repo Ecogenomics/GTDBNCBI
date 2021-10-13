@@ -124,7 +124,7 @@ class tRNAScan(object):
         genomes_to_consider = None
 
         # get path to all genome files
-        print 'Reading genomes.'
+        print('Reading genomes.')
         genome_files = []
         for user_id in os.listdir(user_genome_dir):
             cur_user_dir = os.path.join(user_genome_dir, user_id)
@@ -140,14 +140,14 @@ class tRNAScan(object):
                     
                     if os.path.exists(genome_file):
                         if os.stat(genome_file).st_size == 0:
-                            print '[Warning] Genome file appears to be empty: %s' % genome_file
+                            print('[Warning] Genome file appears to be empty: %s' % genome_file)
                         else:
                             if genome_id not in domain:
-                                print 'Genome %s is missing domain information: %s' % (genome_id, user_id)
+                                print('Genome %s is missing domain information: %s' % (genome_id, user_id))
                             else:
                                 genome_files.append((genome_file, domain[genome_id]))
 
-        print '  Number of unprocessed genomes: %d' % len(genome_files)
+        print('  Number of unprocessed genomes: %d' % len(genome_files))
 
         # populate worker queue with data to process
         workerQueue = mp.Queue()
@@ -183,8 +183,8 @@ class tRNAScan(object):
             writeProc.terminate()
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('user_genome_dir', help='directory containing User genomes')
@@ -197,7 +197,7 @@ if __name__ == '__main__':
     p = tRNAScan()
     p.run(args.user_genome_dir, args.gtdb_metadata_file, args.threads)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

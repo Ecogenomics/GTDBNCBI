@@ -78,8 +78,8 @@ class TypeStrainTable(object):
     fout.close()
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('gtdb_metadata_table', help='metadata table from GTDB indicating taxid for each assembly')
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     p = TypeStrainTable()
     p.run(args.gtdb_metadata_table, args.type_strain_file, args.output_file)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

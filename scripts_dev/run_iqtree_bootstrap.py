@@ -87,7 +87,7 @@ class IQTREE(object):
         worker_queue = mp.Queue()
         writer_queue = mp.Queue()
 
-        for idx in xrange(0, num_reps):
+        for idx in range(0, num_reps):
             worker_queue.put(idx)
 
         for _ in range(self.num_trees_in_parallel):
@@ -116,7 +116,7 @@ class IQTREE(object):
             
         end = time.time()
         
-        print('Elapsed time: {:.2f} hours'.format((end - start)/(60*60)))
+        print('Elapsed time: {:.2f} hours'.format((end - start) / (60 * 60)))
 
 if __name__ == '__main__':
     print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
@@ -126,7 +126,7 @@ if __name__ == '__main__':
         p = IQTREE()
         p.run()
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

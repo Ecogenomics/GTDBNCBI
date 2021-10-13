@@ -57,21 +57,21 @@ class UniqueAssemblies(object):
           assemblies[accession].append(species_dir)
 
           if accession in globally_unique:
-            print 'problem', accession
+            print('problem', accession)
           globally_unique.add(accession)
 
-      print 'Identified %d unique %s assemblies' % (len(assemblies), domain.capitalize())
+      print('Identified %d unique %s assemblies' % (len(assemblies), domain.capitalize()))
 
-      for accession, species_dirs in assemblies.iteritems():
+      for accession, species_dirs in list(assemblies.items()):
         fout.write('%s\t%s\t%s\n' % (domain.capitalize(), accession, ','.join(species_dirs)))
 
     fout.close()
 
-    print 'Identified %d globally unique assembly accession numbers.' % len(globally_unique)
+    print('Identified %d globally unique assembly accession numbers.' % len(globally_unique))
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('genome_dir', help='base directory leading to NCBI archaeal and bacterial genome assemblies')
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     p = UniqueAssemblies()
     p.run(args.genome_dir, args.output_file)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

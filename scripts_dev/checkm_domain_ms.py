@@ -71,9 +71,9 @@ class RunCheckm(object):
           assembly_dir = os.path.join(cur_genome_dir, assembly_id)
 
           if assembly_id in assembly_ids:
-            print 'Duplicate assembly_id:'
-            print assembly_ids[assembly_id]
-            print assembly_dir
+            print('Duplicate assembly_id:')
+            print(assembly_ids[assembly_id])
+            print(assembly_dir)
             continue
 
           assembly_ids[assembly_id] = assembly_dir
@@ -82,10 +82,10 @@ class RunCheckm(object):
           if os.path.exists(gene_file):
             gene_files.append(gene_file)
 
-    print '  Identified %d gene files.' % len(gene_files)
+    print('  Identified %d gene files.' % len(gene_files))
 
     # create simlinks to genomes in batches of 1000
-    print 'Partitioning genomes into chunks of 1000.'
+    print('Partitioning genomes into chunks of 1000.')
     num_chunks = 0
     for i, gene_file in enumerate(gene_files):
       if i % 1000 == 0:
@@ -96,9 +96,9 @@ class RunCheckm(object):
       os.system('ln -s %s %s' % (os.path.abspath(gene_file), os.path.join(chunk_dir, ntpath.basename(gene_file))))
 
     # apply CheckM to each set of 1000 genomes
-    print 'Running CheckM on chunks:'
-    for i in xrange(0, num_chunks):
-      print '  Processing chunk %d of %d.' % (i+1, num_chunks)
+    print('Running CheckM on chunks:')
+    for i in range(0, num_chunks):
+      print('  Processing chunk %d of %d.' % (i+1, num_chunks))
 
       bin_dir = os.path.join(tmp_dir, 'chunk%d' % i)
       checkm_output_dir = os.path.join(output_dir, 'chunk%d' % i)
@@ -111,10 +111,10 @@ class RunCheckm(object):
       os.system('checkm qa -t %d --tab_table -f %s %s %s' % (cpus, qa_file, os.path.join(checkm_output_dir, domain + '.ms'), checkm_output_dir))
 
     # create single file with CheckM results
-    print 'Creating single file with CheckM results.'
+    print('Creating single file with CheckM results.')
     checkm_output = os.path.join(output_dir, 'checkm.profiles.domain_ms.tsv')
     fout = open(checkm_output, 'w')
-    for i in xrange(0, num_chunks):
+    for i in range(0, num_chunks):
       profile_file = os.path.join(output_dir, 'chunk%d' % i, 'qa.chunk%d.tsv' % i)
       with open(profile_file) as f:
         if i != 0:
@@ -124,11 +124,11 @@ class RunCheckm(object):
           fout.write(line)
     fout.close()
 
-    print '  CheckM results written to: %s' % checkm_output
+    print('  CheckM results written to: %s' % checkm_output)
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('genome_dir', help='directory containing genomes in individual directories')
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     runCheckm = RunCheckm()
     runCheckm.run(args.genome_dir, args.domain, args.output_dir, args.cpus)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

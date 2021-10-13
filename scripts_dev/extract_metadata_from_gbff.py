@@ -91,7 +91,7 @@ class Metadata(object):
                 try:
                     k, v = info.split("=", 1)
                 except:
-                    print info
+                    print(info)
                 source_info_dict[k] = v
 
         for field in self.gbff_fields:
@@ -118,13 +118,13 @@ class Metadata(object):
             for species_dir in os.listdir(domain_dir):
                 full_species_dir = os.path.join(domain_dir, species_dir)
                 for assembly_dir in os.listdir(full_species_dir):
-                    print count
+                    print(count)
                     count += 1
                     accession = assembly_dir[0:assembly_dir.find('_', 4)]
 
                     processed_assemblies[accession].append(species_dir)
                     if len(processed_assemblies[accession]) >= 2:
-                        print '%s\t%s' % (accession, ','.join(processed_assemblies[accession]))
+                        print('%s\t%s' % (accession, ','.join(processed_assemblies[accession])))
                         continue
 
                     full_assembly_dir = os.path.join(
@@ -145,8 +145,8 @@ class Metadata(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -160,7 +160,7 @@ if __name__ == '__main__':
         p = Metadata()
         p.run(args.genome_dir, args.output_file)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

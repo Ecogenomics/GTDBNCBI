@@ -43,7 +43,7 @@ class GenBankExclusive(object):
   def run(self, gb_bac_assembly_file, gb_ar_assembly_file, output_file):
 
     # identify assemblies exclusive to GenBank
-    print 'Identifying assemblies exclusive to GenBank.'
+    print('Identifying assemblies exclusive to GenBank.')
     fout = open(output_file, 'w')
     count = 0
     for assembly_file in (gb_bac_assembly_file, gb_ar_assembly_file):
@@ -58,13 +58,13 @@ class GenBankExclusive(object):
             fout.write(line_split[0] + '\n')
             count += 1
 
-    print '  Identified %d assemblies.' % count
+    print('  Identified %d assemblies.' % count)
 
     fout.close()
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('gb_bac_assembly_file', help='GenBank bacterial assemblies metadata file from NCBI FTP site')
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     p = GenBankExclusive()
     p.run(args.gb_bac_assembly_file, args.gb_ar_assembly_file, args.output_file)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

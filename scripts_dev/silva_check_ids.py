@@ -72,10 +72,10 @@ class Check(object):
             num_genes += 1
             
             if accession not in silva_ids and (stop-start) > 300:
-                print('Missing INSDC accession in SILVA for genome %s: %s (len=%d)' % (gid, accession, stop-start))
+                print('Missing INSDC accession in SILVA for genome %s: %s (len=%d)' % (gid, accession, stop - start))
                 missing_silva_acc += 1
                 
-        print('Identified %d of %d (%.2f%%) genes without a SILVA accession.' % (missing_silva_acc, num_genes, missing_silva_acc*100.0/num_genes))
+        print('Identified %d of %d (%.2f%%) genes without a SILVA accession.' % (missing_silva_acc, num_genes, missing_silva_acc * 100.0 / num_genes))
  
 if __name__ == '__main__':
     print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)

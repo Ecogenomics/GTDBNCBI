@@ -154,13 +154,13 @@ class StrainParser(object):
                                 gisolates.append(gisolate)
 
                 if 'substr.' in strain:
-                    print "{1} strain {0}".format(strain, genome_id)
+                    print("{1} strain {0}".format(strain, genome_id))
                     strain = strain.split("substr.")[0].rstrip()
                 if 'substr.' in gstrain:
-                    print "{1} gstrain {0}".format(gstrain, genome_id)
+                    print("{1} gstrain {0}".format(gstrain, genome_id))
                     gstrain = gstrain.split("substr.")[0].rstrip()
                 if 'substr.' in wstrain:
-                    print "{1} wstrain {0}".format(wstrain, genome_id)
+                    print("{1} wstrain {0}".format(wstrain, genome_id))
                     wstrain = wstrain.split("substr.")[0].rstrip()
 
                 combined_strain = []
@@ -172,7 +172,7 @@ class StrainParser(object):
                 combined_strain.extend(self.standardise_strain(gisolates))
 
                 # strip all elements from the list
-                stripped_combined_strain = map(str.strip, combined_strain)
+                stripped_combined_strain = list(map(str.strip, combined_strain))
 
                 if genome_id.startswith('GCA'):
                     typemat = self.genbank_dictionary.get(genome_id)
@@ -182,7 +182,7 @@ class StrainParser(object):
                 # filter(None, stripped_combined_strain) remove all empty item
                 # from the list
                 outf.write("{0}\t{1}\t{2}\t{3}\n".format(
-                    genome_id, species, ';'.join(set(filter(None, stripped_combined_strain))), typemat))
+                    genome_id, species, ';'.join(set([_f for _f in stripped_combined_strain if _f])), typemat))
         outf.close()
 
     def standardise_strain(self, list_strain):
@@ -207,8 +207,8 @@ class StrainParser(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -232,7 +232,7 @@ if __name__ == '__main__':
                          args.assembly_summary_bacteria_refseq, args.assembly_summary_archaea_refseq)
         p.run(args.genome_dir_file, args.out_dir)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

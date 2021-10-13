@@ -60,13 +60,13 @@ class MashFilter(object):
 			dists[gA + '\t' + gB].append(d)
 	
 	fout = open(output_mash_dist_file, 'w')
-	for k, d in dists.iteritems():
+	for k, d in list(dists.items()):
 		fout.write('%s\t%.3f\n' % (k, np_mean(d)))
 	fout.close()
 	
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('input_mash_dist_file', help='file with Mash distances to filter')
@@ -81,7 +81,7 @@ if __name__ == '__main__':
                 args.output_mash_dist_file, 
                 args.max_dist)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

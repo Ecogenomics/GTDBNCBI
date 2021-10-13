@@ -70,20 +70,20 @@ class FillMissingDomain(object):
                     update_count += 1
                     temp_file.write('%s\t%s\n' % (genome_id, ncbi_domain))
                 else:
-                    print '[WARNING] NCBI genome has no GTDB domain or valid NCBI taxonomy: %s' % genome_id
+                    print('[WARNING] NCBI genome has no GTDB domain or valid NCBI taxonomy: %s' % genome_id)
 
     temp_file.close()
     
-    print 'Updating %d genomes with gtdb_domain information.' % update_count
+    print('Updating %d genomes with gtdb_domain information.' % update_count)
 
     cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_domain --type TEXT --metadatafile %s' % temp_file.name
-    print cmd
+    print(cmd)
     os.system(cmd)
     os.remove(temp_file.name)
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('metadata_file', help='metadata file for GTDB with information about all GTDB genomes')
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     p = FillMissingDomain()
     p.run(args.metadata_file)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

@@ -105,7 +105,7 @@ class Metadata(object):
                     fout.write('\n')
                     write_header = False
 
-                print indice_wgs
+                print(indice_wgs)
 
                 for line in f:
                     line_split = line.rstrip('\n').split('\t')
@@ -139,8 +139,8 @@ class Metadata(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -165,7 +165,7 @@ if __name__ == '__main__':
               args.genbank_bacteria_assembly_summary_file,
               args.genbank_archaea_assembly_summary_file, args.genome_id_file, args.output_file)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

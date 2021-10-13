@@ -104,8 +104,8 @@ class AddMetadata(object):
         if not do_not_null_field:
             response = ''
             while response.lower() not in ['y', 'n']:
-                response = raw_input(
-                    "Set fields to NULL for all genomes [y/n]: ")
+                response = eval(input(
+                    "Set fields to NULL for all genomes [y/n]: "))
 
             if response.lower() == 'y':
                 self.logger.info('Connecting to %s.' % gtdb_version)
@@ -159,7 +159,7 @@ class AddMetadata(object):
             table = metadata_table[field]
 
             records_to_update = 0
-            for orig_genome_id, value in metadata[field].iteritems():
+            for orig_genome_id, value in list(metadata[field].items()):
 
                 try:
                     if float(value) and data_type in ['INT', 'INTEGER']:
@@ -195,8 +195,8 @@ class AddMetadata(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -222,7 +222,7 @@ if __name__ == '__main__':
               args.do_not_null_field,
               args.gtdb_version)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

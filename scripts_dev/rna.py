@@ -113,7 +113,7 @@ class RNA(object):
             self.db = self.silva_lsu_ref_file
             self.taxonomy = self.silva_lsu_taxonomy_file
         elif rna_gene == 'lsu_5S':
-            print 'We currently do not curate against a 5S database, but do identify these sequences for quality assessment purposes.'
+            print('We currently do not curate against a 5S database, but do identify these sequences for quality assessment purposes.')
         self.output_dir = self.silva_output_dir
     else:
         print('Unrecognized database: %s' % db)

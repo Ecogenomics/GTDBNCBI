@@ -54,7 +54,7 @@ class Extract(object):
     # check if NCBI directory looks correct
     dirs = os.listdir(ncbi_dir)
     if 'bacteria' not in dirs or 'archaea' not in dirs:
-      print "[Error] Expect 'bacteria' and 'archaea' directories."
+      print("[Error] Expect 'bacteria' and 'archaea' directories.")
       sys.exit()
 
     for domain in ['archaea']: #, 'bacteria']:
@@ -70,8 +70,8 @@ class Extract(object):
             os.system('gunzip %s' % os.path.join(assembly_dir, '*.gz'))
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('ncbi_dir', help='directory with NCBI genomes')
@@ -82,7 +82,7 @@ if __name__ == '__main__':
     p = Extract()
     p.run(args.ncbi_dir)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

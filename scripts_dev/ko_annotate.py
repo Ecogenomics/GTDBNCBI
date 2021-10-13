@@ -84,11 +84,13 @@ class KO(object):
                             '6 qseqid qlen sseqid stitle slen length pident evalue bitscore',
                             output_hit_file)
 
-          # calculate checksum
-          checksum = sha256(output_hit_file)
-          fout = open(output_hit_file + '.sha256', 'w')
-          fout.write(checksum)
-          fout.close()
+        # calculate checksum
+        raise Exception('Altered indentation level here, not sure where this code should go below.')
+        checksum = sha256(output_hit_file)
+        fout = open(output_hit_file + '.sha256', 'w')
+        fout.write(checksum)
+        fout.close()
+        # END of indendation
 
         if os.path.exists(running_file):
           os.remove(running_file)
@@ -122,10 +124,10 @@ class KO(object):
             if attribute == 'new' or attribute == 'modified':
                 genomes_to_consider.add(genome_id)
 
-    print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
+    print('Identified %d genomes as new or modified.' % len(genomes_to_consider))
 
     # get path to all unprocessed genome gene files
-    print 'Reading genomes.'
+    print('Reading genomes.')
     gene_files = []
     for species_dir in os.listdir(genome_dir):
       cur_genome_dir = os.path.join(genome_dir, species_dir)
@@ -143,25 +145,25 @@ class KO(object):
                   cur_checksum = open(checksum_file).readline().strip()
                   if checksum == cur_checksum:
                     if genome_id in genomes_to_consider:
-                        print '[WARNING] Genome %s is marked as new or modified, but already has KO annotations.' % genome_id
-                        print '[WARNING] Genome is being skipped!'
+                        print('[WARNING] Genome %s is marked as new or modified, but already has KO annotations.' % genome_id)
+                        print('[WARNING] Genome is being skipped!')
                     continue
                     
-                print '[WARNING] Genome %s has KO annotations, but an invalid checksum and was not marked for reannotation.' % genome_id
-                print '[WARNING] Genome will be reannotated.'
+                print('[WARNING] Genome %s has KO annotations, but an invalid checksum and was not marked for reannotation.' % genome_id)
+                print('[WARNING] Genome will be reannotated.')
       
           elif genome_id not in genomes_to_consider:
-            print '[WARNING] Genome %s has no KO annotations, but is also not marked for processing?' % genome_id
-            print '[WARNING] Genome will be reannotated!'
+            print('[WARNING] Genome %s has no KO annotations, but is also not marked for processing?' % genome_id)
+            print('[WARNING] Genome will be reannotated!')
 
           gene_file = os.path.join(prodigal_dir, genome_id + self.protein_file_ext)
           if os.path.exists(gene_file):
             if os.stat(gene_file).st_size == 0:
-                print '[Warning] Protein file appears to be empty: %s' % gene_file
+                print('[Warning] Protein file appears to be empty: %s' % gene_file)
             else:
                 gene_files.append(gene_file)
 
-    print '  Number of unprocessed genomes: %d' % len(gene_files)
+    print('  Number of unprocessed genomes: %d' % len(gene_files))
 
     # populate worker queue with data to process
     workerQueue = mp.Queue()
@@ -194,8 +196,8 @@ class KO(object):
       writeProc.terminate()
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('genome_dir', help='directory containing genomes in individual directories')
@@ -208,7 +210,7 @@ if __name__ == '__main__':
     p = KO()
     p.run(args.genome_dir, args.genome_report, args.threads)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

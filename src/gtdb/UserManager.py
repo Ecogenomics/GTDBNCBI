@@ -19,8 +19,8 @@ import logging
 
 import psycopg2
 
-from User import User
-from Exceptions import GenomeDatabaseError
+from .User import User
+from .Exceptions import GenomeDatabaseError
 
 
 class UserManager(object):
@@ -162,7 +162,7 @@ class UserManager(object):
                     " role_id = (SELECT id from user_roles where name = %s) ")
                 params.append(rolename)
                 
-            print has_root
+            print(has_root)
 
             if has_root is not None:
                 conditional_queries.append(" has_root_login = %s ")

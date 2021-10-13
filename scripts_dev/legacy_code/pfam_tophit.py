@@ -89,9 +89,9 @@ class PfamTopHit(object):
 
             fout = open(output_tophit_file, 'w')
             fout.write('Gene Id\tTop hits (Family id,e-value,bitscore)\n')
-            for gene_id, hits in tophits.iteritems():
+            for gene_id, hits in list(tophits.items()):
                 hit_str = []
-                for hmm_id, stats in hits.iteritems():
+                for hmm_id, stats in list(hits.items()):
                     hit_str.append(hmm_id + ',' + ','.join(map(str, stats)))
                 fout.write('%s\t%s\n' % (gene_id, ';'.join(hit_str)))
             fout.close()
@@ -123,11 +123,11 @@ class PfamTopHit(object):
 
     def run(self, input_dir, threads):
         # get path to all unprocessed Pfam HMM result files
-        print 'Reading Pfam HMM files.'
+        print('Reading Pfam HMM files.')
         pfam_files = []
         for first_three in os.listdir(input_dir):
             onethird_species_dir = os.path.join(input_dir, first_three)
-            print onethird_species_dir
+            print(onethird_species_dir)
             if os.path.isfile(onethird_species_dir):
                 continue
             for second_three in os.listdir(onethird_species_dir):
@@ -166,7 +166,7 @@ class PfamTopHit(object):
                         if os.path.exists(pfam_file):
                             pfam_files.append(pfam_file)
 
-        print '  Number of unprocessed genomes: %d' % len(pfam_files)
+        print('  Number of unprocessed genomes: %d' % len(pfam_files))
         # populate worker queue with data to process
         workerQueue = mp.Queue()
         writerQueue = mp.Queue()
@@ -201,8 +201,8 @@ class PfamTopHit(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -217,7 +217,7 @@ if __name__ == '__main__':
         p = PfamTopHit()
         p.run(args.genome_dir, args.threads)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

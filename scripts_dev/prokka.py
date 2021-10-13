@@ -117,7 +117,7 @@ class Prokka(object):
             genomes_to_process.add(genome_id)
   
     # get path to all unprocessed genome gene files
-    print 'Reading genomes.'
+    print('Reading genomes.')
     genome_files = []
     for genome_id in os.listdir(genome_dir):
       cur_genome_dir = os.path.join(genome_dir, genome_id)
@@ -147,7 +147,7 @@ class Prokka(object):
           if os.path.exists(genome_file):
             genome_files.append(genome_file)
 
-    print '  Number of unprocessed genomes: %d\n' % len(genome_files)
+    print('  Number of unprocessed genomes: %d\n' % len(genome_files))
 
     # populate worker queue with data to process
     workerQueue = mp.Queue()
@@ -180,8 +180,8 @@ class Prokka(object):
       writeProc.terminate()
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('genome_dir', help='directory containing genomes in individual directories')
@@ -195,7 +195,7 @@ if __name__ == '__main__':
     p = Prokka()
     p.run(args.genome_dir, args.domain, args.genome_list, args.threads)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

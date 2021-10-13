@@ -54,38 +54,38 @@ class UpdateLPSNDatabase(object):
         # Check if the files exist:
         if os.path.isfile(self.lpsn_genera_file) and os.path.isfile(self.lpsn_strains_file) and os.path.isfile(self.lpsn_species_file):
             self.temp_cur.execute('TRUNCATE lpsn_genera;')
-            print "Deletion lpsn_genera done"
+            print("Deletion lpsn_genera done")
             fr = open(self.lpsn_genera_file)
             fr.readline()
             self.temp_cur.copy_from(fr, 'lpsn_genera')
-            print 'Copy lpsn_genera done'
+            print('Copy lpsn_genera done')
             self.temp_con.commit()
 
             self.temp_cur.execute('TRUNCATE lpsn_species;')
-            print "Deletion lpsn_species done"
+            print("Deletion lpsn_species done")
             fr = open(self.lpsn_species_file)
             fr.readline()
             self.temp_cur.copy_from(fr, 'lpsn_species')
-            print 'Copy lpsn_species done'
+            print('Copy lpsn_species done')
             self.temp_con.commit()
 
             fr = open(self.lpsn_strains_file)
             fr.readline()
             self.temp_cur.execute('TRUNCATE lpsn_strains;')
-            print "Deletion lpsn_strains done"
+            print("Deletion lpsn_strains done")
  
             self.temp_cur.copy_from(fr, 'lpsn_strains')
-            print 'Copy lpsn_strains done'
+            print('Copy lpsn_strains done')
             self.temp_con.commit()
 
         else:
-            print 'Some files are missing in {0}'.format(self.path)
+            print('Some files are missing in {0}'.format(self.path))
         self.temp_con.ClosePostgresConnection()
 
 
 if __name__ == "__main__":
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         update_lpsn_mngr = UpdateLPSNDatabase(args.lpsn_dir)
         update_lpsn_mngr.runUpdate()
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

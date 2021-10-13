@@ -26,9 +26,9 @@ from biolib.seq_io import read_fasta
 from biolib.taxonomy import Taxonomy
 from psycopg2.extensions import AsIs
 
-import Config
-import ConfigMetadata
-from Exceptions import GenomeDatabaseError
+from . import Config
+from . import ConfigMetadata
+from .Exceptions import GenomeDatabaseError
 
 
 class MetadataManager(object):
@@ -59,14 +59,14 @@ class MetadataManager(object):
         '''
         try:
             self.cur.execute("SELECT * FROM view_list_meta_columns")
-            print "\t".join(("Table", "Field", "Datatype", "Description"))
+            print("\t".join(("Table", "Field", "Datatype", "Description")))
             for tup in self.cur.fetchall():
                 info_list = list(tup)
                 if info_list[2] == "double precision":
                     info_list[2] = "float"
                 elif str(info_list[2]).startswith("timestamp"):
                     info_list[2] = "timestamp"
-                print "\t".join(info_list)
+                print("\t".join(info_list))
         except GenomeDatabaseError as e:
             raise e
 
@@ -93,7 +93,7 @@ class MetadataManager(object):
                     query)
             with open(path, 'w') as f:
                 self.cur.copy_expert(outputquery, f)
-            print "Export Successful"
+            print("Export Successful")
         except GenomeDatabaseError as e:
             raise e
 
@@ -119,7 +119,7 @@ class MetadataManager(object):
                     query)
             with open(path, 'w') as f:
                 self.cur.copy_expert(outputquery, f)
-            print "Export Successful"
+            print("Export Successful")
         except GenomeDatabaseError as e:
             raise e
 
@@ -148,7 +148,7 @@ class MetadataManager(object):
                             "Unrecognized database prefix: %s" % prefix)
                     f.write("{0}\t{1}\n".format(
                         prefix + "_" + id, os.path.dirname(os.path.join(dir_prefix, file_location))))
-            print "Export Successful"
+            print("Export Successful")
         except GenomeDatabaseError as e:
             raise e
 
@@ -180,7 +180,7 @@ class MetadataManager(object):
                                (genome_id, ';'.join(Taxonomy.rank_prefixes)))
             fout.close()
 
-            print 'Taxonomy information written to: %s' % output_file
+            print('Taxonomy information written to: %s' % output_file)
         except GenomeDatabaseError as e:
             raise e
 
@@ -265,11 +265,11 @@ class MetadataManager(object):
                 f.write('%s\t%s\t%s\t%s\t%s\n' % ('tax_rank', 'tax_from', 'num_genomes', 'num_ranks', 'tax_to'))
                 for rank in ['domain', 'phylum', 'class', 'order', 'family', 'genus', 'species']:
                     a_tax_dict = a_to_b[rank]
-                    for a_tax, a_tax_list in a_tax_dict.items():
+                    for a_tax, a_tax_list in list(a_tax_dict.items()):
                         counts = Counter(a_tax_list)
 
                         list_props = list()
-                        for cur_rank, cur_count in sorted(counts.items(), key=lambda v: -v[1]):
+                        for cur_rank, cur_count in sorted(list(counts.items()), key=lambda v: -v[1]):
                             cur_prop = (float(cur_count) / len(a_tax_list)) * 100.0
                             list_props.append('%s (%.2f%%)' % (cur_rank, cur_prop))
 
@@ -283,7 +283,7 @@ class MetadataManager(object):
         # Iterate over all BLAST hits for each genome id
         gtdb_to_silva = defaultdict(lambda: defaultdict(list))
         silva_to_gtdb = defaultdict(lambda: defaultdict(list))
-        for gid, blast_hits in ssu_agg.items():
+        for gid, blast_hits in list(ssu_agg.items()):
 
             # Take the consensus taxonomy
             most_sig_hit = _get_most_significant_hit(blast_hits, min_align_length=900)
@@ -334,7 +334,7 @@ class MetadataManager(object):
             with open(metafile, 'r') as metaf:
                 for line in metaf:
                     data_list.append(tuple(line.strip().split('\t')))
-            data_zip = zip(*data_list)
+            data_zip = list(zip(*data_list))
             genome_id = list(data_zip[0])
             meta_value = list(data_zip[1])
             for n, i in enumerate(genome_id):
@@ -370,7 +370,7 @@ class MetadataManager(object):
             query = "SELECT v.field,v.table from view_list_meta_columns as v"
             self.cur.execute(query)
             all_col_dict = dict(self.cur.fetchall())
-            for key, value in data_dict.iteritems():
+            for key, value in list(data_dict.items()):
                 if key in all_col_dict:
                     if all_col_dict.get(key) == value['table']:
                         query_comment = "COMMENT ON COLUMN {0}.{1} IS '{2}'".format(
@@ -616,7 +616,7 @@ class MetadataManager(object):
 
             return True
         except psycopg2.Error as e:
-            print "error"
+            print("error")
             raise GenomeDatabaseError(e.pgerror)
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -809,7 +809,7 @@ class MetadataManager(object):
                     # TGC: 1
                     if ' : ' in line:
                         line_split = line.split('\t')[0]
-                        line_split = map(str.strip, line_split.split(':'))
+                        line_split = list(map(str.strip, line_split.split(':')))
                         if len(line_split[0]) == 3:  # this is an amino acid
                             if int(line_split[1]) > 0:
                                 trna_aa_count += 1

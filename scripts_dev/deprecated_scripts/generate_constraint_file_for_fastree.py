@@ -43,27 +43,27 @@ class Constraintgenerator(object):
 
     def run(self,msa_file,constraint_dir,outfile):
         msa_dict = read_fasta(msa_file)
-        outdict = dict((key, []) for key in msa_dict.iterkeys())
+        outdict = dict((key, []) for key in msa_dict.keys())
         onlyfiles = [os.path.join(constraint_dir, f) for f in os.listdir(constraint_dir) if os.path.isfile(os.path.join(constraint_dir, f))]
         for constraintfile in onlyfiles:
             constraintlist = []
             with open(constraintfile) as f:
                 for line in f:
                     constraintlist.append(line.strip())
-                for k,v in outdict.iteritems():
+                for k,v in outdict.items():
                     if k in constraintlist:
                         outdict.get(k).append('1')
                     else:
                         outdict.get(k).append('0')
         outf = open(outfile,'w')
-        for outk,outval in outdict.iteritems():
+        for outk,outval in outdict.items():
             outf.write(">{0}\n{1}\n".format(outk,''.join(outval)))
         outf.close()
 
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('--msa_file', help = 'msa file ' )
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     p = Constraintgenerator()
     p.run(args.msa_file,args.constraint_dir,args.outfile)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

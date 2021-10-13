@@ -54,38 +54,38 @@ class UpdateDSMZDatabase(object):
         # Check if the files exist:
         if os.path.isfile(self.dsmz_genera_file) and os.path.isfile(self.dsmz_strains_file) and os.path.isfile(self.dsmz_species_file):
             self.temp_cur.execute('TRUNCATE dsmz_genera;')
-            print "Deletion dsmz_genera done"
+            print("Deletion dsmz_genera done")
             fr = open(self.dsmz_genera_file)
             fr.readline()
             self.temp_cur.copy_from(fr, 'dsmz_genera')
-            print 'Copy dsmz_genera done'
+            print('Copy dsmz_genera done')
             self.temp_con.commit()
 
             self.temp_cur.execute('TRUNCATE dsmz_species;')
-            print "Deletion dsmz_species done"
+            print("Deletion dsmz_species done")
             fr = open(self.dsmz_species_file)
             fr.readline()
             self.temp_cur.copy_from(fr, 'dsmz_species')
-            print 'Copy dsmz_species done'
+            print('Copy dsmz_species done')
             self.temp_con.commit()
 
             fr = open(self.dsmz_strains_file)
             fr.readline()
             self.temp_cur.execute('TRUNCATE dsmz_strains;')
-            print "Deletion dsmz_strains done"
+            print("Deletion dsmz_strains done")
 
             self.temp_cur.copy_from(fr, 'dsmz_strains')
-            print 'Copy dsmz_strains done'
+            print('Copy dsmz_strains done')
             self.temp_con.commit()
 
         else:
-            print 'Some files are missing in {0}'.format(self.path)
+            print('Some files are missing in {0}'.format(self.path))
         self.temp_con.ClosePostgresConnection()
 
 
 if __name__ == "__main__":
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         update_dsmz_mngr = UpdateDSMZDatabase(args.dsmz_dir)
         update_dsmz_mngr.runUpdate()
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

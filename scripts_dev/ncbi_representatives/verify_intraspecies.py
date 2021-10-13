@@ -115,8 +115,8 @@ for line in open('gtdb_clusters_99.5.tsv'):
                 if rep_taxonomy[5] != genome_taxonomy[5]:
                     if genome_quality[rep_id][2] > 70 and genome_quality[genome_id][2] > 70:
                         intergenus_count += 1
-                        print rep_taxonomy[5], genome_taxonomy[5], rep_id, genome_id, genome_quality[rep_id], genome_quality[genome_id]
+                        print(rep_taxonomy[5], genome_taxonomy[5], rep_id, genome_id, genome_quality[rep_id], genome_quality[genome_id])
                     
-print ''
-print 'Inter-species count: %d' % interspecies_count
-print 'Inter-genus count: %d' % intergenus_count
+print('')
+print('Inter-species count: %d' % interspecies_count)
+print('Inter-genus count: %d' % intergenus_count)

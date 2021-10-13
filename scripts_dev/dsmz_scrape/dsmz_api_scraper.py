@@ -85,7 +85,7 @@ class PNUClient(object):
                         'type_species')] = item.get('label')
             if results.get("next") is not None:
                 temp_dict = self.getGenera(outfile, urlreq)
-                for k, v in temp_dict.iteritems():
+                for k, v in temp_dict.items():
                     genus_type_species_dict[k] = v
 #             OUTPUT:
 #             object of type 'dict' with the fields 'count', 'previous', 'results', 'next'
@@ -124,7 +124,7 @@ class PNUClient(object):
                             '(\w+)\s\(now\s(\w+)\)\s(\d+)', re.IGNORECASE)
                         matches = p.search(st)
                         if matches:
-                            print st
+                            print(st)
                             list_strains.append("{} {}".format(
                                 matches.group(1), matches.group(3)))
                             list_strains.append("{}{}".format(
@@ -183,8 +183,8 @@ class PNUClient(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -198,7 +198,7 @@ if __name__ == '__main__':
         p = PNUClient()
         p.run(args.output_dir, args.username, args.password)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

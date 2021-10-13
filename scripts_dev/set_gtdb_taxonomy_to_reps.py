@@ -94,10 +94,10 @@ class Script():
                 continue
                 
             if ncbi_taxonomy:
-                ncbi_taxa[genome] = map(str.strip, ncbi_taxonomy.split(';'))
+                ncbi_taxa[genome] = list(map(str.strip, ncbi_taxonomy.split(';')))
                 
             if gtdb_taxonomy:
-                gtdb_taxa[genome] = map(str.strip, gtdb_taxonomy.split(';'))
+                gtdb_taxa[genome] = list(map(str.strip, gtdb_taxonomy.split(';')))
             else:
                 gtdb_taxa[genome] = list(Taxonomy.rank_prefixes)
                 if ncbi_taxonomy:
@@ -128,7 +128,7 @@ class Script():
                 continue
             
             taxa = []
-            for r in xrange(0, 7):
+            for r in range(0, 7):
                 t = []
                 for gid in (clusters[rep_id]):
                     t.append(gtdb_taxa[gid][r])
@@ -143,7 +143,7 @@ class Script():
 
             if taxa[0] == 'd__' and rep_id in ncbi_taxa:
                 taxa[0] = ncbi_taxa[rep_id][0]
-                print rep_id, taxa[0]
+                print(rep_id, taxa[0])
             
             reps[rep_id] = ';'.join(taxa)
             assigned_taxonomy += 1
@@ -151,9 +151,9 @@ class Script():
         self.logger.info('Assigned %d representatives a consensus taxonomy.' % assigned_taxonomy)
 
         clustered_tax = []
-        for gid, rep_id in clustered.iteritems():
+        for gid, rep_id in list(clustered.items()):
             gtdb_taxonomy = reps[rep_id]
-            gtdb_taxa = map(str.strip, gtdb_taxonomy.split(';'))
+            gtdb_taxa = list(map(str.strip, gtdb_taxonomy.split(';')))
             d = gtdb_taxa + [gid]
             clustered_tax.append(d)
                 
@@ -171,8 +171,8 @@ class Script():
         cur.close()
  
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('gtdb_version', help='GTDB database version (i.e., gtdb_releaseX)')
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     
         p.run(args.threads)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

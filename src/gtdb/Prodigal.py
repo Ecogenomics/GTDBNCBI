@@ -24,8 +24,8 @@ import multiprocessing as mp
 from biolib.external.prodigal import (Prodigal as BioLibProdigal)
 from biolib.checksum import sha256
 
-import ConfigMetadata
-import Config
+from . import ConfigMetadata
+from . import Config
 
 
 class Prodigal(object):
@@ -55,7 +55,7 @@ class Prodigal(object):
 
         prodigal = BioLibProdigal(1, False)
         summary_stats = prodigal.run([fasta_path], output_dir)
-        summary_stats = summary_stats[summary_stats.keys()[0]]
+        summary_stats = summary_stats[list(summary_stats.keys())[0]]
 
         # rename output files to adhere to GTDB conventions
         aa_gene_file = os.path.join(output_dir, genome_id + ConfigMetadata.PROTEIN_FILE_SUFFIX)
@@ -137,7 +137,7 @@ class Prodigal(object):
         worker_queue = mp.Queue()
         writer_queue = mp.Queue()
 
-        for db_genome_id, file_paths in genomic_files.iteritems():
+        for db_genome_id, file_paths in list(genomic_files.items()):
             worker_queue.put([db_genome_id, file_paths])
 
         for _ in range(self.threads):

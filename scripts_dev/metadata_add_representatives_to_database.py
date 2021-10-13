@@ -130,25 +130,25 @@ class AddRepresentativeGenomes(object):
     print('Identified %d genomes marked as representatives.' % sum([1 for rid in is_rep if is_rep[rid]]))
      
     cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_genome_representative --type TEXT --metadatafile %s' % (temp_genome_rep_file.name)
-    print cmd
+    print(cmd)
     os.system(cmd)
     os.remove(temp_genome_rep_file.name)
     
     # mark representative genomes
     temp_rep_file = tempfile.NamedTemporaryFile(delete=False)
-    for rep_accn, rep_status in is_rep.iteritems():
+    for rep_accn, rep_status in list(is_rep.items()):
         temp_rep_file.write('%s\t%s\n' % (rep_accn, str(rep_status)))
     temp_rep_file.close()
     
     cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_representative --type BOOLEAN --metadatafile %s' % (temp_rep_file.name)
-    print cmd
+    print(cmd)
     os.system(cmd)
     os.remove(temp_rep_file.name)  
     cur.close()
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('final_cluster_file', help="clusters for named species")
@@ -160,7 +160,7 @@ if __name__ == '__main__':
         p = AddRepresentativeGenomes()
         p.run(args.final_cluster_file, args.gtdb_version)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

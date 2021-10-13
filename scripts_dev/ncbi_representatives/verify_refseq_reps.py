@@ -16,4 +16,4 @@ for line in open('gtdb_clusters_99.5.tsv'):
     if rep in refseq_reps:
         refseq_reps.remove(rep)
         
-print len(refseq_reps)
+print(len(refseq_reps))

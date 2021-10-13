@@ -20,8 +20,8 @@ import logging
 import psycopg2
 from psycopg2.extensions import AsIs
 
-from Tools import generateTempTableName, confirm
-from Exceptions import GenomeDatabaseError
+from .Tools import generateTempTableName, confirm
+from .Exceptions import GenomeDatabaseError
 
 
 class GenomeListManager(object):

@@ -55,7 +55,7 @@ class ANI(object):
             output_file = os.path.join(output_dir, gf1_name + '~' + gf2_name + '.tsv')
             outdir = os.path.join(output_dir, gf1_name + '~' + gf2_name)
             cmd = 'ani_calculator -genome1fna %s -genome2fna %s -outfile %s -outdir %s' % (gf1, gf2, output_file, outdir)
-            print cmd
+            print(cmd)
             os.system(cmd)
 
             # allow results to be processed or written to file
@@ -97,7 +97,7 @@ class ANI(object):
                 
                 for line in f:
                     line_split = line.strip().split('\t')
-                    print r, line_split
+                    print(r, line_split)
                     
                     gid1 = line_split[0].replace('_genes.fna', '')
                     gid2 = line_split[1].replace('_genes.fna', '')
@@ -106,7 +106,7 @@ class ANI(object):
                     of12 = float(line_split[4])
                     of21 = float(line_split[5])
                     
-                    print r, gid1, gid2, ani12, ani21, of12, of21
+                    print(r, gid1, gid2, ani12, ani21, of12, of21)
 
                     gids.add(gid1)
                     gids.add(gid2)
@@ -182,8 +182,8 @@ class ANI(object):
         self.build_table(output_dir)
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('gene_dir', help='directory with called genes in nt space')
@@ -196,7 +196,7 @@ if __name__ == '__main__':
         p = ANI()
         p.run(args.gene_dir, args.output_dir, args.threads)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

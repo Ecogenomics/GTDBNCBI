@@ -20,7 +20,7 @@
 import os
 import sys
 import argparse
-import urllib
+import urllib3 as urllib
 from datetime import timedelta, datetime
 import re
 from multiprocessing.pool import ThreadPool as Pool
@@ -52,10 +52,10 @@ class PNUClient(object):
         list_strains = []
         textname = ''
         url = 'http://www.straininfo.net/taxa/{0}'.format(intpage)
-        print url
+        print(url)
 
         try:
-            testfile = urllib.URLopener()
+            testfile = urllib.request.URLopener()
             testfile.retrieve(url, "toparse{0}.html".format(intpage))
 
             with open("toparse{0}.html".format(intpage), 'r') as htmlpagespe:
@@ -107,7 +107,7 @@ class PNUClient(object):
                         author = False
                         title = False
                     elif author and title:
-                        print line
+                        print(line)
                         matchObj_sub = re.match(
                             '\s+<div>([^<]+)<\/div>', line)
                         if matchObj_sub:
@@ -116,12 +116,12 @@ class PNUClient(object):
                             title = False
 
             os.remove("toparse{0}.html".format(intpage))
-            print dates
+            print(dates)
             out_q.put(
                 (species, "=".join(set(list_strains)), '/'.join(set(dates))))
 
         except IOError:
-            print 'url does not exist.'
+            print('url does not exist.')
 
         return True
 
@@ -150,8 +150,8 @@ class PNUClient(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -163,7 +163,7 @@ if __name__ == '__main__':
         p = PNUClient()
         p.run(args.output_file)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

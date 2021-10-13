@@ -25,19 +25,19 @@ import multiprocessing
 import psycopg2
 import time
 
-import Config
-import ConfigMetadata
-import Tools
+from . import Config
+from . import ConfigMetadata
+from . import Tools
 
-from Exceptions import GenomeDatabaseError
-from MetadataManager import MetadataManager
-from Prodigal import Prodigal
-from TigrfamSearch import TigrfamSearch
-from PfamSearch import PfamSearch
+from .Exceptions import GenomeDatabaseError
+from .MetadataManager import MetadataManager
+from .Prodigal import Prodigal
+from .TigrfamSearch import TigrfamSearch
+from .PfamSearch import PfamSearch
 
 from biolib.checksum import sha256
 from biolib.common import make_sure_path_exists
-from Tools import splitchunks, confirm
+from .Tools import splitchunks, confirm
 from psycopg2.extensions import AsIs
 
 
@@ -180,7 +180,7 @@ class GenomeManager(object):
                 shutil.rmtree(self.tmp_output_dir)
             raise
 
-        return genomic_files.keys()
+        return list(genomic_files.keys())
 
     def _progress(self, num_genomes, progress_queue):
         """Track progress of large parallel jobs."""
@@ -210,7 +210,7 @@ class GenomeManager(object):
         :param study_id = study id
         '''
         metadata_mngr = MetadataManager(self.cur, self.currentUser)
-        for db_genome_id, values in genomic_files.iteritems():
+        for db_genome_id, values in genomic_files.items():
 
             self.cur.execute("UPDATE genomes SET study_id = %s WHERE id = %s",
                              (study_id, db_genome_id))
@@ -335,7 +335,7 @@ class GenomeManager(object):
             if user_editable:
                 external_id_dict[genome_id] = external_id
 
-        if len(external_id_dict.keys()) > 0:
+        if len(list(external_id_dict.keys())) > 0:
             username = None
             if self.currentUser.isRootUser():
                 username = self.currentUser.getElevatedFromUsername()
@@ -347,7 +347,7 @@ class GenomeManager(object):
                     "Unable to determine user to add genomes under.")
 
         gtdb_target_dir = os.path.join(self.genomeCopyDir, username)
-        for db_genome_id, external_id in external_id_dict.items():
+        for db_genome_id, external_id in list(external_id_dict.items()):
             tmp_genome_dir = os.path.join(self.tmp_output_dir, external_id)
 
             genome_target_dir = os.path.join(gtdb_target_dir, external_id)
@@ -374,7 +374,7 @@ class GenomeManager(object):
         genome_id_map = self.genomeIdsToExternalGenomeIds(db_genome_ids)
 
         protein_files = {}
-        for db_genome_id, genome_dir in genome_dirs.iteritems():
+        for db_genome_id, genome_dir in list(genome_dirs.items()):
             gene_dir = os.path.join(genome_dirs[db_genome_id],
                                             Config.NCBI_ANNOTATION_DIR)
             raw_genome_id = genome_id_map[db_genome_id].replace('GB_', '').replace('RS_', '')
@@ -684,7 +684,7 @@ class GenomeManager(object):
 
             required_headers[header] = pos
 
-        for header, col in required_headers.items():
+        for header, col in list(required_headers.items()):
             if (header is "Completeness" or header is "Contamination") and col is None:
                 raise GenomeDatabaseError(
                     "Unable to find %s header in the CheckM file. Check that the CheckM file is correct: %s." % (header, checkm_fh.name))
@@ -797,7 +797,7 @@ class GenomeManager(object):
         study_fh.close()
 
         # check that all fields were populated
-        for field, value in study_info.iteritems():
+        for field, value in list(study_info.items()):
             if value is None:
                 raise GenomeDatabaseError(
                     "Study file %s is missing the field: %s" % (study_file, field))
@@ -805,7 +805,7 @@ class GenomeManager(object):
         # add information to study table
         query = "INSERT INTO study (%s) VALUES %s RETURNING study_id"
         self.cur.execute(
-            query, (AsIs(','.join(study_info.keys())), tuple(study_info.values())))
+            query, (AsIs(','.join(list(study_info.keys()))), tuple(study_info.values())))
         study_id = self.cur.fetchone()[0]
 
         return study_id
@@ -870,7 +870,7 @@ class GenomeManager(object):
                 self.cur.execute("UPDATE metadata_taxonomy set gtdb_genome_representative = NULL where  " +
                                  "gtdb_genome_representative in %s", (tuple(genomes_owners.keys()),))
 
-                for genome, info in genomes_owners.iteritems():
+                for genome, info in list(genomes_owners.items()):
                     if str(username) != str(info.get("owner")):
                         logging.info('''Genome {0} has been deleted by {1} for the following reason '{2}'
                                           WARNING: {1} is not the owner of this {0} (real owner {3} )
@@ -926,9 +926,9 @@ class GenomeManager(object):
 
                 if not self.currentUser.isRootUser():
                     if (owned_by_root or owner_id != self.currentUser.getUserId()):
-                        print (
+                        print(
                             "WARNING: Insufficient permissions to edit genome {0}".format(public_id))
-                        print logging.warn("{0} is trying to delete genome {1} owned by {2}".format(self.currentUser.getUsername(), public_id, username))
+                        print(logging.warn("{0} is trying to delete genome {1} owned by {2}".format(self.currentUser.getUsername(), public_id, username)))
                         return (False, None, None)
                 dict_genomes_user[public_id] = {
                     "owner": username, "prefix": prefix, "relative_path": fasta_path}
@@ -998,13 +998,13 @@ class GenomeManager(object):
 
             temp_table_name = Tools.generateTempTableName()
 
-            if len(map_sources_to_ids.keys()):
+            if len(list(map_sources_to_ids.keys())):
                 self.cur.execute("CREATE TEMP TABLE %s (prefix text)" %
                                  (temp_table_name,))
                 query = "INSERT INTO {0} (prefix) VALUES (%s)".format(
                     temp_table_name)
                 self.cur.executemany(query, [(x,)
-                                             for x in map_sources_to_ids.keys()])
+                                             for x in list(map_sources_to_ids.keys())])
             else:
                 raise GenomeDatabaseError(
                     "No genome sources found for these ids. %s" % str(external_ids))
@@ -1019,12 +1019,12 @@ class GenomeManager(object):
 
             missing_genome_sources = {}
             for (query_prefix,) in self.cur:
-                missing_genome_sources[query_prefix] = map_sources_to_ids[
-                    query_prefix].values()
+                missing_genome_sources[query_prefix] = list(map_sources_to_ids[
+                    query_prefix].values())
 
-            if len(missing_genome_sources.keys()):
+            if len(list(missing_genome_sources.keys())):
                 errors = []
-                for (source_prefix, offending_ids) in missing_genome_sources.items():
+                for (source_prefix, offending_ids) in list(missing_genome_sources.items()):
                     errors.append("(%s) %s" %
                                   (source_prefix, str(offending_ids)))
                 raise GenomeDatabaseError("Cannot find the relevant genome source id for the following ids, check the IDs are correct: " +
@@ -1032,7 +1032,7 @@ class GenomeManager(object):
 
             # All genome sources should be good, find ids
             result_ids = []
-            for source_prefix in map_sources_to_ids.keys():
+            for source_prefix in list(map_sources_to_ids.keys()):
 
                 # Create a table of requested external ids from this genome
                 # source
@@ -1042,7 +1042,7 @@ class GenomeManager(object):
                 query = "INSERT INTO {0} (id_at_source) VALUES (%s)".format(
                     temp_table_name)
                 self.cur.executemany(
-                    query, [(x,) for x in map_sources_to_ids[source_prefix].keys()])
+                    query, [(x,) for x in list(map_sources_to_ids[source_prefix].keys())])
 
                 # Check to see if there are any that don't exist
                 query = ("SELECT id_at_source FROM {0} " +
@@ -1178,7 +1178,7 @@ class GenomeManager(object):
                 fout.write('>{0}~{1} {2} {3} {4}\n'.format(genome, query, taxonomy, gene_len, contig_len))
                 fout.write('{0}\n'.format(sequence))
             fout.close()
-            print 'Export successful'
+            print('Export successful')
         except GenomeDatabaseError as e:
             raise e
 
@@ -1200,7 +1200,7 @@ class GenomeManager(object):
                 fout.write('>{0}~{1} {2} {3} {4}\n'.format(genome, query, taxonomy, gene_len, contig_len))
                 fout.write('{0}\n'.format(sequence))
             fout.close()
-            print 'Export successful'
+            print('Export successful')
         except GenomeDatabaseError as e:
             raise e
 
@@ -1218,6 +1218,6 @@ class GenomeManager(object):
             for genome, gtdb_clustered_genomes in self.cur.fetchall():
                 fout.write('{0}\t{1}\n'.format(genome, gtdb_clustered_genomes))
             fout.close()
-            print 'Export successful'
+            print('Export successful')
         except GenomeDatabaseError as e:
             raise e

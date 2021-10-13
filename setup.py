@@ -54,7 +54,7 @@ setup(
     long_description=long_description(),
     install_requires=[
         "numpy >= 1.8.0",
-        'biolib < 0.1.0',
+        'biolib >= 0.1.0',
         'requests',
         'unidecode',
         'matplotlib',

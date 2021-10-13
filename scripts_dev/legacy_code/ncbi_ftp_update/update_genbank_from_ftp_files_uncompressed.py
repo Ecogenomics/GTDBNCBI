@@ -107,16 +107,16 @@ class UpdateGenbankFolder(object):
         # new genomes in FTP
         added_dict = {added_key: new_dict[added_key] for added_key in list(
             set(new_dict.keys()) - set(old_dict.keys()))}
-        print "{0} genomes to add".format(len(added_dict))
-        sub_added_dict = {k: added_dict[k] for k in added_dict.keys()[0:10]}
+        print("{0} genomes to add".format(len(added_dict)))
+        sub_added_dict = {k: added_dict[k] for k in list(added_dict.keys())[0:10]}
         self.addGenomes(added_dict, ftp_genbank, new_genbank)
 
         # delete genomes from the Database
         removed_dict = {removed_key: old_dict[removed_key] for removed_key in list(
             set(old_dict.keys()) - set(new_dict.keys()))}
-        print "{0} genomes to remove".format(len(removed_dict))
+        print("{0} genomes to remove".format(len(removed_dict)))
         sub_removed_dict = {k: removed_dict[k]
-                            for k in removed_dict.keys()[0:10]}
+                            for k in list(removed_dict.keys())[0:10]}
         self.removeGenomes(removed_dict, old_dict_domain)
 
         print("{}:Generating intersection list.....".format(str(datetime.now())))
@@ -295,9 +295,9 @@ class UpdateGenbankFolder(object):
         # record as incomplete
         if len(list(set(ftpdict_fasta.keys()).symmetric_difference(set(gtdbdict_fasta.keys())))) > 0:
             self.genomes_to_review.write("tmp_target:{}\nftpdict_fasta.keys():{}\ngtdb_dir:{}\ngtdbdict_fasta.keys():{}\n\n".format(tmp_target,
-                                                                                                                                    ftpdict_fasta.keys(),
+                                                                                                                                    list(ftpdict_fasta.keys()),
                                                                                                                                     gtdb_dir,
-                                                                                                                                    gtdbdict_fasta.keys()))
+                                                                                                                                    list(gtdbdict_fasta.keys())))
             status.append("incomplete")
             shutil.copytree(tmp_target, target_dir, symlinks=True,
                             ignore=shutil.ignore_patterns("*_assembly_structure"))
@@ -307,7 +307,7 @@ class UpdateGenbankFolder(object):
             ftp_folder = False
             # check if genomic.fna.gz and protein.faa.gz are similar between
             # previous gtdb and ftp
-            for key, value in ftpdict_fasta.iteritems():
+            for key, value in list(ftpdict_fasta.items()):
                 if value != gtdbdict_fasta.get(key):
                     ftp_folder = True
 
@@ -331,21 +331,21 @@ class UpdateGenbankFolder(object):
                 # We check if all other file of this folder are the same.
                 checksum_changed = False
 
-                for key, value in ftpdict_faa.iteritems():
+                for key, value in list(ftpdict_faa.items()):
                     if value != gtdbdict_faa.get(key):
                         checksum_changed = True
                         shutil.copy2(
                             os.path.join(tmp_target, key), os.path.join(target_dir, key))
                         status.append("new_protein")
 
-                for key, value in ftpdict.iteritems():
+                for key, value in list(ftpdict.items()):
                     if value != gtdbdict.get(key):
                         checksum_changed = True
                         shutil.copy2(
                             os.path.join(tmp_target, key), os.path.join(target_dir, key))
                         status.append("new_metadata")
 
-                for key, value in ftpdict_extra_fasta.iteritems():
+                for key, value in list(ftpdict_extra_fasta.items()):
                     if value != gtdbdict_extra_fasta.get(key):
                         checksum_changed = True
                         shutil.copy2(
@@ -372,13 +372,13 @@ class UpdateGenbankFolder(object):
                             ftp_dir.target_dir))
                         status.append("new_hashes")
                     else:
-                        print "########"
-                        print target_dir
-                        print target_files
-                        print ftp_dir
-                        print ftp_files
-                        print "IT SHOULDN'T HAPPEN"
-                        print "########"
+                        print("########")
+                        print(target_dir)
+                        print(target_files)
+                        print(ftp_dir)
+                        print(ftp_files)
+                        print("IT SHOULDN'T HAPPEN")
+                        print("########")
                         sys.exit()
         status_gca = "{0}\t{1}\t{2}\n".format(self.genome_domain_dict.get(
             gcf_record).upper(), gcf_record, ';'.join([x for x in set(status)]))
@@ -390,7 +390,7 @@ class UpdateGenbankFolder(object):
     def parseAssemblySummary(self, gbk_arc_assembly, gbk_bac_assembly, new_refseq_genome_dirs):
         listGCA = []
         dictGCF = self._populateGenomesDict(new_refseq_genome_dirs)
-        print "parsing of dictionary is done"
+        print("parsing of dictionary is done")
 
         for domain, assemblyfile in [('archaea', gbk_arc_assembly), ('bacteria', gbk_bac_assembly)]:
             num_lines = sum(1 for line in open(assemblyfile))
@@ -521,8 +521,8 @@ class UpdateGenbankFolder(object):
 
 
 if __name__ == "__main__":
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -552,7 +552,7 @@ if __name__ == "__main__":
             args.arc_assembly_summary, args.bac_assembly_summary)
 
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

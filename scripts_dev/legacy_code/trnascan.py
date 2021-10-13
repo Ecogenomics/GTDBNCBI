@@ -131,11 +131,11 @@ class tRNAScan(object):
         genomes_to_consider = None
 
         # get path to all genome files
-        print 'Reading genomes.'
+        print('Reading genomes.')
         genome_files = []
         for first_three in os.listdir(input_dir):
             onethird_species_dir = os.path.join(input_dir, first_three)
-            print onethird_species_dir
+            print(onethird_species_dir)
             if os.path.isfile(onethird_species_dir):
                 continue
             for second_three in os.listdir(onethird_species_dir):
@@ -168,25 +168,25 @@ class tRNAScan(object):
                                 checksum_file).readline().strip()
                             if checksum == cur_checksum:
                                 if genomes_to_consider and genome_id in genomes_to_consider:
-                                    print '[WARNING] Genome %s is marked as new or modified, but already has tRNAs called.' % genome_id
-                                    print '[WARNING] Genome is being skipped!'
+                                    print('[WARNING] Genome %s is marked as new or modified, but already has tRNAs called.' % genome_id)
+                                    print('[WARNING] Genome is being skipped!')
                                 continue
 
-                        print '[WARNING] Genome %s has tRNAs called, but an invalid checksum and was not marked for reannotation.' % genome_id
-                        print '[WARNING] Genome will be reannotated.'
+                        print('[WARNING] Genome %s has tRNAs called, but an invalid checksum and was not marked for reannotation.' % genome_id)
+                        print('[WARNING] Genome will be reannotated.')
 
                     elif genomes_to_consider and (genome_id not in genomes_to_consider):
-                        print '[WARNING] Genome %s has no Pfam annotations, but is also not marked for processing?' % genome_id
-                        print '[WARNING] Genome will be reannotated!'
+                        print('[WARNING] Genome %s has no Pfam annotations, but is also not marked for processing?' % genome_id)
+                        print('[WARNING] Genome will be reannotated!')
 
                     genome_file = os.path.join(
                         full_path, complete_name + self.genome_file_ext)
                     if os.path.exists(genome_file):
                         if os.stat(genome_file).st_size == 0:
-                            print '[Warning] Genome file appears to be empty: %s' % genome_file
+                            print('[Warning] Genome file appears to be empty: %s' % genome_file)
                         else:
                             genome_files.append(genome_file)
-        print '  Number of unprocessed genomes: %d' % len(genome_files)
+        print('  Number of unprocessed genomes: %d' % len(genome_files))
 
         # populate worker queue with data to process
         workerQueue = mp.Queue()
@@ -223,8 +223,8 @@ class tRNAScan(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -248,7 +248,7 @@ if __name__ == '__main__':
                      args.rfq_arc_assembly_file, args.rfq_bac_assembly_file)
         p.run(args.genome_dir, args.threads)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

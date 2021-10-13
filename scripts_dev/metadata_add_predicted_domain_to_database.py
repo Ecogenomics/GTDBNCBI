@@ -62,18 +62,18 @@ class AddDomain(object):
 
     # add predicted domains to gtdb_domain field
     temp_file = tempfile.NamedTemporaryFile(delete=False)
-    for genome_id, domain in domains.iteritems():
+    for genome_id, domain in list(domains.items()):
         temp_file.write('%s\t%s\n' % (genome_id, domain))
     temp_file.close()
     
     cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_domain --type TEXT --metadatafile %s' % temp_file.name
-    print cmd
+    print(cmd)
     os.system(cmd)
     #os.remove(temp_file.name)
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('domain_report', help='taxonomy file with genome tree taxonomy strings')
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     p = AddDomain()
     p.run(args.domain_report)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

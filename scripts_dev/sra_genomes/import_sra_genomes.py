@@ -111,7 +111,7 @@ class UpdateSRA(object):
             chfile.readline()
             for line in chfile:
                 line_tab = line.split('\t')
-                print line_tab
+                print(line_tab)
                 checkm_dict[line_tab[0]] = {"checkm_completeness": line_tab[5], "checkm_contamination": line_tab[6], "checkm_marker_lineage": line_tab[1], "checkm_genome_count": line_tab[2], "checkm_marker_set_count": line_tab[4], "checkm_marker_count": line_tab[3], "checkm_strain_heterogeneity": line_tab[7]}
         return checkm_dict
 
@@ -123,12 +123,12 @@ class UpdateSRA(object):
 
         checkm_dict_original = self.parsecheckm(sra_path)
 
-        print os.getlogin()
+        print(os.getlogin())
         sra_dirs = os.listdir(sra_path)
         for sra_dir in sra_dirs:
             temp_path = tempfile.mkdtemp()
             sra_dir = os.path.join(sra_path, sra_dir)
-            print sra_dir
+            print(sra_dir)
             if os.path.isdir(sra_dir):
                 bins_dir = os.path.join(sra_dir, 'bins')
                 genomes_bin = os.listdir(bins_dir)
@@ -138,8 +138,8 @@ class UpdateSRA(object):
                         last_id += 1
                         temp_user_dir = os.path.join(temp_path, "U_" + str(last_id))
                         os.mkdir(temp_user_dir)
-                        print temp_user_dir
-                        print genome_prefix
+                        print(temp_user_dir)
+                        print(genome_prefix)
 
                         shutil.copyfile(os.path.join(bins_dir, genome), os.path.join(temp_user_dir, "U_" + str(last_id) + "_genomic.fna"))
 
@@ -205,7 +205,7 @@ class UpdateSRA(object):
                                 line_tab = line.strip().split()
                                 self.temp_cur.execute("UPDATE metadata_genes set {0}=%s WHERE id =%s ".format(line_tab[0]), (line_tab[1], new_gid))
 
-                        for key, value in checkm_dict_original.get(genome_prefix).iteritems():
+                        for key, value in list(checkm_dict_original.get(genome_prefix).items()):
                             self.temp_cur.execute("UPDATE metadata_genes set {0}=%s WHERE id =%s ".format(key), (value, new_gid))
 
                         shutil.copytree(os.path.join(temp_user_dir), os.path.join("/srv/db/gtdb/genomes/user", os.getlogin(), "U_" + str(last_id)))
@@ -214,8 +214,8 @@ class UpdateSRA(object):
             shutil.rmtree(temp_path)
 
 if __name__ == "__main__":
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -228,7 +228,7 @@ if __name__ == "__main__":
         update_mngr.run(args.sra_path)
 
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

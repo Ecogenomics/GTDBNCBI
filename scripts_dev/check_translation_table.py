@@ -80,15 +80,15 @@ class Check(object):
                                     fout.write('%s\t%d\t%d\n' % (genome, ncbi_transl_table, prodigal_transl_table))
                                     print('%s\t%d\t%d' % (genome, ncbi_transl_table, prodigal_transl_table))
                     except:
-                        print "\nUnexpected error:", sys.exc_info()[0]
+                        print("\nUnexpected error:", sys.exc_info()[0])
                         print('Failed on: %s' % genome_dir)
                         sys.exit(-1)
 
         fout.close()
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('gtdb_genome_dir', help='directory leading to archaeal and bacterial genomes')
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     p = Check()
     p.run(args.gtdb_genome_dir, args.output_file)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

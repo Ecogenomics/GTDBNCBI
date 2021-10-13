@@ -109,14 +109,14 @@ class AddSpecies(object):
     temp_file.close()
     
     cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_proposed_species --type TEXT --metadatafile %s' % (temp_file.name)
-    print cmd
+    print(cmd)
     os.system(cmd)
     os.remove(temp_file.name)  
     cur.close()
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('user_cluster_file', help="GTDB species clusters for all NCBI and User genomes")
@@ -128,7 +128,7 @@ if __name__ == '__main__':
         p = AddSpecies()
         p.run(args.user_cluster_file, args.gtdb_version)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

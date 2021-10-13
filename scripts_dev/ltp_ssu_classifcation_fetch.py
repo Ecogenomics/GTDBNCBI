@@ -53,7 +53,7 @@ class LTP(object):
 
         # generate metadata for NCBI assemblies
         for ncbi_genome_dir in [ncbi_refseq_dir, ncbi_genbank_dir]:
-            print 'Reading NCBI assembly directories in %s.' % ncbi_genome_dir
+            print('Reading NCBI assembly directories in %s.' % ncbi_genome_dir)
             for domain in ['archaea', 'bacteria']:
                 domain_dir = os.path.join(ncbi_genome_dir, domain)
                 for species_dir in os.listdir(domain_dir):
@@ -70,7 +70,7 @@ class LTP(object):
 
         # generate metadata for user genomes
         if user_genome_dir != 'NONE':
-            print 'Reading user genome directories.'
+            print('Reading user genome directories.')
             for user_id in os.listdir(user_genome_dir):
                 full_user_dir = os.path.join(user_genome_dir, user_id)
                 if not os.path.isdir(full_user_dir):
@@ -87,8 +87,8 @@ class LTP(object):
         fout.close()
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('ncbi_refseq_dir', help='base directory leading to NCBI RefSeq archaeal and bacterial genome assemblies')
@@ -102,7 +102,7 @@ if __name__ == '__main__':
         p = LTP()
         p.run(args.ncbi_refseq_dir, args.ncbi_genbank_dir, args.user_genome_dir, args.output_file)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

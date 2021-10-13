@@ -52,21 +52,21 @@ class UpdateSTRAININFODatabase(object):
         # Check if the files exist:
         if os.path.isfile(self.straininfo_strains_file):
             self.temp_cur.execute('TRUNCATE straininfo_strains;')
-            print "Deletion straininfo_strains done"
+            print("Deletion straininfo_strains done")
             fr = open(self.straininfo_strains_file)
             fr.readline()
             self.temp_cur.copy_from(fr, 'straininfo_strains')
-            print 'Copy straininfo_strains done'
+            print('Copy straininfo_strains done')
             self.temp_con.commit()
 
         else:
-            print 'Some files are missing in {0}'.format(self.path)
+            print('Some files are missing in {0}'.format(self.path))
         self.temp_con.ClosePostgresConnection()
 
 
 if __name__ == "__main__":
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -79,7 +79,7 @@ if __name__ == "__main__":
         update_straininfo_mngr = UpdateSTRAININFODatabase(args.straininfo_dir)
         update_straininfo_mngr.runUpdate()
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

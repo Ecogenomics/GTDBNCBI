@@ -75,7 +75,7 @@ class Metadata(object):
         input_files = []
 
         # generate metadata for NCBI assemblies
-        print 'Reading NCBI assembly directories.'
+        print('Reading NCBI assembly directories.')
         processed_assemblies = defaultdict(list)
         rfq_dir = os.path.join(ncbi_genome_dir, 'refseq', 'GCF')
         gbk_dir = os.path.join(ncbi_genome_dir, 'genbank', 'GCA')
@@ -83,7 +83,7 @@ class Metadata(object):
         for input_dir in (rfq_dir, gbk_dir):
             for first_three in os.listdir(input_dir):
                 onethird_species_dir = os.path.join(input_dir, first_three)
-                print onethird_species_dir
+                print(onethird_species_dir)
                 if os.path.isfile(onethird_species_dir):
                     continue
                 for second_three in os.listdir(onethird_species_dir):
@@ -120,7 +120,7 @@ class Metadata(object):
 
         # generate metadata for user genomes
         if user_genome_dir != 'NONE':
-            print 'Reading user genome directories.'
+            print('Reading user genome directories.')
             for user_id in os.listdir(user_genome_dir):
                 full_user_dir = os.path.join(user_genome_dir, user_id)
                 if not os.path.isdir(full_user_dir):
@@ -135,7 +135,7 @@ class Metadata(object):
                     input_files.append([genome_file, gff_file])
 
         # process each genome
-        print 'Generating metadata for each genome:'
+        print('Generating metadata for each genome:')
         parallel = Parallel(cpus=cpus)
         parallel.run(self._producer,
                      None,
@@ -144,8 +144,8 @@ class Metadata(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -164,7 +164,7 @@ if __name__ == '__main__':
         p = Metadata()
         p.run(args.ncbi_genome_dir, args.user_genome_dir, args.threads)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

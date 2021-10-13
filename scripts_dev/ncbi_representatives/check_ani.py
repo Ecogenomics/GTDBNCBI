@@ -30,4 +30,4 @@ for line in open('ani_99.8.ani.tsv'):
     ani = float(line_split[2])
     
     if ani < 96.5 and ani > 0.0 and genome_quality[genome_id][2] > 80:
-        print line_split, genome_quality[rep_id], genome_quality[genome_id]
+        print(line_split, genome_quality[rep_id], genome_quality[genome_id])

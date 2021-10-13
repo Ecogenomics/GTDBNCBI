@@ -19,25 +19,25 @@ import os
 import pwd
 import logging
 
-import prettytable
+from . import prettytable
 
 from biolib.external.fasttree import FastTree
 from biolib.external.execute import check_dependencies
 
 
-import Config
-from Exceptions import GenomeDatabaseError
-from UserManager import UserManager
-from GenomeDatabaseConnection import GenomeDatabaseConnection
-from GenomeManager import GenomeManager
-from GenomeListManager import GenomeListManager
-from MarkerManager import MarkerManager
-from MarkerSetManager import MarkerSetManager
-from MetadataManager import MetadataManager
-from TreeManager import TreeManager
-from AlignedMarkerManager import AlignedMarkerManager
-from GenomeRepresentativeManager import GenomeRepresentativeManager
-from PowerUserManager import PowerUserManager
+from . import Config
+from .Exceptions import GenomeDatabaseError
+from .UserManager import UserManager
+from .GenomeDatabaseConnection import GenomeDatabaseConnection
+from .GenomeManager import GenomeManager
+from .GenomeListManager import GenomeListManager
+from .MarkerManager import MarkerManager
+from .MarkerSetManager import MarkerSetManager
+from .MetadataManager import MetadataManager
+from .TreeManager import TreeManager
+from .AlignedMarkerManager import AlignedMarkerManager
+from .GenomeRepresentativeManager import GenomeRepresentativeManager
+from .PowerUserManager import PowerUserManager
 
 
 class GenomeDatabase(object):
@@ -129,9 +129,9 @@ class GenomeDatabase(object):
         """
 
         if self.tab_table:
-            print '\t'.join(header)
+            print('\t'.join(header))
             for r in rows:
-                print '\t'.join(map(str, r))
+                print('\t'.join(map(str, r)))
         else:
             table = prettytable.PrettyTable(header)
             table.align = 'l'
@@ -140,7 +140,7 @@ class GenomeDatabase(object):
 
             for r in rows:
                 table.add_row(r)
-            print table.get_string().encode("utf-8")
+            print(table.get_string().encode("utf-8"))
 
     # Function: SetDebugMode
     # Sets the debug mode of the database (at the moment its either on (non-zero) or off (zero))
@@ -215,10 +215,10 @@ class GenomeDatabase(object):
         """
         try:
             if Config.DB_UPDATE:
-                print "During maintenance, users can not add genomes."
+                print("During maintenance, users can not add genomes.")
                 return True
             if self.dbLock:
-                print "Users can not add genomes in deprecated gtdb releases."
+                print("Users can not add genomes in deprecated gtdb releases.")
                 return True
 
             self.logger.info('Adding genomes to database.')
@@ -303,10 +303,10 @@ class GenomeDatabase(object):
         try:
 
             if Config.DB_UPDATE:
-                print "During maintenance, users can not delete genomes."
+                print("During maintenance, users can not delete genomes.")
                 return True
             if self.dbLock:
-                print "Users can not delete genomes in deprecated gtdb releases."
+                print("Users can not delete genomes in deprecated gtdb releases.")
                 return True
 
             cur = self.conn.cursor()
@@ -940,7 +940,7 @@ class GenomeDatabase(object):
             else:
                 cmd = 'FastTree ' + cmd
             self.logger.info('Running: %s' % cmd)
-            print cmd
+            print(cmd)
             os.system(cmd)
 
         self.logger.info('Done.')
@@ -1605,7 +1605,7 @@ class GenomeDatabase(object):
                         "ORDER BY id")
             genome_counts = cur.fetchall()
 
-            print ''
+            print('')
             header = ('Genome Source', 'Prefix', 'Genome Count')
             rows = []
             for tup in genome_counts:
@@ -1620,7 +1620,7 @@ class GenomeDatabase(object):
                         "GROUP BY gtdb_domain")
             domain_count = cur.fetchall()
 
-            print ''
+            print('')
             header = ('Domain', 'Genome Count')
             rows = []
             for tup in domain_count:
@@ -1628,21 +1628,21 @@ class GenomeDatabase(object):
 
             self.PrintTable(header, domain_count)
 
-            print ''
-            print 'Total genomes: %d' % (sum([x[2] for x in genome_counts]))
+            print('')
+            print('Total genomes: %d' % (sum([x[2] for x in genome_counts])))
 
             # report number of reference genomes
             cur.execute("SELECT COUNT(*) "
                         "FROM metadata_taxonomy "
                         "WHERE gtdb_representative = True")
             ref_genome_counts = cur.fetchone()[0]
-            print 'Number of representative genomes: %d' % ref_genome_counts
+            print('Number of representative genomes: %d' % ref_genome_counts)
 
             cur.execute("SELECT COUNT(*) "
                         "FROM metadata_taxonomy "
                         "WHERE gtdb_genome_representative IS NULL")
             no_ref_genome_counts = cur.fetchone()[0]
-            print 'Number of genomes without a representative: %d' % no_ref_genome_counts
+            print('Number of genomes without a representative: %d' % no_ref_genome_counts)
 
             self.conn.commit()
 

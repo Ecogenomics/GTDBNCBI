@@ -21,8 +21,8 @@ import sys
 import psycopg2
 from psycopg2.extensions import AsIs
 
-from Tools import generateTempTableName, confirm
-from Exceptions import GenomeDatabaseError
+from .Tools import generateTempTableName, confirm
+from .Exceptions import GenomeDatabaseError
 
 
 class MarkerSetManager(object):
@@ -79,7 +79,7 @@ class MarkerSetManager(object):
         query = ("SELECT marker_id, sequence " +
                  "FROM aligned_markers " +
                  "WHERE genome_id = %s AND marker_id = ANY(%s)")
-        self.cur.execute(query, (db_genome_id, marker_id_index.keys()))
+        self.cur.execute(query, (db_genome_id, list(marker_id_index.keys())))
 
         concatenated_align = [None] * len(marker_id_index)
         for marker_id, sequence in self.cur:

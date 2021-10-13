@@ -117,7 +117,7 @@ class RNA(object):
                 self.db = self.silva_lsu_ref_file
                 self.taxonomy = self.silva_lsu_taxonomy_file
             elif rna_gene == 'lsu_5S':
-                print 'We currently do not curate against a 5S database, but do identify these sequences for quality assessment purposes.'
+                print('We currently do not curate against a 5S database, but do identify these sequences for quality assessment purposes.')
             self.output_dir = self.silva_output_dir
         else:
             print('Unrecognized database: %s' % db)
@@ -135,7 +135,7 @@ class RNA(object):
             for input_dir in (rfq_dir, gbk_dir):
                 for first_three in os.listdir(input_dir):
                     onethird_species_dir = os.path.join(input_dir, first_three)
-                    print onethird_species_dir
+                    print(onethird_species_dir)
                     if os.path.isfile(onethird_species_dir):
                         continue
                     for second_three in os.listdir(onethird_species_dir):

@@ -49,7 +49,7 @@ class Mash(object):
 		os.makedirs(output_dir)
 
         # get path to genome files
-        print 'Getting path to genome files.'
+        print('Getting path to genome files.')
         genome_files = {}
         for line in open(genome_path_file):
             line_split = line.strip().split('\t')
@@ -63,20 +63,20 @@ class Mash(object):
 
 
         # create file specifying all genome files
-        print 'Creating file pointing to each genome file.'
+        print('Creating file pointing to each genome file.')
         genome_list_file = os.path.join(output_dir, 'genome_files.lst')
         fout = open(genome_list_file, 'w')
-        for i, (genome_id, genome_file) in enumerate(genome_files.iteritems()):
+        for i, (genome_id, genome_file) in enumerate(genome_files.items()):
             fout.write(genome_file + '\n')
         fout.close()
             
         # calculate pairwise Mash distance between genomes
-        print 'Creating Mash sketch.'
+        print('Creating Mash sketch.')
         sketch = os.path.join(output_dir, 'gtdb.msh')
         cmd = 'mash sketch -l -p %d -k 16 -s 5000 -o %s %s' % (threads, sketch, genome_list_file)
         os.system(cmd)
         
-        print 'Calculating pairwise Mash distances.'
+        print('Calculating pairwise Mash distances.')
         mash_output = os.path.join(output_dir, 'gtdb_mash_dist.tmp')
         cmd = 'mash dist -p %d -d %f -v %f %s %s > %s' % (threads,
                                                             max_dist,
@@ -86,7 +86,7 @@ class Mash(object):
                                                             mash_output)
         os.system(cmd)
         
-        print 'Fixing genome names in output file.'
+        print('Fixing genome names in output file.')
         fout = open(os.path.join(output_dir, 'gtdb_mash_dist.tsv'), 'w')
         for line in open(mash_output):
             line_split = line.strip().split('\t')
@@ -118,8 +118,8 @@ class Mash(object):
         os.remove(mash_output)
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('genome_path_file', help='file indicating directories of GTDB genomes')
@@ -138,7 +138,7 @@ if __name__ == '__main__':
                 args.output_dir, 
                 args.threads)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

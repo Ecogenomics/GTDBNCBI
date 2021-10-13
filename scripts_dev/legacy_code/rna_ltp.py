@@ -131,7 +131,7 @@ class RNA_LTP(object):
             for input_dir in (gbk_dir, rfq_dir):
                 for first_three in os.listdir(input_dir):
                     onethird_species_dir = os.path.join(input_dir, first_three)
-                    print onethird_species_dir
+                    print(onethird_species_dir)
                     if os.path.isfile(onethird_species_dir):
                         continue
                         

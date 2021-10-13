@@ -117,14 +117,14 @@ class TypeStrains(object):
     """Determine type strains."""
 
     node_records = self._read_nodes(os.path.join(taxonomy_dir, 'nodes.dmp'))
-    print 'Read %d node records.' % len(node_records)
+    print('Read %d node records.' % len(node_records))
 
     name_records = self._read_names(os.path.join(taxonomy_dir, 'names.dmp'))
-    print 'Read %d name records.' % len(name_records)
+    print('Read %d name records.' % len(name_records))
 
     # identify type strains
     type_strain_tax_ids = set()
-    for tax_id, node_record in node_records.iteritems():
+    for tax_id, node_record in list(node_records.items()):
       parent_node_record = node_records[node_record.parent_tax_id]
 
       if parent_node_record.rank == 'species':
@@ -144,12 +144,12 @@ class TypeStrains(object):
       fout.write('%s\t%s\t%s\t%s\n' % (tax_id, name_record.name_txt, node_record.parent_tax_id, parent_name_record.name_txt))
     fout.close()
 
-    print ''
-    print 'The %d identified type strains written to: %s' % (len(type_strain_tax_ids), output_file)
+    print('')
+    print('The %d identified type strains written to: %s' % (len(type_strain_tax_ids), output_file))
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('taxonomy_dir', help='directory containing NCBI taxonomy files')
@@ -161,7 +161,7 @@ if __name__ == '__main__':
     p = TypeStrains()
     p.run(args.taxonomy_dir, args.output_file)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

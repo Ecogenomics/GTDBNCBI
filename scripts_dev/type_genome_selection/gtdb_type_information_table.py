@@ -194,12 +194,12 @@ class InfoGenerator(object):
             'Read type material information for %d NCBI taxIDs.' % len(type_material))
 
         # sanity check results
-        for k, v in category_names.iteritems():
+        for k, v in list(category_names.items()):
             if len(set(v['synonym']).intersection(v.get('scientific name'))) > 0 or len(set(v['synonym']).intersection(v['equivalent name'])) > 0:
-                print 'ERROR'
-                print v['synonym']
-                print v.get('scientific name')
-                print v['equivalent name']
+                print('ERROR')
+                print(v['synonym'])
+                print(v.get('scientific name'))
+                print(v['equivalent name'])
                 sys.exit(-1)
 
         return category_names, type_material, species_of_taxid, ncbi_authority
@@ -268,8 +268,8 @@ class InfoGenerator(object):
             for line in ststr:
                 infos = line.rstrip('\n').split('\t')
                 if len(infos) < 2:
-                    print "len(infos) < 2 "
-                    print infos
+                    print("len(infos) < 2 ")
+                    print(infos)
                 else:
                     new_ls = []
                     list_strains = infos[1].split("=")
@@ -306,8 +306,8 @@ class InfoGenerator(object):
             for line in dsstr:
                 infos = line.rstrip('\n').split('\t')
                 if len(infos) < 2:
-                    print "len(infos) < 2 "
-                    print infos
+                    print("len(infos) < 2 ")
+                    print(infos)
                 else:
                     list_strains = [pattern.sub('', a.strip()).upper(
                     ) for a in infos[1].split('=') if (a != '' and a != 'none')]
@@ -325,8 +325,8 @@ class InfoGenerator(object):
                 infos = line.rstrip('\n').split('\t')
 
                 if len(infos) < 3:
-                    print "len(infos) < 3 "
-                    print infos
+                    print("len(infos) < 3 ")
+                    print(infos)
                 else:
                     list_strains = [pattern.sub('', a.strip()).upper(
                     ) for a in infos[1].split('=') if (a != '' and a != 'none')]
@@ -529,7 +529,7 @@ class InfoGenerator(object):
         # challenging to parse strain information from these entries.
         match = None
         gtdb_types = set()
-        for standard_name, raw_names in standard_names.items():
+        for standard_name, raw_names in list(standard_names.items()):
             if standard_name not in strain_dictionary:
                 continue
 
@@ -912,7 +912,7 @@ class InfoGenerator(object):
         agreed_type_of_species = 0
         agreed_type_of_subspecies = 0
         num_type_species_of_genus = 0
-        for gid, metadata in self.metadata.iteritems():
+        for gid, metadata in list(self.metadata.items()):
             fout.write(gid)
 
             species_name = self.get_species_name(gid)
@@ -985,7 +985,7 @@ class InfoGenerator(object):
     def _expand_ncbi_strain_ids(self, ncbi_coidentical_strain_ids, ncbi_species_of_taxid):
         """Expand set of NCBI co-identical strain IDs associated with each genome."""
 
-        for gid, genome_metadata in self.metadata.items():
+        for gid, genome_metadata in list(self.metadata.items()):
             # determine the list of strain IDs at NCBI that are
             # associated with the genome
             strain_ids = genome_metadata['ncbi_standardized_strain_ids']
@@ -1118,9 +1118,9 @@ class InfoGenerator(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__
-    print '  Contact: ' + __email__ + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__)
+    print('  Contact: ' + __email__ + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -1157,7 +1157,7 @@ if __name__ == '__main__':
               args.year_table,
               args.source_strain)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

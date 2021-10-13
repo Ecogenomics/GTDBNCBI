@@ -58,12 +58,13 @@ class GenomeToProcess(object):
       line_split = line.rstrip().split(':')
 
       if line_split[0] == 'CREATE':
+        pass
 
 
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('change_log', help='change log produced by comparing rsync directory with current genomes')
@@ -75,7 +76,7 @@ if __name__ == '__main__':
     p = GenomeToProcess()
     p.run(args.change_log, args.output_file)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

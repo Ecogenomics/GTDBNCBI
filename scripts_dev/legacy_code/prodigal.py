@@ -64,12 +64,12 @@ class RunProdigal(object):
 
     def run(self, input_dir, tmp_dir, threads):
         # get path to all unprocessed genome files
-        print 'Reading genomes.'
+        print('Reading genomes.')
 
         genome_files = []
         for first_three in os.listdir(input_dir):
             onethird_species_dir = os.path.join(input_dir, first_three)
-            print onethird_species_dir
+            print(onethird_species_dir)
             if os.path.isfile(onethird_species_dir):
                 continue
             for second_three in os.listdir(onethird_species_dir):
@@ -107,7 +107,7 @@ class RunProdigal(object):
                             full_path, complete_name + '_genomic.fna')
                         if os.path.exists(genome_file):
                             if os.stat(genome_file).st_size == 0:
-                                print '[Warning] Genome file appears to be empty: %s' % genome_file
+                                print('[Warning] Genome file appears to be empty: %s' % genome_file)
                             else:
                                 genome_files.append(genome_file)
                                 statusStr = 'We have currently {} genomes to process'.format(
@@ -116,14 +116,14 @@ class RunProdigal(object):
                                 sys.stdout.flush()
             sys.stdout.write('\n')
 
-        print '  Number of unprocessed genomes: %d' % len(genome_files)
+        print('  Number of unprocessed genomes: %d' % len(genome_files))
         # run prodigal on each genome
-        print 'Running prodigal.'
+        print('Running prodigal.')
         prodigal = Prodigal(cpus=threads)
         summary_stats = prodigal.run(genome_files, output_dir=tmp_dir)
 
         # move results into individual genome directories
-        print 'Moving files and calculating checksums.'
+        print('Moving files and calculating checksums.')
         for genome_file in genome_files:
             genome_path, genome_id = ntpath.split(genome_file)
             genome_id = remove_extension(genome_id)
@@ -166,8 +166,8 @@ class RunProdigal(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -184,7 +184,7 @@ if __name__ == '__main__':
         p = RunProdigal()
         p.run(args.genome_dir, args.tmp_dir, args.threads)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

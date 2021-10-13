@@ -57,14 +57,14 @@ class ExtractGenes(object):
         
         if not os.path.exists(nt_gene_file) or os.stat(nt_gene_file).st_size == 0:
             cmd = './genbank2nt_fasta.pl %s > %s' % (genbank_file, nt_gene_file)
-            print cmd
+            print(cmd)
             os.system(cmd)
         else:
-            print 'Nucleotide gene file already exists: %s' % genome_id
+            print('Nucleotide gene file already exists: %s' % genome_id)
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('genome_dir_file', help='file indicating path to all genome directories')
@@ -75,7 +75,7 @@ if __name__ == '__main__':
         p = ExtractGenes()
         p.run(args.genome_dir_file)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

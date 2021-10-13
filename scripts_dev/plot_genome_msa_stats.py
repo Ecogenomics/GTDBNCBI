@@ -71,7 +71,7 @@ class Histogram(AbstractPlot):
         axis.set_xlabel(xlabel)
         axis.set_ylabel(ylabel)
         
-        axis.set_xticks(range(0, 101, 5))
+        axis.set_xticks(list(range(0, 101, 5)))
         
         formatter = FuncFormatter(to_percent)
         self.fig.gca().yaxis.set_major_formatter(formatter)
@@ -147,14 +147,14 @@ class PlotStats(object):
     options = AbstractPlot.Options(6, 7.5, 10, 8, 300)
     
     hist = Histogram(options)
-    hist.plot(1, msa_perc.values(), 'MSA completeness (%)', 'Genomes (%)', range(0, 101, 5), 'blue')
-    hist.plot(2, comp.values(), 'Completeness (%)', 'Genomes (%)', range(0, 101, 5), 'blue')
-    hist.plot(3, cont.values(), 'Contamination (%)', 'Genomes (%)', range(0, 101, 5), 'blue')
+    hist.plot(1, list(msa_perc.values()), 'MSA completeness (%)', 'Genomes (%)', list(range(0, 101, 5)), 'blue')
+    hist.plot(2, list(comp.values()), 'Completeness (%)', 'Genomes (%)', list(range(0, 101, 5)), 'blue')
+    hist.plot(3, list(cont.values()), 'Contamination (%)', 'Genomes (%)', list(range(0, 101, 5)), 'blue')
     hist.save_plot(output_prefix + '.png')
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('metadata_file', help='GTDB metadata file')
@@ -168,7 +168,7 @@ if __name__ == '__main__':
     p = PlotStats()
     p.run(args.metadata_file, args.msa_info_file, args.genome_info_file, args.output_prefix)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

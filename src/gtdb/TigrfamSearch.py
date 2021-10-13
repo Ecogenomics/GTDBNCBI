@@ -21,7 +21,7 @@ import multiprocessing as mp
 
 from biolib.checksum import sha256
 
-import ConfigMetadata
+from . import ConfigMetadata
 
 
 class TigrfamSearch(object):
@@ -75,7 +75,7 @@ class TigrfamSearch(object):
 
         fout = open(output_tophit_file, 'w')
         fout.write('Gene Id\tTop hits (Family id,e-value,bitscore)\n')
-        for gene_id, stats in tophits.iteritems():
+        for gene_id, stats in list(tophits.items()):
             hit_str = ','.join(map(str, stats))
             fout.write('%s\t%s\n' % (gene_id, hit_str))
         fout.close()

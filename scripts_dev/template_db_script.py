@@ -81,14 +81,14 @@ class Script():
         cur.execute(q)
         
         for id, gtdb_domain, ncbi_taxonomy in cur:
-            print id, gtdb_domain, ncbi_taxonomy
+            print((id, gtdb_domain, ncbi_taxonomy))
             
         self.db.conn.commit()
         cur.close()
  
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('argument', help="help message")
@@ -104,7 +104,7 @@ if __name__ == '__main__':
     
         p.run(args.argument, args.threads)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

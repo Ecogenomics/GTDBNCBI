@@ -84,7 +84,7 @@ class Script():
         
         missing_domain_info = []
         for id, ncbi_taxonomy in cur:
-            ncbi_domain = map(str.strip, ncbi_taxonomy.split(';'))[0]
+            ncbi_domain = list(map(str.strip, ncbi_taxonomy.split(';')))[0]
             if ncbi_domain[0:3] != 'd__':
                 self.logger.error('NCBI domain has the incorrect prefix: %s' % ncbi_domain)
                 sys.exit()
@@ -100,11 +100,11 @@ class Script():
         self.db.conn.commit()
         cur.close()
                 
-        print 'NCBI genomes that were missing GTDB domain info: %d' % len(missing_domain_info)
+        print('NCBI genomes that were missing GTDB domain info: %d' % len(missing_domain_info))
  
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('gtdb_version', help='GTDB database version (i.e., gtdb_releaseX)')
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     
         p.run()
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

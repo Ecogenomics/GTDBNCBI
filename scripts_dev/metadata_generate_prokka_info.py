@@ -45,7 +45,7 @@ class ProkkaParser(object):
         with open(metadata_file) as f:
             f.readline()
             genome_ids = [line.split(',')[0] for line in f]
-        print genome_ids
+        print(genome_ids)
 
         prokka_ids = {}
         with open(prokka_file) as f:
@@ -62,15 +62,15 @@ class ProkkaParser(object):
 
         file_writer = open(outfile, 'w')
         file_writer.write("genome_id\tncbi_called_genes\n")
-        for k, v in prokka_ids.iteritems():
+        for k, v in list(prokka_ids.items()):
             if k in genome_ids:
                 file_writer.write("{0}\t{1}\n".format(k, 'TRUE'))
         file_writer.close()
 
 
 if __name__ == "__main__":
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -84,7 +84,7 @@ if __name__ == "__main__":
         prokka_parser = ProkkaParser()
         prokka_parser.generateMetadata(args.meta_file, args.prokka_file, args.outfile)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

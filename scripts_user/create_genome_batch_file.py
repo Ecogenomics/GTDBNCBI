@@ -50,15 +50,15 @@ class GenomeBatchFile(object):
           binCount += 1
 
       if not binCount:
-        print 'No bins identified in %s. Check that your files have the correct extension (-x).' % binFolder
+        print('No bins identified in %s. Check that your files have the correct extension (-x).' % binFolder)
       else:
-        print 'Process %d bins.' % binCount
+        print('Process %d bins.' % binCount)
 
       fout.close()
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('bin_folder', help='directory containing bins (please give your bins informative names when possible)')
@@ -72,7 +72,7 @@ if __name__ == '__main__':
         genomeBatchFile = GenomeBatchFile()
         genomeBatchFile.run(args.bin_folder, args.study_desc, args.out_file, args.extension)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

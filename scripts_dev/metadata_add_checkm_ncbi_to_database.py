@@ -66,7 +66,7 @@ class AddCheckM(object):
                     genome_list.add(line.rstrip().split(',')[0])
 
         # add CheckM profile fields
-        for header, data in self.metadata.iteritems():
+        for header, data in list(self.metadata.items()):
             db_header, data_type = data
 
             num_genomes = 0
@@ -99,7 +99,7 @@ class AddCheckM(object):
 
             temp_file.close()
             cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_genes', db_header, data_type, temp_file.name)
-            print cmd
+            print(cmd)
             os.system(cmd)
             os.remove(temp_file.name)
             
@@ -130,13 +130,13 @@ class AddCheckM(object):
         db_header = 'checkm_strain_heterogeneity_100'
         data_type = 'FLOAT'
         cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_genes', db_header, data_type, temp_file.name)
-        print cmd
+        print(cmd)
         os.system(cmd)
         os.remove(temp_file.name)
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('checkm_profile_file', help='CheckM profile file for all genomes of interest')
@@ -149,7 +149,7 @@ if __name__ == '__main__':
         p = AddCheckM()
         p.run(args.checkm_profile_file, args.checkm_qa_sh100_file, args.genome_list)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

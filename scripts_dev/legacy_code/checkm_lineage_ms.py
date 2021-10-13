@@ -79,7 +79,7 @@ class RunCheckm(object):
                         if process_all or attribute == 'new' or attribute == 'modified':
                             genomes_to_consider.add(genome_id)
 
-                print 'Identified %d genomes as new or modified.' % len(genomes_to_consider)
+                print('Identified %d genomes as new or modified.' % len(genomes_to_consider))
 
             # determine gene files
             gene_files = []
@@ -98,7 +98,7 @@ class RunCheckm(object):
                 assembly_ids = {}
                 for first_three in os.listdir(genome_dir):
                     onethird_species_dir = os.path.join(genome_dir, first_three)
-                    print onethird_species_dir
+                    print(onethird_species_dir)
                     if os.path.isfile(onethird_species_dir):
                         continue
                     for second_three in os.listdir(onethird_species_dir):
@@ -124,9 +124,9 @@ class RunCheckm(object):
                                     continue
 
                                 if complete_name in assembly_ids:
-                                    print 'Duplicate assembly_id:'
-                                    print assembly_ids[complete_name]
-                                    print assembly_dir
+                                    print('Duplicate assembly_id:')
+                                    print(assembly_ids[complete_name])
+                                    print(assembly_dir)
                                     continue
 
                                 assembly_ids[complete_name] = assembly_dir
@@ -135,18 +135,18 @@ class RunCheckm(object):
                                     assembly_dir, 'prodigal', genome_id + '_protein.faa')
                                 if os.path.exists(gene_file):
                                     if os.stat(gene_file).st_size == 0:
-                                        print '[Warning] Protein file appears to be empty: %s' % gene_file
+                                        print('[Warning] Protein file appears to be empty: %s' % gene_file)
                                     else:
                                         gene_files.append(gene_file)
-            print '  Identified %d gene files.' % len(gene_files)
+            print('  Identified %d gene files.' % len(gene_files))
 
             # copy genomes in batches of 1000
-            print 'Partitioning genomes into chunks of 1000.'
+            print('Partitioning genomes into chunks of 1000.')
             num_chunks = 0
             for i, gene_file in enumerate(gene_files):
                 if i % 1000 == 0:
                     chunk_dir = os.path.join(tmp_dir, 'chunk%d' % num_chunks)
-                    print chunk_dir
+                    print(chunk_dir)
                     os.makedirs(chunk_dir)
                     num_chunks += 1
 
@@ -161,9 +161,9 @@ class RunCheckm(object):
                     num_chunks += 1
 
         # apply CheckM to each set of 1000 genomes
-        print 'Running CheckM on chunks:'
-        for i in xrange(0, num_chunks):
-            print '  Processing chunk %d of %d.' % (i + 1, num_chunks)
+        print('Running CheckM on chunks:')
+        for i in range(0, num_chunks):
+            print('  Processing chunk %d of %d.' % (i + 1, num_chunks))
 
             bin_dir = os.path.join(tmp_dir, 'chunk%d' % i)
             checkm_output_dir = os.path.join(output_dir, 'chunk%d' % i)
@@ -196,10 +196,10 @@ class RunCheckm(object):
                                                                                              alignment_file, qa_file_sh100, os.path.join(checkm_output_dir, 'lineage.ms'), checkm_output_dir))
 
         # create single file with CheckM results
-        print 'Creating single file with CheckM results.'
+        print('Creating single file with CheckM results.')
         checkm_output = os.path.join(output_dir, 'checkm.profiles.tsv')
         fout = open(checkm_output, 'w')
-        for i in xrange(0, num_chunks):
+        for i in range(0, num_chunks):
             profile_file = os.path.join(
                 output_dir, 'chunk%d' % i, 'profile.chunk%d.tsv' % i)
             with open(profile_file) as f:
@@ -211,10 +211,10 @@ class RunCheckm(object):
         fout.close()
 
         # create single file with CheckM strain heterogeneity results at 100%
-        print 'Creating single file with CheckM results.'
+        print('Creating single file with CheckM results.')
         checkm_output = os.path.join(output_dir, 'checkm.qa_sh100.tsv')
         fout = open(checkm_output, 'w')
-        for i in xrange(0, num_chunks):
+        for i in range(0, num_chunks):
             qa_file = os.path.join(output_dir, 'chunk%d' %
                                    i, 'qa_sh100.chunk%d.tsv' % i)
             with open(qa_file) as f:
@@ -226,10 +226,10 @@ class RunCheckm(object):
         fout.close()
 
         # create single file with CheckM alignments for multi-copy genes
-        print 'Creating single file with CheckM results.'
+        print('Creating single file with CheckM results.')
         checkm_output = os.path.join(output_dir, 'checkm.alignment_file.tsv')
         fout = open(checkm_output, 'w')
-        for i in xrange(0, num_chunks):
+        for i in range(0, num_chunks):
             align_file = os.path.join(
                 output_dir, 'chunk%d' % i, 'alignment_file.chunk%d.tsv' % i)
             with open(align_file) as f:
@@ -237,12 +237,12 @@ class RunCheckm(object):
                     fout.write(line)
         fout.close()
 
-        print 'CheckM results written to: %s' % checkm_output
+        print('CheckM results written to: %s' % checkm_output)
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -268,7 +268,7 @@ if __name__ == '__main__':
                         args.cpus, 
                         args.output_dir)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

@@ -17,7 +17,7 @@
 
 import psycopg2 as pg
 
-import ConfigFTPUpdate
+from . import ConfigFTPUpdate
 
 
 class GenomeDatabaseConnectionFTPUpdate(object):

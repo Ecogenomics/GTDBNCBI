@@ -67,13 +67,13 @@ class AddOrganismName(object):
 
     temp_file.close()
     cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_ncbi', 'ncbi_organism_name', 'TEXT', temp_file.name)
-    print cmd
+    print(cmd)
     os.system(cmd)
     os.remove(temp_file.name)
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('organism_name_file', help='file with organism name for each genome')
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     p = AddOrganismName()
     p.run(args.organism_name_file, args.genome_list)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

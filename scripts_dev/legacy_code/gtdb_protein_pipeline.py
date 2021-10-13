@@ -94,7 +94,7 @@ class Pipeline(object):
             'Determining genomic file and translation table for each of the %d genomes.' % len(genome_paths))
         genome_files = []
         translation_table = {}
-        for gid, gpath in genome_paths.items():
+        for gid, gpath in list(genome_paths.items()):
             assembly_id = os.path.basename(os.path.normpath(gpath))
             canonical_gid = assembly_id[0:assembly_id.find('_', 4)]
 
@@ -205,7 +205,7 @@ class Pipeline(object):
 
         fout = open(tigrfam_tophit_file, 'w')
         fout.write('Gene Id\tTop hits (Family id,e-value,bitscore)\n')
-        for gene_id, stats in tophits.iteritems():
+        for gene_id, stats in list(tophits.items()):
             hit_str = ','.join(map(str, stats))
             fout.write('%s\t%s\n' % (gene_id, hit_str))
         fout.close()
@@ -271,9 +271,9 @@ class Pipeline(object):
 
         fout = open(pfam_tophit_file, 'w')
         fout.write('Gene Id\tTop hits (Family id,e-value,bitscore)\n')
-        for gene_id, hits in tophits.iteritems():
+        for gene_id, hits in list(tophits.items()):
             hit_str = []
-            for hmm_id, stats in hits.iteritems():
+            for hmm_id, stats in list(hits.items()):
                 hit_str.append(hmm_id + ',' + ','.join(map(str, stats)))
             fout.write('%s\t%s\n' % (gene_id, ';'.join(hit_str)))
         fout.close()
@@ -333,7 +333,7 @@ class Pipeline(object):
         """Determine TIGRfam or Pfam annotations."""
 
         gene_files = []
-        for gid, gpath in genome_paths.items():
+        for gid, gpath in list(genome_paths.items()):
             prodigal_dir = os.path.join(gpath, 'prodigal')
             assembly_id = os.path.basename(os.path.normpath(gpath))
             canonical_gid = assembly_id[0:assembly_id.find('_', 4)]
@@ -388,7 +388,7 @@ class Pipeline(object):
 
         self.logger.info(
             'Calculating protein metadata for %d genomes.' % len(genome_paths))
-        for gid, gpath in genome_paths.items():
+        for gid, gpath in list(genome_paths.items()):
             assembly_id = os.path.basename(os.path.normpath(gpath))
             canonical_gid = assembly_id[0:assembly_id.find('_', 4)]
             genome_file = os.path.join(gpath, assembly_id + '_genomic.fna')
@@ -442,8 +442,8 @@ class Pipeline(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -463,7 +463,7 @@ if __name__ == '__main__':
         p = Pipeline(args.tmp_dir, args.output_dir, args.cpus)
         p.run(args.genome_list_file, args.gtdb_genome_path_file)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

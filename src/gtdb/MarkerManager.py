@@ -20,8 +20,8 @@ import logging
 import psycopg2
 from psycopg2.extensions import AsIs
 
-import Tools
-from Exceptions import GenomeDatabaseError
+from . import Tools
+from .Exceptions import GenomeDatabaseError
 
 
 class MarkerManager(object):
@@ -75,13 +75,13 @@ class MarkerManager(object):
 
             temp_table_name = Tools.generateTempTableName()
 
-            if len(map_databases_to_ids.keys()):
+            if len(list(map_databases_to_ids.keys())):
                 self.cur.execute("CREATE TEMP TABLE %s (prefix text)" %
                             (temp_table_name,))
                 query = "INSERT INTO {0} (prefix) VALUES (%s)".format(
                     temp_table_name)
                 self.cur.executemany(query, [(x,)
-                                        for x in map_databases_to_ids.keys()])
+                                        for x in list(map_databases_to_ids.keys())])
             else:
                 raise GenomeDatabaseError(
                     "No marker databases found for these ids. %s" % str(external_ids))
@@ -97,12 +97,12 @@ class MarkerManager(object):
 
             missing_marker_sources = {}
             for (query_prefix,) in self.cur:
-                missing_marker_sources[query_prefix] = map_databases_to_ids[
-                    query_prefix].values()
+                missing_marker_sources[query_prefix] = list(map_databases_to_ids[
+                    query_prefix].values())
 
-            if len(missing_marker_sources.keys()):
+            if len(list(missing_marker_sources.keys())):
                 errors = []
-                for (source_prefix, offending_ids) in missing_marker_sources.items():
+                for (source_prefix, offending_ids) in list(missing_marker_sources.items()):
                     errors.append("(%s) %s" %
                                   (source_prefix, str(offending_ids)))
                 raise GenomeDatabaseError("Cannot find the relevant marker database id for the following ids, check the IDs are correct: " +
@@ -110,7 +110,7 @@ class MarkerManager(object):
 
             # All genome sources should be good, find ids
             result_ids = []
-            for database_prefix in map_databases_to_ids.keys():
+            for database_prefix in list(map_databases_to_ids.keys()):
 
                 # Create a table of requested external ids from this genome
                 # source
@@ -120,7 +120,7 @@ class MarkerManager(object):
                 query = "INSERT INTO {0} (id_in_database) VALUES (%s)".format(
                     temp_table_name)
                 self.cur.executemany(
-                    query, [(x,) for x in map_databases_to_ids[database_prefix].keys()])
+                    query, [(x,) for x in list(map_databases_to_ids[database_prefix].keys())])
 
                 # Check to see if there are any that don't exist
                 query = ("SELECT id_in_database FROM {0} " +

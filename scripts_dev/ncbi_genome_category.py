@@ -75,9 +75,9 @@ class GenomeType(object):
                         print('Unhandled case of derived genome: {}'.format(exclude))
                         sys.exit(-1)
         
-        print(' - identified {:,} MAGs'.format(sum([1 for v in gid_genome_type.values() if v == 'MAG'])))
-        print(' - identified {:,} SAGs'.format(sum([1 for v in gid_genome_type.values() if v == 'SAG'])))
-        print(' - identified {:,} environmental genomes'.format(sum([1 for v in gid_genome_type.values() if v == 'ENV'])))
+        print(' - identified {:,} MAGs'.format(sum([1 for v in list(gid_genome_type.values()) if v == 'MAG'])))
+        print(' - identified {:,} SAGs'.format(sum([1 for v in list(gid_genome_type.values()) if v == 'SAG'])))
+        print(' - identified {:,} environmental genomes'.format(sum([1 for v in list(gid_genome_type.values()) if v == 'ENV'])))
 
         # parse GBFF files
         print('Parsing GBFF file for each genome.')

@@ -250,10 +250,10 @@ class UpdateRefSeqFolder(object):
             ftp_folder = False
             # check if genomic.fna.gz and protein.faa.gz are similar between
             # previous gtdb and ftp
-            for key, value in ftpdict_fasta.iteritems():
+            for key, value in list(ftpdict_fasta.items()):
                 if value != gtdbdict_fasta.get(key):
                     ftp_folder = True
-                print gcf_record + "\t" + key + "\t" + gtdbdict_fasta.get(key)
+                print(gcf_record + "\t" + key + "\t" + gtdbdict_fasta.get(key))
             # if one of the 2 files is different than the previous version , we
             # use the ftp record over the previous gtdb one , we then need to
             # re run the metadata generation
@@ -296,7 +296,7 @@ class UpdateRefSeqFolder(object):
 
                 # We check if all other file of this folder are the same.
                 checksum_changed = False
-                for key, value in ftpdict.iteritems():
+                for key, value in list(ftpdict.items()):
                     if value != gtdbdict.get(key):
                         checksum_changed = True
 
@@ -305,12 +305,12 @@ class UpdateRefSeqFolder(object):
                         if key.endswith(".gz"):
                             inF = gzip.open(os.path.join(ftp_dir, key), 'rb')
                             try:
-                                print os.path.join(target_dir, key).replace(".gz", "")
+                                print(os.path.join(target_dir, key).replace(".gz", ""))
                                 outF = open(
                                     os.path.join(target_dir, key).replace(".gz", ""), 'wb')
                             except IOError:
                                 os.chmod(
-                                    os.path.join(target_dir, key).replace(".gz", ""), 0775)
+                                    os.path.join(target_dir, key).replace(".gz", ""), 0o775)
                                 outF = open(
                                     os.path.join(target_dir, key).replace(".gz", ""), 'wb')
                             outF.write(inF.read())
@@ -323,7 +323,7 @@ class UpdateRefSeqFolder(object):
                     try:
                         shutil.copy2(pathgtdbmd5, target_pathnewmd5)
                     except IOError:
-                        os.chmod(target_pathnewmd5, 0775)
+                        os.chmod(target_pathnewmd5, 0o775)
                         shutil.copy2(pathftpmd5, target_pathnewmd5)
                 for report in self.reports:
                     target_files = glob.glob(
@@ -333,9 +333,9 @@ class UpdateRefSeqFolder(object):
                         status = self.comparesha256(
                             ftp_files[0], target_files[0], status)
                     else:
-                        print target_files
-                        print ftp_files
-                        print "IT SHOULDN'T HAPPEN"
+                        print(target_files)
+                        print(ftp_files)
+                        print("IT SHOULDN'T HAPPEN")
         self.report_gcf.write("{0}\t{1}\t{2}\n".format(
             self.domain.upper(), gcf_record, ';'.join([x for x in set(status)])))
 
@@ -368,7 +368,7 @@ class UpdateRefSeqFolder(object):
             try:
                 shutil.copy2(ftp_file, target_file)
             except IOError:
-                os.chmod(target_file, 0775)
+                os.chmod(target_file, 0o775)
                 shutil.copy2(ftp_file, target_file)
             status.append("new_metadata")
         return status
@@ -402,8 +402,8 @@ class UpdateRefSeqFolder(object):
 
 
 if __name__ == "__main__":
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -425,7 +425,7 @@ if __name__ == "__main__":
         update_mngr.runComparison(
             args.ftp_refseq, args.new_refseq, args.ftp_genome_dirs, args.old_genome_dirs, args.download_date)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

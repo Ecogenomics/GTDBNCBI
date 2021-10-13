@@ -22,7 +22,7 @@ from collections import defaultdict
 
 from biolib.checksum import sha256
 
-import ConfigMetadata
+from . import ConfigMetadata
 
 
 class PfamSearch(object):
@@ -82,9 +82,9 @@ class PfamSearch(object):
 
         fout = open(output_tophit_file, 'w')
         fout.write('Gene Id\tTop hits (Family id,e-value,bitscore)\n')
-        for gene_id, hits in tophits.iteritems():
+        for gene_id, hits in list(tophits.items()):
             hit_str = []
-            for hmm_id, stats in hits.iteritems():
+            for hmm_id, stats in list(hits.items()):
                 hit_str.append(hmm_id + ',' + ','.join(map(str, stats)))
             fout.write('%s\t%s\n' % (gene_id, ';'.join(hit_str)))
         fout.close()

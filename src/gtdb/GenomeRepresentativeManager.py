@@ -27,15 +27,15 @@ import pickle
 from biolib.parallel import Parallel
 from biolib.common import remove_extension, make_sure_path_exists
 
-from Tools import fastaPathGenerator, splitchunks
+from .Tools import fastaPathGenerator, splitchunks
 
-from Exceptions import GenomeDatabaseError
-from GenomeManager import GenomeManager
-from MarkerSetManager import MarkerSetManager
-from AlignedMarkerManager import AlignedMarkerManager
-from MetadataManager import MetadataManager
+from .Exceptions import GenomeDatabaseError
+from .GenomeManager import GenomeManager
+from .MarkerSetManager import MarkerSetManager
+from .AlignedMarkerManager import AlignedMarkerManager
+from .MetadataManager import MetadataManager
 
-import DefaultValues
+from . import DefaultValues
 
 
 class GenomeRepresentativeManager(object):
@@ -94,7 +94,7 @@ class GenomeRepresentativeManager(object):
         mismatches = 0
         matches = 0
 
-        for c1, c2 in itertools.izip(seq1, seq2):
+        for c1, c2 in zip(seq1, seq2):
             if c1 == '-' or c2 == '-':
                 continue
             elif c1 != c2:
@@ -138,7 +138,7 @@ class GenomeRepresentativeManager(object):
         mismatches = 0
         matches = 0
 
-        for c1, c2 in itertools.izip(seq1, seq2):
+        for c1, c2 in zip(seq1, seq2):
             if c1 == '-' or c2 == '-':
                 continue
             elif c1 != c2:
@@ -441,7 +441,7 @@ class GenomeRepresentativeManager(object):
             raw_results = self.cur.fetchall()
             genome_dir_user = {a: fastaPathGenerator(
                 b, c) for a, b, c in raw_results}
-            for _k, v in genome_dir_user.iteritems():
+            for _k, v in list(genome_dir_user.items()):
                 query_list_file.write('{}\n'.format(v))
             query_list_file.close()
 
@@ -457,7 +457,7 @@ class GenomeRepresentativeManager(object):
                 b, c) for a, b, c in raw_results}
             ref_list_file = open(os.path.join(
                 self.tmp_output_dir, 'ref_list.txt'), 'w')
-            for _k, v in genome_dirs.iteritems():
+            for _k, v in list(genome_dirs.items()):
                 ref_list_file.write('{}\n'.format(v))
             ref_list_file.close()
 
@@ -486,8 +486,8 @@ class GenomeRepresentativeManager(object):
                 os.path.join(self.tmp_output_dir, 'results.tab'), genome_dirs, user_genome)
             if len(dict_parser_distance) == 0:
                 return None
-            sorted_dict = sorted(dict_parser_distance.get(
-                user_genome).iteritems(), key=lambda(_x, y): y['ani'], reverse=True)
+            sorted_dict = sorted(iter(list(dict_parser_distance.get(
+                user_genome).items())), key=lambda _x_y: _x_y[1]['ani'], reverse=True)
             fastani_matching_reference = sorted_dict[0][0]
             shutil.rmtree(self.tmp_output_dir)
             return fastani_matching_reference
@@ -521,7 +521,7 @@ class GenomeRepresentativeManager(object):
                 info = line.strip().split()
                 path_genome = info[1]
                 ref_genome = None
-                for k, v in genome_dirs.iteritems():
+                for k, v in list(genome_dirs.items()):
                     if v == path_genome:
                         ref_genome = k
                         break
@@ -643,8 +643,8 @@ class GenomeRepresentativeManager(object):
 
             # assign genome to current representative
             if assigned_representative_dic:
-                sorted_reps = sorted(assigned_representative_dic.items(
-                ), key=operator.itemgetter(1))[0:10]
+                sorted_reps = sorted(list(assigned_representative_dic.items(
+                )), key=operator.itemgetter(1))[0:10]
                 try:
                     assigned_representative = self._calculate_fastani_distance(
                         genome_id, sorted_reps)

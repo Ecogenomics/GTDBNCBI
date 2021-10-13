@@ -59,7 +59,7 @@ class AddTaxonomy(object):
 
     # add full taxonomy string to database
     temp_file = tempfile.NamedTemporaryFile(delete=False)
-    for genome_id, taxa in taxonomy.iteritems():
+    for genome_id, taxa in list(taxonomy.items()):
       if genome_list_file and genome_id not in genome_list:
         continue
 
@@ -68,14 +68,14 @@ class AddTaxonomy(object):
 
     temp_file.close()
     cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_taxonomy', 'gtdb_taxonomy', 'TEXT', temp_file.name)
-    print cmd
+    print(cmd)
     os.system(cmd)
     os.remove(temp_file.name)
 
     # add each taxonomic rank to database
     for i, rank in enumerate(Taxonomy.rank_labels):
       temp_file = tempfile.NamedTemporaryFile(delete=False)
-      for genome_id, taxa in taxonomy.iteritems():
+      for genome_id, taxa in list(taxonomy.items()):
         if genome_list_file and genome_id not in genome_list:
           continue
 
@@ -84,13 +84,13 @@ class AddTaxonomy(object):
 
       temp_file.close()
       cmd = 'gtdb -r metadata import --table %s --field %s --type %s --metadatafile %s' % ('metadata_taxonomy', 'gtdb_' + rank, 'TEXT', temp_file.name)
-      print cmd
+      print(cmd)
       os.system(cmd)
       os.remove(temp_file.name)
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('taxonomy_file', help='taxonomy file with genome tree taxonomy strings')
@@ -102,7 +102,7 @@ if __name__ == '__main__':
     p = AddTaxonomy()
     p.run(args.taxonomy_file, args.genome_list)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

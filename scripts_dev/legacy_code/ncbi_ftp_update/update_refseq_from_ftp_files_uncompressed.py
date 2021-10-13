@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import print_function
+
 
 ###############################################################################
 #                                                                             #
@@ -323,9 +323,9 @@ class UpdateRefSeqFolder(object):
         # record as incomplete
         if len(list(set(ftpdict_fasta.keys()).symmetric_difference(set(gtdbdict_fasta.keys())))) > 0:
             self.genomes_to_review.write("tmp_target:{}\nftpdict_fasta.keys():{}\ngtdb_dir:{}\ngtdbdict_fasta.keys():{}\n\n".format(tmp_target,
-                                                                                                                                    ftpdict_fasta.keys(),
+                                                                                                                                    list(ftpdict_fasta.keys()),
                                                                                                                                     gtdb_dir,
-                                                                                                                                    gtdbdict_fasta.keys()))
+                                                                                                                                    list(gtdbdict_fasta.keys())))
             status.append("incomplete")
             shutil.copytree(tmp_target, target_dir, symlinks=True,
                             ignore=shutil.ignore_patterns("*_assembly_structure"))
@@ -335,7 +335,7 @@ class UpdateRefSeqFolder(object):
             ftp_folder = False
             # check if genomic.fna.gz and protein.faa.gz are similar between
             # previous gtdb and ftp
-            for key, value in ftpdict_fasta.iteritems():
+            for key, value in list(ftpdict_fasta.items()):
                 if value != gtdbdict_fasta.get(key):
                     ftp_folder = True
             # if one of the 2 files is different than the previous version , we
@@ -358,21 +358,21 @@ class UpdateRefSeqFolder(object):
                 # We check if all other file of this folder are the same.
                 checksum_changed = False
 
-                for key, value in ftpdict_faa.iteritems():
+                for key, value in list(ftpdict_faa.items()):
                     if value != gtdbdict_faa.get(key):
                         checksum_changed = True
                         shutil.copy2(
                             os.path.join(tmp_target, key), os.path.join(target_dir, key))
                         status.append("new_protein")
 
-                for key, value in ftpdict.iteritems():
+                for key, value in list(ftpdict.items()):
                     if value != gtdbdict.get(key):
                         checksum_changed = True
                         shutil.copy2(
                             os.path.join(tmp_target, key), os.path.join(target_dir, key))
                         status.append("new_metadata")
 
-                for key, value in ftpdict_extra_fasta.iteritems():
+                for key, value in list(ftpdict_extra_fasta.items()):
                     if value != gtdbdict_extra_fasta.get(key):
                         checksum_changed = True
                         shutil.copy2(

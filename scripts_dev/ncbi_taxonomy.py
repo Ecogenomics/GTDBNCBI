@@ -102,7 +102,7 @@ class TaxonomyNCBI(object):
                     taxid = line_split[taxid_index]
 
                     if assembly_accession in d:
-                        print '[Error] Duplicate assembly accession: %s' % assembly_accession
+                        print('[Error] Duplicate assembly accession: %s' % assembly_accession)
                         sys.exit(-1)
 
                     d[assembly_accession] = taxid
@@ -315,13 +315,13 @@ class TaxonomyNCBI(object):
 
             # fill in missing ranks where possible
             if canonical_taxonomy:
-                for i in xrange(0, max(canonical_taxonomy.keys())):
+                for i in range(0, max(canonical_taxonomy.keys())):
                     if i in canonical_taxonomy and (i + 1) not in canonical_taxonomy:
                         canonical_taxonomy[i +
                                            1] = Taxonomy.rank_prefixes[i + 1]
 
             cur_taxonomy = []
-            for i in xrange(0, len(Taxonomy.rank_prefixes)):
+            for i in range(0, len(Taxonomy.rank_prefixes)):
                 if i in canonical_taxonomy:
                     cur_taxonomy.append(canonical_taxonomy[i])
                 else:
@@ -342,7 +342,7 @@ class TaxonomyNCBI(object):
             fout.write(sp + '\n')
         fout.close()
 
-        print 'Genomes with a consistent taxonomy written to: %s' % output_consistent
+        print('Genomes with a consistent taxonomy written to: %s' % output_consistent)
 
     def run(self,
             taxonomy_dir,
@@ -368,32 +368,32 @@ class TaxonomyNCBI(object):
 
         node_records = self._read_nodes(
             os.path.join(taxonomy_dir, 'nodes.dmp'))
-        print 'Read %d node records.' % len(node_records)
+        print('Read %d node records.' % len(node_records))
 
         name_records = self._read_names(
             os.path.join(taxonomy_dir, 'names.dmp'))
-        print 'Read %d name records.' % len(name_records)
+        print('Read %d name records.' % len(name_records))
 
         # traverse taxonomy tree for each assembly
         taxonomy_file = output_prefix + '_unfiltered_taxonomy.tsv'
         fout = open(taxonomy_file, 'w')
 
-        print 'Number of assemblies: %d' % len(assembly_to_tax_id)
-        for assembly_accession, tax_id in assembly_to_tax_id.iteritems():
+        print('Number of assemblies: %d' % len(assembly_to_tax_id))
+        for assembly_accession, tax_id in list(assembly_to_tax_id.items()):
             # traverse taxonomy tree to the root which is 'cellular organism' for genomes,
             # 'other sequences' for plasmids, and 'unclassified sequences' for metagenomic libraries
             taxonomy = []
             cur_tax_id = tax_id
 
             if cur_tax_id not in name_records:
-                print '[Warning] Assembly %s has an invalid taxid: %s' % (assembly_accession, tax_id)
+                print('[Warning] Assembly %s has an invalid taxid: %s' % (assembly_accession, tax_id))
                 continue
 
             roots = ['cellular organisms', 'other sequences',
                      'unclassified sequences', 'Viruses', 'Viroids']
             while name_records[cur_tax_id].name_txt not in roots:
                 if cur_tax_id == '1':
-                    print '[Error] TaxId %s reached root of taxonomy tree: %s' % (tax_id, taxonomy)
+                    print('[Error] TaxId %s reached root of taxonomy tree: %s' % (tax_id, taxonomy))
                     sys.exit(-1)
 
                 try:
@@ -416,8 +416,8 @@ class TaxonomyNCBI(object):
 
                     cur_tax_id = node_record.parent_tax_id
                 except:
-                    print traceback.format_exc()
-                    print taxonomy
+                    print(traceback.format_exc())
+                    print(taxonomy)
 
             taxonomy.reverse()
             taxa_str = ';'.join(taxonomy)
@@ -430,8 +430,8 @@ class TaxonomyNCBI(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -458,7 +458,7 @@ if __name__ == '__main__':
               args.genbank_bacteria_assembly_file,
               args.output_prefix)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

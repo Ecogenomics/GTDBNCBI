@@ -47,7 +47,7 @@ class Propagate(object):
     """Propagate GTDB taxonomy between NCBI releases."""
     
     # get GTDB taxonomy for genome in previous release
-    print 'Reading GTDB taxonomy of genome in previous release:'
+    print('Reading GTDB taxonomy of genome in previous release:')
     prev_gtdb_taxonomy = {}
     prev_gtdb_genomes = set()
     prev_is_rep = set()
@@ -69,15 +69,15 @@ class Propagate(object):
             if is_rep:
                 prev_is_rep.add(genome_id)
                 
-    print '  %d of %d (%.1f%%) genomes in previous NCBI release had a GTDB taxonomy string' % (len(prev_gtdb_taxonomy), 
+    print('  %d of %d (%.1f%%) genomes in previous NCBI release had a GTDB taxonomy string' % (len(prev_gtdb_taxonomy),
                                                                                         len(prev_gtdb_genomes),
-                                                                                        len(prev_gtdb_taxonomy)*100.0/len(prev_gtdb_genomes))
+                                                                                        len(prev_gtdb_taxonomy)*100.0/len(prev_gtdb_genomes)))
                                                                                         
-    print '  %d genomes were identified as representatives' % len(prev_is_rep)
+    print('  %d genomes were identified as representatives' % len(prev_is_rep))
     
     # identify previous representatives in new NCBI release
-    print ''
-    print 'Identifying unchanged genomes in current NCBI release:'
+    print('')
+    print('Identifying unchanged genomes in current NCBI release:')
     header = True
     fout = open(taxonomy_file, 'w')
     retained_genomes = set()
@@ -103,9 +103,9 @@ class Propagate(object):
                 retained_genomes.add(genome_id)  
                 if genome_id in prev_gtdb_taxonomy:
                     if prev_gtdb_taxonomy[genome_id] != cur_gtdb_taxonomy[genome_id]:
-                        print "GTDB taxonomy strings don't match in the two databases:"
-                        print cur_gtdb_taxonomy[genome_id]
-                        print prev_gtdb_taxonomy[genome_id]
+                        print("GTDB taxonomy strings don't match in the two databases:")
+                        print(cur_gtdb_taxonomy[genome_id])
+                        print(prev_gtdb_taxonomy[genome_id])
                         sys.exit()
 
                     fout.write('%s\t%s\n' % (genome_id, prev_gtdb_taxonomy[genome_id]))
@@ -115,15 +115,15 @@ class Propagate(object):
                     cur_reps.add(genome_id)
 
     remaining_prev_genomes = prev_gtdb_genomes - retained_genomes
-    print '  %d (%.1f%%) genomes unchanged in current NCBI release' % (len(retained_genomes),
-                                                                        len(retained_genomes)*100.0/len(prev_gtdb_genomes))
-    print '  %d (%.1f%%) genomes absent or modified in current NCBI release' % (len(remaining_prev_genomes),
-                                                                        len(remaining_prev_genomes)*100.0/len(prev_gtdb_genomes))
-    print '  %d representatives unchanged in current GTDB release' % prev_rep_count
+    print('  %d (%.1f%%) genomes unchanged in current NCBI release' % (len(retained_genomes),
+                                                                        len(retained_genomes)*100.0/len(prev_gtdb_genomes)))
+    print('  %d (%.1f%%) genomes absent or modified in current NCBI release' % (len(remaining_prev_genomes),
+                                                                        len(remaining_prev_genomes)*100.0/len(prev_gtdb_genomes)))
+    print('  %d representatives unchanged in current GTDB release' % prev_rep_count)
     
     # try to identify what happened to absent representatives
-    print ''
-    print 'Identifying genomes that have changed databases or version:'
+    print('')
+    print('Identifying genomes that have changed databases or version:')
     
     moved_to_refseq = set()
     moved_to_genbank = set()
@@ -134,7 +134,7 @@ class Propagate(object):
             
         # check for database or version change
         cur_version = int(genome_id.split('.')[-1])
-        for new_version in xrange(1, cur_version+5):
+        for new_version in range(1, cur_version+5):
             new_version_id = genome_id.replace('.%d' % cur_version, '.%d' % new_version)
             if new_version_id in remaining_prev_genomes:
                 new_genome_version.add(new_version_id)
@@ -177,31 +177,31 @@ class Propagate(object):
             fout_new_reps.write('%s\t%s\n' % (genome_id, str(False)))
     fout_new_reps.close()
 
-    print '  %d (%.1f%%) genomes moved from GenBank to RefSeq' % (len(moved_to_genbank), len(moved_to_genbank)*100.0/len(prev_gtdb_genomes))
+    print('  %d (%.1f%%) genomes moved from GenBank to RefSeq' % (len(moved_to_genbank), len(moved_to_genbank) * 100.0 / len(prev_gtdb_genomes)))
     count = 0
     for elem in iter(moved_to_genbank):
         count = count + 1
         if count == 10:
             break
-        print elem
-    print '  %d (%.1f%%) genomes moved from RefSeq to GenBank' % (len(moved_to_refseq), len(moved_to_refseq)*100.0/len(prev_gtdb_genomes))
+        print(elem)
+    print('  %d (%.1f%%) genomes moved from RefSeq to GenBank' % (len(moved_to_refseq), len(moved_to_refseq) * 100.0 / len(prev_gtdb_genomes)))
     count = 0
     for elem in iter(moved_to_refseq):
         count = count + 1
         if count == 10:
             break
-        print elem
-    print '  %d (%.1f%%) genomes have a new version number' % (len(new_genome_version), len(new_genome_version)*100.0/len(prev_gtdb_genomes))
+        print(elem)
+    print('  %d (%.1f%%) genomes have a new version number' % (len(new_genome_version), len(new_genome_version) * 100.0 / len(prev_gtdb_genomes)))
     
     remaining_prev_genomes = remaining_prev_genomes - moved_to_genbank - moved_to_refseq - new_genome_version
-    print ''
-    print 'There are %d genomes not present in the current release.' % len(remaining_prev_genomes)
-    print remaining_prev_genomes
-    print '%d of these were representatives.' % len(prev_is_rep.intersection(remaining_prev_genomes))
+    print('')
+    print('There are %d genomes not present in the current release.' % len(remaining_prev_genomes))
+    print(remaining_prev_genomes)
+    print('%d of these were representatives.' % len(prev_is_rep.intersection(remaining_prev_genomes)))
     
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('gtdb_metadata_prev', help='GTDB metadata for previous NCBI release.')
@@ -215,7 +215,7 @@ if __name__ == '__main__':
     p = Propagate()
     p.run(args.gtdb_metadata_prev, args.gtdb_metadata_cur, args.taxonomy_file, args.rep_file)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

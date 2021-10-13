@@ -104,7 +104,7 @@ class GenericFeatureParser():
         # safe way to calculate coding bases as it accounts
         # for the potential of overlapping genes
         coding_mask = np_zeros(self.last_coding_base[seq_id])
-        for pos in self.genes[seq_id].values():
+        for pos in list(self.genes[seq_id].values()):
             coding_mask[pos[0]:pos[1] + 1] = 1
 
         return coding_mask
@@ -268,11 +268,11 @@ class Metadata(object):
         fout.write('\n')
 
         processed_assemblies = defaultdict(list)
-        print 'Reading NCBI assembly directories: %s' % ncbi_genome_dir
+        print('Reading NCBI assembly directories: %s' % ncbi_genome_dir)
         for first_three in os.listdir(ncbi_genome_dir):
             onethird_species_dir = os.path.join(
                 ncbi_genome_dir, first_three)
-            print onethird_species_dir
+            print(onethird_species_dir)
             if os.path.isfile(onethird_species_dir):
                 continue
             for second_three in os.listdir(onethird_species_dir):
@@ -298,7 +298,7 @@ class Metadata(object):
                             assembly_dir)
 
                         if len(processed_assemblies[accession]) >= 2:
-                            print '%s\t%s' % (accession, ','.join(processed_assemblies[accession]))
+                            print('%s\t%s' % (accession, ','.join(processed_assemblies[accession])))
                             continue
 
                         protein_file = os.path.join(
@@ -332,8 +332,8 @@ class Metadata(object):
 
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -347,7 +347,7 @@ if __name__ == '__main__':
         p = Metadata()
         p.run(args.genome_dir, args.output_file)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

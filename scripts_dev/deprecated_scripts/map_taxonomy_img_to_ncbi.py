@@ -76,7 +76,7 @@ class MapTaxonomy(object):
         org_name_id = ' '.join(line_split[organism_name_index].split(' ')[0:2]) + '_' + line_split[genome_size_index]
         img_organism_name[line_split[0]] = org_name_id
 
-    print 'IMG genomes: %d' % len(img_organism_name)
+    print('IMG genomes: %d' % len(img_organism_name))
 
     # get genome tree taxonomy string for IMG and user genomes
     taxonomy = {}
@@ -91,12 +91,12 @@ class MapTaxonomy(object):
       else:
         user_genome_with_taxonomy += 1
 
-    print 'IMG and user genomes with taxonomy: %d, %d' % (img_genomes_with_taxonomy, user_genome_with_taxonomy)
+    print('IMG and user genomes with taxonomy: %d, %d' % (img_genomes_with_taxonomy, user_genome_with_taxonomy))
 
     # get 'best' map between organism names and genome tree taxonomy
     if False:
       organism_name_taxonomy = {}
-      for genome_id, organism_name in img_organism_name.iteritems():
+      for genome_id, organism_name in list(img_organism_name.items()):
         if genome_id not in taxonomy:
           continue
 
@@ -108,11 +108,11 @@ class MapTaxonomy(object):
           taxa = taxonomy_str.split(';')
           if taxa[5][3:] + ' ' + taxa[6][3:] == organism_name:
             # matches organism name so is likely a better taxonomy identifier
-            print organism_name
-            print organism_name_taxonomy[organism_name]
-            print taxonomy_str
+            print(organism_name)
+            print(organism_name_taxonomy[organism_name])
+            print(taxonomy_str)
             organism_name_taxonomy[organism_name] = taxonomy_str
-            raw_input('*')
+            eval(input('*'))
 
 
     # create new taxonomy file for NCBI assemblies
@@ -123,7 +123,7 @@ class MapTaxonomy(object):
     processed_org_name_id = {}
 
     fout = open(output_taxonomy_file, 'w')
-    for genome_id, taxonomy_str in taxonomy.iteritems():
+    for genome_id, taxonomy_str in list(taxonomy.items()):
       if genome_id.startswith('U_'):
         fout.write('%s\t%s\n' % (genome_id, taxonomy_str))
         num_user_genomes_assigned_taxonomy += 1
@@ -131,10 +131,10 @@ class MapTaxonomy(object):
         org_name_id = img_organism_name.get(genome_id, None)
         if org_name_id in processed_org_name_id:
           if processed_org_name_id[org_name_id] != taxonomy_str:
-            print org_name_id
-            print processed_org_name_id[org_name_id]
-            print taxonomy_str
-            raw_input('****')
+            print(org_name_id)
+            print(processed_org_name_id[org_name_id])
+            print(taxonomy_str)
+            eval(input('****'))
           continue
 
         if not org_name_id:
@@ -153,16 +153,16 @@ class MapTaxonomy(object):
 
     fout.close()
 
-    print ''
-    print 'Missing IMG metadata: %d' % missing_img_metadata
-    print ''
-    print 'NCBI genomes: %d' % num_ncbi_genomes
-    print 'NCBI genomes assigned taxonomy: %d' % num_ncbi_assigned_taxonomy
-    print 'User genomes assigned taxonomy: %d' % num_user_genomes_assigned_taxonomy
+    print('')
+    print('Missing IMG metadata: %d' % missing_img_metadata)
+    print('')
+    print('NCBI genomes: %d' % num_ncbi_genomes)
+    print('NCBI genomes assigned taxonomy: %d' % num_ncbi_assigned_taxonomy)
+    print('User genomes assigned taxonomy: %d' % num_user_genomes_assigned_taxonomy)
 
 if __name__ == '__main__':
-  print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-  print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+  print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+  print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('ncbi_metadata_file', help='metadata for NCBI genomes including taxon Id')
@@ -176,7 +176,7 @@ if __name__ == '__main__':
     p = MapTaxonomy()
     p.run(args.ncbi_metadata_file, args.img_metadata_file, args.taxonomy_file, args.output_taxonomy_file)
   except SystemExit:
-    print "\nControlled exit resulting from an unrecoverable error or warning."
+    print("\nControlled exit resulting from an unrecoverable error or warning.")
   except:
-    print "\nUnexpected error:", sys.exc_info()[0]
+    print("\nUnexpected error:", sys.exc_info()[0])
     raise

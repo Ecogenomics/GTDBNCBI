@@ -87,8 +87,8 @@ class MarkerCount(object):
 
             # write out results
             fout.write(genome_id)
-            fout.write('\t%d' % sum([1 for v in marker_count.values() if v >= 1]))
-            fout.write('\t%d' % sum([1 for v in marker_count.values() if v == 1]))
+            fout.write('\t%d' % sum([1 for v in list(marker_count.values()) if v >= 1]))
+            fout.write('\t%d' % sum([1 for v in list(marker_count.values()) if v == 1]))
             for marker_id in marker_set:
                 fout.write('\t%d' % marker_count[marker_id])
             fout.write('\n')
@@ -104,11 +104,11 @@ class MarkerCount(object):
             marker_set.add(line.split()[0].strip().replace('PFAM_', '').replace('TIGR_', ''))
             
         # get path to all top hit files
-        print 'Getting path to top hit files.'
+        print('Getting path to top hit files.')
         top_hit_files = []
         for i, line in enumerate(open(genome_path_file)):
             if i % 1000 == 0:
-                print 'Processed %d genomes.' % i
+                print('Processed %d genomes.' % i)
                 
             gtdb_id, genome_dir = line.strip().split('\t')
             if not os.path.exists(genome_dir):
@@ -122,11 +122,11 @@ class MarkerCount(object):
             tigrfam_tophit_file = os.path.join(genome_dir, 'prodigal', genome_id + '_tigrfam_tophit.tsv')
             
             if not os.path.exists(pfam_tophit_file):
-                print 'Missing Pfam top hit file: %s' % pfam_tophit_file
+                print('Missing Pfam top hit file: %s' % pfam_tophit_file)
             else:
                 top_hit_files.append([gtdb_id, pfam_tophit_file, tigrfam_tophit_file])
 
-        print '  Number of identified top hit files: %d' % len(top_hit_files)
+        print('  Number of identified top hit files: %d' % len(top_hit_files))
 
         # populate worker queue with data to process
         workerQueue = mp.Queue()
@@ -159,8 +159,8 @@ class MarkerCount(object):
             writeProc.terminate()
 
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('genome_path_file', help='file specifying path to GTDB genomes')
@@ -174,7 +174,7 @@ if __name__ == '__main__':
         p = MarkerCount()
         p.run(args.genome_path_file, args.marker_file, args.output_file, args.threads)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

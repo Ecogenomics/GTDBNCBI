@@ -90,7 +90,7 @@ class UpdateGTDBDatabase(object):
     def _checkPathorRemoveRecord(self, dict_existing_records, genome_dirs_dict, list_checkm_records):
         count = 1
         for record in dict_existing_records:
-            print "_checkPathorRemoveRecord: {0}/{1}".format(count, len(dict_existing_records))
+            print("_checkPathorRemoveRecord: {0}/{1}".format(count, len(dict_existing_records)))
             count += 1
             # if the record was part of the checkm file, it has already been
             # updated
@@ -150,7 +150,7 @@ class UpdateGTDBDatabase(object):
     def _addOrVersionNewGenomes(self, dict_existing_records, list_checkm_records, genome_dirs_dict, update_date):
         count = 1
         for checkm_record in list_checkm_records:
-            print "_addOrVersionNewGenomes: {0}/{1}".format(count, len(list_checkm_records))
+            print("_addOrVersionNewGenomes: {0}/{1}".format(count, len(list_checkm_records)))
             count += 1
             if (checkm_record not in dict_existing_records) and (checkm_record in genome_dirs_dict):
                 check_record_base = checkm_record.rsplit(".", 1)[0]
@@ -218,7 +218,7 @@ class UpdateGTDBDatabase(object):
         new_list_checkm_records = []
         count = 1
         for checkm_record in list_checkm_records:
-            print "_updateExistingGenomes: {0}/{1}".format(count, len(list_checkm_records))
+            print("_updateExistingGenomes: {0}/{1}".format(count, len(list_checkm_records)))
             count += 1
             if (checkm_record in dict_existing_records) and (checkm_record in genome_dirs_dict):
                 self.report_database_update.write(
@@ -325,8 +325,8 @@ class UpdateGTDBDatabase(object):
 
 
 if __name__ == "__main__":
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -345,7 +345,7 @@ if __name__ == "__main__":
         update_mngr = UpdateGTDBDatabase(args.db, args.date)
         update_mngr.runUpdate(args.checkm, args.genome_dirs_file, args.date)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise
