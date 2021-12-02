@@ -169,6 +169,16 @@ class AlignedMarkerManager(object):
             # we load the list of all the genes detected in the genome
             protein_file = tophit_path.replace(
                 marker_suffix, self.protein_file_suffix)
+                
+            # *** DHP: HACK to handle moving of data to specific sub-directories
+            if False:
+                if marker_db == 'PFAM':
+                    tophit_path = tophit_path.replace('prodigal', 'prodigal/pfam_33.1')
+                    tophit_path = tophit_path.replace('_pfam_tophit', '_pfam_33.1_tophit')
+                else:
+                    tophit_path = tophit_path.replace('prodigal', 'prodigal/tigrfam_15.0')
+                    tophit_path = tophit_path.replace('_tigrfam_tophit.tsv', '_tigrfam_15.0_tophit.tsv')
+
             all_genes_dict = read_fasta(protein_file, False)
 
             # Prodigal adds an asterisks at the end of each called genes,

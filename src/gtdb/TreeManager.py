@@ -374,7 +374,7 @@ class TreeManager(object):
                    prefix,
                    no_trim):
         '''
-        Write summary files and arb files
+        Write summary files and ARB files
 
         :param marker_ids:
         :param genomes_to_retain:
@@ -407,11 +407,12 @@ class TreeManager(object):
         metadata = self.cur.fetchall()
 
         # add MIMAG quality information
-        #metadata = self._mimagQualityInfo(metadata, col_headers)
+        # metadata = self._mimagQualityInfo(metadata, col_headers)
 
         # identify columns of interest
-        genome_id_index = col_headers.index('id')
+        genome_accn_idx = col_headers.index('accession')
         genome_name_index = col_headers.index('formatted_accession')
+        genome_id_index = col_headers.index('id')
         col_headers.remove('id')
         # col_headers.remove('formatted_accession')
 
@@ -431,8 +432,6 @@ class TreeManager(object):
         msa = {}
 
         for genome_metadata in metadata:
-
-            # genome_metadata = list(genome_metadata)
             db_genome_id = genome_metadata[genome_id_index]
             external_genome_id = genome_metadata[genome_name_index]
 
@@ -545,6 +544,23 @@ class TreeManager(object):
             fasta_concat_fh.write(fasta_outstr)
         fasta_concat_fh.close()
 
+        # create dictionary indicating NCBI species and clustered genomes
+        self.logger.info(
+            'Determining NCBI species assignments for genomes in GTDB clusters.')
+        self.cur.execute("SELECT accession, ncbi_taxonomy, gtdb_clustered_genomes " +
+                         "FROM metadata_view")
+
+        ncbi_sp = {}
+        gtdb_clustered_gids = {}
+        for row in self.cur.fetchall():
+            gid = row[0]
+            ncbi_sp[gid] = row[1].split(';')[-1].strip()
+
+            if row[2] is not None:
+                gtdb_clustered_gids[gid] = row[2].split(';')
+            else:
+                gtdb_clustered_gids[gid] = []
+
         # write out ARB metadata
         self.logger.info(
             'Writing ARB metadata for %d genomes.' % len(genomes_to_retain))
@@ -552,20 +568,32 @@ class TreeManager(object):
             directory, prefix + "_arb_metadata.txt")
         arb_metadata_fh = open(arb_metadata_file, 'wb')
 
+        col_headers.append('gtdb_cluster_ncbi_species')
         for genome_metadata in metadata:
             # take special care of the genome identifier and name as these
             # are handle as a special case in the ARB metadata file
             genome_metadata = list(genome_metadata)
 
             db_genome_id = genome_metadata[genome_id_index]
+            genome_accn = genome_metadata[genome_accn_idx]
             external_genome_id = genome_metadata[genome_name_index]
             del genome_metadata[genome_id_index]
-            #==================================================================
+            # ==================================================================
             # del genome_metadata[max(genome_id_index, genome_name_index)]
             # print(genome_metadata[0:10])
             # del genome_metadata[min(genome_id_index, genome_name_index)]
             # print(genome_metadata[0:10])
-            #==================================================================
+            # ==================================================================
+
+            # add NCBI species information field to ARB record
+            ncbi_sp_count = defaultdict(int)
+            for gid in gtdb_clustered_gids[genome_accn]:
+                ncbi_sp_count[ncbi_sp[gid]] += 1
+
+            ncbi_sp_str = []
+            for sp, count in sorted(ncbi_sp_count.items(), key=lambda kv: kv[1], reverse=True):
+                ncbi_sp_str.append('%s: %d' % (sp, count))
+            genome_metadata.append('; '.join(ncbi_sp_str))
 
             # write out ARB record
             multiple_hit_count = sum(
@@ -888,7 +916,7 @@ class TreeManager(object):
 
         fout.close()
 
-    def canonical_gid(self,gid):
+    def canonical_gid(self, gid):
         """Get canonical form of NCBI genome accession.
 
         Example:
@@ -946,9 +974,11 @@ class TreeManager(object):
                 'ncbi_organism_name')
             metadata_values[organism_name_index] = metadata_values[ncbi_organism_name_index]
 
-            gtdb_clustered_genomes_index = metadata_fields.index('gtdb_clustered_genomes')
+            gtdb_clustered_genomes_index = metadata_fields.index(
+                'gtdb_clustered_genomes')
             if metadata_values[gtdb_clustered_genomes_index] != None:
-                metadata_values[gtdb_clustered_genomes_index] = ';'.join([self.canonical_gid(x) for x in metadata_values[gtdb_clustered_genomes_index].split(';')])
+                metadata_values[gtdb_clustered_genomes_index] = ';'.join([self.canonical_gid(
+                    x) for x in metadata_values[gtdb_clustered_genomes_index].split(';')])
 
         fout.write("BEGIN\n")
         fout.write("db_name=%s\n" % external_genome_id)

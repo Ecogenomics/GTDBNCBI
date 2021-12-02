@@ -789,11 +789,14 @@ class GenomeDatabase(object):
             cur = self.conn.cursor()
 
             # ensure all genomes have been assigned to a representatives
+            self.logger.info(
+                'Ensuring all genomes are assigned to a representative.')
             genome_rep_mngr = GenomeRepresentativeManager(
                 cur, self.currentUser, self.threads, self.db_release)
             genome_rep_mngr.assignToRepresentative()
 
             # get all guaranteed genomes
+            self.logger.info('Determining set of guaranteed genomes.')
             genome_mngr = GenomeManager(cur, self.currentUser)
             genome_list_mngr = GenomeListManager(cur, self.currentUser)
 
@@ -824,6 +827,8 @@ class GenomeDatabase(object):
                 guaranteed_ids.update(db_genome_ids)
 
             # genome all genomes marked for exclusion
+            self.logger.info(
+                'Determining set of genomes marked for exclusion.')
             genomes_to_exclude = set()
             if excluded_genome_ids:
                 excluded_genome_ids = [x.strip()
@@ -840,7 +845,8 @@ class GenomeDatabase(object):
                 genomes_to_exclude.update(db_genome_ids)
 
             # make sure all markers are aligned
-            self.logger.info('Verifying markers are aligned for {} genomes.'.format(len(genome_ids)))
+            self.logger.info(
+                'Verifying markers are aligned for {} genomes.'.format(len(genome_ids)))
             aligned_mngr = AlignedMarkerManager(
                 cur, self.threads, self.db_release)
             aligned_mngr.calculateAlignedMarkerSets(genome_ids, marker_ids)
