@@ -416,10 +416,6 @@ class TreeManager(object):
         col_headers.remove('id')
         # col_headers.remove('formatted_accession')
 
-        # create ARB import filter
-        arb_import_filter = os.path.join(directory, prefix + "_arb_filter.ift")
-        self._arbImportFilter(col_headers, arb_import_filter)
-
         # run through each of the genomes and concatenate markers
         self.logger.info(
             'Concatenated marker genes for %d genomes.' % len(genomes_to_retain))
@@ -561,7 +557,7 @@ class TreeManager(object):
             else:
                 gtdb_clustered_gids[gid] = []
 
-        # write out ARB metadata
+        # write out ARB metadata and ARB import filter
         self.logger.info(
             'Writing ARB metadata for %d genomes.' % len(genomes_to_retain))
         arb_metadata_file = os.path.join(
@@ -569,6 +565,10 @@ class TreeManager(object):
         arb_metadata_fh = open(arb_metadata_file, 'wb')
 
         col_headers.append('gtdb_cluster_ncbi_species')
+
+        arb_import_filter = os.path.join(directory, prefix + "_arb_filter.ift")
+        self._arbImportFilter(col_headers, arb_import_filter)
+
         for genome_metadata in metadata:
             # take special care of the genome identifier and name as these
             # are handle as a special case in the ARB metadata file
