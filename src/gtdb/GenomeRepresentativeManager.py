@@ -15,27 +15,25 @@
 #                                                                             #
 ###############################################################################
 
+import os
+import sys
 import logging
 import itertools
 import tempfile
-import psycopg2
 import operator
-import os
 import shutil
-import pickle
 
-from biolib.parallel import Parallel
-from biolib.common import remove_extension, make_sure_path_exists
+from biolib.common import make_sure_path_exists
 
-from Tools import fastaPathGenerator, splitchunks
+from Tools import fastaPathGenerator
 
 from Exceptions import GenomeDatabaseError
 from GenomeManager import GenomeManager
 from MarkerSetManager import MarkerSetManager
 from AlignedMarkerManager import AlignedMarkerManager
-from MetadataManager import MetadataManager
 
 import DefaultValues
+import Config
 
 
 class GenomeRepresentativeManager(object):
@@ -348,7 +346,7 @@ class GenomeRepresentativeManager(object):
 
         return rep_genome_dictionary
 
-    def _domainAssignment(self, genome_id, len_arc_marker, len_bac_marker):
+    def _domainAssignment(self, genome_id, num_ar53_markers, num_ar122_markers, num_bac120_marker):
         """Assign genome to domain based on present/absence of canonical marker genes."""
 
         query_al_mark = ("SELECT count(*) " +
@@ -356,23 +354,46 @@ class GenomeRepresentativeManager(object):
                          "LEFT JOIN marker_set_contents msc ON msc.marker_id = am.marker_id " +
                          "WHERE genome_id = %s and msc.set_id = %s and (evalue <> '') IS TRUE;")
 
-        self.cur.execute(query_al_mark, (genome_id, 1))
-        aligned_bac_count = self.cur.fetchone()[0]
+        self.cur.execute(query_al_mark, (genome_id, Config.AR53_MARKER_SET_ID))
+        num_aligned_ar53 = self.cur.fetchone()[0]
 
-        self.cur.execute(query_al_mark, (genome_id, 2))
-        aligned_arc_count = self.cur.fetchone()[0]
+        self.cur.execute(
+            query_al_mark, (genome_id, Config.AR122_MARKER_SET_ID))
+        num_aligned_ar122 = self.cur.fetchone()[0]
 
-        arc_aa_per = (aligned_arc_count * 100.0 / len_arc_marker)
-        bac_aa_per = (aligned_bac_count * 100.0 / len_bac_marker)
+        self.cur.execute(
+            query_al_mark, (genome_id, Config.BAC120_MARKER_SET_ID))
+        num_aligned_bac120 = self.cur.fetchone()[0]
 
-        if arc_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD and bac_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
+        ar53_aa_per = (num_aligned_ar53 * 100.0 / num_ar53_markers)
+        ar122_aa_per = (num_aligned_ar122 * 100.0 / num_ar122_markers)
+        bac120_aa_per = (num_aligned_bac120 * 100.0 / num_bac120_marker)
+
+        if ar53_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD and bac120_aa_per < DefaultValues.DEFAULT_DOMAIN_THRESHOLD:
             domain = None
-        elif bac_aa_per >= arc_aa_per:
+        elif bac120_aa_per >= ar53_aa_per:
             domain = "d__Bacteria"
         else:
             domain = "d__Archaea"
 
-        return domain, arc_aa_per, bac_aa_per
+        return domain, ar53_aa_per, ar122_aa_per, bac120_aa_per
+
+    def numMarkerGenes(self):
+        """Get number of ar53, ar122, and bac120 marker genes."""
+
+        self.cur.execute(
+            "SELECT count(*) from marker_set_contents where set_id = %s;", (Config.AR53_MARKER_SET_ID,))
+        len_ar53_marker = self.cur.fetchone()[0]
+
+        self.cur.execute(
+            "SELECT count(*) from marker_set_contents where set_id = %s;", (Config.AR122_MARKER_SET_ID,))
+        len_ar122_marker = self.cur.fetchone()[0]
+
+        self.cur.execute(
+            "SELECT count(*) from marker_set_contents where set_id = %s;", (Config.BAC120_MARKER_SET_ID,))
+        len_bac120_marker = self.cur.fetchone()[0]
+
+        return len_ar53_marker, len_ar122_marker, len_bac120_marker
 
     def domainAssignmentReport(self, outfile):
         """Reports results of automated domain assignment."""
@@ -382,13 +403,7 @@ class GenomeRepresentativeManager(object):
         genome_ids = [genome_id[0] for genome_id in self.cur.fetchall()]
 
         # get concatenated alignments for all representatives
-        self.cur.execute(
-            "SELECT count(*) from marker_set_contents where set_id = 1;")
-        len_bac_marker = self.cur.fetchone()[0]
-
-        self.cur.execute(
-            "SELECT count(*) from marker_set_contents where set_id = 2;")
-        len_arc_marker = self.cur.fetchone()[0]
+        len_ar53_marker, len_ar122_marker, len_bac120_marker = self.numMarkerGenes()
 
         # get mapping from internal to external genome IDs
         genome_mngr = GenomeManager(self.cur, self.currentUser)
@@ -398,20 +413,35 @@ class GenomeRepresentativeManager(object):
         # process each genome
         fout = open(outfile, 'w')
         fout.write(
-            'Genome Id\tPredicted domain\tArchaeal Marker Percentage\tBacterial Marker Percentage\tNCBI taxonomy\tGTDB taxonomy\n')
+            'Genome Id\tPredicted domain\tAr53 Markers (%)\tAr122 Markers (%)\tBac120 Markers (%)\tNCBI taxonomy\tGTDB taxonomy\n')
 
         query_taxonomy_req = ("SELECT id, ncbi_taxonomy, gtdb_taxonomy " +
                               "FROM metadata_taxonomy LEFT JOIN gtdb_taxonomy_view USING (id);")
         self.cur.execute(query_taxonomy_req)
-        for genome_id, ncbi_taxonomy, gtdb_taxonomy in self.cur.fetchall():
-            domain, arc_aa_per, bac_aa_per = self._domainAssignment(
-                genome_id, len_arc_marker, len_bac_marker)
+        for idx, (genome_id, ncbi_taxonomy, gtdb_taxonomy) in enumerate(self.cur.fetchall()):
+            domain, ar53_aa_perc, ar120_aa_perc, bac120_aa_per = self._domainAssignment(
+                genome_id,
+                len_ar53_marker,
+                len_ar122_marker,
+                len_bac120_marker)
 
             external_genome_id = external_genome_ids[genome_id]
-            fout.write('%s\t%s\t%.2f\t%.2f\t%s\t%s\n' % (
-                external_genome_id, domain, arc_aa_per, bac_aa_per, ncbi_taxonomy, gtdb_taxonomy))
+            fout.write('%s\t%s\t%.2f\t%.2f\t%.2f\t%s\t%s\n' % (
+                external_genome_id,
+                domain,
+                ar53_aa_perc,
+                ar120_aa_perc,
+                bac120_aa_per,
+                ncbi_taxonomy,
+                gtdb_taxonomy))
+
+            if idx % 1000 == 0:
+                status = '- processing {:,} genomes'.format(idx)
+                sys.stdout.write('{}\r'.format(status))
+                sys.stdout.flush()
 
         fout.close()
+        sys.stdout.write('\n')
 
     def _calculate_fastani_distance(self, user_genome, genome_reps):
         """ Calculate the FastANI distance between all user genomes and the reference to classify them at the species level
@@ -596,13 +626,8 @@ class GenomeRepresentativeManager(object):
             rep_ar_aligns[rep_id] = marker_set_mngr.concatenatedAlignedMarkers(
                 rep_id, ar_marker_index)
 
-        self.cur.execute(
-            "SELECT count(*) from marker_set_contents where set_id = 1;")
-        len_bac_marker = self.cur.fetchone()[0]
+        len_ar53_marker, len_ar122_marker, len_bac120_marker = self.numMarkerGenes()
 
-        self.cur.execute(
-            "SELECT count(*) from marker_set_contents where set_id = 2;")
-        len_arc_marker = self.cur.fetchone()[0]
         # process each genome
         assigned_to_rep_count = 0
         for genome_id in unprocessed_genome_ids:
@@ -613,8 +638,11 @@ class GenomeRepresentativeManager(object):
             genome_ar_align = marker_set_mngr.concatenatedAlignedMarkers(
                 genome_id, ar_marker_index)
 
-            domain, _arc_aa_per, _bac_aa_per = self._domainAssignment(
-                genome_id, len_arc_marker, len_bac_marker)
+            domain, _ar53_aa_perc, _ar120_aa_perc, _bac120_aa_per = self._domainAssignment(
+                genome_id,
+                len_ar53_marker,
+                len_ar122_marker,
+                len_bac120_marker)
 
             assigned_representative = None
             assigned_representative_dic = {}
@@ -681,8 +709,11 @@ class GenomeRepresentativeManager(object):
                                       "FROM metadata_taxonomy WHERE id = %s;")
                 self.cur.execute(query_taxonomy_req, (genome_id,))
                 if all(v is None or v == '' for v in self.cur.fetchone()):
-                    domain, _arc_aa_per, _bac_aa_per = self._domainAssignment(
-                        genome_id, len_arc_marker, len_bac_marker)
+                    domain, _ar53_aa_perc, _ar120_aa_perc, _bac120_aa_per = self._domainAssignment(
+                        genome_id,
+                        len_ar53_marker,
+                        len_ar122_marker,
+                        len_bac120_marker)
 
                     if domain:
                         self.cur.execute("UPDATE metadata_taxonomy " +
