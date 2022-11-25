@@ -259,9 +259,9 @@ class PowerUserManager(object):
 
     def runSanityCheck(self):
         try:
-            if (not self.currentUser.isRootUser()):
-                raise GenomeDatabaseError(
-                    "Only the root user can run this command")
+            #if (not self.currentUser.isRootUser()):
+            #    raise GenomeDatabaseError(
+            #        "{} is not a root user. Only the root user can run this command".format(self.currentUser.getUsername()))
 
             # validate type strains
             self.logger.info(
@@ -463,6 +463,7 @@ class PowerUserManager(object):
 
     def RealignNCBIgenomes(self):
         try:
+            self.logger.info("Realigning NCBI genomes")
             query = ("SELECT g.id,COALESCE(marker_count,0) from genomes g " +
                      "LEFT JOIN (SELECT id_at_source,count(*) as marker_count from genomes g " +
                      "LEFT JOIN aligned_markers am ON am.genome_id = g.id " +
@@ -476,6 +477,7 @@ class PowerUserManager(object):
                      "ORDER BY marker_count")
             self.cur.execute(query)
             list_genome = [a for (a, _b) in self.cur]
+            self.logger.info("Realigning {0} genomes".format(len(list_genome)))
             if len(list_genome) > 0:
                 # get canonical bacterial and archaeal markers
                 marker_set_mngr = MarkerSetManager(self.cur, self.currentUser)

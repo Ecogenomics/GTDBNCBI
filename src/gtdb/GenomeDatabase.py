@@ -691,9 +691,12 @@ class GenomeDatabase(object):
                     genome_batchfile_ids.append(line[0])
 
             if genome_batchfile_ids:
+                print ("genome_batchfile_ids",len(genome_batchfile_ids))
                 ids = genome_mngr.externalGenomeIdsToGenomeIds(
                     genome_batchfile_ids)
                 genome_id_list.update(ids)
+                print ("genome_id_list",len(genome_id_list))
+
 
             if (len(genome_id_list) == 0):
                 raise GenomeDatabaseError(
@@ -782,6 +785,7 @@ class GenomeDatabase(object):
                      rep_genome_ids,
                      alignment,
                      no_trim,
+                     classic_header,
                      individual,
                      build_tree=True):
 
@@ -892,7 +896,8 @@ class GenomeDatabase(object):
                                             individual,
                                             directory,
                                             prefix,
-                                            no_trim)
+                                            no_trim,
+                                            classic_header)
 
             self.conn.commit()
 

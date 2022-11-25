@@ -22,6 +22,7 @@ import tempfile
 import subprocess
 import shutil
 import time
+import gzip
 
 import psycopg2
 
@@ -173,11 +174,11 @@ class AlignedMarkerManager(object):
             # *** DHP: HACK to handle moving of data to specific sub-directories
             if False:
                 if marker_db == 'PFAM':
-                    tophit_path = tophit_path.replace('prodigal', 'prodigal/pfam_33.1')
-                    tophit_path = tophit_path.replace('_pfam_tophit', '_pfam_33.1_tophit')
+                    tophit_path = tophit_path.replace('prodigal', 'prodigal/pfam_33.1_lite')
+                    tophit_path = tophit_path.replace('_pfam_lite_tophit', '_pfam_33.1_lite_tophit')
                 else:
-                    tophit_path = tophit_path.replace('prodigal', 'prodigal/tigrfam_15.0')
-                    tophit_path = tophit_path.replace('_tigrfam_tophit.tsv', '_tigrfam_15.0_tophit.tsv')
+                    tophit_path = tophit_path.replace('prodigal', 'prodigal/tigrfam_15.0_lite')
+                    tophit_path = tophit_path.replace('_tigrfam_lite_tophit.tsv', '_tigrfam_15.0_lite_tophit.tsv')
 
             all_genes_dict = read_fasta(protein_file, False)
 
@@ -190,7 +191,11 @@ class AlignedMarkerManager(object):
 
             # we store the tophit file line by line and store the
             # information in a dictionary
-            with open(tophit_path) as tp:
+            open_file = open
+            if tophit_path.endswith('.gz'):
+                open_file = gzip.open
+
+            with open_file(tophit_path,'rt') as tp:
                 # first line is header line
                 tp.readline()
                 gene_dict = {}
@@ -296,6 +301,7 @@ class AlignedMarkerManager(object):
         hmmalign_dir = tempfile.mkdtemp()
         input_count = 0
         for _markerid, marker_info in marker_dict.iteritems():
+
             hmmalign_gene_input = os.path.join(
                 hmmalign_dir, "input_gene{0}.fa".format(input_count))
             input_count += 1
@@ -304,18 +310,28 @@ class AlignedMarkerManager(object):
             out_fh.write("{0}".format(marker_info.get("gene_seq")))
             out_fh.close()
             proc = subprocess.Popen(["hmmalign", "--outformat", "Pfam", marker_info.get(
-                "marker_path"), hmmalign_gene_input], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            proc.wait()
+                "marker_path"), hmmalign_gene_input], stdout=subprocess.PIPE, stderr=subprocess.PIPE,bufsize=1)
+            outs=[]
+            with proc.stdout:
+                for line in iter(proc.stdout.readline, b''):
+                    outs.append(line)
+            returncode = proc.wait()
+
+
 
             for line in proc.stderr:
-                print "TODO"
+                print(line)
+
             result = self._getAlignedMarker(
-                marker_info.get("gene"), proc.stdout)
+                marker_info.get("gene"), outs)
+
             if len(result) < 1:
                 return "TODO"
+
             result_genomes_dict.append((genome, marker_info.get("db_marker_id"), result, marker_info.get(
                 "multihit"), marker_info.get("evalue"), str(marker_info.get("bitscore")), len(marker_info.get('multihits_number')), len(set(marker_info.get('multihits_number')))))
             input_count += 1
+
         shutil.rmtree(hmmalign_dir)
         return result_genomes_dict
 

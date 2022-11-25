@@ -39,16 +39,16 @@ PFAM_HMM_FILE = 'Pfam-A.hmm'
 PFAMM_HMM_DAT_FILE = 'Pfam-A.hmm.dat'
 KEGG_HMMS = '/srv/whitlam/bio/db/kegg/???/kegg.hmm'
 
-GENOME_FILE_SUFFIX = "_genomic.fna"
-PROTEIN_FILE_SUFFIX = "_protein.faa"
+GENOME_FILE_SUFFIX = "_genomic.fna.gz"
+PROTEIN_FILE_SUFFIX = "_protein.faa.gz"
 NT_GENE_FILE_SUFFIX = "_protein.fna"
 GFF_FILE_SUFFIX = "_protein.gff"
 TRANSLATION_TABLE_SUFFIX = "_translation_table.tsv"
 CHECKSUM_SUFFIX = ".sha256"
 
-TIGRFAM_SUFFIX = "_tigrfam.tsv"
-TIGRFAM_TOP_HIT_SUFFIX = "_tigrfam_tophit.tsv"
-PFAM_SUFFIX = "_pfam.tsv"
-PFAM_TOP_HIT_SUFFIX = "_pfam_tophit.tsv"
+TIGRFAM_SUFFIX = "_tigrfam_lite.tsv.gz"
+TIGRFAM_TOP_HIT_SUFFIX = "_tigrfam_lite_tophit.tsv.gz"
+PFAM_SUFFIX = "_pfam_lite.tsv.gz"
+PFAM_TOP_HIT_SUFFIX = "_pfam_lite_tophit.tsv.gz"
 KEGG_SUFFIX = "_kegg.tsv"
 KEGG_TOP_HIT_SUFFIX = "_kegg_tophit.tsv"

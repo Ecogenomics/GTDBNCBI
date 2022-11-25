@@ -1,10 +1,12 @@
-software_version=2.4.0
-ncbi_database_version=release 202
+software_version=2.4.1
+ncbi_database_version=release 214
 gtdb_version=1.4.1
 taxonomy_version=v202.0
 
 GTDB software versions
 ----------------------
+v2.4.1 (Nov 15, 2022):
+- CLI needs to manage .gz files for each genome.
 v2.4.0 (May 12, 2021):
 - Clean database to remove user genomes and UBA genomes
         - clean functionalities
@@ -35,7 +37,7 @@ v2.1.12 (April 28, 2017):
 - Connection to previous databases available
 - Users have now Firstname and Lastname
 - Bug Fixes
-- Guaranteed genome lists return Warning  
+- Guaranteed genome lists return Warning
 v2.1.11 (April 4, 2017):
 - Starting using R80
 v2.1.10 (March 22, 2017):
@@ -46,7 +48,7 @@ v2.1.8 (Dec. 19, 2016):
 - bug fixes
 v2.1.7 (Dec. 9, 2016):
 - starting with RefSeq r78 User genomes were no longer eligable to be GTDB representatives
-- updated CLI and code to reflect absence of User representative genomes 
+- updated CLI and code to reflect absence of User representative genomes
 v2.1.6 (Oct. 27, 2016):
 - added ability to pull genes in nucleotide space
 v2.1.5 (Oct. 27, 2016):
@@ -75,7 +77,7 @@ v2.0.0 (July 07, 2016):
 - Addition of new Config variables (NCBI_ANNOTATION_DIR and USER_ANNOTATION_DIR)
 v1.3.0 (June 16,2016):
 - Trimming on column is based on 50%PA+25%consensus filter
-- New tree creation parameter: --consensus 
+- New tree creation parameter: --consensus
 v1.2.0 (June 06,2016):
 - metadata_ssu table created
 v1.1.2 (May 20, 2016):
@@ -90,7 +92,7 @@ v1.0.0 (Apr. 5, 2016):
 - official move to RefSeq release 75
 v0.0.6 (Apr. 4, 2016):
 - SRA genomes from binning individual runs removed
-- SRA genomes from binning individual experiments added 
+- SRA genomes from binning individual experiments added
 - Josh's human gut microbiome genomes removed
 v0.0.5 (Mar. 16, 2016):
 - update GTDB taxonomy
@@ -108,7 +110,7 @@ v0.0.1:
 GTDB database versions
 ----------------------
 v1.4.1 (October 24th,2019):
-- addition of ncbi_wgs_master in the ncbi_taxonomy table 
+- addition of ncbi_wgs_master in the ncbi_taxonomy table
 v1.4.0 (March 15th, 2019):
 - new table metadata_type_material ( gtdb_type_designation,gtdb_type_designation_sources,lpsn_type_designation,
   dsmz_type_designation,straininfo_type_designation,lpsn_priority_year,dsmz_priority_year,straininfo_priority_year,

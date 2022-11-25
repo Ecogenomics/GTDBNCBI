@@ -378,7 +378,7 @@ class GenomeManager(object):
             gene_dir = os.path.join(genome_dirs[db_genome_id],
                                             Config.NCBI_ANNOTATION_DIR)
             raw_genome_id = genome_id_map[db_genome_id].replace('GB_', '').replace('RS_', '')
-            protein_file = os.path.join(gene_dir, 
+            protein_file = os.path.join(gene_dir,
                                         raw_genome_id + ConfigMetadata.PROTEIN_FILE_SUFFIX)
 
             protein_files[db_genome_id] = protein_file
@@ -1038,25 +1038,49 @@ class GenomeManager(object):
                 # source
                 temp_table_name = Tools.generateTempTableName()
                 self.cur.execute(
-                    "CREATE TEMP TABLE %s (id_at_source text)" % (temp_table_name,))
+                    "CREATE TEMP TABLE %s (id_at_source text NOT NULL PRIMARY KEY)" % (temp_table_name,))
                 query = "INSERT INTO {0} (id_at_source) VALUES (%s)".format(
                     temp_table_name)
                 self.cur.executemany(
                     query, [(x,) for x in map_sources_to_ids[source_prefix].keys()])
 
                 # Check to see if there are any that don't exist
-                query = ("SELECT id_at_source FROM {0} " +
-                         "WHERE id_at_source NOT IN ( " +
-                         "SELECT id_at_source " +
-                         "FROM genomes, genome_sources " +
+                #query = ("SELECT id_at_source FROM {0} " +
+                #         "WHERE id_at_source NOT IN ( " +
+                #         "SELECT id_at_source " +
+                #         "FROM genomes, genome_sources " +
+                #         "WHERE genome_source_id = genome_sources.id " +
+                #         "AND external_id_prefix = %s)").format(temp_table_name)
+
+                #self.cur.execute(query, (source_prefix,))
+
+
+
+                query_prefix = ("SELECT id_at_source FROM genomes, genome_sources " +
                          "WHERE genome_source_id = genome_sources.id " +
-                         "AND external_id_prefix = %s)").format(temp_table_name)
+                         "AND external_id_prefix = %s")
+                self.cur.execute(query_prefix, (source_prefix,))
 
-                self.cur.execute(query, (source_prefix,))
-
-                missing_ids = []
+                prefix_ids = []
                 for (id_at_source,) in self.cur:
-                    missing_ids.append(source_prefix + "_" + id_at_source)
+                    prefix_ids.append(source_prefix + "_" + id_at_source)
+
+                query_ids_query=("SELECT id_at_source FROM {0} ").format(temp_table_name)
+                self.cur.execute(query_ids_query)
+
+                query_ids = []
+                for (id_at_source,) in self.cur:
+                    query_ids.append(source_prefix + "_" + id_at_source)
+
+
+                missing_ids= list(set(query_ids) - set(prefix_ids))
+
+
+
+
+                #missing_ids = []
+                #for (id_at_source,) in self.cur:
+                #    missing_ids.append(source_prefix + "_" + id_at_source)
 
                 if missing_ids:
                     raise GenomeDatabaseError(

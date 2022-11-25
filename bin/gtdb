@@ -123,6 +123,7 @@ def AddGenomes(db, args):
 
 
 def CreateTreeData(db, args):
+    print "CreateTreeData"
     genome_id_list, rep_genome_ids = db.GetGenomeIds(args.all_dereplicated,
                                                      args.ncbi_dereplicated,
                                                      args.donovan_sra_dereplicated,
@@ -189,6 +190,7 @@ def CreateTreeData(db, args):
                            rep_genome_ids,
                            not args.no_alignment,
                            args.no_trim,
+                           args.classic_header,
                            args.individual,
                            not args.no_tree)
 
@@ -1419,6 +1421,8 @@ if __name__ == '__main__':
 
     optional_markers_create_tree.add_argument('--no_trim', dest='no_trim', action="store_true",
                                               help='Skip the trimming step to return the full MSA.')
+    optional_markers_create_tree.add_argument('--classic_header', dest='classic_header', action="store_true",
+                                                  help='Use original header, not canonical')
 
     optional_markers_create_tree.add_argument('--no_tree', dest='no_tree', action="store_true",
                                               help="Output tree data, but do not infer a tree.")

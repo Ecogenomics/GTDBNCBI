@@ -372,7 +372,8 @@ class TreeManager(object):
                    individual,
                    directory,
                    prefix,
-                   no_trim):
+                   no_trim,
+                   classic_header):
         '''
         Write summary files and ARB files
 
@@ -411,7 +412,11 @@ class TreeManager(object):
 
         # identify columns of interest
         genome_accn_idx = col_headers.index('accession')
-        genome_name_index = col_headers.index('formatted_accession')
+        # to export MSA with original header ( not canonical)
+        if classic_header:
+            genome_name_index = col_headers.index('accession')
+        else:
+            genome_name_index = col_headers.index('formatted_accession')
         genome_id_index = col_headers.index('id')
         col_headers.remove('id')
         # col_headers.remove('formatted_accession')
@@ -944,11 +949,12 @@ class TreeManager(object):
                    multiple_hit_count,
                    msa_gene_count,
                    num_marker_genes,
-                   aligned_seq):
+                   aligned_seq,
+                   classic_header=False):
         """Write out ARB record for genome."""
 
         # customize output relative to raw database table
-        if external_genome_id.startswith('G'):
+        if (classic_header and (external_genome_id.startswith('GB') or external_genome_id.startswith('RS'))) or ( not classic_header and external_genome_id.startswith('G')):
             metadata_values = list(metadata_values)
             metadata_fields = list(metadata_fields)
             ncbi_taxonomy_index = metadata_fields.index('ncbi_taxonomy')
