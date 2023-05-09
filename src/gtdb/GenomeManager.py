@@ -452,9 +452,9 @@ class GenomeManager(object):
                 if genomic:
                     genomic_file = os.path.join(dir_prefix, fasta_file_location)
                     if gtdb_header and external_id_prefix != 'U':
-                        gtdb_filename = external_id_prefix + "_" + id_at_source + '_genomic.fna'
+                        gtdb_filename = external_id_prefix + "_" + id_at_source + '_genomic.fna.gz'
                     else:
-                        gtdb_filename = id_at_source + '_genomic.fna'
+                        gtdb_filename = id_at_source + '_genomic.fna.gz'
 
                     out_file = os.path.join(out_dir, gtdb_filename)
                     shutil.copy(genomic_file, out_file)
@@ -462,9 +462,9 @@ class GenomeManager(object):
                 if gene:
                     gene_file = os.path.join(dir_prefix, genes_file_location)
                     if gtdb_header and external_id_prefix != 'U':
-                        gtdb_filename = external_id_prefix + "_" + id_at_source + '_gene.faa'
+                        gtdb_filename = external_id_prefix + "_" + id_at_source + '_gene.faa.gz'
                     else:
-                        gtdb_filename = id_at_source + '_gene.faa'
+                        gtdb_filename = id_at_source + '_gene.faa.gz'
 
                     out_file = os.path.join(out_dir, gtdb_filename)
                     shutil.copy(gene_file, out_file)
@@ -472,9 +472,9 @@ class GenomeManager(object):
                 if gene_nt:
                     gene_file = os.path.join(dir_prefix, genes_file_location).replace('.faa', '.fna')
                     if gtdb_header and external_id_prefix != 'U':
-                        gtdb_filename = external_id_prefix + "_" + id_at_source + '_gene.fna'
+                        gtdb_filename = external_id_prefix + "_" + id_at_source + '_gene.fna.gz'
                     else:
-                        gtdb_filename = id_at_source + '_gene.fna'
+                        gtdb_filename = id_at_source + '_gene.fna.gz'
 
                     out_file = os.path.join(out_dir, gtdb_filename)
                     shutil.copy(gene_file, out_file)

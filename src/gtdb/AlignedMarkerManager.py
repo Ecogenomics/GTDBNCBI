@@ -211,6 +211,7 @@ class AlignedMarkerManager(object):
                     for each_gene in diff_markers:
                         sublist = each_gene.split(",")
                         markerid = sublist[0]
+
                         if markerid not in marker_dict_original:
                             continue
 
@@ -218,6 +219,7 @@ class AlignedMarkerManager(object):
                         bitscore = float(sublist[2].strip())
 
                         if markerid in gene_dict:
+
                             oldbitscore = gene_dict.get(
                                 markerid).get("bitscore")
                             if oldbitscore < bitscore:
@@ -239,6 +241,7 @@ class AlignedMarkerManager(object):
                                 gene_dict.get(markerid).get('multihits_number').append(
                                     all_genes_dict.get(genename))
                         else:
+
                             gene_dict[markerid] = {"marker_path": marker_dict_original.get(markerid).get("path"),
                                                    "gene": genename,
                                                    "gene_seq": all_genes_dict.get(genename),
@@ -247,7 +250,6 @@ class AlignedMarkerManager(object):
                                                    "multihit": False,
                                                    "db_marker_id": marker_dict_original.get(markerid).get("db_marker_id"),
                                                    "multihits_number": [all_genes_dict.get(genename)]}
-
             for mid, info in marker_dict_original.iteritems():
                 if mid not in gene_dict:
                     final_genome.append(db_genome_id)
