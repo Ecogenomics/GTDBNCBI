@@ -20,8 +20,9 @@ import sys
 import multiprocessing as mp
 
 from biolib.checksum import sha256
+from biolib.external.execute import check_dependencies
 
-import ConfigMetadata
+import gtdb.ConfigMetadata as ConfigMetadata
 
 
 class TigrfamSearch(object):
@@ -29,6 +30,8 @@ class TigrfamSearch(object):
 
     def __init__(self, cur, currentUser, threads):
         """Initialization."""
+
+        check_dependencies(['hmmsearch'])
 
         self.cur = cur
         self.currentUser = currentUser

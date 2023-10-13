@@ -17,11 +17,8 @@
 
 import logging
 
-import psycopg2
-from psycopg2.extensions import AsIs
-
-import Tools
-from Exceptions import GenomeDatabaseError
+import gtdb.Tools as Tools
+from gtdb.Exceptions import GenomeDatabaseError
 
 
 class MarkerManager(object):

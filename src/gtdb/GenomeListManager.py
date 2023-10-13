@@ -17,11 +17,8 @@
 
 import logging
 
-import psycopg2
-from psycopg2.extensions import AsIs
-
-from Tools import generateTempTableName, confirm
-from Exceptions import GenomeDatabaseError
+from gtdb.Tools import generateTempTableName, confirm
+from gtdb.Exceptions import GenomeDatabaseError
 
 
 class GenomeListManager(object):

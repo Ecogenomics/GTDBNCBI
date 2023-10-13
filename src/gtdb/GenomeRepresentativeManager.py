@@ -25,15 +25,14 @@ import shutil
 
 from biolib.common import make_sure_path_exists
 
-from Tools import fastaPathGenerator
+from gtdb.Tools import fastaPathGenerator
 
-from Exceptions import GenomeDatabaseError
-from GenomeManager import GenomeManager
-from MarkerSetManager import MarkerSetManager
-from AlignedMarkerManager import AlignedMarkerManager
-
-import DefaultValues
-import Config
+import gtdb.DefaultValues as DefaultValues
+import gtdb.Config as Config
+from gtdb.Exceptions import GenomeDatabaseError
+from gtdb.GenomeManager import GenomeManager
+from gtdb.MarkerSetManager import MarkerSetManager
+from gtdb.AlignedMarkerManager import AlignedMarkerManager
 
 
 class GenomeRepresentativeManager(object):
@@ -517,7 +516,7 @@ class GenomeRepresentativeManager(object):
             if len(dict_parser_distance) == 0:
                 return None
             sorted_dict = sorted(dict_parser_distance.get(
-                user_genome).iteritems(), key=lambda(_x, y): y['ani'], reverse=True)
+                user_genome).iteritems(), key=lambda _x, y: y['ani'], reverse=True)
             fastani_matching_reference = sorted_dict[0][0]
             shutil.rmtree(self.tmp_output_dir)
             return fastani_matching_reference

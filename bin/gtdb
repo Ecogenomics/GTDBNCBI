@@ -123,7 +123,6 @@ def AddGenomes(db, args):
 
 
 def CreateTreeData(db, args):
-    print "CreateTreeData"
     genome_id_list, rep_genome_ids = db.GetGenomeIds(args.all_dereplicated,
                                                      args.ncbi_dereplicated,
                                                      args.donovan_sra_dereplicated,
@@ -298,7 +297,7 @@ def ViewGenomeLists(db, args):
         return False
 
     if len(genome_lists) == 0:
-        print "No genomes lists found."
+        print("No genomes lists found.")
         return True
 
     return db.PrintGenomeListsDetails(genome_lists)
@@ -382,7 +381,7 @@ def ViewMarkerSets(db, args):
         return False
 
     if len(marker_sets) == 0:
-        print "No marker sets found."
+        print("No marker sets found.")
         return True
 
     return db.printMarkerSetsDetails(marker_sets)
@@ -502,10 +501,6 @@ def CheckUserIDsDuplicates(db, args):
 
 
 if __name__ == '__main__':
-    # make sure all required dependencies are on the system path
-    check_dependencies(
-        ['prodigal', 'genometk', 'blastn', 'hmmsearch', 'pfam_search.pl'])
-
     # create the top-level parser
     parser = argparse.ArgumentParser(
         prog='gtdb', formatter_class=CustomHelpFormatter)
