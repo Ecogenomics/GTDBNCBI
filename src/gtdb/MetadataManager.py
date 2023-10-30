@@ -48,8 +48,6 @@ class MetadataManager(object):
 
         self.logger = logging.getLogger()
 
-        check_dependencies(['blastn', 'genometk'])
-
         self.cur = cur
         self.currentUser = currentUser
 
@@ -444,6 +442,9 @@ class MetadataManager(object):
         output_dir : str
             Output directory.
         """
+
+        check_dependencies(['blastn', 'genometk'])
+        
         os.system('genometk nucleotide --silent %s %s' %
                   (genome_file, output_dir))
         os.system('genometk gene --silent %s %s %s' %

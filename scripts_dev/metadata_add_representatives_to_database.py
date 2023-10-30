@@ -35,7 +35,7 @@ import tempfile
 import logging
 import argparse
 
-from biolib.common import canonical_gid
+from gtdblib.util.bio.accession import canonical_gid
 
 from gtdb import GenomeDatabase
 from gtdb.Exceptions import (GenomeDatabaseError,
@@ -95,7 +95,7 @@ class AddRepresentativeGenomes(object):
         is_rep[ncbi_accn] = False
 
     # determine representative assignment of genomes
-    temp_genome_rep_file = tempfile.NamedTemporaryFile(delete=False)
+    temp_genome_rep_file = tempfile.NamedTemporaryFile(delete=False, mode='wt')
     num_sp_reps = 0
     with open(final_cluster_file) as f:
         headers = f.readline().strip().split('\t')
@@ -111,32 +111,37 @@ class AddRepresentativeGenomes(object):
                 gids = [gid.strip() for gid in line_split[clustered_genomes_index].split(',')]
                 for gid in gids:
                     ncbi_accn = gid_to_ncbi_accn[gid]
-                    temp_genome_rep_file.write('%s\t%s\n' % (
-                                                    ncbi_accn,
-                                                    rep_accn))
+                    temp_genome_rep_file.write(f'{ncbi_accn}\t{rep_accn}\n')
 
-            temp_genome_rep_file.write('%s\t%s\n' % (
-                                        rep_accn,
-                                        rep_accn))
+            temp_genome_rep_file.write(f'{rep_accn}\t{rep_accn}\n')
+
             is_rep[rep_accn] = True
             num_sp_reps += 1
     temp_genome_rep_file.close()
 
-    print('Identified %d species clusters.' % num_sp_reps)
-    print('Identified %d genomes marked as representatives.' % sum([1 for rid in is_rep if is_rep[rid]]))
+    print(f'Identified {num_sp_reps:,} species clusters.')
+    print('Identified {:,} genomes marked as representatives.'.format(sum([1 for rid in is_rep if is_rep[rid]])))
 
-    cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_genome_representative --type TEXT --metadatafile %s' % (temp_genome_rep_file.name)
+    cmd = 'gtdb -r metadata import'
+    cmd += ' --table metadata_taxonomy'
+    cmd += ' --field gtdb_genome_representative'
+    cmd += ' --type TEXT'
+    cmd += f' --metadatafile {temp_genome_rep_file.name}'
     print(cmd)
     os.system(cmd)
     os.remove(temp_genome_rep_file.name)
 
     # mark representative genomes
-    temp_rep_file = tempfile.NamedTemporaryFile(delete=False)
-    for rep_accn, rep_status in is_rep.iteritems():
-        temp_rep_file.write('%s\t%s\n' % (rep_accn, str(rep_status)))
+    temp_rep_file = tempfile.NamedTemporaryFile(delete=False, mode='wt')
+    for rep_accn, rep_status in is_rep.items():
+        temp_rep_file.write(f'{rep_accn}\t{str(rep_status)}\n')
     temp_rep_file.close()
 
-    cmd = 'gtdb -r metadata import --table metadata_taxonomy --field gtdb_representative --type BOOLEAN --metadatafile %s' % (temp_rep_file.name)
+    cmd = 'gtdb -r metadata import'
+    cmd += ' --table metadata_taxonomy'
+    cmd += ' --field gtdb_representative'
+    cmd += ' --type BOOLEAN'
+    cmd += f' --metadatafile {temp_rep_file.name}'
     print(cmd)
     os.system(cmd)
     os.remove(temp_rep_file.name)
