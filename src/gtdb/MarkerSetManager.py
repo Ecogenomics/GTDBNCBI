@@ -16,13 +16,9 @@
 ###############################################################################
 
 import logging
-import sys
 
-import psycopg2
-from psycopg2.extensions import AsIs
-
-from Tools import generateTempTableName, confirm
-from Exceptions import GenomeDatabaseError
+from gtdb.Tools import confirm
+from gtdb.Exceptions import GenomeDatabaseError
 
 
 class MarkerSetManager(object):

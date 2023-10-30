@@ -1,10 +1,14 @@
-software_version=2.4.1
-ncbi_database_version=release 214
+software_version=2.5.0
+ncbi_database_version=release 220
 gtdb_version=1.4.1
-taxonomy_version=v207.0
+taxonomy_version=v220.0
 
 GTDB software versions
 ----------------------
+v2.5.0 (Nov 15, 2022):
+- migrated code to Python3
+- removed unused imports
+- moved checking of 3rd party programs to __init__ methods of classes with dependency
 v2.4.1 (Nov 15, 2022):
 - CLI needs to manage .gz files for each genome.
 v2.4.0 (May 12, 2021):

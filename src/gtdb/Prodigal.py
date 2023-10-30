@@ -23,9 +23,10 @@ import multiprocessing as mp
 
 from biolib.external.prodigal import (Prodigal as BioLibProdigal)
 from biolib.checksum import sha256
+from biolib.external.execute import check_dependencies
 
-import ConfigMetadata
-import Config
+import gtdb.Config as Config
+import gtdb.ConfigMetadata as ConfigMetadata
 
 
 class Prodigal(object):
@@ -35,6 +36,8 @@ class Prodigal(object):
         """Initialize."""
 
         self.logger = logging.getLogger()
+
+        check_dependencies(['prodigal'])
 
         self.threads = threads
 

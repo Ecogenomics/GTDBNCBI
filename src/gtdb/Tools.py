@@ -3,10 +3,9 @@ import math
 import time
 import random
 import os
-
 from itertools import islice
 
-import Config
+import gtdb.Config as Config
 
 
 ##################################################
@@ -17,11 +16,9 @@ import Config
 def splitchunks(d, n):
     chunksize = int(math.ceil(len(d) / float(n)))
     it = iter(d)
-    for _ in xrange(0, len(d), chunksize):
+    for _ in range(0, len(d), chunksize):
         yield {k: d[k] for k in islice(it, chunksize)}
         
-
-
 
 def generateTempTableName():
     rng = random.SystemRandom()
@@ -53,7 +50,7 @@ def fastaPathGenerator(path=None, prefix=None):
     elif prefix == "RS":
         return os.path.join(genomeRSQDir, path)
     else:
-        print "prefix {0} is not existing".format(prefix)
+        print("prefix {0} is not existing".format(prefix))
 
 
 def confirm(msg):

@@ -21,8 +21,9 @@ import multiprocessing as mp
 from collections import defaultdict
 
 from biolib.checksum import sha256
+from biolib.external.execute import check_dependencies
 
-import ConfigMetadata
+import gtdb.ConfigMetadata as ConfigMetadata
 
 
 class PfamSearch(object):
@@ -30,6 +31,8 @@ class PfamSearch(object):
 
     def __init__(self, cur, currentUser, threads):
         """Initialization."""
+
+        check_dependencies(['hmmsearch', 'pfam_search.pl'])
 
         self.cur = cur
         self.currentUser = currentUser

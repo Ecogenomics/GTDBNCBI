@@ -18,22 +18,17 @@
 import os
 import sys
 import logging
-import psycopg2 as pg
 import random
-
-import Config
-
-from biolib.taxonomy import Taxonomy
-
-from GenomeManager import GenomeManager
-from GenomeListManager import GenomeListManager
-from Exceptions import GenomeDatabaseError
-
-from collections import Counter
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from numpy import (mean as np_mean,
                    std as np_std)
+
+from biolib.taxonomy import Taxonomy
+
+from gtdb.GenomeManager import GenomeManager
+from gtdb.GenomeListManager import GenomeListManager
+from gtdb.Exceptions import GenomeDatabaseError
 
 
 class TreeManager(object):

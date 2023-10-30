@@ -24,11 +24,9 @@ import shutil
 import time
 import gzip
 
-import psycopg2
-
-import ConfigMetadata
-from GenomeDatabaseConnection import GenomeDatabaseConnection
-from Tools import fastaPathGenerator, splitchunks
+import gtdb.ConfigMetadata as ConfigMetadata
+from gtdb.GenomeDatabaseConnection import GenomeDatabaseConnection
+from gtdb.Tools import fastaPathGenerator, splitchunks
 
 from biolib.seq_io import read_fasta
 

@@ -16,9 +16,8 @@
 ###############################################################################
 
 import psycopg2 as pg
-from psycopg2.pool import ThreadedConnectionPool
 
-import Config
+import gtdb.Config as Config
 
 
 class GenomeDatabaseConnection(object):

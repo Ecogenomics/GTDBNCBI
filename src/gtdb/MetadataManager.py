@@ -22,13 +22,15 @@ import sys
 from collections import defaultdict, Counter
 
 import psycopg2
-from biolib.seq_io import read_fasta
-from biolib.taxonomy import Taxonomy
 from psycopg2.extensions import AsIs
 
-import Config
-import ConfigMetadata
-from Exceptions import GenomeDatabaseError
+from biolib.seq_io import read_fasta
+from biolib.taxonomy import Taxonomy
+from biolib.external.execute import check_dependencies
+
+import gtdb.Config as Config
+import gtdb.ConfigMetadata as ConfigMetadata
+from gtdb.Exceptions import GenomeDatabaseError
 
 
 class MetadataManager(object):
@@ -46,6 +48,8 @@ class MetadataManager(object):
 
         self.logger = logging.getLogger()
 
+        check_dependencies(['blastn', 'genometk'])
+
         self.cur = cur
         self.currentUser = currentUser
 
@@ -59,14 +63,14 @@ class MetadataManager(object):
         '''
         try:
             self.cur.execute("SELECT * FROM view_list_meta_columns")
-            print "\t".join(("Table", "Field", "Datatype", "Description"))
+            print("\t".join(("Table", "Field", "Datatype", "Description")))
             for tup in self.cur.fetchall():
                 info_list = list(tup)
                 if info_list[2] == "double precision":
                     info_list[2] = "float"
                 elif str(info_list[2]).startswith("timestamp"):
                     info_list[2] = "timestamp"
-                print "\t".join(info_list)
+                print("\t".join(info_list))
         except GenomeDatabaseError as e:
             raise e
 
@@ -93,7 +97,7 @@ class MetadataManager(object):
                     query)
             with open(path, 'w') as f:
                 self.cur.copy_expert(outputquery, f)
-            print "Export Successful"
+            print("Export Successful")
         except GenomeDatabaseError as e:
             raise e
 
@@ -119,7 +123,7 @@ class MetadataManager(object):
                     query)
             with open(path, 'w') as f:
                 self.cur.copy_expert(outputquery, f)
-            print "Export Successful"
+            print("Export Successful")
         except GenomeDatabaseError as e:
             raise e
 
@@ -148,7 +152,7 @@ class MetadataManager(object):
                             "Unrecognized database prefix: %s" % prefix)
                     f.write("{0}\t{1}\n".format(
                         prefix + "_" + id, os.path.dirname(os.path.join(dir_prefix, file_location))))
-            print "Export Successful"
+            print("Export Successful")
         except GenomeDatabaseError as e:
             raise e
 
@@ -180,7 +184,7 @@ class MetadataManager(object):
                                (genome_id, ';'.join(Taxonomy.rank_prefixes)))
             fout.close()
 
-            print 'Taxonomy information written to: %s' % output_file
+            print('Taxonomy information written to: %s' % output_file)
         except GenomeDatabaseError as e:
             raise e
 
@@ -616,7 +620,6 @@ class MetadataManager(object):
 
             return True
         except psycopg2.Error as e:
-            print "error"
             raise GenomeDatabaseError(e.pgerror)
         except:
             print("Unexpected error:", sys.exc_info()[0])

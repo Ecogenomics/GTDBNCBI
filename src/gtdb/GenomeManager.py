@@ -16,28 +16,26 @@
 
 import os
 import tempfile
-import ntpath
 import shutil
 import logging
 import datetime
 import sys
 import multiprocessing
-import psycopg2
 import time
 
-import Config
-import ConfigMetadata
-import Tools
-
-from Exceptions import GenomeDatabaseError
-from MetadataManager import MetadataManager
-from Prodigal import Prodigal
-from TigrfamSearch import TigrfamSearch
-from PfamSearch import PfamSearch
+import gtdb.Config as Config
+import gtdb.ConfigMetadata as ConfigMetadata
+import gtdb.Tools as Tools
+from gtdb.Exceptions import GenomeDatabaseError
+from gtdb.MetadataManager import MetadataManager
+from gtdb.Prodigal import Prodigal
+from gtdb.TigrfamSearch import TigrfamSearch
+from gtdb.PfamSearch import PfamSearch
+from gtdb.Tools import splitchunks, confirm
 
 from biolib.checksum import sha256
 from biolib.common import make_sure_path_exists
-from Tools import splitchunks, confirm
+
 from psycopg2.extensions import AsIs
 
 
@@ -685,7 +683,7 @@ class GenomeManager(object):
             required_headers[header] = pos
 
         for header, col in required_headers.items():
-            if (header is "Completeness" or header is "Contamination") and col is None:
+            if (header == "Completeness" or header == "Contamination") and col is None:
                 raise GenomeDatabaseError(
                     "Unable to find %s header in the CheckM file. Check that the CheckM file is correct: %s." % (header, checkm_fh.name))
 
@@ -876,13 +874,13 @@ class GenomeManager(object):
                                           WARNING: {1} is not the owner of this {0} (real owner {3} )
                                           {0} needs to be moved manually to the deprecated folder'''.format(genome, username, reason, info.get("owner")))
                     else:
-                        if info.get("prefix") is "U":
+                        if info.get("prefix") == "U":
                             target = os.path.dirname(
                                 os.path.join(self.deprecatedUserDir, info.get("relative_path")))
-                        elif info.get("prefix") is "GB":
+                        elif info.get("prefix") == "GB":
                             target = os.path.join(
                                 self.deprecatedGBKDir, info.get("relative_path"))
-                        elif info.get("prefix") is "RS":
+                        elif info.get("prefix") == "RS":
                             target = os.path.join(
                                 self.deprecatedRSQDir, info.get("relative_path"))
                         make_sure_path_exists(target)
@@ -928,7 +926,7 @@ class GenomeManager(object):
                     if (owned_by_root or owner_id != self.currentUser.getUserId()):
                         print (
                             "WARNING: Insufficient permissions to edit genome {0}".format(public_id))
-                        print logging.warn("{0} is trying to delete genome {1} owned by {2}".format(self.currentUser.getUsername(), public_id, username))
+                        logging.warn("{0} is trying to delete genome {1} owned by {2}".format(self.currentUser.getUsername(), public_id, username))
                         return (False, None, None)
                 dict_genomes_user[public_id] = {
                     "owner": username, "prefix": prefix, "relative_path": fasta_path}
@@ -1202,7 +1200,7 @@ class GenomeManager(object):
                 fout.write('>{0}~{1} {2} {3} {4}\n'.format(genome, query, taxonomy, gene_len, contig_len))
                 fout.write('{0}\n'.format(sequence))
             fout.close()
-            print 'Export successful'
+            print('Export successful')
         except GenomeDatabaseError as e:
             raise e
 
@@ -1224,7 +1222,7 @@ class GenomeManager(object):
                 fout.write('>{0}~{1} {2} {3} {4}\n'.format(genome, query, taxonomy, gene_len, contig_len))
                 fout.write('{0}\n'.format(sequence))
             fout.close()
-            print 'Export successful'
+            print('Export successful')
         except GenomeDatabaseError as e:
             raise e
 
@@ -1242,6 +1240,6 @@ class GenomeManager(object):
             for genome, gtdb_clustered_genomes in self.cur.fetchall():
                 fout.write('{0}\t{1}\n'.format(genome, gtdb_clustered_genomes))
             fout.close()
-            print 'Export successful'
+            print('Export successful')
         except GenomeDatabaseError as e:
             raise e
