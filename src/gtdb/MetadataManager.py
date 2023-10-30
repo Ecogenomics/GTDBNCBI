@@ -332,19 +332,21 @@ class MetadataManager(object):
         :param metafile: TSV file with the format (Genome_id \t Value)
         '''
         try:
-            data_list = []
+            genome_ids = []
+            meta_values = []
             with open(metafile, 'r') as metaf:
                 for line in metaf:
-                    data_list.append(tuple(line.strip().split('\t')))
-            data_zip = zip(*data_list)
-            genome_id = list(data_zip[0])
-            meta_value = list(data_zip[1])
-            for n, i in enumerate(genome_id):
+                    tokens = line.strip().split('\t')
+                    genome_ids.append(tokens[0])
+                    meta_values.append(tokens[1])
+
+            for n, i in enumerate(genome_ids):
                 new_i = i.split("_", 1)[1]
-                genome_id[n] = new_i
+                genome_ids[n] = new_i
+
             query = "SELECT upsert('{0}','{1}','{2}',%s,%s)".format(
                 table, field, typemeta)
-            self.cur.execute(query, (genome_id, meta_value))
+            self.cur.execute(query, (genome_ids, meta_values))
         except GenomeDatabaseError as e:
             raise e
         except psycopg2.Error as e:
@@ -444,7 +446,7 @@ class MetadataManager(object):
         """
 
         check_dependencies(['blastn', 'genometk'])
-        
+
         os.system('genometk nucleotide --silent %s %s' %
                   (genome_file, output_dir))
         os.system('genometk gene --silent %s %s %s' %
