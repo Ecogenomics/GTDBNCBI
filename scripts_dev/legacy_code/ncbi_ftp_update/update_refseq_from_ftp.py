@@ -250,7 +250,7 @@ class UpdateRefSeqFolder(object):
             ftp_folder = False
             # check if genomic.fna.gz and protein.faa.gz are similar between
             # previous gtdb and ftp
-            for key, value in ftpdict_fasta.iteritems():
+            for key, value in ftpdict_fasta.items():
                 if value != gtdbdict_fasta.get(key):
                     ftp_folder = True
                 print gcf_record + "\t" + key + "\t" + gtdbdict_fasta.get(key)
@@ -296,7 +296,7 @@ class UpdateRefSeqFolder(object):
 
                 # We check if all other file of this folder are the same.
                 checksum_changed = False
-                for key, value in ftpdict.iteritems():
+                for key, value in ftpdict.items():
                     if value != gtdbdict.get(key):
                         checksum_changed = True
 

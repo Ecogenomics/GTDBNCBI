@@ -59,7 +59,7 @@ class AddTaxonomy(object):
 
     # add full taxonomy string to database
     temp_file = tempfile.NamedTemporaryFile(delete=False)
-    for genome_id, taxa in taxonomy.iteritems():
+    for genome_id, taxa in taxonomy.items():
       if genome_list_file and genome_id not in genome_list:
         continue
 
@@ -75,7 +75,7 @@ class AddTaxonomy(object):
     # add each taxonomic rank to database
     for i, rank in enumerate(Taxonomy.rank_labels):
       temp_file = tempfile.NamedTemporaryFile(delete=False)
-      for genome_id, taxa in taxonomy.iteritems():
+      for genome_id, taxa in taxonomy.items():
         if genome_list_file and genome_id not in genome_list:
           continue
 

@@ -96,7 +96,7 @@ class MapTaxonomy(object):
     # get 'best' map between organism names and genome tree taxonomy
     if False:
       organism_name_taxonomy = {}
-      for genome_id, organism_name in img_organism_name.iteritems():
+      for genome_id, organism_name in img_organism_name.items():
         if genome_id not in taxonomy:
           continue
 
@@ -123,7 +123,7 @@ class MapTaxonomy(object):
     processed_org_name_id = {}
 
     fout = open(output_taxonomy_file, 'w')
-    for genome_id, taxonomy_str in taxonomy.iteritems():
+    for genome_id, taxonomy_str in taxonomy.items():
       if genome_id.startswith('U_'):
         fout.write('%s\t%s\n' % (genome_id, taxonomy_str))
         num_user_genomes_assigned_taxonomy += 1

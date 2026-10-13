@@ -19,28 +19,17 @@ import os
 
 
 def version():
-    """Read software and NCBI version information from file.
+    """Read software version from file.
 
     Returns
     -------
     str
         Software version.
-    str
-        Software, NCBI database, and GTDB database versions.
     """
     with open(os.path.join(os.path.dirname(__file__), 'VERSION')) as fh:
         software_version = fh.readline().strip()
         software_version = software_version[software_version.find('=') + 1:]
 
-        ncbi_version = fh.readline().strip()
-        ncbi_version = ncbi_version[ncbi_version.find('=') + 1:]
+    return software_version
 
-        gtdb_version = fh.readline().strip()
-        gtdb_version = gtdb_version[gtdb_version.find('=') + 1:]
-
-        taxonomy_version = fh.readline().strip()
-        taxonomy_version = taxonomy_version[taxonomy_version.find('=') + 1:]
-
-    return software_version, ncbi_version, gtdb_version, taxonomy_version
-
-__version__, __ncbi_version__, __gtdb_version__, __taxonomy_version__ = version()
+__version__ = version()

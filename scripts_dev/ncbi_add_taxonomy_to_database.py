@@ -66,7 +66,7 @@ class AddTaxonomy(object):
 
         # add full taxonomy string to database
         temp_file = tempfile.NamedTemporaryFile(delete=False)
-        for genome_id, taxa in taxonomy.iteritems():
+        for genome_id, taxa in taxonomy.items():
             if genome_id.startswith('GCA_'):
                 genome_id = 'GB_' + genome_id
             elif genome_id.startswith('GCF_'):

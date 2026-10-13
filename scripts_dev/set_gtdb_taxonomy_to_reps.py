@@ -68,7 +68,7 @@ class Script():
             self.db.Login(None, False)
         except GenomeDatabaseError as e:
             self.db.conn.ClosePostgresConnection()
-            ErrorReport(e.message + " The following error(s) were reported:\n")
+            ErrorReport(str(e) + " The following error(s) were reported:\n")
             DumpDBErrors(self.db)
             sys.exit(-1)
             
@@ -128,7 +128,7 @@ class Script():
                 continue
             
             taxa = []
-            for r in xrange(0, 7):
+            for r in range(0, 7):
                 t = []
                 for gid in (clusters[rep_id]):
                     t.append(gtdb_taxa[gid][r])
@@ -151,7 +151,7 @@ class Script():
         self.logger.info('Assigned %d representatives a consensus taxonomy.' % assigned_taxonomy)
 
         clustered_tax = []
-        for gid, rep_id in clustered.iteritems():
+        for gid, rep_id in clustered.items():
             gtdb_taxonomy = reps[rep_id]
             gtdb_taxa = map(str.strip, gtdb_taxonomy.split(';'))
             d = gtdb_taxa + [gid]

@@ -66,7 +66,7 @@ class AddCheckM(object):
                     genome_list.add(line.rstrip().split(',')[0])
 
         # add CheckM profile fields
-        for header, data in self.metadata.iteritems():
+        for header, data in self.metadata.items():
             db_header, data_type = data
 
             num_genomes = 0

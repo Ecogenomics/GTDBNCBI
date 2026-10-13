@@ -54,7 +54,7 @@ def fastaPathGenerator(path=None, prefix=None):
 
 
 def confirm(msg):
-    raw = raw_input(msg + " (y/N): ")
+    raw = input(msg + " (y/N): ")
     if raw.upper() == "Y":
         return True
     return False

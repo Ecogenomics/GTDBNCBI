@@ -160,7 +160,7 @@ class GenomeDatabase(object):
             self.conn.commit()
             return True
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
     def editUser(self, username, role, login_has_root, firstname, lastname):
@@ -173,7 +173,7 @@ class GenomeDatabase(object):
             return True
         except GenomeDatabaseError as e:
             self.conn.rollback()
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
     def viewUser(self, usernames):
@@ -185,7 +185,7 @@ class GenomeDatabase(object):
             self.PrintTable(header, rows)
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -275,7 +275,7 @@ class GenomeDatabase(object):
 
             self.conn.commit()
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
         except:
             self.conn.rollback()
@@ -347,7 +347,7 @@ class GenomeDatabase(object):
             self.conn.commit()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -395,7 +395,7 @@ class GenomeDatabase(object):
                 db_genome_ids, genomic, gene, gene_nt, out_dir, gtdb_header)
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -408,7 +408,7 @@ class GenomeDatabase(object):
 
             self.conn.commit()
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -421,7 +421,7 @@ class GenomeDatabase(object):
 
             self.conn.commit()
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -433,7 +433,7 @@ class GenomeDatabase(object):
             genomeman.exportReps(path)
             self.conn.commit()
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -473,7 +473,7 @@ class GenomeDatabase(object):
             self.PrintTable(header, rows)
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -510,7 +510,7 @@ class GenomeDatabase(object):
             self.PrintTable(header, rows)
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -546,7 +546,7 @@ class GenomeDatabase(object):
             self.PrintTable(header, rows)
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -605,7 +605,7 @@ class GenomeDatabase(object):
                     "No genomes found from the information provided.")
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return genome_id_list
@@ -630,7 +630,6 @@ class GenomeDatabase(object):
         """
 
         genome_id_list = set()
-        required_rep_genomes_ids = set()
 
         try:
             cur = self.conn.cursor()
@@ -681,7 +680,7 @@ class GenomeDatabase(object):
 
             genome_batchfile_ids = []
             if genome_batchfile:
-                fh = open(genome_batchfile, "rb")
+                fh = open(genome_batchfile, "rt")
                 for line in fh:
                     if line[0] == '#':
                         continue
@@ -695,13 +694,12 @@ class GenomeDatabase(object):
                 genome_id_list.update(ids)
                 print("genome_id_list",len(genome_id_list))
 
-
             if (len(genome_id_list) == 0):
                 raise GenomeDatabaseError(
                     "No genomes found from the information provided.")
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return (genome_id_list, rep_genome_ids)
@@ -751,7 +749,7 @@ class GenomeDatabase(object):
                     "No markers found from the information provided.")
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             raise
 
         return marker_id_list
@@ -848,16 +846,15 @@ class GenomeDatabase(object):
 
             # make sure all markers are aligned
             self.logger.info(
-                'Verifying markers are aligned for {} genomes.'.format(len(genome_ids)))
+                'Verifying markers are aligned for {:,} genomes.'.format(len(genome_ids)))
             aligned_mngr = AlignedMarkerManager(
                 cur, self.threads, self.db_release)
             aligned_mngr.calculateAlignedMarkerSets(genome_ids, marker_ids)
 
             # create tree data
-            self.logger.info('Creating tree data for %d genomes using %d marker genes.' %
-                             (len(genome_ids), len(marker_ids)))
-            self.logger.info(
-                'Tree contains %d representative genomes.' % len(rep_genome_ids))
+            self.logger.info('Creating tree data for {:,} genomes using {:,} marker genes.'.format(
+                             len(genome_ids), len(marker_ids)))
+            self.logger.info(f'Tree contains {len(rep_genome_ids):,} representative genomes.')
 
             tree_mngr = TreeManager(cur, self.currentUser)
             genomes_to_retain, chosen_markers_order, chosen_markers = tree_mngr.filterGenomes(marker_ids,
@@ -900,7 +897,7 @@ class GenomeDatabase(object):
             self.conn.commit()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         if build_tree:
@@ -998,7 +995,7 @@ class GenomeDatabase(object):
             self.conn.commit()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return genome_list_id
@@ -1089,7 +1086,7 @@ class GenomeDatabase(object):
             self.PrintTable(header, rows)
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
 
         return True
 
@@ -1117,7 +1114,7 @@ class GenomeDatabase(object):
             self.PrintTable(header, rows)
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1146,7 +1143,7 @@ class GenomeDatabase(object):
             self.PrintTable(header, rows)
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1207,7 +1204,7 @@ class GenomeDatabase(object):
             self.conn.commit()
         except GenomeDatabaseError as e:
             self.conn.rollback()
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1228,7 +1225,7 @@ class GenomeDatabase(object):
             self.conn.commit()
         except GenomeDatabaseError as e:
             self.conn.rollback()
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
         return True
 
@@ -1275,7 +1272,7 @@ class GenomeDatabase(object):
             self.conn.commit()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return marker_list_id
@@ -1328,7 +1325,7 @@ class GenomeDatabase(object):
             self.conn.commit()
         except GenomeDatabaseError as e:
             self.conn.rollback()
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1348,7 +1345,7 @@ class GenomeDatabase(object):
             self.conn.commit()
         except GenomeDatabaseError as e:
             self.conn.rollback()
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
         return True
 
@@ -1436,7 +1433,7 @@ class GenomeDatabase(object):
             self.PrintTable(header, rows)
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1448,7 +1445,7 @@ class GenomeDatabase(object):
             metaman.viewMetadata()
             return True
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
     def ExportMetadata(self, path, outformat):
@@ -1465,7 +1462,7 @@ class GenomeDatabase(object):
 
             self.conn.commit()
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1479,7 +1476,7 @@ class GenomeDatabase(object):
 
             self.conn.commit()
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1492,7 +1489,7 @@ class GenomeDatabase(object):
 
             self.conn.commit()
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1504,7 +1501,7 @@ class GenomeDatabase(object):
             metaman.importMetadata(table, field, typemeta, metafile)
             self.conn.commit()
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1517,7 +1514,7 @@ class GenomeDatabase(object):
             self.conn.commit()
             return True
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
     def ExportTaxonomy(self, taxonomy_src, output_file):
@@ -1549,7 +1546,7 @@ class GenomeDatabase(object):
             self.conn.commit()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1588,7 +1585,7 @@ class GenomeDatabase(object):
             self.conn.commit()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1655,7 +1652,7 @@ class GenomeDatabase(object):
             self.conn.commit()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1683,7 +1680,7 @@ class GenomeDatabase(object):
             self.conn.ClosePostgresConnection()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
         return True
 
     def RunTreeExceptions(self, path, filtered):
@@ -1705,7 +1702,7 @@ class GenomeDatabase(object):
             self.conn.ClosePostgresConnection()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1731,7 +1728,7 @@ class GenomeDatabase(object):
             self.conn.ClosePostgresConnection()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1755,7 +1752,7 @@ class GenomeDatabase(object):
             self.conn.ClosePostgresConnection()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1777,7 +1774,7 @@ class GenomeDatabase(object):
             self.conn.ClosePostgresConnection()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1798,7 +1795,7 @@ class GenomeDatabase(object):
             self.conn.ClosePostgresConnection()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1819,7 +1816,7 @@ class GenomeDatabase(object):
             self.conn.ClosePostgresConnection()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True
@@ -1843,7 +1840,7 @@ class GenomeDatabase(object):
             self.conn.ClosePostgresConnection()
 
         except GenomeDatabaseError as e:
-            self.ReportError(e.message)
+            self.ReportError(str(e))
             return False
 
         return True

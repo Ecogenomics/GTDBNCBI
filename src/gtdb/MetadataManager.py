@@ -374,7 +374,7 @@ class MetadataManager(object):
             query = "SELECT v.field,v.table from view_list_meta_columns as v"
             self.cur.execute(query)
             all_col_dict = dict(self.cur.fetchall())
-            for key, value in data_dict.iteritems():
+            for key, value in data_dict.items():
                 if key in all_col_dict:
                     if all_col_dict.get(key) == value['table']:
                         query_comment = "COMMENT ON COLUMN {0}.{1} IS '{2}'".format(

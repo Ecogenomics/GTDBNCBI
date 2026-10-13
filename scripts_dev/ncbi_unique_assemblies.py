@@ -62,7 +62,7 @@ class UniqueAssemblies(object):
 
       print 'Identified %d unique %s assemblies' % (len(assemblies), domain.capitalize())
 
-      for accession, species_dirs in assemblies.iteritems():
+      for accession, species_dirs in assemblies.items():
         fout.write('%s\t%s\t%s\n' % (domain.capitalize(), accession, ','.join(species_dirs)))
 
     fout.close()

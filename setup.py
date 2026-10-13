@@ -7,7 +7,7 @@ from distutils.core import setup
 def version():
     setup_dir = os.path.dirname(os.path.realpath(__file__))
     with open(os.path.join(setup_dir, 'src/gtdb', 'VERSION')) as fh:
-        return re.search(r'software_version=(.+)\n', fh.read()).group(1)
+        return re.search(r'^version=(.+)$', fh.read(), re.MULTILINE).group(1)
 
 
 def long_description():

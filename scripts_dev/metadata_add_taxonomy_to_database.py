@@ -62,7 +62,7 @@ class AddTaxonomy(object):
             
     for i, rank in enumerate(Taxonomy.rank_labels):
         temp_file = tempfile.NamedTemporaryFile(delete=False)
-        for gid, taxa in gtdb_taxonomy.iteritems():
+        for gid, taxa in gtdb_taxonomy.items():
             if rank == 'domain':
                 rank_str = taxa[i]
                 temp_file.write('%s\t%s\n' % (gid, rank_str))
@@ -96,7 +96,7 @@ class AddTaxonomy(object):
     # add each taxonomic rank to database
     for i, rank in enumerate(Taxonomy.rank_labels):
       temp_file = tempfile.NamedTemporaryFile(delete=False)
-      for genome_id, taxa in taxonomy.iteritems():
+      for genome_id, taxa in taxonomy.items():
         if genome_list_file and genome_id not in genome_list:
           continue
 
