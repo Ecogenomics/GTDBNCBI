@@ -1829,9 +1829,14 @@ class GenomeDatabase(object):
         :param outfile: Output file.
         '''
         try:
+            # the report reads aligned_markers with several queries so start
+            # a new read-only transaction that sees a single snapshot of the
+            # database; nothing has been written so the current transaction
+            # can be safely rolled back
+            self.conn.rollback()
             cur = self.conn.cursor()
+            cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY;")
 
-            # ensure all genomes have been assigned to a representatives
             grm = GenomeRepresentativeManager(
                 cur, self.currentUser, 1, self.db_release)
             grm.domainAssignmentReport(outfile)
