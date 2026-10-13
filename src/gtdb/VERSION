@@ -1,7 +1,10 @@
-version=2.7.0
+version=2.7.1
 
 GTDB software versions
 ----------------------
+v2.7.1 (Oct 14, 2026):
+- power domain_report is substantially faster: marker counts for all genomes are obtained with a single aggregate query instead of 3 queries per genome, and results are streamed with a server-side cursor
+- domain assignment of individual genomes (e.g., when assigning genomes to representatives) uses 1 query instead of 3
 v2.7.0 (Oct 14, 2026):
 - output files are gzip compressed if --output ends with .gz (genomes ssu_export, lsu_export, representative_export; metadata export, export_lpsn; taxonomy gtdb_export, ncbi_export, gtdb_silva_export, silva_gtdb_export; power weighted_tree_exceptions, genome_paths, domain_report)
 v2.6.1 (Oct 14, 2026):
