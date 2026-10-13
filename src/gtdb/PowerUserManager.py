@@ -21,6 +21,7 @@ import logging
 import gtdb.DefaultValues as DefaultValues
 import gtdb.Config as Config
 from gtdb.Exceptions import GenomeDatabaseError
+from gtdb.Tools import openOutputFile
 from gtdb.AlignedMarkerManager import AlignedMarkerManager
 from gtdb.MarkerSetManager import MarkerSetManager
 
@@ -106,7 +107,7 @@ class PowerUserManager(object):
                     dict_except_order[gid] = {'quality': float(qual), 'id': gid, 'full_info': [
                         name, compl, conta, ncbitax, size, qual, orga, 'unknown order']}
 
-            fh = open(path, "w")
+            fh = openOutputFile(path)
             fh.write(
                 "Name,CheckM_Completeness,CheckM_Contamination,NCBI_Taxonomy,Genome_size,Quality_Threshold,Organism_name,Filter_passed\n")
             for _k, item in dict_except_order.items():

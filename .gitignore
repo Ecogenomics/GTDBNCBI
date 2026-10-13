@@ -54,3 +54,6 @@ coverage.xml
 
 # IDE
 .idea/
+
+# Local session state (see CLAUDE.md)
+CURRENT_TASK.md

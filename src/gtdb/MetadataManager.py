@@ -31,6 +31,7 @@ from biolib.external.execute import check_dependencies
 import gtdb.Config as Config
 import gtdb.ConfigMetadata as ConfigMetadata
 from gtdb.Exceptions import GenomeDatabaseError
+from gtdb.Tools import openOutputFile
 
 
 class MetadataManager(object):
@@ -93,7 +94,7 @@ class MetadataManager(object):
             elif outformat == 'tab':
                 outputquery = "copy ({0}) to stdout with DELIMITER '\t' NULL AS 'none' csv header;".format(
                     query)
-            with open(path, 'w') as f:
+            with openOutputFile(path) as f:
                 self.cur.copy_expert(outputquery, f)
             print("Export Successful")
         except GenomeDatabaseError as e:
@@ -119,7 +120,7 @@ class MetadataManager(object):
             elif outformat == 'tab':
                 outputquery = "copy ({0}) to stdout with DELIMITER '\t' NULL AS 'none' csv header;".format(
                     query)
-            with open(path, 'w') as f:
+            with openOutputFile(path) as f:
                 self.cur.copy_expert(outputquery, f)
             print("Export Successful")
         except GenomeDatabaseError as e:
@@ -136,7 +137,7 @@ class MetadataManager(object):
         try:
             query_tmp = "SELECT id_at_source,external_id_prefix,fasta_file_location FROM genomes,genome_sources WHERE genomes.genome_source_id=genome_sources.id;"
             self.cur.execute(query_tmp)
-            with open(path, "w") as f:
+            with openOutputFile(path) as f:
                 for (id, prefix, file_location) in self.cur:
                     dir_prefix = None
                     if prefix == 'U':
@@ -173,7 +174,7 @@ class MetadataManager(object):
                 self.cur.execute(
                     "SELECT accession, gtdb_taxonomy FROM metadata_view")
 
-            fout = open(output_file, 'w')
+            fout = openOutputFile(output_file)
             for genome_id, taxonomy in self.cur.fetchall():
                 if taxonomy:
                     fout.write('%s\t%s\n' % (genome_id, taxonomy))
@@ -263,7 +264,7 @@ class MetadataManager(object):
             return out
 
         def _create_output_file(a_to_b, output_path):
-            with open(output_path, 'w') as f:
+            with openOutputFile(output_path) as f:
                 f.write('%s\t%s\t%s\t%s\t%s\n' % ('tax_rank', 'tax_from', 'num_genomes', 'num_ranks', 'tax_to'))
                 for rank in ['domain', 'phylum', 'class', 'order', 'family', 'genus', 'species']:
                     a_tax_dict = a_to_b[rank]
