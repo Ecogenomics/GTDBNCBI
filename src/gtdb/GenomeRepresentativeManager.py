@@ -16,7 +16,6 @@
 ###############################################################################
 
 import os
-import sys
 import logging
 import itertools
 import tempfile
@@ -24,6 +23,7 @@ import operator
 import shutil
 
 from biolib.common import make_sure_path_exists
+from tqdm import tqdm
 
 from gtdb.Tools import fastaPathGenerator, openOutputFile
 
@@ -415,71 +415,84 @@ class GenomeRepresentativeManager(object):
 
         return len_ar53_marker, len_ar122_marker, len_bac120_marker
 
-    def domainAssignmentReport(self, outfile):
+    def domainAssignmentReport(self, outfile, batch_size=10000):
         """Reports results of automated domain assignment."""
 
         len_ar53_marker, len_ar122_marker, len_bac120_marker = self.numMarkerGenes()
 
-        # count canonical marker genes identified in each genome with a single
-        # query as issuing separate queries for each genome is prohibitively slow
-        query = ("SELECT gs.external_id_prefix || '_' || g.id_at_source, " +
-                 "COALESCE(mc.num_ar53, 0), COALESCE(mc.num_ar122, 0), COALESCE(mc.num_bac120, 0), " +
-                 "mt.ncbi_taxonomy, gtv.gtdb_taxonomy " +
-                 "FROM metadata_taxonomy mt " +
-                 "JOIN genomes g ON g.id = mt.id " +
-                 "JOIN genome_sources gs ON gs.id = g.genome_source_id " +
-                 "LEFT JOIN gtdb_taxonomy_view gtv ON gtv.id = mt.id " +
-                 "LEFT JOIN (SELECT am.genome_id, " +
-                 "count(CASE WHEN msc.set_id = %(ar53)s THEN 1 END) AS num_ar53, " +
-                 "count(CASE WHEN msc.set_id = %(ar122)s THEN 1 END) AS num_ar122, " +
-                 "count(CASE WHEN msc.set_id = %(bac120)s THEN 1 END) AS num_bac120 " +
-                 "FROM aligned_markers am " +
-                 "JOIN marker_set_contents msc ON msc.marker_id = am.marker_id " +
-                 "WHERE msc.set_id IN (%(ar53)s, %(ar122)s, %(bac120)s) " +
-                 "AND am.evalue <> '' " +
-                 "GROUP BY am.genome_id) mc ON mc.genome_id = mt.id;")
+        self.cur.execute("SELECT count(*) FROM metadata_taxonomy mt JOIN genomes g ON g.id = mt.id;")
+        num_genomes = self.cur.fetchone()[0]
 
-        # use a server-side cursor so results are streamed rather than
-        # all being loaded into memory
-        report_cur = self.cur.connection.cursor(name='domain_assignment_report')
-        report_cur.execute(query, self._markerSetIds())
+        # get external IDs and taxonomy of genomes ordered by database ID; a
+        # server-side cursor is used so results are streamed in batches
+        # rather than all being loaded into memory
+        genome_query = ("SELECT mt.id, gs.external_id_prefix || '_' || g.id_at_source, " +
+                        "mt.ncbi_taxonomy, gtv.gtdb_taxonomy " +
+                        "FROM metadata_taxonomy mt " +
+                        "JOIN genomes g ON g.id = mt.id " +
+                        "JOIN genome_sources gs ON gs.id = g.genome_source_id " +
+                        "LEFT JOIN gtdb_taxonomy_view gtv ON gtv.id = mt.id " +
+                        "ORDER BY mt.id;")
+        genome_cur = self.cur.connection.cursor(name='domain_assignment_report')
+        genome_cur.itersize = batch_size
+        genome_cur.execute(genome_query)
 
-        # process each genome
+        # count canonical marker genes identified in each genome within a range
+        # of database IDs; querying in batches allows progress to be reported
+        # and uses the (genome_id, marker_id) primary key of aligned_markers
+        count_query = ("SELECT am.genome_id, " +
+                       "count(CASE WHEN msc.set_id = %(ar53)s THEN 1 END), " +
+                       "count(CASE WHEN msc.set_id = %(ar122)s THEN 1 END), " +
+                       "count(CASE WHEN msc.set_id = %(bac120)s THEN 1 END) " +
+                       "FROM aligned_markers am " +
+                       "JOIN marker_set_contents msc ON msc.marker_id = am.marker_id " +
+                       "WHERE am.genome_id BETWEEN %(first_id)s AND %(last_id)s " +
+                       "AND msc.set_id IN (%(ar53)s, %(ar122)s, %(bac120)s) " +
+                       "AND am.evalue <> '' " +
+                       "GROUP BY am.genome_id;")
+        count_params = self._markerSetIds()
+
+        # process genomes in batches
         fout = openOutputFile(outfile)
         fout.write(
             'Genome Id\tPredicted domain\tAr53 Markers (%)\tAr122 Markers (%)\tBac120 Markers (%)\tNCBI taxonomy\tGTDB taxonomy\n')
 
-        for idx, (external_genome_id,
-                  num_aligned_ar53,
-                  num_aligned_ar122,
-                  num_aligned_bac120,
-                  ncbi_taxonomy,
-                  gtdb_taxonomy) in enumerate(report_cur):
-            domain, ar53_aa_perc, ar120_aa_perc, bac120_aa_per = self._domainFromMarkerCounts(
-                num_aligned_ar53,
-                num_aligned_ar122,
-                num_aligned_bac120,
-                len_ar53_marker,
-                len_ar122_marker,
-                len_bac120_marker)
+        with tqdm(total=num_genomes, unit=' genomes', unit_scale=True) as p_bar:
+            while True:
+                genome_batch = genome_cur.fetchmany(batch_size)
+                if not genome_batch:
+                    break
 
-            fout.write('%s\t%s\t%.2f\t%.2f\t%.2f\t%s\t%s\n' % (
-                external_genome_id,
-                domain,
-                ar53_aa_perc,
-                ar120_aa_perc,
-                bac120_aa_per,
-                ncbi_taxonomy,
-                gtdb_taxonomy))
+                count_params['first_id'] = genome_batch[0][0]
+                count_params['last_id'] = genome_batch[-1][0]
+                self.cur.execute(count_query, count_params)
+                marker_counts = {genome_id: counts for genome_id, *counts in self.cur}
 
-            if idx % 1000 == 0:
-                status = '- processing {:,} genomes'.format(idx)
-                sys.stdout.write('{}\r'.format(status))
-                sys.stdout.flush()
+                for genome_id, external_genome_id, ncbi_taxonomy, gtdb_taxonomy in genome_batch:
+                    num_aligned_ar53, num_aligned_ar122, num_aligned_bac120 = marker_counts.get(
+                        genome_id, (0, 0, 0))
 
-        report_cur.close()
+                    domain, ar53_aa_perc, ar120_aa_perc, bac120_aa_per = self._domainFromMarkerCounts(
+                        num_aligned_ar53,
+                        num_aligned_ar122,
+                        num_aligned_bac120,
+                        len_ar53_marker,
+                        len_ar122_marker,
+                        len_bac120_marker)
+
+                    fout.write('%s\t%s\t%.2f\t%.2f\t%.2f\t%s\t%s\n' % (
+                        external_genome_id,
+                        domain,
+                        ar53_aa_perc,
+                        ar120_aa_perc,
+                        bac120_aa_per,
+                        ncbi_taxonomy,
+                        gtdb_taxonomy))
+
+                p_bar.update(len(genome_batch))
+
+        genome_cur.close()
         fout.close()
-        sys.stdout.write('\n')
 
     def _calculate_fastani_distance(self, user_genome, genome_reps):
         """ Calculate the FastANI distance between all user genomes and the reference to classify them at the species level

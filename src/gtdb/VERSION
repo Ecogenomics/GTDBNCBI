@@ -4,6 +4,8 @@ GTDB software versions
 ----------------------
 v2.7.2 (Oct 14, 2026):
 - log 'Done.' when a command finishes
+- power domain_report shows a progress bar (tqdm); marker genes are counted in batches of genomes using the aligned_markers primary key
+- added tqdm as a dependency
 v2.7.1 (Oct 14, 2026):
 - power domain_report is substantially faster: marker counts for all genomes are obtained with a single aggregate query instead of 3 queries per genome, and results are streamed with a server-side cursor
 - domain assignment of individual genomes (e.g., when assigning genomes to representatives) uses 1 query instead of 3

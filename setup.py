@@ -58,6 +58,7 @@ setup(
         'requests',
         'unidecode',
         'matplotlib',
-        'python-dateutil'
+        'python-dateutil',
+        'tqdm'
     ]
 )
