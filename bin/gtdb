@@ -819,7 +819,7 @@ if __name__ == '__main__':
     required_genome_ssu_export = parser_genome_ssu_export.add_argument_group(
         'required arguments')
     required_genome_ssu_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                            help='Name of output file.')
+                                            help='Name of output file (gzip compressed if it ends with .gz).')
 
     optional_genome_ssu_export = parser_genome_ssu_export.add_argument_group(
         'optional arguments')
@@ -837,7 +837,7 @@ if __name__ == '__main__':
     required_genome_lsu_export = parser_genome_lsu_export.add_argument_group(
         'required arguments')
     required_genome_lsu_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                            help='Name of output file.')
+                                            help='Name of output file (gzip compressed if it ends with .gz).')
 
     optional_genome_lsu_export = parser_genome_lsu_export.add_argument_group(
         'optional arguments')
@@ -854,7 +854,7 @@ if __name__ == '__main__':
     required_genome_rep_export = parser_genome_rep_export.add_argument_group(
         'required arguments')
     required_genome_rep_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                            help='Name of output file.')
+                                            help='Name of output file (gzip compressed if it ends with .gz).')
 
     optional_genome_rep_export = parser_genome_rep_export.add_argument_group(
         'optional arguments')
@@ -1145,7 +1145,7 @@ if __name__ == '__main__':
     required_metadata_export = parser_metadata_export.add_argument_group(
         'required arguments')
     required_metadata_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                          help='Name of output file.')
+                                          help='Name of output file (gzip compressed if it ends with .gz).')
 
     optional_metadata_export = parser_metadata_export.add_argument_group(
         'optional arguments')
@@ -1164,7 +1164,7 @@ if __name__ == '__main__':
     required_lpsn_metadata_export = parser_lpsn_metadata_export.add_argument_group(
         'required arguments')
     required_lpsn_metadata_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                          help='Name of output file.')
+                                          help='Name of output file (gzip compressed if it ends with .gz).')
 
     optional_lpsn_metadata_export = parser_lpsn_metadata_export.add_argument_group(
         'optional arguments')
@@ -1240,7 +1240,7 @@ if __name__ == '__main__':
     required_taxonomy_gtdb_export = taxonomy_gtdb_export.add_argument_group(
         'required arguments')
     required_taxonomy_gtdb_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                               help='Name of output file.')
+                                               help='Name of output file (gzip compressed if it ends with .gz).')
 
     optional_taxonomy_gtdb_export = taxonomy_gtdb_export.add_argument_group(
         'optional arguments')
@@ -1257,7 +1257,7 @@ if __name__ == '__main__':
     required_taxonomy_ncbi_export = taxonomy_ncbi_export.add_argument_group(
         'required arguments')
     required_taxonomy_ncbi_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                               help='Name of output file.')
+                                               help='Name of output file (gzip compressed if it ends with .gz).')
 
     optional_taxonomy_ncbi_export = taxonomy_ncbi_export.add_argument_group(
         'optional arguments')
@@ -1274,7 +1274,7 @@ if __name__ == '__main__':
 
     required_taxonomy_gtdb_silva_export = taxonomy_gtdb_silva_export.add_argument_group('required arguments')
     required_taxonomy_gtdb_silva_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                                        help='Name of the output file.')
+                                                        help='Name of output file (gzip compressed if it ends with .gz).')
 
     optional_taxonomy_gtdb_silva_export = taxonomy_gtdb_silva_export.add_argument_group('optional arguments')
     optional_taxonomy_gtdb_silva_export.add_argument('-h', '--help', action="help",
@@ -1290,7 +1290,7 @@ if __name__ == '__main__':
 
     required_taxonomy_silva_gtdb_export = taxonomy_silva_gtdb_export.add_argument_group('required arguments')
     required_taxonomy_silva_gtdb_export.add_argument('--output', dest='outfile', default=None, required=True,
-                                                        help='Name of the output file.')
+                                                        help='Name of output file (gzip compressed if it ends with .gz).')
 
     optional_taxonomy_silva_gtdb_export = taxonomy_silva_gtdb_export.add_argument_group('optional arguments')
     optional_taxonomy_silva_gtdb_export.add_argument('-h', '--help', action="help",
@@ -1450,7 +1450,7 @@ if __name__ == '__main__':
     required_power_tree_exceptions = parser_power_tree_exception.add_argument_group(
         'required arguments')
     required_power_tree_exceptions.add_argument('--output', dest='outfile', default=None, required=True,
-                                                help='Name of output file.')
+                                                help='Name of output file (gzip compressed if it ends with .gz).')
 
     optional_power_view = parser_power_tree_exception.add_argument_group(
         'optional arguments')
@@ -1492,7 +1492,7 @@ if __name__ == '__main__':
     required_power_tree_genome_path = parser_power_genome_path.add_argument_group(
         'required arguments')
     required_power_tree_genome_path.add_argument('--output', dest='outfile', default=None, required=True,
-                                                 help='Name of output file.')
+                                                 help='Name of output file (gzip compressed if it ends with .gz).')
 
     optional_power_genome_path_export = parser_power_genome_path.add_argument_group(
         'optional arguments')
@@ -1538,7 +1538,7 @@ if __name__ == '__main__':
     required_domain_report = parser_domain_report.add_argument_group(
         'required arguments')
     required_domain_report.add_argument('--output', dest='outfile', default=None, required=True,
-                                        help='Name of output file.')
+                                        help='Name of output file (gzip compressed if it ends with .gz).')
 
     optional_domain_report = parser_domain_report.add_argument_group(
         'optional arguments')

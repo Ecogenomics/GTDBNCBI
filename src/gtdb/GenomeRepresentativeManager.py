@@ -25,7 +25,7 @@ import shutil
 
 from biolib.common import make_sure_path_exists
 
-from gtdb.Tools import fastaPathGenerator
+from gtdb.Tools import fastaPathGenerator, openOutputFile
 
 import gtdb.DefaultValues as DefaultValues
 import gtdb.Config as Config
@@ -410,7 +410,7 @@ class GenomeRepresentativeManager(object):
             genome_ids)
 
         # process each genome
-        fout = open(outfile, 'w')
+        fout = openOutputFile(outfile)
         fout.write(
             'Genome Id\tPredicted domain\tAr53 Markers (%)\tAr122 Markers (%)\tBac120 Markers (%)\tNCBI taxonomy\tGTDB taxonomy\n')
 

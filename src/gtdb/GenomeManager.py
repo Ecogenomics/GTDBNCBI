@@ -31,7 +31,7 @@ from gtdb.MetadataManager import MetadataManager
 from gtdb.Prodigal import Prodigal
 from gtdb.TigrfamSearch import TigrfamSearch
 from gtdb.PfamSearch import PfamSearch
-from gtdb.Tools import splitchunks, confirm
+from gtdb.Tools import splitchunks, confirm, openOutputFile
 
 from biolib.checksum import sha256
 from biolib.common import make_sure_path_exists
@@ -1195,7 +1195,7 @@ class GenomeManager(object):
                              "LEFT JOIN metadata_rrna_sequences ms USING (id) " +
                              "WHERE ms.ssu_sequence is not NULL")
 
-            fout = open(output_file, 'w')
+            fout = openOutputFile(output_file)
             for genome, taxonomy, query, gene_len, contig_len, sequence in self.cur.fetchall():
                 fout.write('>{0}~{1} {2} {3} {4}\n'.format(genome, query, taxonomy, gene_len, contig_len))
                 fout.write('{0}\n'.format(sequence))
@@ -1217,7 +1217,7 @@ class GenomeManager(object):
                              "LEFT JOIN metadata_rrna_sequences ms USING (id) " +
                              "WHERE ms.lsu_23s_sequence is not NULL")
 
-            fout = open(output_file, 'w')
+            fout = openOutputFile(output_file)
             for genome, taxonomy, query, gene_len, contig_len, sequence in self.cur.fetchall():
                 fout.write('>{0}~{1} {2} {3} {4}\n'.format(genome, query, taxonomy, gene_len, contig_len))
                 fout.write('{0}\n'.format(sequence))
@@ -1235,7 +1235,7 @@ class GenomeManager(object):
         try:
             self.cur.execute("SELECT accession,gtdb_clustered_genomes from metadata_view WHERE gtdb_representative is TRUE")
 
-            fout = open(output_file, 'w')
+            fout = openOutputFile(output_file)
             fout.write('representative\tclustered_genomes\n')
             for genome, gtdb_clustered_genomes in self.cur.fetchall():
                 fout.write('{0}\t{1}\n'.format(genome, gtdb_clustered_genomes))

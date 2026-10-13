@@ -1,4 +1,5 @@
 # import prodigal
+import gzip
 import math
 import time
 import random
@@ -51,6 +52,13 @@ def fastaPathGenerator(path=None, prefix=None):
         return os.path.join(genomeRSQDir, path)
     else:
         print("prefix {0} is not existing".format(prefix))
+
+
+def openOutputFile(path):
+    """Open text file for writing, gzip compressing it if path ends with .gz."""
+    if path.endswith('.gz'):
+        return gzip.open(path, 'wt')
+    return open(path, 'w')
 
 
 def confirm(msg):

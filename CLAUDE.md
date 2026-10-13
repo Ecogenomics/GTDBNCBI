@@ -6,6 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Internal (non-public) software for the Genome Taxonomy Database: a PostgreSQL-backed store of NCBI and user genomes, their metadata, marker-gene alignments and taxonomy, plus tooling to build multiple sequence alignments / trees from marker sets. The code was recently migrated from Python 2 to Python 3 (see `Release.txt`), and that migration is still in progress in the working tree.
 
+## CURRENT_TASK.md
+
+Keep `CURRENT_TASK.md` in the repo root up to date with what we are working on right now, so work can resume if the server crashes or the connection drops mid-session. Read it at the start of every session. Update it whenever the task, plan or state changes, such as after each meaningful step, commit, push or PR, not just at the end. Record:
+
+- the goal
+- the branch and any open PR
+- what is done
+- what is in progress, including uncommitted changes
+- the next steps
+- any open questions or decisions waiting on the user
+
+When a task is finished, say so in the file. The file is gitignored, and this repo is public, so never commit it.
+
 ## Setup and commands
 
 - `src/gtdb/Config.py` is gitignored and must exist; create it from `src/gtdb/ConfigTemplate.py`. It holds DB credentials, genome root directories, `DB_SERVERS` (database name → host) and `LATEST_DB`. Never commit it.
@@ -31,6 +44,7 @@ Internal (non-public) software for the Genome Taxonomy Database: a PostgreSQL-ba
 - **Auth:** login uses the Linux username (`pwd`) matched against the `users` table. `-r` logs in as root (the user must have root rights), and `-u USER` impersonates a user (this needs root).
 - **Release locking:** `-db` picks any database in `Config.DB_SERVERS`. Anything other than `Config.LATEST_DB` sets `GenomeDatabase.dbLock`, and while it is set, add and delete operations refuse to run. `Config.DB_UPDATE = True` also blocks add and delete during maintenance.
 - **Schema:** `setup/gtdb_create.sql` (tables, plus the stored functions the managers call). `setup/new_postgres_db.sql` bootstraps a fresh database.
+- **Output files:** commands that write a single `--output` file open it with `Tools.openOutputFile()`, which gzip-compresses it when the path ends in `.gz`. New commands should do the same, and their help text should mention it.
 - **Constants:** thresholds, reference DB paths and per-genome file suffixes (e.g. `_protein.faa.gz`, `_tigrfam_lite_tophit.tsv.gz`) live in `DefaultValues.py` / `ConfigMetadata.py`. Genome files on disk are gzipped.
 - **Genome IDs:** external IDs are prefixed `GB_`/`RS_` (GenBank/RefSeq NCBI genomes) or `U_` (user genomes). `TreeManager.canonical_gid` handles this canonicalisation.
 
