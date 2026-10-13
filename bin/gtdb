@@ -24,7 +24,6 @@ import os
 import sys
 
 from biolib.common import make_sure_path_exists
-from biolib.external.execute import check_dependencies
 from biolib.misc.custom_help_formatter import CustomHelpFormatter
 
 from gtdb import Config
@@ -1665,3 +1664,5 @@ if __name__ == '__main__':
         DumpDBErrors(db)
 
     db.conn.ClosePostgresConnection()
+    
+    logging.getLogger().info('Done.')
