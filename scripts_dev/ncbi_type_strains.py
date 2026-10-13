@@ -124,7 +124,7 @@ class TypeStrains(object):
 
     # identify type strains
     type_strain_tax_ids = set()
-    for tax_id, node_record in node_records.iteritems():
+    for tax_id, node_record in node_records.items():
       parent_node_record = node_records[node_record.parent_tax_id]
 
       if parent_node_record.rank == 'species':

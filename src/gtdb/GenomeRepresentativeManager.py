@@ -470,7 +470,7 @@ class GenomeRepresentativeManager(object):
             raw_results = self.cur.fetchall()
             genome_dir_user = {a: fastaPathGenerator(
                 b, c) for a, b, c in raw_results}
-            for _k, v in genome_dir_user.iteritems():
+            for _k, v in genome_dir_user.items():
                 query_list_file.write('{}\n'.format(v))
             query_list_file.close()
 
@@ -486,7 +486,7 @@ class GenomeRepresentativeManager(object):
                 b, c) for a, b, c in raw_results}
             ref_list_file = open(os.path.join(
                 self.tmp_output_dir, 'ref_list.txt'), 'w')
-            for _k, v in genome_dirs.iteritems():
+            for _k, v in genome_dirs.items():
                 ref_list_file.write('{}\n'.format(v))
             ref_list_file.close()
 
@@ -516,7 +516,7 @@ class GenomeRepresentativeManager(object):
             if len(dict_parser_distance) == 0:
                 return None
             sorted_dict = sorted(dict_parser_distance.get(
-                user_genome).iteritems(), key=lambda _x, y: y['ani'], reverse=True)
+                user_genome).items(), key=lambda _x, y: y['ani'], reverse=True)
             fastani_matching_reference = sorted_dict[0][0]
             shutil.rmtree(self.tmp_output_dir)
             return fastani_matching_reference
@@ -550,7 +550,7 @@ class GenomeRepresentativeManager(object):
                 info = line.strip().split()
                 path_genome = info[1]
                 ref_genome = None
-                for k, v in genome_dirs.iteritems():
+                for k, v in genome_dirs.items():
                     if v == path_genome:
                         ref_genome = k
                         break
@@ -676,7 +676,7 @@ class GenomeRepresentativeManager(object):
                     assigned_representative = self._calculate_fastani_distance(
                         genome_id, sorted_reps)
                 except Exception as error:
-                    raise GenomeDatabaseError(error.message)
+                    raise GenomeDatabaseError(str(error))
                 if assigned_representative:
                     assigned_to_rep_count += 1
                     query = ("UPDATE metadata_taxonomy " +

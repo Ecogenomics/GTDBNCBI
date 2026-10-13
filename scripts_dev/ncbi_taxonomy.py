@@ -315,13 +315,13 @@ class TaxonomyNCBI(object):
 
             # fill in missing ranks where possible
             if canonical_taxonomy:
-                for i in xrange(0, max(canonical_taxonomy.keys())):
+                for i in range(0, max(canonical_taxonomy.keys())):
                     if i in canonical_taxonomy and (i + 1) not in canonical_taxonomy:
                         canonical_taxonomy[i +
                                            1] = Taxonomy.rank_prefixes[i + 1]
 
             cur_taxonomy = []
-            for i in xrange(0, len(Taxonomy.rank_prefixes)):
+            for i in range(0, len(Taxonomy.rank_prefixes)):
                 if i in canonical_taxonomy:
                     cur_taxonomy.append(canonical_taxonomy[i])
                 else:
@@ -379,7 +379,7 @@ class TaxonomyNCBI(object):
         fout = open(taxonomy_file, 'w')
 
         print 'Number of assemblies: %d' % len(assembly_to_tax_id)
-        for assembly_accession, tax_id in assembly_to_tax_id.iteritems():
+        for assembly_accession, tax_id in assembly_to_tax_id.items():
             # traverse taxonomy tree to the root which is 'cellular organism' for genomes,
             # 'other sequences' for plasmids, and 'unclassified sequences' for metagenomic libraries
             taxonomy = []

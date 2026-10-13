@@ -67,7 +67,7 @@ class Script():
             self.db.Login(None, False)
         except GenomeDatabaseError as e:
             self.db.conn.ClosePostgresConnection()
-            ErrorReport(e.message + " The following error(s) were reported:\n")
+            ErrorReport(str(e) + " The following error(s) were reported:\n")
             DumpDBErrors(self.db)
             sys.exit(-1)
             

@@ -62,7 +62,7 @@ class AddDomain(object):
 
     # add predicted domains to gtdb_domain field
     temp_file = tempfile.NamedTemporaryFile(delete=False)
-    for genome_id, domain in domains.iteritems():
+    for genome_id, domain in domains.items():
         temp_file.write('%s\t%s\n' % (genome_id, domain))
     temp_file.close()
     

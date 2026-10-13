@@ -307,7 +307,7 @@ class UpdateGenbankFolder(object):
             ftp_folder = False
             # check if genomic.fna.gz and protein.faa.gz are similar between
             # previous gtdb and ftp
-            for key, value in ftpdict_fasta.iteritems():
+            for key, value in ftpdict_fasta.items():
                 if value != gtdbdict_fasta.get(key):
                     ftp_folder = True
 
@@ -331,21 +331,21 @@ class UpdateGenbankFolder(object):
                 # We check if all other file of this folder are the same.
                 checksum_changed = False
 
-                for key, value in ftpdict_faa.iteritems():
+                for key, value in ftpdict_faa.items():
                     if value != gtdbdict_faa.get(key):
                         checksum_changed = True
                         shutil.copy2(
                             os.path.join(tmp_target, key), os.path.join(target_dir, key))
                         status.append("new_protein")
 
-                for key, value in ftpdict.iteritems():
+                for key, value in ftpdict.items():
                     if value != gtdbdict.get(key):
                         checksum_changed = True
                         shutil.copy2(
                             os.path.join(tmp_target, key), os.path.join(target_dir, key))
                         status.append("new_metadata")
 
-                for key, value in ftpdict_extra_fasta.iteritems():
+                for key, value in ftpdict_extra_fasta.items():
                     if value != gtdbdict_extra_fasta.get(key):
                         checksum_changed = True
                         shutil.copy2(

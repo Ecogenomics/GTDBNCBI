@@ -54,21 +54,21 @@ class Script():
                             level=logging.DEBUG)
         self.logger = logging
         
-    def setup_db(self, threads):
+    def setup_db(self, gtdb_version, threads):
         """Setup database."""
         
         self.logger.info('Make sure you are running against the correct GTDB database!')
         
         # initialise the backend
-        self.db = GenomeDatabase.GenomeDatabase(threads, False)
-        self.db.conn.MakePostgresConnection()
+        self.db = GenomeDatabase.GenomeDatabase(threads, False, gtdb_version)
+        self.db.conn.MakePostgresConnection(gtdb_version)
 
         # login
         try:
             self.db.Login(None, False)
         except GenomeDatabaseError as e:
             self.db.conn.ClosePostgresConnection()
-            ErrorReport(e.message + " The following error(s) were reported:\n")
+            ErrorReport(str(e) + " The following error(s) were reported:\n")
             DumpDBErrors(self.db)
             sys.exit(-1)
             
@@ -81,16 +81,17 @@ class Script():
         cur.execute(q)
         
         for id, gtdb_domain, ncbi_taxonomy in cur:
-            print id, gtdb_domain, ncbi_taxonomy
+            print(id, gtdb_domain, ncbi_taxonomy)
             
         self.db.conn.commit()
         cur.close()
  
 if __name__ == '__main__':
-    print __prog_name__ + ' v' + __version__ + ': ' + __prog_desc__
-    print '  by ' + __author__ + ' (' + __email__ + ')' + '\n'
+    print(__prog_name__ + ' v' + __version__ + ': ' + __prog_desc__)
+    print('  by ' + __author__ + ' (' + __email__ + ')' + '\n')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('gtdb_version', help='GTDB database version (i.e., gtdb_releaseX)')
     parser.add_argument('argument', help="help message")
     parser.add_argument('-t', '--threads', help='number of CPUs to use', type=int, default=1)
 
@@ -100,11 +101,11 @@ if __name__ == '__main__':
         p = Script()
         
         # setup database
-        p._setup_db(args.threads)
+        p.setup_db(args.gtdb_version, args.threads)
     
         p.run(args.argument, args.threads)
     except SystemExit:
-        print "\nControlled exit resulting from an unrecoverable error or warning."
+        print("\nControlled exit resulting from an unrecoverable error or warning.")
     except:
-        print "\nUnexpected error:", sys.exc_info()[0]
+        print("\nUnexpected error:", sys.exc_info()[0])
         raise

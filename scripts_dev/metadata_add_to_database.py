@@ -68,7 +68,7 @@ class AddMetadata(object):
             self.db.Login(None, False)
         except GenomeDatabaseError as e:
             self.db.conn.ClosePostgresConnection()
-            ErrorReport(e.message + " The following error(s) were reported:\n")
+            ErrorReport(str(e) + " The following error(s) were reported:\n")
             DumpDBErrors(self.db)
             sys.exit(-1)
 
@@ -159,7 +159,7 @@ class AddMetadata(object):
             table = metadata_table[field]
 
             records_to_update = 0
-            for orig_genome_id, value in metadata[field].iteritems():
+            for orig_genome_id, value in metadata[field].items():
 
                 try:
                     if float(value) and data_type in ['INT', 'INTEGER']:

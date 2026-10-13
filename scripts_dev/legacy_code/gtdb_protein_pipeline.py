@@ -205,7 +205,7 @@ class Pipeline(object):
 
         fout = open(tigrfam_tophit_file, 'w')
         fout.write('Gene Id\tTop hits (Family id,e-value,bitscore)\n')
-        for gene_id, stats in tophits.iteritems():
+        for gene_id, stats in tophits.items():
             hit_str = ','.join(map(str, stats))
             fout.write('%s\t%s\n' % (gene_id, hit_str))
         fout.close()
@@ -271,9 +271,9 @@ class Pipeline(object):
 
         fout = open(pfam_tophit_file, 'w')
         fout.write('Gene Id\tTop hits (Family id,e-value,bitscore)\n')
-        for gene_id, hits in tophits.iteritems():
+        for gene_id, hits in tophits.items():
             hit_str = []
-            for hmm_id, stats in hits.iteritems():
+            for hmm_id, stats in hits.items():
                 hit_str.append(hmm_id + ',' + ','.join(map(str, stats)))
             fout.write('%s\t%s\n' % (gene_id, ';'.join(hit_str)))
         fout.close()

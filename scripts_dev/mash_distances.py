@@ -66,7 +66,7 @@ class Mash(object):
         print 'Creating file pointing to each genome file.'
         genome_list_file = os.path.join(output_dir, 'genome_files.lst')
         fout = open(genome_list_file, 'w')
-        for i, (genome_id, genome_file) in enumerate(genome_files.iteritems()):
+        for i, (genome_id, genome_file) in enumerate(genome_files.items()):
             fout.write(genome_file + '\n')
         fout.close()
             

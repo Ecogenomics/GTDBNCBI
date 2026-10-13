@@ -124,8 +124,7 @@ class TreeManager(object):
             self.logger.warning('Identified {0} guaranteed genomes absent from specified input genomes (Those genomes will not appear in the final tree).'.format(
                 len(extra_guaranteed_ids)))
             guaranteed_ids = [x for x in guaranteed_ids if x in genome_ids]
-        self.logger.info(
-            'Identified %d genomes to be excluded from filtering.' % len(guaranteed_ids))
+        self.logger.info(f'Identified {len(guaranteed_ids):,} genomes to be excluded from filtering.')
 
         # for all markers, get the expected marker size
         self.cur.execute("SELECT markers.id, markers.name, description, id_in_database, size, external_id_prefix " +
@@ -184,7 +183,7 @@ class TreeManager(object):
 
         # sanity check representatives are not of poor quality
         final_filtered_genomes = set()
-        for genome_id, quality in filtered_genomes.iteritems():
+        for genome_id, quality in filtered_genomes.items():
             if genome_id not in guaranteed_ids:
                 if genome_id in rep_ids:
                     self.logger.warning('Retaining representative genome %s despite poor estimated quality (comp=%.1f%%, cont=%.1f%%).' % (
@@ -275,11 +274,10 @@ class TreeManager(object):
         fout_filtered.close()
 
         self.logger.info(
-            'Filtered %d genomes with insufficient amino acids in the MSA.' % len(filter_on_aa))
+            'Filtered {:,} genomes with insufficient amino acids in the MSA.'.format(len(filter_on_aa)))
 
         genomes_to_retain.difference_update(filter_on_aa)
-        self.logger.info('Producing tree data for %d genomes.' %
-                         len(genomes_to_retain))
+        self.logger.info('Producing tree data for {:,} genomes.'.format(len(genomes_to_retain)))
 
         good_genomes_file = os.path.join(
             directory, prefix + '_good_genomes.tsv')
@@ -387,7 +385,7 @@ class TreeManager(object):
 
         # output the marker info and multiple hit info
         multi_hits_fh = open(
-            os.path.join(directory, prefix + "_multi_hits.tsv"), 'wb')
+            os.path.join(directory, prefix + "_multi_hits.tsv"), 'wt')
         multi_hits_header = ["Genome_ID"]
         for marker_id in chosen_markers_order:
             external_id = chosen_markers[marker_id][
@@ -418,7 +416,7 @@ class TreeManager(object):
 
         # run through each of the genomes and concatenate markers
         self.logger.info(
-            'Concatenated marker genes for %d genomes.' % len(genomes_to_retain))
+            'Concatenated marker genes for {:,} genomes.'.format(len(genomes_to_retain)))
 
         individual_marker_fasta = dict()
         single_copy = defaultdict(int)
@@ -514,7 +512,6 @@ class TreeManager(object):
             self.logger.info(
                 'Trimming columns with insufficient taxa or poor consensus.')
             mask, pruned_seqs = self._trim_seqs(cols_per_gene,
-                                                min_perc_aa / 100.0,
                                                 min_consensus / 100.0,
                                                 max_consensus / 100.0,
                                                 min_perc_taxa / 100.0,
@@ -534,8 +531,8 @@ class TreeManager(object):
         # write out MSA
         fasta_concat_filename = os.path.join(
             directory, prefix + "_concatenated.faa")
-        fasta_concat_fh = open(fasta_concat_filename, 'wb')
-        for genome_id, aligned_seq in trimmed_seqs.iteritems():
+        fasta_concat_fh = open(fasta_concat_filename, 'wt')
+        for genome_id, aligned_seq in trimmed_seqs.items():
             fasta_outstr = ">%s\n%s\n" % (genome_id, aligned_seq)
             fasta_concat_fh.write(fasta_outstr)
         fasta_concat_fh.close()
@@ -559,10 +556,10 @@ class TreeManager(object):
 
         # write out ARB metadata and ARB import filter
         self.logger.info(
-            'Writing ARB metadata for %d genomes.' % len(genomes_to_retain))
+            'Writing ARB metadata for {:,} genomes.'.format(len(genomes_to_retain)))
         arb_metadata_file = os.path.join(
             directory, prefix + "_arb_metadata.txt")
-        arb_metadata_fh = open(arb_metadata_file, 'wb')
+        arb_metadata_fh = open(arb_metadata_file, 'wt')
 
         col_headers.append('gtdb_cluster_ncbi_species')
 
@@ -617,7 +614,7 @@ class TreeManager(object):
 
         # write out marker gene summary info
         marker_info_fh = open(
-            os.path.join(directory, prefix + "_markers_info.tsv"), 'wb')
+            os.path.join(directory, prefix + "_markers_info.tsv"), 'wt')
         marker_info_fh.write(
             'Marker Id\tName\tDescription\tLength (bp)\tSingle copy (%)\tUbiquity (%)\n')
 
@@ -644,14 +641,14 @@ class TreeManager(object):
             self.logger.info('Writing individual alignments.')
             for marker_id in chosen_markers.keys():
                 fasta_individual_fh = open(os.path.join(
-                    directory, prefix + "_" + chosen_markers[marker_id]['id_in_database'] + ".faa"), 'wb')
+                    directory, prefix + "_" + chosen_markers[marker_id]['id_in_database'] + ".faa"), 'wt')
                 fasta_individual_fh.write(
                     ''.join(individual_marker_fasta[marker_id]))
                 fasta_individual_fh.close()
 
         return fasta_concat_filename
 
-    def _trim_seqs(self, cols_per_gene, min_perc_aa,
+    def _trim_seqs(self, cols_per_gene,
                    min_consensus,
                    max_consensus,
                    min_per_taxa,
@@ -683,7 +680,8 @@ class TreeManager(object):
     def subsample_msa(self, seqs, markers, cols_per_gene, max_gaps, min_identical_aa, max_identical_aa, rnd_seed):
         """Sample columns from each marker in multiple sequence alignment."""
 
-        alignment_length = len(seqs.values()[0])
+        first_seq = next(iter(seqs.items()))[1]
+        alignment_length = len(first_seq)
         sampled_cols = []
         start = 0
         lack_sufficient_cols = 0
@@ -698,7 +696,7 @@ class TreeManager(object):
         for marker_id, marker_name, marker_len in markers:
             end = start + marker_len
 
-            valid_cols, count_wrong_pa, count_wrong_cons = self.identify_valid_columns(marker_name, count_wrong_pa,
+            valid_cols, count_wrong_pa, count_wrong_cons = self.identify_valid_columns(count_wrong_pa,
                                                                                        count_wrong_cons,
                                                                                        start,
                                                                                        end,
@@ -730,40 +728,46 @@ class TreeManager(object):
                 offset_valid_cols, min(cols_per_gene, len(offset_valid_cols))))
 
             start = end
-        mask = [1 if i in sampled_cols else 0 for i in range(alignment_length)]
 
-        self.logger.info('Identified %d of %d marker genes with <%d columns for sampling:' % (
+        self.logger.info('Identified {:,} of {:,} marker genes with <{:,} columns for sampling:'.format(
             lack_sufficient_cols,
             len(markers),
             cols_per_gene))
         self.logger.info('%s' % ', '.join(lack_cols_marker_ids))
-        self.logger.info('Marker genes had %.1f+/-%.1f%% of columns available for selection on average.' % (
+        self.logger.info('Marker genes had {:.1f}+/-{:.1f}% of columns available for selection on average.'.format(
             np_mean(avg_perc_cols),
             np_std(avg_perc_cols)))
 
         # trim columns
+        mask = [1 if i in sampled_cols else 0 for i in range(alignment_length)]
         output_seqs = {}
-        for seq_id, seq in seqs.iteritems():
+        for seq_id, seq in seqs.items():
             masked_seq = ''.join([seq[i]
-                                  for i in xrange(0, len(mask)) if mask[i]])
+                                  for i in range(0, len(mask)) if mask[i]])
             output_seqs[seq_id] = masked_seq
 
-        self.logger.info('Trimmed alignment from %d to %d AA (%d by minimum taxa percent, %d by consensus, maximum of %d columns per genes).' % (len(seqs[seqs.keys()[0]]),
-                                                                                                                                                 len(output_seqs[output_seqs.keys()[0]]), count_wrong_pa, count_wrong_cons, cols_per_gene))
-        self.logger.info('Final MSA contains %d columns.' % len(sampled_cols))
+        first_trimmed_seq = next(iter(output_seqs.items()))[1]
+        trimmed_length = len(first_trimmed_seq)
+        self.logger.info('Trimmed alignment from {:,} to {:,} AA ({:,} by minimum taxa percent, {:,} by consensus, maximum of {:,} columns per genes).'.format(
+            alignment_length,
+            trimmed_length, 
+            count_wrong_pa, 
+            count_wrong_cons, 
+            cols_per_gene))
+        self.logger.info(f'Final MSA contains {len(sampled_cols):,} columns.')
 
         return mask, output_seqs
 
-    def identify_valid_columns(self, name, count_wrong_pa, count_wrong_cons, start, end, seqs, max_gaps, min_identical_aa, max_identical_aa):
+    def identify_valid_columns(self, count_wrong_pa, count_wrong_cons, start, end, seqs, max_gaps, min_identical_aa, max_identical_aa):
         """Identify columns meeting gap and amino acid ubiquity criteria."""
 
         GAP_CHARS = set(['-', '.', '_', '*'])
         STANDARD_AMINO_ACIDS = set('ACDEFGHIKLMNPQRSTVWY')
 
         gap_count = defaultdict(int)
-        amino_acids = [list() for _ in xrange(end - start)]
+        amino_acids = [list() for _ in range(end - start)]
         num_genomes = 0
-        for seq_id, seq in seqs.iteritems():
+        for seq_id, seq in seqs.items():
             num_genomes += 1
             gene_seq = seq[start:end].upper()
             for i, ch in enumerate(gene_seq):
@@ -773,7 +777,7 @@ class TreeManager(object):
                     amino_acids[i].append(ch)
 
         valid_cols = set()
-        for i in xrange(0, end - start):
+        for i in range(0, end - start):
             if float(gap_count.get(i, 0)) / num_genomes <= max_gaps:
                 c = Counter(amino_acids[i])
 
@@ -844,7 +848,7 @@ class TreeManager(object):
         """
 
         taxa_to_retain_at_rank = [[]
-                                  for _ in xrange(len(Taxonomy.rank_prefixes))]
+                                  for _ in range(len(Taxonomy.rank_prefixes))]
         for taxon in taxa_to_retain:
             taxon_prefix = taxon[0:3]
             if taxon_prefix not in Taxonomy.rank_prefixes:

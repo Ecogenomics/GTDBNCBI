@@ -87,7 +87,7 @@ class IQTREE(object):
         worker_queue = mp.Queue()
         writer_queue = mp.Queue()
 
-        for idx in xrange(0, num_reps):
+        for idx in range(0, num_reps):
             worker_queue.put(idx)
 
         for _ in range(self.num_trees_in_parallel):

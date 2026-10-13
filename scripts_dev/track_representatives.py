@@ -160,7 +160,7 @@ class TrackReps(object):
                 
             # check for database or version change
             cur_version = int(genome_id.split('.')[-1])
-            for new_version in xrange(1, cur_version+5):
+            for new_version in range(1, cur_version+5):
                 new_version_id = genome_id.replace('.%d' % cur_version, '.%d' % new_version)
                 if new_version_id in remaining_prev_reps:
                     new_genome_version.add(new_version_id)

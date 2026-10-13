@@ -205,7 +205,7 @@ class UpdateSRA(object):
                                 line_tab = line.strip().split()
                                 self.temp_cur.execute("UPDATE metadata_genes set {0}=%s WHERE id =%s ".format(line_tab[0]), (line_tab[1], new_gid))
 
-                        for key, value in checkm_dict_original.get(genome_prefix).iteritems():
+                        for key, value in checkm_dict_original.get(genome_prefix).items():
                             self.temp_cur.execute("UPDATE metadata_genes set {0}=%s WHERE id =%s ".format(key), (value, new_gid))
 
                         shutil.copytree(os.path.join(temp_user_dir), os.path.join("/srv/db/gtdb/genomes/user", os.getlogin(), "U_" + str(last_id)))

@@ -50,13 +50,13 @@ class Constraintgenerator(object):
             with open(constraintfile) as f:
                 for line in f:
                     constraintlist.append(line.strip())
-                for k,v in outdict.iteritems():
+                for k,v in outdict.items():
                     if k in constraintlist:
                         outdict.get(k).append('1')
                     else:
                         outdict.get(k).append('0')
         outf = open(outfile,'w')
-        for outk,outval in outdict.iteritems():
+        for outk,outval in outdict.items():
             outf.write(">{0}\n{1}\n".format(outk,''.join(outval)))
         outf.close()
 

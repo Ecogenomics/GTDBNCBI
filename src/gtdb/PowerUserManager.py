@@ -109,7 +109,7 @@ class PowerUserManager(object):
             fh = open(path, "w")
             fh.write(
                 "Name,CheckM_Completeness,CheckM_Contamination,NCBI_Taxonomy,Genome_size,Quality_Threshold,Organism_name,Filter_passed\n")
-            for _k, item in dict_except_order.iteritems():
+            for _k, item in dict_except_order.items():
                 fh.write(",".join(str(v)
                                   for v in item.get('full_info')) + "\n")
             fh.close()

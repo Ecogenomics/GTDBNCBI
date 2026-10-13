@@ -208,7 +208,7 @@ class GenomeManager(object):
         :param study_id = study id
         '''
         metadata_mngr = MetadataManager(self.cur, self.currentUser)
-        for db_genome_id, values in genomic_files.iteritems():
+        for db_genome_id, values in genomic_files.items():
 
             self.cur.execute("UPDATE genomes SET study_id = %s WHERE id = %s",
                              (study_id, db_genome_id))
@@ -372,7 +372,7 @@ class GenomeManager(object):
         genome_id_map = self.genomeIdsToExternalGenomeIds(db_genome_ids)
 
         protein_files = {}
-        for db_genome_id, genome_dir in genome_dirs.iteritems():
+        for db_genome_id, genome_dir in genome_dirs.items():
             gene_dir = os.path.join(genome_dirs[db_genome_id],
                                             Config.NCBI_ANNOTATION_DIR)
             raw_genome_id = genome_id_map[db_genome_id].replace('GB_', '').replace('RS_', '')
@@ -795,7 +795,7 @@ class GenomeManager(object):
         study_fh.close()
 
         # check that all fields were populated
-        for field, value in study_info.iteritems():
+        for field, value in study_info.items():
             if value is None:
                 raise GenomeDatabaseError(
                     "Study file %s is missing the field: %s" % (study_file, field))
@@ -868,7 +868,7 @@ class GenomeManager(object):
                 self.cur.execute("UPDATE metadata_taxonomy set gtdb_genome_representative = NULL where  " +
                                  "gtdb_genome_representative in %s", (tuple(genomes_owners.keys()),))
 
-                for genome, info in genomes_owners.iteritems():
+                for genome, info in genomes_owners.items():
                     if str(username) != str(info.get("owner")):
                         logging.info('''Genome {0} has been deleted by {1} for the following reason '{2}'
                                           WARNING: {1} is not the owner of this {0} (real owner {3} )

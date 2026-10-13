@@ -97,7 +97,7 @@ class RunCheckm(object):
 
     # apply CheckM to each set of 1000 genomes
     print 'Running CheckM on chunks:'
-    for i in xrange(0, num_chunks):
+    for i in range(0, num_chunks):
       print '  Processing chunk %d of %d.' % (i+1, num_chunks)
 
       bin_dir = os.path.join(tmp_dir, 'chunk%d' % i)
@@ -114,7 +114,7 @@ class RunCheckm(object):
     print 'Creating single file with CheckM results.'
     checkm_output = os.path.join(output_dir, 'checkm.profiles.domain_ms.tsv')
     fout = open(checkm_output, 'w')
-    for i in xrange(0, num_chunks):
+    for i in range(0, num_chunks):
       profile_file = os.path.join(output_dir, 'chunk%d' % i, 'qa.chunk%d.tsv' % i)
       with open(profile_file) as f:
         if i != 0:

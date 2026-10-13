@@ -140,7 +140,7 @@ class Prodigal(object):
         worker_queue = mp.Queue()
         writer_queue = mp.Queue()
 
-        for db_genome_id, file_paths in genomic_files.iteritems():
+        for db_genome_id, file_paths in genomic_files.items():
             worker_queue.put([db_genome_id, file_paths])
 
         for _ in range(self.threads):

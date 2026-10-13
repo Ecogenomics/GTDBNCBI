@@ -62,7 +62,7 @@ class ProkkaParser(object):
 
         file_writer = open(outfile, 'w')
         file_writer.write("genome_id\tncbi_called_genes\n")
-        for k, v in prokka_ids.iteritems():
+        for k, v in prokka_ids.items():
             if k in genome_ids:
                 file_writer.write("{0}\t{1}\n".format(k, 'TRUE'))
         file_writer.close()

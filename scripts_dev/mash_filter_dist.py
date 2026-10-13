@@ -60,7 +60,7 @@ class MashFilter(object):
 			dists[gA + '\t' + gB].append(d)
 	
 	fout = open(output_mash_dist_file, 'w')
-	for k, d in dists.iteritems():
+	for k, d in dists.items():
 		fout.write('%s\t%.3f\n' % (k, np_mean(d)))
 	fout.close()
 	

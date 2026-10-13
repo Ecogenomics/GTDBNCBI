@@ -199,7 +199,7 @@ class DereplicateTaxa(object):
         """Get genomes in each taxa at each rank."""
         
         genomes_in_rank = defaultdict(lambda: defaultdict(set))
-        for genome_id, m in metadata.iteritems():
+        for genome_id, m in metadata.items():
             taxa = m.gtdb_taxonomy
             
             if domain == 'archaea' and taxa[0] != 'd__Archaea':
@@ -332,7 +332,7 @@ class DereplicateTaxa(object):
         
         no_taxon_rep = set()
         ssu_status = {}
-        for taxon, genome_ids in genomes_in_rank[rank_to_sample].iteritems():
+        for taxon, genome_ids in genomes_in_rank[rank_to_sample].items():
             # filter genomes based on general selection criteria
             quality_genome_ids, filtered_desc = self._filter_genomes(genome_ids,
                                                         metadata,
@@ -488,7 +488,7 @@ class DereplicateTaxa(object):
 
         # create combined rps16 set
         count_rps16 = {}
-        for genome_id, m in metadata.iteritems():
+        for genome_id, m in metadata.items():
             gtdb_domain = m.gtdb_taxonomy[0]
             if gtdb_domain == 'd__Bacteria':
                 count_rps16[genome_id] = count_rps16_bac.get(genome_id, -1)
@@ -517,7 +517,7 @@ class DereplicateTaxa(object):
             
             # identify genera without any named species
             genera_without_named_species = 0
-            for genus, genome_ids in genomes_in_rank[5].iteritems():
+            for genus, genome_ids in genomes_in_rank[5].items():
                 had_named_species = False
                 for genome_id in genome_ids:
                     if metadata[genome_id].gtdb_taxonomy[6] != 's__':
@@ -533,7 +533,7 @@ class DereplicateTaxa(object):
             print 'For species dereplication, a genome will be selected from the genus.'
             
             # dereplicate from each taxon at each rank
-            for rank_to_sample in xrange(1, 7):
+            for rank_to_sample in range(1, 7):
                 self._sample_genomes(genomes_per_taxon,
                                         domain, 
                                         rank_to_sample, 
