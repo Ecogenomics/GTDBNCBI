@@ -1,7 +1,10 @@
-version=2.7.2
+version=2.7.3
 
 GTDB software versions
 ----------------------
+v2.7.3 (Oct 14, 2026):
+- power domain_report reads aligned_markers in physical order as ~1 GB block ranges (TID range scans; requires PostgreSQL >= 14) instead of per-genome index lookups, reducing run time from ~3.4 h to an estimated ~25 min on gtdb_r237_dev; progress is reported as data read
+- power domain_report runs in a REPEATABLE READ, READ ONLY transaction so all queries see the same snapshot
 v2.7.2 (Oct 14, 2026):
 - log 'Done.' when a command finishes
 - power domain_report shows a progress bar (tqdm); marker genes are counted in batches of genomes using the aligned_markers primary key

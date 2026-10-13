@@ -22,6 +22,8 @@ import tempfile
 import operator
 import shutil
 
+import numpy as np
+
 from biolib.common import make_sure_path_exists
 from tqdm import tqdm
 
@@ -415,17 +417,64 @@ class GenomeRepresentativeManager(object):
 
         return len_ar53_marker, len_ar122_marker, len_bac120_marker
 
-    def domainAssignmentReport(self, outfile, batch_size=10000):
-        """Reports results of automated domain assignment."""
+    def domainAssignmentReport(self, outfile, batch_bytes=1024**3):
+        """Reports results of automated domain assignment.
+
+        The aligned_markers table is read in physical order as a series of
+        block ranges since this is substantially faster than reading the
+        rows of each genome via an index. Marker gene counts are obtained
+        with several queries so this should be run in a REPEATABLE READ
+        transaction to ensure all queries see the same snapshot of the
+        database.
+        """
 
         len_ar53_marker, len_ar122_marker, len_bac120_marker = self.numMarkerGenes()
 
+        # count canonical marker genes identified in each genome by reading
+        # aligned_markers as a series of block ranges (TID range scans); counts
+        # for a genome may be split across block ranges so are summed
+        self.cur.execute("SELECT pg_relation_size('aligned_markers'), current_setting('block_size')::int;")
+        heap_bytes, block_size = self.cur.fetchone()
+        num_blocks = heap_bytes // block_size
+        batch_blocks = max(1, batch_bytes // block_size)
+
+        self.cur.execute("SELECT COALESCE(max(id), 0) FROM genomes;")
+        max_genome_id = self.cur.fetchone()[0]
+        marker_counts = np.zeros((max_genome_id + 1, 3), dtype=np.int64)
+
+        count_query = ("SELECT am.genome_id, " +
+                       "count(CASE WHEN msc.set_id = %(ar53)s THEN 1 END), " +
+                       "count(CASE WHEN msc.set_id = %(ar122)s THEN 1 END), " +
+                       "count(CASE WHEN msc.set_id = %(bac120)s THEN 1 END) " +
+                       "FROM aligned_markers am " +
+                       "JOIN marker_set_contents msc ON msc.marker_id = am.marker_id " +
+                       "WHERE am.ctid >= %(first_tid)s::tid AND am.ctid < %(last_tid)s::tid " +
+                       "AND msc.set_id IN (%(ar53)s, %(ar122)s, %(bac120)s) " +
+                       "AND am.evalue <> '' " +
+                       "GROUP BY am.genome_id;")
+        count_params = self._markerSetIds()
+
+        with tqdm(total=num_blocks * block_size,
+                  desc='Counting marker genes',
+                  unit='B', unit_scale=True, unit_divisor=1024) as p_bar:
+            for first_block in range(0, num_blocks, batch_blocks):
+                last_block = min(first_block + batch_blocks, num_blocks)
+                count_params['first_tid'] = '({},0)'.format(first_block)
+                count_params['last_tid'] = '({},0)'.format(last_block)
+                self.cur.execute(count_query, count_params)
+
+                rows = self.cur.fetchall()
+                if rows:
+                    rows = np.array(rows, dtype=np.int64)
+                    np.add.at(marker_counts, rows[:, 0], rows[:, 1:])
+
+                p_bar.update((last_block - first_block) * block_size)
+
+        # get external IDs and taxonomy of genomes; a server-side cursor is used
+        # so results are streamed rather than all being loaded into memory
         self.cur.execute("SELECT count(*) FROM metadata_taxonomy mt JOIN genomes g ON g.id = mt.id;")
         num_genomes = self.cur.fetchone()[0]
 
-        # get external IDs and taxonomy of genomes ordered by database ID; a
-        # server-side cursor is used so results are streamed in batches
-        # rather than all being loaded into memory
         genome_query = ("SELECT mt.id, gs.external_id_prefix || '_' || g.id_at_source, " +
                         "mt.ncbi_taxonomy, gtv.gtdb_taxonomy " +
                         "FROM metadata_taxonomy mt " +
@@ -434,62 +483,37 @@ class GenomeRepresentativeManager(object):
                         "LEFT JOIN gtdb_taxonomy_view gtv ON gtv.id = mt.id " +
                         "ORDER BY mt.id;")
         genome_cur = self.cur.connection.cursor(name='domain_assignment_report')
-        genome_cur.itersize = batch_size
+        genome_cur.itersize = 10000
         genome_cur.execute(genome_query)
 
-        # count canonical marker genes identified in each genome within a range
-        # of database IDs; querying in batches allows progress to be reported
-        # and uses the (genome_id, marker_id) primary key of aligned_markers
-        count_query = ("SELECT am.genome_id, " +
-                       "count(CASE WHEN msc.set_id = %(ar53)s THEN 1 END), " +
-                       "count(CASE WHEN msc.set_id = %(ar122)s THEN 1 END), " +
-                       "count(CASE WHEN msc.set_id = %(bac120)s THEN 1 END) " +
-                       "FROM aligned_markers am " +
-                       "JOIN marker_set_contents msc ON msc.marker_id = am.marker_id " +
-                       "WHERE am.genome_id BETWEEN %(first_id)s AND %(last_id)s " +
-                       "AND msc.set_id IN (%(ar53)s, %(ar122)s, %(bac120)s) " +
-                       "AND am.evalue <> '' " +
-                       "GROUP BY am.genome_id;")
-        count_params = self._markerSetIds()
-
-        # process genomes in batches
         fout = openOutputFile(outfile)
         fout.write(
             'Genome Id\tPredicted domain\tAr53 Markers (%)\tAr122 Markers (%)\tBac120 Markers (%)\tNCBI taxonomy\tGTDB taxonomy\n')
 
-        with tqdm(total=num_genomes, unit=' genomes', unit_scale=True) as p_bar:
-            while True:
-                genome_batch = genome_cur.fetchmany(batch_size)
-                if not genome_batch:
-                    break
+        for genome_id, external_genome_id, ncbi_taxonomy, gtdb_taxonomy in tqdm(genome_cur,
+                                                                               total=num_genomes,
+                                                                               desc='Writing report',
+                                                                               unit=' genomes',
+                                                                               unit_scale=True):
+            num_aligned_ar53, num_aligned_ar122, num_aligned_bac120 = (
+                int(count) for count in marker_counts[genome_id])
 
-                count_params['first_id'] = genome_batch[0][0]
-                count_params['last_id'] = genome_batch[-1][0]
-                self.cur.execute(count_query, count_params)
-                marker_counts = {genome_id: counts for genome_id, *counts in self.cur}
+            domain, ar53_aa_perc, ar120_aa_perc, bac120_aa_per = self._domainFromMarkerCounts(
+                num_aligned_ar53,
+                num_aligned_ar122,
+                num_aligned_bac120,
+                len_ar53_marker,
+                len_ar122_marker,
+                len_bac120_marker)
 
-                for genome_id, external_genome_id, ncbi_taxonomy, gtdb_taxonomy in genome_batch:
-                    num_aligned_ar53, num_aligned_ar122, num_aligned_bac120 = marker_counts.get(
-                        genome_id, (0, 0, 0))
-
-                    domain, ar53_aa_perc, ar120_aa_perc, bac120_aa_per = self._domainFromMarkerCounts(
-                        num_aligned_ar53,
-                        num_aligned_ar122,
-                        num_aligned_bac120,
-                        len_ar53_marker,
-                        len_ar122_marker,
-                        len_bac120_marker)
-
-                    fout.write('%s\t%s\t%.2f\t%.2f\t%.2f\t%s\t%s\n' % (
-                        external_genome_id,
-                        domain,
-                        ar53_aa_perc,
-                        ar120_aa_perc,
-                        bac120_aa_per,
-                        ncbi_taxonomy,
-                        gtdb_taxonomy))
-
-                p_bar.update(len(genome_batch))
+            fout.write('%s\t%s\t%.2f\t%.2f\t%.2f\t%s\t%s\n' % (
+                external_genome_id,
+                domain,
+                ar53_aa_perc,
+                ar120_aa_perc,
+                bac120_aa_per,
+                ncbi_taxonomy,
+                gtdb_taxonomy))
 
         genome_cur.close()
         fout.close()
